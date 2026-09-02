@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-serif), ui-serif, Georgia, serif;
+
+  /* A dark room, a warm light. The base is not black and not grey — it is the
+     blue-black of a cinema before the projector starts, and the text on it is
+     warm rather than white, because white on black is a terminal and this is
+     not one. */
+  --color-night: #0b0b10;
+  --color-screen: #14141b;
+  --color-ink: #f2ece2;
+  --color-ink-soft: #a49c90;
+  --color-ink-faint: #6e6961;
+  --color-rule: #262630;
+
+  /* The one accent: projector amber. It marks what the user made — their mixes,
+     and the arrow that says a mix came from genres. Genres themselves are
+     deliberately unlit: they are ingredients, and if everything glows nothing
+     does. */
+  --color-beam: #e3a54a;
+  --color-beam-dim: #6b4f24;
+
+  --color-scrim: rgba(6, 6, 10, 0.72);
+}
+
+html {
+  background-color: var(--color-night);
+  color-scheme: dark;
+}
+
+body {
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The board is a vertical flow of panels with connectors between them; nothing
+   should slide or fade while the browser settles on final font metrics. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
