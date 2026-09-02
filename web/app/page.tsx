@@ -1,3 +1,4 @@
+import { LegalLinks } from "@/components/legal";
 import { SiteHeader, SignIn, Account } from "@/components/site-header";
 import { TasteBoard } from "@/components/taste-board";
 import type { Taste } from "@/lib/taste/model";
@@ -96,8 +97,16 @@ function Landing() {
         </p>
       </section>
 
-      <footer className="mt-10 border-t border-rule pt-5 text-[12.5px] text-ink-faint">
-        Closed beta. Connect Tonight to your assistant over MCP.
+      {/*
+        Linked rather than merely present: Google's OAuth branding step asks for a
+        home page, a privacy policy and terms on the app's own domain, and a page
+        nothing points at is one nobody — reviewer or user — is expected to find.
+      */}
+      <footer className="mt-10 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t border-rule pt-5">
+        <p className="text-[12.5px] text-ink-faint">
+          Closed beta. Connect Tonight to your assistant over MCP.
+        </p>
+        <LegalLinks />
       </footer>
     </main>
   );
@@ -131,6 +140,10 @@ async function Yours({ visitor }: { visitor: SignedInVisitor }) {
       ) : (
         <TasteBoard taste={taste} />
       )}
+
+      <footer className="mt-14 border-t border-rule pt-5 sm:mt-20">
+        <LegalLinks />
+      </footer>
     </main>
   );
 }
