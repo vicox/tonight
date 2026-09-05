@@ -44,10 +44,12 @@ export type WorkedExample = {
    * that all read "but shorter" would say the opposite — that the name is a
    * template slot.
    *
-   * So each one is an observation about the films that evening actually returned,
-   * of the kind somebody makes without being asked. Not a dial turned up or down:
-   * "more intense" is a search refinement, "but let them end up together" is a
-   * person talking.
+   * So the six change six different things — the humour, the premise, the mood,
+   * the setting, the emotional register, whether anything supernatural is allowed
+   * — and between them they say the other half of what a Mix is. Not a fixed
+   * shelf but an idea you can lean on and then push against: `Quiet Dread`
+   * without ghosts is still recognisably `Quiet Dread`, which a genre label could
+   * not survive.
    */
   followUp: string;
 };
@@ -59,7 +61,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Bullet Train", "Game Night", "The Fall Guy"],
     genres: ["Action", "Comedy"],
     mix: "Popcorn Chaos",
-    followUp: "and nothing that makes me think",
+    followUp: "but with fewer explosions",
   },
   {
     mark: "🕵️",
@@ -67,7 +69,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Knives Out", "The Outfit", "Inside Man"],
     genres: ["Mystery", "Clever Thriller"],
     mix: "Everybody's Lying",
-    followUp: "where I might actually guess it",
+    followUp: "without the murder",
   },
   {
     mark: "🚀",
@@ -75,7 +77,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Arrival", "Ex Machina", "Moon"],
     genres: ["Sci-Fi", "Thriller"],
     mix: "Space Tension",
-    followUp: "but somewhere less lonely",
+    followUp: "but more optimistic",
   },
   {
     mark: "🏡",
@@ -83,7 +85,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Blow the Man Down", "Wind River", "Three Billboards Outside Ebbing, Missouri"],
     genres: ["Mystery", "Character Story"],
     mix: "Small Town Secrets",
-    followUp: "somewhere warmer this time",
+    followUp: "by the sea",
   },
   {
     mark: "🌧️",
@@ -91,7 +93,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Past Lives", "Her", "Lost in Translation"],
     genres: ["Drama", "Romance"],
     mix: "Beautiful Melancholy",
-    followUp: "but let them end up together",
+    followUp: "but a little more hopeful",
   },
   {
     mark: "🌲",
@@ -99,7 +101,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["The Witch", "It Follows", "The Others"],
     genres: ["Slow Burn", "Horror"],
     mix: "Quiet Dread",
-    followUp: "but one I can sleep after",
+    followUp: "without ghosts",
   },
 ];
 
