@@ -60,16 +60,25 @@ export function TasteEditor({ draft, available, onSave, onClose }: Props) {
     const element = dialog.current;
     if (!element || element.open) return;
 
-    // Where focus goes back to. The browser restores it on `close()`, and the
-    // saved reference is the belt to that pair of braces: React may unmount this
-    // before the close event has been dealt with, and a caller left with focus on
-    // `<body>` has lost their place in the list.
+    // Where focus goes back to when this closes without saving. The browser
+    // restores it on `close()`, and the saved reference is the belt to that pair
+    // of braces: React may unmount this before the close event has been dealt
+    // with, and a caller left with focus on `<body>` has lost their place.
     const opener = document.activeElement;
     element.showModal();
 
     return () => {
       element.close();
-      if (opener instanceof HTMLElement && document.contains(opener)) opener.focus();
+
+      // Not after a save. The control that opened this is disabled from the
+      // moment the write leaves until the re-render lands, and a rename replaces
+      // its row outright — so on that path the element here is either unfocusable
+      // or no longer in the document, and the caller restores focus by name once
+      // the write has settled. Trying anyway would do nothing except look like it
+      // had been handled.
+      if (!(opener instanceof HTMLElement)) return;
+      if (!document.contains(opener) || opener.matches(":disabled")) return;
+      opener.focus();
     };
   }, []);
 

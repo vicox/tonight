@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { TasteEditor, type Draft } from "./taste-editor";
-import type { Taste } from "@/lib/taste/model";
+import { normalise, type Taste } from "@/lib/taste/model";
 
 /**
  * The door for anybody who would rather do it by hand.
@@ -42,6 +42,21 @@ import type { Taste } from "@/lib/taste/model";
  * describing a model that is already one delete out of date — would be the one
  * left on screen. Serialising is the whole fix: there is no second response to
  * arrive late, because there is never a second request.
+ *
+ * ## Where focus goes when the editor closes
+ *
+ * Cancelling is the browser's business: `<dialog>` returns focus to whatever
+ * opened it. Saving is not, and for two reasons that both come from the section
+ * above. The control that opened the editor is disabled from the moment the
+ * request leaves until the re-render lands, and a disabled control cannot take
+ * focus; and a rename re-keys its row, so the button that was pressed is not
+ * merely disabled but gone, replaced by one belonging to the new name.
+ *
+ * So restoration waits here rather than happening as the editor unmounts, and it
+ * addresses the control by what it *is* — the add button for this kind, or the
+ * edit button for a named object — instead of by the element it *was*. When the
+ * write and its refresh are both done, the control under that name is focused,
+ * whether or not it is the same node.
  */
 export function TasteAdvanced({ taste }: { taste: Taste }) {
   const router = useRouter();
@@ -53,6 +68,53 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
   const { genres, mixes } = taste;
   const names = genres.map((genre) => genre.name);
   const busy = sending || refreshing;
+
+  /**
+   * Where focus goes when the write has settled, and a nudge to go and put it
+   * there.
+   *
+   * The key is a ref because nothing renders differently for holding it, and the
+   * counter is state because the effect below has to run again when a save
+   * completes — `busy` alone would be enough in practice and fragile in
+   * principle, since it only works while a write is slow enough to be observed
+   * as two renders.
+   */
+  const section = useRef<HTMLDetailsElement>(null);
+  const returnTo = useRef<string | null>(null);
+  const [saved, setSaved] = useState(0);
+
+  // Once the write and its refresh are both done, the control is enabled again
+  // and — after a rename — the one under the new name has been rendered. Both
+  // become true at the same moment, which is why this waits for `busy` rather
+  // than for the editor to unmount.
+  useEffect(() => {
+    if (busy) return;
+    const key = returnTo.current;
+    if (key === null) return;
+    returnTo.current = null;
+
+    // Found in the document rather than held as an element reference: after a
+    // rename the button that was pressed no longer exists, and the right place
+    // for focus is the one now standing where it stood. Compared rather than
+    // selected, because a key carries a name the user chose and building a
+    // selector out of one means reasoning about quotes and backslashes in it.
+    const add = `add:${key.split(":")[1] ?? ""}`;
+    let found: HTMLElement | undefined;
+    let fallback: HTMLElement | undefined;
+
+    for (const control of section.current?.querySelectorAll<HTMLElement>("[data-focus]") ?? []) {
+      if (control.dataset.focus === key) {
+        found = control;
+        break;
+      }
+      // The add button of the same kind, for when the named one is not there —
+      // the store settled on a name we did not predict. Somewhere in the right
+      // section beats the top of the document.
+      if (control.dataset.focus === add) fallback = control;
+    }
+
+    (found ?? fallback)?.focus();
+  }, [busy, saved]);
 
   /**
    * Sends one write, and asks the server for the model it produced.
@@ -135,7 +197,13 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
             name: undefined,
           });
 
-    if (!failure) setDraft(null);
+    if (!failure) {
+      // Cancelling does not come through here, so the dialog keeps its own
+      // restoration for that path and this only claims the one it cannot serve.
+      returnTo.current = focusKeyFor(next);
+      setSaved((count) => count + 1);
+      setDraft(null);
+    }
     return failure;
   }
 
@@ -146,7 +214,7 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
   }
 
   return (
-    <details className="group mt-4 rounded-2xl border border-rule bg-screen">
+    <details ref={section} className="group mt-4 rounded-2xl border border-rule bg-screen">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 px-6 py-4 text-[13px] text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam [&::-webkit-details-marker]:hidden">
         <span aria-hidden="true" className="text-[11px] transition-transform group-open:rotate-90">
           ▸
@@ -175,6 +243,7 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
           action={
             <AddButton
               label="Add genre"
+              focus="add:genre"
               disabled={busy}
               onClick={() => setDraft({ kind: "genre", name: "", instruction: "", genres: [] })}
             />
@@ -184,6 +253,7 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
             <Row
               key={genre.name}
               name={genre.name}
+              focus={`edit:genre:${genre.name}`}
               busy={busy}
               onEdit={() =>
                 setDraft({
@@ -205,6 +275,7 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
           action={
             <AddButton
               label="Add mix"
+              focus="add:mix"
               disabled={busy || genres.length === 0}
               onClick={() => setDraft({ kind: "mix", name: "", instruction: "", genres: [] })}
             />
@@ -214,6 +285,7 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
             <Row
               key={mix.name}
               name={mix.name}
+              focus={`edit:mix:${mix.name}`}
               busy={busy}
               onEdit={() =>
                 setDraft({
@@ -240,6 +312,22 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
       )}
     </details>
   );
+}
+
+/**
+ * Which control the editor was opened from, as a key rather than an element.
+ *
+ * A create returns to the add button it came from. An edit returns to the row's
+ * edit button — under the name the store will be holding once the write lands,
+ * which for a rename is the new one. `normalise` is the same whitespace collapse
+ * the store applies, used here to build a lookup key and not to decide whether
+ * two names are the same: that question is the database's, and a key that misses
+ * falls back rather than guessing.
+ */
+function focusKeyFor(draft: Draft): string {
+  return draft.original === undefined
+    ? `add:${draft.kind}`
+    : `edit:${draft.kind}:${normalise(draft.name)}`;
 }
 
 /**
@@ -278,11 +366,14 @@ function Section({
 function Row({
   name,
   busy,
+  focus,
   onEdit,
   onDelete,
 }: {
   name: string;
   busy: boolean;
+  /** So focus can find its way back here after a save, including after a rename. */
+  focus: string;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -290,7 +381,7 @@ function Row({
     <li className="flex items-center justify-between gap-4 py-2.5">
       <span className="min-w-0 truncate text-[13px] text-ink">{name}</span>
       <span className="flex shrink-0 gap-1">
-        <RowAction disabled={busy} onClick={onEdit}>
+        <RowAction focus={focus} disabled={busy} onClick={onEdit}>
           Edit
         </RowAction>
         <RowAction disabled={busy} onClick={onDelete}>
@@ -305,13 +396,17 @@ function RowAction({
   disabled,
   onClick,
   children,
+  focus,
 }: {
   disabled: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  /** Names this control so focus can be returned to it. */
+  focus?: string;
 }) {
   return (
     <button
+      data-focus={focus}
       type="button"
       onClick={onClick}
       disabled={disabled}
@@ -326,13 +421,17 @@ function AddButton({
   label,
   disabled = false,
   onClick,
+  focus,
 }: {
   label: string;
   disabled?: boolean;
   onClick: () => void;
+  /** Names this control so focus can be returned to it. */
+  focus?: string;
 }) {
   return (
     <button
+      data-focus={focus}
       type="button"
       onClick={onClick}
       disabled={disabled}
