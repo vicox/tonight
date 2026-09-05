@@ -1,7 +1,7 @@
 import { LegalLinks } from "@/components/legal";
 import { SetupSteps } from "@/components/setup-steps";
 import { SiteHeader, SignIn, Account, SetupLink } from "@/components/site-header";
-import { TasteBoard } from "@/components/taste-board";
+import { TasteView } from "@/components/taste-view";
 import { PROJECT_INSTRUCTIONS, PROJECT_INSTRUCTIONS_VERSION } from "@/lib/instructions";
 import { setupSteps } from "@/lib/setup-steps";
 import type { Taste } from "@/lib/taste/model";
@@ -217,7 +217,7 @@ async function Yours({ visitor }: { visitor: SignedInVisitor }) {
           </span>
         </p>
       ) : (
-        <TasteBoard taste={taste} />
+        <TasteView taste={taste} />
       )}
 
       <footer className="mt-14 border-t border-rule pt-5 sm:mt-20">
