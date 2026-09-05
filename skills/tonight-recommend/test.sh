@@ -219,10 +219,11 @@ check "a standing preference and a one-night mood are told apart" \
         'ask nothing unless')" "True"
 # The write-authorising section has to agree with the table: a request for
 # tonight is usable immediately and persists nothing by itself.
-check "a request for tonight leaves nothing behind on its own" \
+check "both routes may create, and a bare request for tonight may not" \
     "$(order_check 'said this is how they are, or said yes when you asked' \
         'Wanting something tonight is not' \
-        'leaves nothing behind')" "True"
+        'leaves nothing behind' \
+        'component they expressed or confirmed')" "True"
 check "a recommendation with no feedback persists nothing" \
     "$(order_check 'You recommended a film. They said nothing' '**nothing**')" "True"
 check "silence, recommendations and patterns are all ruled out as evidence" \

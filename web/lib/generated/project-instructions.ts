@@ -150,9 +150,9 @@ saying it, and on its own leaves nothing behind.
 - **Reuse before you create.** \`get_taste\` is your vocabulary. If \`Slow burn\` is there, do not
   add \`Slow-paced\`. A near-duplicate is worse than nothing: it splits one taste across two
   objects that will drift apart.
-- **Create a Genre for a component they expressed** that no existing Genre covers — something
-  reusable, that could turn up in a different mood on a different night. \`Clever thriller\`,
-  \`Light suspense\`, \`Practical effects\`.
+- **Create a Genre for a component they expressed or confirmed** that no existing Genre covers —
+  something reusable, that could turn up in a different mood on a different night.
+  \`Clever thriller\`, \`Light suspense\`, \`Practical effects\`.
 - **Create the Mix** over those Genres, with an instruction saying what the combination means
   tonight. Put every Mix through two questions, and it has to survive both:
   - The instruction test: *if I knew only its Genres and not its instruction, what would I get
@@ -261,8 +261,8 @@ Never say "I'll remember that" unless you wrote it to the model — and then say
 - **A write fails** — the recommendation still stands; say plainly what was not saved. Never
   claim something was stored when the tool refused.
 
-Tonight project instructions · version 72995749 · replace these when tonight.movie shows a different version.
+Tonight project instructions · version eac74b10 · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "72995749";
+export const PROJECT_INSTRUCTIONS_VERSION = "eac74b10";
