@@ -190,8 +190,24 @@ check "the write constraints that would otherwise fail a call are stated" \
 echo
 echo "--- persistence: expressed, never inferred ---"
 
-check "the rule is stated as expressed versus concluded" \
-    "$(order_check 'Persist what they said. Never persist what you concluded')" "True"
+check "the rule names both routes in, and rules inference out" \
+    "$(order_check 'durable taste they express or confirm' \
+        'Never persist what you conclude alone')" "True"
+# The second route into the model, and the reason it is not the first: a pattern
+# the agent noticed may be put to the user, and their yes is what makes the
+# meaning theirs. Pinned because the rule above it, read alone, forbids it.
+check "a noticed pattern may be asked about, and never assumed" \
+    "$(order_check 'A conclusion they have confirmed' \
+        'want me to remember the kind of thing' \
+        'A yes makes the meaning theirs' \
+        'a pattern is something to ask about, never something to assume')" "True"
+check "a confirmation grounds only the meaning that was made plain" \
+    "$(order_check 'only the meaning they could see themselves agreeing to' \
+        'is enough' \
+        'reaches further than that')" "True"
+check "the asking is about taste, not about permission to write" \
+    "$(order_check 'a question about their taste' \
+        'somebody who has just said plainly what they like has already answered it')" "True"
 check "it is explicitly not a save-confirmation dialog" \
     "$(order_check 'not the same as asking permission' \
         'would you like me to save this' \
@@ -199,7 +215,14 @@ check "it is explicitly not a save-confirmation dialog" \
 check "a standing preference and a one-night mood are told apart" \
     "$(order_check 'I love slow science fiction' 'A standing preference, stated plainly' \
         'Tonight I feel like slow science fiction' \
-        'nothing claiming this is how they always are')" "True"
+        'what they want now, not what they are like' \
+        'ask nothing unless')" "True"
+# The write-authorising section has to agree with the table: a request for
+# tonight is usable immediately and persists nothing by itself.
+check "a request for tonight leaves nothing behind on its own" \
+    "$(order_check 'said this is how they are, or said yes when you asked' \
+        'Wanting something tonight is not' \
+        'leaves nothing behind')" "True"
 check "a recommendation with no feedback persists nothing" \
     "$(order_check 'You recommended a film. They said nothing' '**nothing**')" "True"
 check "silence, recommendations and patterns are all ruled out as evidence" \

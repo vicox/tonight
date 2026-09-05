@@ -48,7 +48,7 @@ test("the frontmatter is dropped and nothing else is", () => {
   // Everything after it survives: the rules the skill exists for are still there.
   for (const rule of [
     "There is no setup",
-    "Persist what they said. Never persist what you concluded",
+    "Persist durable taste they express or confirm",
     "Asked about the model directly",
     "never look for films in Tonight",
   ]) {

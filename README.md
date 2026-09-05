@@ -86,8 +86,9 @@ the residue of real conversations rather than something anybody fills in first.
 The semantic behaviour lives here: the MCP server is persisted state and deterministic
 operations over it, nothing else. The skill is what knows that a Mix is the shape of a
 recommendation idea, that a good one is called `Popcorn Chaos` rather than `Action Comedy`, and
-— the rule the product rests on — that what may be written down is what the user said, never
-what the agent concluded from it.
+— the rule the product rests on — that what may be written down is durable taste the
+user stated, or a meaning they confirmed when the agent asked — never what the agent concluded
+on its own, and never a request for tonight, which says what they want now.
 
 ## The MCP tools
 

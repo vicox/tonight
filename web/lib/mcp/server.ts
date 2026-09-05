@@ -143,8 +143,11 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "Define a new genre. The name must be unique among this user's genres, ignoring case. " +
         "The instruction is required: a genre with no stated meaning is a movie-database tag " +
         "rather than somebody's taste, and Tonight will not invent one. Write it from what the " +
-        "user said. Write down what they told you, never what you concluded from it: the taste " +
-        "model is theirs, and this writes to it.",
+        "user stated as lasting taste, or from a meaning you put to them and they confirmed — " +
+        "never from what you concluded alone, films you chose and patterns you noticed " +
+        "included, and never from a request for tonight, which says what they want now rather " +
+        "than what they are like. A confirmation covers only the meaning they were shown, and " +
+        "settles that it is theirs rather than granting permission to write.",
       inputSchema: z.object({ name: genreName, instruction: genreInstruction }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
@@ -194,11 +197,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "must already exist; a mix cannot be built from another mix. Name it the way a shelf in " +
         "a good video shop is named, not the way a filter is: 'Space Tension' beats " +
         "'Sci-Fi Thriller', and the test is whether they would ask for it by name in a month. " +
-        "A mix is the shape of a recommendation idea, so the natural moment to write one is when " +
-        "you have just used that idea to choose films the user asked for — but only when the " +
-        "idea itself came from them. Having invented a combination, used it, and found films " +
-        "that fit it is not what makes it their taste. Write down what they told you, never " +
-        "what you concluded from it: the taste model is theirs, and this writes to it.",
+        "A mix is the shape of a recommendation idea, so the moment to write one is just after " +
+        "using that idea to choose films — but only when the user stated the idea as lasting " +
+        "taste, or confirmed a meaning you put to them. Wanting something tonight is not that, " +
+        "and having invented a combination, used it and found films that fit is not what makes " +
+        "it theirs. A confirmation covers only the meaning they were shown, and settles that " +
+        "it is theirs rather than granting permission to write.",
       inputSchema: z.object({ name: mixName, genres: mixGenres, instruction: mixInstruction }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
