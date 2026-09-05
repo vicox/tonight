@@ -43,16 +43,35 @@ export function TasteEditor({ draft, available, onSave, onClose }: Props) {
   const [genres, setGenres] = useState(draft.genres);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const panel = useRef<HTMLDivElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
 
+  /**
+   * Opened as a real modal, and closed again when this unmounts.
+   *
+   * `showModal` is what a hand-written dialog has to reimplement and usually
+   * only half does: it puts the dialog in the top layer, makes everything behind
+   * it inert so Tab cannot reach the page underneath, and hands focus back to
+   * whatever was focused before when it closes. The alternative here was a focus
+   * trap, an `inert` attribute on the rest of the page and a saved reference to
+   * the button that opened this — three things to keep correct, all of them
+   * already correct in the browser.
+   */
   useEffect(() => {
-    panel.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+    const element = dialog.current;
+    if (!element || element.open) return;
+
+    // Where focus goes back to. The browser restores it on `close()`, and the
+    // saved reference is the belt to that pair of braces: React may unmount this
+    // before the close event has been dealt with, and a caller left with focus on
+    // `<body>` has lost their place in the list.
+    const opener = document.activeElement;
+    element.showModal();
+
+    return () => {
+      element.close();
+      if (opener instanceof HTMLElement && document.contains(opener)) opener.focus();
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
 
   const editing = draft.original !== undefined;
   const title = `${editing ? "Edit" : "New"} ${draft.kind}`;
@@ -72,115 +91,123 @@ export function TasteEditor({ draft, available, onSave, onClose }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex cursor-pointer items-start justify-center overflow-y-auto bg-scrim px-5 py-[8vh]"
-      onClick={onClose}
+    <dialog
+      ref={dialog}
+      aria-label={title}
+      // Escape is the browser's, not ours: it fires `cancel`, and taking the
+      // default lets the element close itself while React still believes it is
+      // mounted. Refusing the default and going through `onClose` keeps the one
+      // path out of here that the Cancel button uses.
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!saving) onClose();
+      }}
+      // The backdrop is part of the dialog, so a press on it arrives here rather
+      // than on a scrim of our own. Anywhere inside the panel is not the backdrop.
+      onClick={(event) => {
+        if (event.target === dialog.current && !saving) onClose();
+      }}
+      className="m-0 max-h-none max-w-none bg-transparent p-0 backdrop:bg-scrim"
     >
-      <div
-        ref={panel}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-xl cursor-default rounded-2xl border border-rule bg-screen p-8 outline-none"
-      >
-        <h2 className="font-display text-[24px] leading-tight">{title}</h2>
+      <div className="flex min-h-dvh w-dvw items-start justify-center overflow-y-auto px-5 py-[8vh]">
+        <div className="w-full max-w-xl rounded-2xl border border-rule bg-screen p-8 text-ink">
+          <h2 className="font-display text-[24px] leading-tight">{title}</h2>
 
-        <form onSubmit={submit} className="mt-6">
-          <Field label="Name">
-            <input
-              autoFocus
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder={draft.kind === "genre" ? "Sci-Fi" : "Space Tension"}
-              className={INPUT}
-            />
-          </Field>
-
-          {draft.kind === "mix" && (
-            <Field label="Built from">
-              {available.length === 0 ? (
-                <p className="text-[13px] text-ink-faint">
-                  A mix combines genres, and there are none yet.
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {available.map((genre) => {
-                    const on = genres.includes(genre);
-                    return (
-                      <button
-                        key={genre}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() =>
-                          setGenres(
-                            on ? genres.filter((one) => one !== genre) : [...genres, genre],
-                          )
-                        }
-                        className={[
-                          "cursor-pointer rounded-md border px-2.5 py-1 text-[11px] tracking-[0.09em] uppercase",
-                          "transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam",
-                          on
-                            ? "border-beam-dim bg-beam-dim/25 text-ink"
-                            : "border-rule text-ink-faint hover:text-ink-soft",
-                        ].join(" ")}
-                      >
-                        {genre}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+          <form onSubmit={submit} className="mt-6">
+            <Field label="Name">
+              <input
+                autoFocus
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder={draft.kind === "genre" ? "Sci-Fi" : "Space Tension"}
+                className={INPUT}
+              />
             </Field>
-          )}
 
-          <Field
-            label="What it means to you"
-            hint={
-              draft.kind === "genre"
-                ? "Required. What this genre means to you — including what it rules out."
-                : "The genres are the ingredients. This is what the combination means."
-            }
-          >
-            <textarea
-              rows={5}
-              value={instruction}
-              onChange={(event) => setInstruction(event.target.value)}
-              placeholder={
+            {draft.kind === "mix" && (
+              <Field label="Built from">
+                {available.length === 0 ? (
+                  <p className="text-[13px] text-ink-faint">
+                    A mix combines genres, and there are none yet.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {available.map((genre) => {
+                      const on = genres.includes(genre);
+                      return (
+                        <button
+                          key={genre}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() =>
+                            setGenres(
+                              on ? genres.filter((one) => one !== genre) : [...genres, genre],
+                            )
+                          }
+                          className={[
+                            "cursor-pointer rounded-md border px-2.5 py-1 text-[11px] tracking-[0.09em] uppercase",
+                            "transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam",
+                            on
+                              ? "border-beam-dim bg-beam-dim/25 text-ink"
+                              : "border-rule text-ink-faint hover:text-ink-soft",
+                          ].join(" ")}
+                        >
+                          {genre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </Field>
+            )}
+
+            <Field
+              label="What it means to you"
+              hint={
                 draft.kind === "genre"
-                  ? "I like tension and suspense, but not brutality…"
-                  : "Tense science fiction where suspense is the point…"
+                  ? "Required. What this genre means to you — including what it rules out."
+                  : "The genres are the ingredients. This is what the combination means."
               }
-              className={`${INPUT} resize-y leading-relaxed`}
-            />
-          </Field>
-
-          {error && (
-            <p role="alert" className="mt-5 text-[13px] leading-snug text-beam">
-              {error}
-            </p>
-          )}
-
-          <div className="mt-7 flex gap-3">
-            <button
-              type="submit"
-              disabled={saving}
-              className="cursor-pointer rounded-md bg-ink px-4 py-2 text-[13px] font-medium text-night transition-opacity disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
             >
-              {saving ? "Saving…" : "Save"}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="cursor-pointer rounded-md border border-rule px-4 py-2 text-[13px] text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+              <textarea
+                rows={5}
+                value={instruction}
+                onChange={(event) => setInstruction(event.target.value)}
+                placeholder={
+                  draft.kind === "genre"
+                    ? "I like tension and suspense, but not brutality…"
+                    : "Tense science fiction where suspense is the point…"
+                }
+                className={`${INPUT} resize-y leading-relaxed`}
+              />
+            </Field>
+
+            {error && (
+              <p role="alert" className="mt-5 text-[13px] leading-snug text-beam">
+                {error}
+              </p>
+            )}
+
+            <div className="mt-7 flex gap-3">
+              <button
+                type="submit"
+                disabled={saving}
+                className="cursor-pointer rounded-md bg-ink px-4 py-2 text-[13px] font-medium text-night transition-opacity disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="cursor-pointer rounded-md border border-rule px-4 py-2 text-[13px] text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 

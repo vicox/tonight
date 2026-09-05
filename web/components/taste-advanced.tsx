@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import { TasteEditor, type Draft } from "./taste-editor";
-import type { Genre, Mix, Taste } from "@/lib/taste/model";
+import type { Taste } from "@/lib/taste/model";
 
 /**
  * The door for anybody who would rather do it by hand.
@@ -19,71 +19,101 @@ import type { Genre, Mix, Taste } from "@/lib/taste/model";
  *
  * The view above is server-rendered and cannot change anything; every create,
  * rename and delete goes through here, through the same endpoints the store
- * enforces its rules in. That leaves one problem, which `settled` solves: a
- * successful write here would otherwise leave the server's rendering of the same
- * model stale, still showing `Sci-Fi` after the rename went through. So a write
- * that lands asks the router to re-render the page. The two renderings can be
- * briefly out of step; they cannot disagree, because they read one store.
+ * enforces its rules in. A write that lands therefore leaves the server's
+ * rendering of the same model stale — still showing `Sci-Fi` after the rename
+ * went through — so it asks the router to re-render the page.
+ *
+ * ## One copy of the model, and it is the server's
+ *
+ * This section holds no snapshot of the taste model. It renders the `taste` prop
+ * and nothing else, so `router.refresh()` is not a second update to keep in step
+ * with a local one: it is the only update there is. Keeping a copy here would be
+ * the bug rather than the optimisation — mounted client state survives a refresh,
+ * so a model written from an MCP client would reach the quiet view above and
+ * never reach this list, and the two would disagree until the page was reloaded.
+ * The cost is that a change appears when the server answers rather than
+ * instantly, which for a rename nobody is watching is not a cost.
+ *
+ * ## One write at a time
+ *
+ * `busy` covers the whole of a write, from the request leaving to the re-render
+ * arriving, and every control that could start another is disabled for the
+ * duration. Two deletes in flight together would race, and the loser's answer —
+ * describing a model that is already one delete out of date — would be the one
+ * left on screen. Serialising is the whole fix: there is no second response to
+ * arrive late, because there is never a second request.
  */
 export function TasteAdvanced({ taste }: { taste: Taste }) {
   const router = useRouter();
-  const [genres, setGenres] = useState<Genre[]>(taste.genres);
-  const [mixes, setMixes] = useState<Mix[]>(taste.mixes);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
 
+  const { genres, mixes } = taste;
   const names = genres.map((genre) => genre.name);
+  const busy = sending || refreshing;
 
   /**
-   * Sends one write and replaces the whole model with what came back.
+   * Sends one write, and asks the server for the model it produced.
    *
-   * The response carries the model as the store now holds it, so a rename that
-   * rewrote three mixes shows all three moving without this having to work out
-   * which. It also means this can never drift from the database by applying an
-   * optimistic guess that the domain then refused.
+   * The response body carries the new model, and this deliberately ignores it in
+   * favour of re-rendering from the store. The two would nearly always agree —
+   * but "nearly always" is the failure: an MCP client committing between the two
+   * would leave this holding an older model than the page around it, with nothing
+   * to correct it.
+   *
+   * Refused while another write is in flight, so a caller cannot start a second.
    */
   async function write(path: string, method: string, body: unknown): Promise<string | null> {
-    let response: Response;
+    if (busy) return null;
+    setSending(true);
     try {
-      response = await fetch(path, {
-        method,
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body ?? {}),
-      });
-    } catch {
-      // The request may never have left, or may have been answered and lost. Both
-      // look like this from here, and only one of them changed nothing.
-      return "Could not reach Tonight. Reload to see where your taste model stands.";
+      let response: Response;
+      try {
+        response = await fetch(path, {
+          method,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body ?? {}),
+        });
+      } catch {
+        // The request may never have left, or may have been answered and lost.
+        // Both look like this from here, and only one of them changed nothing.
+        return "Could not reach Tonight. Reload to see where your taste model stands.";
+      }
+
+      const answer = (await response.json().catch(() => null)) as
+        | { taste?: Taste; message?: string }
+        | null;
+
+      if (!response.ok || !answer?.taste) {
+        // The server's own sentence when it gave one: those are decisions it
+        // reached before writing, and they are precise. The fallback is for a
+        // reply that carried no reason, which tells us nothing about whether the
+        // write landed.
+        return (
+          answer?.message ?? "Something went wrong. Reload to see where your taste model stands."
+        );
+      }
+
+      settled();
+      return null;
+    } finally {
+      setSending(false);
     }
-
-    const answer = (await response.json().catch(() => null)) as
-      | { taste?: Taste; message?: string }
-      | null;
-
-    if (!response.ok || !answer?.taste) {
-      // The server's own sentence when it gave one: those are decisions it reached
-      // before writing, and they are precise. The fallback is for a reply that
-      // carried no reason, which tells us nothing about whether the write landed.
-      return (
-        answer?.message ?? "Something went wrong. Reload to see where your taste model stands."
-      );
-    }
-
-    setGenres(answer.taste.genres);
-    setMixes(answer.taste.mixes);
-    settled();
-    return null;
   }
 
   /**
-   * Something changed, so the read view above has to be told.
+   * Something changed, so the page has to be re-rendered from the store.
    *
    * `router.refresh()` re-runs the Server Component and merges the result without
    * discarding client state, which is what keeps this section open and scrolled
-   * where it was while the quiet list above catches up.
+   * where it was. Wrapped in a transition so `refreshing` stays true until the new
+   * markup has actually arrived — otherwise the controls would come back to life
+   * while the list they act on is still the old one.
    */
   function settled() {
-    router.refresh();
+    startRefresh(() => router.refresh());
   }
 
   async function save(next: Draft): Promise<string | null> {
@@ -110,6 +140,7 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
   }
 
   async function remove(kind: "genre" | "mix", name: string) {
+    if (busy) return;
     const what = kind === "genre" ? "genres" : "mixes";
     setProblem(await write(`/api/${what}/${encodeURIComponent(name)}`, "DELETE", {}));
   }
@@ -144,6 +175,7 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
           action={
             <AddButton
               label="Add genre"
+              disabled={busy}
               onClick={() => setDraft({ kind: "genre", name: "", instruction: "", genres: [] })}
             />
           }
@@ -152,6 +184,7 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
             <Row
               key={genre.name}
               name={genre.name}
+              busy={busy}
               onEdit={() =>
                 setDraft({
                   kind: "genre",
@@ -172,7 +205,7 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
           action={
             <AddButton
               label="Add mix"
-              disabled={genres.length === 0}
+              disabled={busy || genres.length === 0}
               onClick={() => setDraft({ kind: "mix", name: "", instruction: "", genres: [] })}
             />
           }
@@ -181,6 +214,7 @@ export function TasteAdvanced({ taste }: { taste: Taste }) {
             <Row
               key={mix.name}
               name={mix.name}
+              busy={busy}
               onEdit={() =>
                 setDraft({
                   kind: "mix",
@@ -243,10 +277,12 @@ function Section({
 
 function Row({
   name,
+  busy,
   onEdit,
   onDelete,
 }: {
   name: string;
+  busy: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -254,19 +290,32 @@ function Row({
     <li className="flex items-center justify-between gap-4 py-2.5">
       <span className="min-w-0 truncate text-[13px] text-ink">{name}</span>
       <span className="flex shrink-0 gap-1">
-        <RowAction onClick={onEdit}>Edit</RowAction>
-        <RowAction onClick={onDelete}>Delete</RowAction>
+        <RowAction disabled={busy} onClick={onEdit}>
+          Edit
+        </RowAction>
+        <RowAction disabled={busy} onClick={onDelete}>
+          Delete
+        </RowAction>
       </span>
     </li>
   );
 }
 
-function RowAction({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+function RowAction({
+  disabled,
+  onClick,
+  children,
+}: {
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="cursor-pointer rounded-md px-2 py-1 text-[12px] text-ink-faint transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
+      disabled={disabled}
+      className="cursor-pointer rounded-md px-2 py-1 text-[12px] text-ink-faint transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-ink-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
     >
       {children}
     </button>

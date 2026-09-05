@@ -42,6 +42,36 @@ test("an unbreakable line is cut anyway rather than shown whole", () => {
   assert.equal(more, true);
 });
 
+test("the cut lands between characters, never inside one", () => {
+  // Each of these is one character to a reader and more than one UTF-16 code
+  // unit to `slice`: an astral emoji, a combining sequence, and a joined
+  // sequence that is five code points. Cutting by code units would leave half a
+  // surrogate pair — a replacement glyph — or a family with its members split
+  // off. The instruction field takes arbitrary text, so all three are reachable.
+  for (const character of ["👍", "é", "👩‍👩‍👧‍👦", "🇩🇪"]) {
+    const line = character.repeat(200);
+    const { opening } = preview(line);
+    const shown = opening.slice(0, -1); // without the ellipsis
+
+    assert.equal(shown.includes("�"), false, `${character}: produced a replacement glyph`);
+    assert.equal(
+      shown,
+      character.repeat(120),
+      `${character}: cut somewhere other than a character boundary`,
+    );
+  }
+});
+
+test("a character straddling the limit is dropped whole", () => {
+  // 119 plain letters then one emoji: the emoji starts inside the limit and ends
+  // outside it. Keeping a piece of it is the bug; keeping all of it would run
+  // over. It goes.
+  const { opening } = preview(`${"x".repeat(119)}👍${"y".repeat(200)}`);
+
+  assert.equal(opening, `${"x".repeat(119)}👍…`);
+  assert.equal([...opening].length <= 122, true);
+});
+
 test("surrounding whitespace does not invent something to expand", () => {
   // A trailing newline is not more instruction, and offering to expand one would
   // open a disclosure onto nothing.

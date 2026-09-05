@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
 import { LegalLinks } from "@/components/legal";
 import { PROJECT_INSTRUCTIONS, PROJECT_INSTRUCTIONS_VERSION } from "@/lib/instructions";
-import { PREREQUISITES, setupSteps, type SetupStep } from "@/lib/setup-steps";
+import { PREREQUISITES, UNVALIDATED, setupSteps, type SetupStep } from "@/lib/setup-steps";
 import { mcpEndpoint } from "@/lib/web/setup";
 
 /**
@@ -60,6 +60,7 @@ export default function Setup() {
         </p>
       </section>
 
+      <Unverified />
       <Prerequisites />
 
       {endpoint === null ? (
@@ -94,6 +95,54 @@ export default function Setup() {
         <LegalLinks />
       </footer>
     </main>
+  );
+}
+
+/**
+ * The state of this guide, said plainly and before the steps.
+ *
+ * The steps below are our best understanding and have not been walked end to end
+ * against a real ChatGPT account. Saying which parts are uncertain is more use
+ * than a general apology: somebody who knows that step 4's control might be
+ * called something else will look for it, where somebody who does not will
+ * conclude Tonight is broken.
+ *
+ * Removed by answering Q1 and Q2 in `docs/work/chatgpt-companion-redesign.md`
+ * and setting `VALIDATED` — not by deleting this.
+ */
+function Unverified() {
+  if (!UNVALIDATED) return null;
+
+  return (
+    <section className="mt-8 rounded-xl border border-beam-dim bg-beam-dim/10 px-5 py-4">
+      <h2 className="text-[13px] tracking-[0.09em] text-ink uppercase">Not yet verified</h2>
+      <p className="mt-3 text-[13.5px] leading-relaxed text-ink-soft">
+        This walkthrough has not been tested from beginning to end against a real ChatGPT
+        account. It is written from how Tonight works, which we do know, and from how ChatGPT
+        works, which we have read about rather than confirmed. Three things in particular are
+        open:
+      </p>
+      <ul className="mt-3 flex list-disc flex-col gap-1.5 pl-5 text-[13.5px] leading-relaxed text-ink-soft">
+        <li>
+          <span className="text-ink">What your ChatGPT account has to be.</span> Calling a tool
+          that writes is restricted more tightly than one that only reads, and Tonight is
+          writing. We are not naming a plan until we have tried it, because a wrong answer here
+          is worse than none.
+        </li>
+        <li>
+          <span className="text-ink">What the control in step 4 is called.</span> Tonight has to
+          be enabled for the project. We describe what has to be true rather than what to press.
+        </li>
+        <li>
+          <span className="text-ink">Whether ChatGPT asks before saving.</span> The example on
+          the home page shows it asking. It may ask once, every time, or not at all.
+        </li>
+      </ul>
+      <p className="mt-3 text-[13.5px] leading-relaxed text-ink-soft">
+        Everything Tonight itself does — the address, the instructions, the tools, what is
+        stored — is tested and is not in doubt.
+      </p>
+    </section>
   );
 }
 

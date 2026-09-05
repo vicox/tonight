@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { AuthenticatedUser } from "../identity.ts";
 import { TasteError } from "../taste/model.ts";
 import type { TasteStore } from "../taste/store.ts";
+import { SERVER_NAME, SERVER_VERSION } from "./identity.ts";
 
 /**
  * The MCP server Tonight exposes, and the tools on it.
@@ -24,15 +25,6 @@ import type { TasteStore } from "../taste/store.ts";
  * the taste model and answers the same way for the same arguments. The store holds
  * genres and mixes and nothing else — no catalogue, no titles, no film data.
  */
-
-/** Named in `serverInfo`, and what a client shows the user. */
-const SERVER_NAME = "Tonight";
-
-/**
- * The MCP server's own version, which is the protocol surface's version and not
- * the web application's.
- */
-const SERVER_VERSION = "0.1.0";
 
 /**
  * The session a server instance is built for.

@@ -1,4 +1,4 @@
-import { deployment } from "@/lib/oauth/config";
+import { deployment } from "../oauth/config.ts";
 
 /**
  * Tonight's MCP address, as somebody should type it into a host.

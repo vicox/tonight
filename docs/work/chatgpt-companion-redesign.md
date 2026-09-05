@@ -385,6 +385,19 @@ be wrong and, worse, would leave Q1 with nothing to paste.
 So commit 1 gets built and its two Q2-dependent sentences get written last. Commit 2 depends on
 neither answer and could go first if the spikes take a while.
 
+**The gate is `VALIDATED` in `web/lib/setup-steps.ts`** — two booleans, one per spike, both
+`false`. While either is false, `/` and `/setup` say at the top that the walkthrough has not been
+tested end to end and name the three things that are open. It does not hide the steps or disable
+the buttons: Q1 is answered by pasting the text the page hands over, so gating the instrument
+behind the measurement would leave no way to take it. `lib/setup-steps.test.ts` holds the other
+half — while Q2 is open, no prerequisite may be published and no ChatGPT plan may be named
+anywhere in the guide.
+
+The connection check is `get_server_info` and the version it reports, not *"what do you know
+about my taste?"*. The softer question is answered just as fluently by an assistant with no
+connector at all, and on a new account both answer "nothing yet" — so it cannot distinguish the
+case it exists to catch.
+
 ### What it became
 
 Commit 1 — *Show people how to connect Tonight, on the page they land on*:

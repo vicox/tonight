@@ -9,12 +9,28 @@
  */
 
 /**
- * About one line at the width the cards are read at.
+ * About one line at the width the cards are read at, counted in characters as a
+ * reader would count them.
  *
  * Generous rather than tight: cutting a short instruction that would have fitted
  * costs a reader more than a line that runs slightly long.
  */
 const OPENING_LENGTH = 120;
+
+/**
+ * The instruction as a reader sees it: one entry per visible character.
+ *
+ * `"a".length` and `"👍".length` disagree — the second is two UTF-16 code units,
+ * and a flag or a family emoji is several more. Counting or cutting in code units
+ * would truncate a genre named in Hindi at a different place than the same length
+ * of English, and can leave half a surrogate pair behind, which renders as a
+ * replacement character. `Intl.Segmenter` counts what a person would point at.
+ */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+function characters(text: string): string[] {
+  return [...GRAPHEMES.segment(text)].map((segment) => segment.segment);
+}
 
 /** The instruction reduced to its opening, and what is left after it. */
 export type Preview = {
@@ -30,11 +46,12 @@ export function preview(instruction: string): Preview {
   // A paragraph break is the author's own idea of where the opening ends, so it
   // is preferred over any count of characters.
   const firstLine = whole.split("\n", 1)[0].trim();
-  if (firstLine.length <= OPENING_LENGTH) {
+  const letters = characters(firstLine);
+  if (letters.length <= OPENING_LENGTH) {
     return { opening: firstLine, more: firstLine !== whole };
   }
 
-  return { opening: `${cut(firstLine)}…`, more: true };
+  return { opening: `${cut(letters)}…`, more: true };
 }
 
 /**
@@ -42,10 +59,11 @@ export function preview(instruction: string): Preview {
  *
  * Falls back to the hard cut when there is no space to break on, which is a URL
  * or a language that does not put spaces between words — both better shown
- * clipped than not shown.
+ * clipped than not shown. The hard cut is on a character boundary rather than a
+ * code-unit one, so it can shorten an emoji sequence but never break one.
  */
-function cut(line: string): string {
-  const head = line.slice(0, OPENING_LENGTH);
+function cut(letters: readonly string[]): string {
+  const head = letters.slice(0, OPENING_LENGTH);
   const lastSpace = head.lastIndexOf(" ");
-  return (lastSpace > 0 ? head.slice(0, lastSpace) : head).trimEnd();
+  return (lastSpace > 0 ? head.slice(0, lastSpace) : head).join("").trimEnd();
 }

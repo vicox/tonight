@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { CopyButton } from "./copy-button";
-import { PREREQUISITES, type SetupStep } from "@/lib/setup-steps";
+import { PREREQUISITES, UNVALIDATED, type SetupStep } from "@/lib/setup-steps";
 
 /**
  * The four steps, compactly: the whole shape of connecting Tonight, readable
@@ -28,6 +28,7 @@ export function SetupSteps({
     <section>
       <h2 className="font-display text-[26px] leading-none">Connect it in four steps</h2>
 
+      <Unverified />
       <Prerequisites />
 
       <ol className="mt-7 flex flex-col gap-5">
@@ -92,6 +93,32 @@ function Prerequisites() {
         <li key={line}>{line}</li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Said before the first step, while any of this is still untested.
+ *
+ * Short here and longer on `/setup`: somebody scanning the home page needs to
+ * know these steps have not been walked end to end, not to read why.
+ */
+function Unverified() {
+  if (!UNVALIDATED) return null;
+
+  return (
+    <p className="mt-5 rounded-xl border border-beam-dim bg-beam-dim/10 px-5 py-4 text-[13px] leading-relaxed text-ink-soft">
+      <span className="text-ink">These steps have not been tested end to end yet.</span> They are
+      right as far as we know, and two things in them are not yet confirmed: what a ChatGPT
+      account has to be for Tonight to be able to write, and what the control that switches
+      Tonight on in a project is called.{" "}
+      <Link
+        href="/setup"
+        className="text-ink underline decoration-rule underline-offset-2 hover:decoration-ink-faint"
+      >
+        What that means for you
+      </Link>
+      .
+    </p>
   );
 }
 

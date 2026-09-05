@@ -13,6 +13,38 @@
  * MCP host can be pointed at it.
  */
 
+import { SERVER_VERSION } from "./mcp/identity.ts";
+
+/**
+ * Whether this walkthrough has been tried against a real ChatGPT account.
+ *
+ * Both are `false`, and neither can be flipped from inside this repository: they
+ * are questions about somebody else's product, and the answers come from somebody
+ * with the accounts sitting down and doing it. Q1 and Q2 in
+ * `docs/work/chatgpt-companion-redesign.md` say what to try and what to write
+ * down.
+ *
+ * While either is `false` the setup pages say so, at the top, before the first
+ * step. That is not a disclaimer for its own sake. Three specific things below
+ * are unverified — what an account has to be, what the control that enables
+ * Tonight is called, and whether a write is confirmed each time — and somebody
+ * following instructions that turn out to be wrong deserves to have been told
+ * they might be, in advance, rather than to discover it at step four.
+ *
+ * What it deliberately does not do is hide the steps or disable the buttons. Q1
+ * is answered by pasting the instructions this page hands over: gating the
+ * instrument behind the measurement would leave no way to take it.
+ */
+export const VALIDATED = {
+  /** Q1 — the instructions were pasted into a real project and behaved there. */
+  instructions: false,
+  /** Q2 — eligibility, the activation control, and whether writes are confirmed. */
+  connector: false,
+} as const;
+
+/** True while any part of the walkthrough is still unverified. */
+export const UNVALIDATED = !VALIDATED.instructions || !VALIDATED.connector;
+
 /** Something that goes wrong, and what it actually means. */
 export type Trouble = {
   /** What the person sees. */
@@ -64,6 +96,9 @@ export type SetupStep = {
 export const PREREQUISITES: readonly string[] = [];
 
 export function setupSteps(endpoint: string): readonly SetupStep[] {
+  // Named so the guide and `get_server_info` cannot come to disagree about it.
+  const version = SERVER_VERSION;
+
   return [
     {
       title: "Add the MCP connector",
@@ -133,30 +168,40 @@ export function setupSteps(endpoint: string): readonly SetupStep[] {
       title: "Turn Tonight on, then ask",
       summary: "Enable Tonight in the project, then ask it what to watch.",
       detail: [
-        // TODO(Q2): name the affordance once the spike has seen it. Until then
-        // this says what has to be true rather than which control does it, which
-        // is correct everywhere and precise nowhere.
+        // TODO(Q2): name the control once the spike has seen it. Until then this
+        // says what has to be true rather than which thing to press, which is
+        // correct everywhere and precise nowhere.
         "A connector that is installed is not a connector that is being used. Tonight has to " +
           "be switched on for this project, or named in your message, before the assistant " +
           "will reach for it. This is the step people skip, because nothing in the first " +
           "three suggests there is one more.",
+        "Check it before you rely on it, and check it in a way that cannot be answered from " +
+          "memory: ask ChatGPT to call Tonight's `get_server_info` tool and tell you the " +
+          `version it reports. There is one right answer, ${version}, and it is not something ` +
+          "an assistant can produce by being agreeable — either it called Tonight or it did " +
+          "not.",
         "Then ask for a film the way you would ask a person: what you are in the mood for, " +
           "and what you are not.",
-        "Afterwards, ask what it knows about your taste. That is the cheapest proof Tonight " +
-          "is being read at all, and it costs one sentence.",
       ],
       confirms:
-        "It answers from your taste model — and on a brand new account, “nothing yet” " +
-        "is the right answer and a passing one.",
+        `It reports Tonight version ${version}. Asking what it knows about your taste is not ` +
+        "the same test: an assistant with no connector answers that one just as fluently, and " +
+        "on a new account “nothing yet” is what both of them say.",
       trouble: [
         {
-          symptom: "It recommends films happily but knows nothing about a taste model.",
+          symptom: "It says it has no such tool, or no Tonight connector.",
           meaning:
-            "It is answering from its own knowledge and never called Tonight. Check that " +
-            "Tonight is switched on for this project, or name it in the message.",
+            "It is not switched on for this project. That is this step, not an earlier one — " +
+            "the connector can be installed and still be unavailable here.",
         },
         {
-          symptom: "It talks about your genres but nothing new is ever saved.",
+          symptom: "It answers about your taste but will not report a version.",
+          meaning:
+            "It is answering from its own knowledge and never called Tonight. An assistant " +
+            "that cannot run the tool will often discuss it instead.",
+        },
+        {
+          symptom: "It reports the version, but nothing you say is ever saved.",
           meaning:
             "Reading works and writing does not, which is the one failure that looks like " +
             "success. Tell us which kind of ChatGPT account this is.",
