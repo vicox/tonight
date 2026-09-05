@@ -25,6 +25,19 @@ A Mix is not the intersection of its Genres. `Sci-Fi` and `Thriller` are the ing
 you meant by putting them together — contained settings, mystery and pressure rather than
 superhero action — is the Mix's own instruction, and nothing derives it for you.
 
+Their names work differently too, and this is the distinction the product turns on. **A Genre is
+named for what it is; a Mix for what it feels like.** `Clever thriller` and `Slow burn` are
+Genres — plain, reusable, boring on purpose. `Space Tension`, `Popcorn Chaos`, `Small Town
+Secrets` and `Quiet Dread` are Mixes: the name of a shelf in a good video shop rather than a
+filter you applied.
+
+`Smart, not heavy` is not a Mix name. It is the Genres said again in one line, and the test is
+one question — *if knowing only the Genres already tells you the name, the name is doing no
+work*. A Mix earns its keep by being something you would ask for again: *"something like Quiet
+Dread, but shorter"* is a sentence people say. Nothing enforces this, because it is a judgement
+rather than a rule; the skill asks for it and the MCP tool descriptions say it again at the
+moment a name is being chosen.
+
 ## The architecture
 
 ```

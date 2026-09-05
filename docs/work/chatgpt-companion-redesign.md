@@ -79,6 +79,50 @@ plan by name.
 
 ---
 
+## The naming principle
+
+A late addition, and a product idea rather than a presentation one — recorded here because the
+worked example is where most people meet it, and an example that got it wrong would teach the
+wrong thing to everybody who read the page.
+
+**A Genre is descriptive. A Mix is evocative.**
+
+| | Named for | Examples |
+| --- | --- | --- |
+| **Genre** | what it *is* | `Clever thriller`, `Slow burn`, `Character story`, `Practical effects` |
+| **Mix** | what it *feels like* | `Space Tension`, `Puzzle Pressure`, `Popcorn Chaos`, `Small Town Secrets`, `Beautiful Melancholy`, `Quiet Dread` |
+
+A Genre is an ingredient, and ingredients are named after themselves — plainly, reusably, boring
+on purpose. A Mix is not an ingredient and not a summary of them: it is the name of a
+recommendation idea, and it should read like a shelf in a good video shop, a playlist somebody
+made, a list worth going back to.
+
+`Smart, not heavy`, `Funny action`, `Emotional drama`, `Light sci-fi` are not Mix names. They are
+the Genres said again in one line. The test is one question:
+
+> **If knowing only the Genres already tells you the name, the name is doing no work.**
+
+The point is that a person can ask for it. *"Something like Quiet Dread, but shorter"* is a
+sentence somebody says a month later, unprompted; nobody says *"something like Smart, not
+heavy"*. That sentence is also the last line of the worked example, which is not a coincidence —
+the payoff the example promises only exists if the name is sayable.
+
+**Naming is the assistant's to do.** The idea has to be the user's; the words for it can be the
+assistant's, and a name they dislike is one they will change. What a good name must not do is
+widen the idea — `Quiet Dread` over an evening described as "slow, creepy, nothing gory" names
+that evening, and is not evidence of a taste for horror. This is the one place the principle
+touches the persistence rule, and it resolves the same way: name the thing they said, never a
+bigger thing.
+
+**Where it lives.** `skills/tonight-recommend/SKILL.md` is where it is asked for, under *A Mix
+name is evocative, not descriptive*, with five checks in `test.sh` holding the wording. The MCP
+`create_mix` and `name` descriptions say it again at the moment a name is being chosen, because
+a host that never loaded the skill still writes through those. `lib/taste/model.ts` records it
+beside the definition of the two objects, and says why nothing enforces it: it is a judgement,
+not a rule a string can be checked against.
+
+---
+
 ## Where the site is today
 
 One product page. `/` serves a pitch to a stranger and the taste model to whoever is signed
@@ -130,12 +174,12 @@ enough.
    > **ChatGPT:** Knives Out, The Nice Guys, or Game Night.
    > Want me to remember the kind of thing this is?
    > **You:** yes
-   > **Tonight:** `[CLEVER THRILLER] + [LIGHT SUSPENSE] ↓ Smart, not heavy`
+   > **Tonight:** `[CLEVER THRILLER] + [LIGHT SUSPENSE] ↓ Cheerful Trouble`
    >
-   > *Next Friday the whole request is "something like Smart, not heavy, but shorter" — and it
+   > *Next Friday the whole request is "something like Cheerful Trouble, but shorter" — and it
    > knows.*
 
-   Four things have to be in it, and the first two are what an earlier draft left out.
+   Five things have to be in it, and the first three are what earlier drafts left out.
 
    **The films are named.** A stranger works out what this is from the answer they would have
    got; *"recommends three films"* is a stage direction, not an answer. It also puts the
@@ -146,8 +190,14 @@ enough.
    two genres are two things somebody said, the mix is the third thing they decided. Rendered
    the way the signed-in page renders it, so the same shape teaches twice.
 
+   **The Mix is named, not described.** `Cheerful Trouble`, not *"Smart, not heavy"* — see
+   [The naming principle](#the-naming-principle) below. This example is where most people meet
+   the distinction, so getting it wrong here would teach the wrong thing to everybody who reads
+   the page and nowhere else.
+
    **The payoff is stated once.** Without the last line the example explains persistence and
-   never says what it buys — which is a shorter request that lands better, next time.
+   never says what it buys — which is a shorter request that lands better, next time. It is also
+   what proves the name: the sentence only works because `Cheerful Trouble` is sayable.
 
    **The "yes" stays.** Tonight saves what somebody said and never what the assistant
    concluded, so not every sentence becomes a genre, and where the host asks before it writes
@@ -209,7 +259,7 @@ YOUR MIXES
 
   [MYSTERY] + [CHARACTER STORY]
         ↓
-  Smart, tense, but still fun               ›
+  Small Town Secrets                        ›
   Tense enough to lean in, warm enough to stay.
 
 ▸ Advanced
@@ -272,11 +322,11 @@ client-side. Smaller bundle, and `<details>` brings its own keyboard and screen-
 behaviour rather than somebody reimplementing it.
 
 That is `<details>` being correct, which is not the same as the page being correct. One thing
-here has no spoken form at all: `[MYSTERY] + [CHARACTER STORY] ↓ Smart, tense, but still fun`
-read aloud is a list of punctuation. The brackets and the arrow are decoration and should be
-marked as such, with the sentence they stand for available instead — *"Smart, tense, but still
-fun combines Mystery and Character Story."* `CopyButton` already announces both its success and
-its failure, so the copy actions need nothing further.
+here has no spoken form at all: `[MYSTERY] + [CHARACTER STORY] ↓ Small Town Secrets` read aloud
+is a list of punctuation. The brackets and the arrow are decoration and should be marked as such,
+with the sentence they stand for available instead — *"Small Town Secrets combines Mystery and
+Character Story."* `CopyButton` already announces both its success and its failure, so the copy
+actions need nothing further.
 
 ---
 

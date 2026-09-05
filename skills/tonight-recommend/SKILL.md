@@ -71,6 +71,35 @@ A Mix is the shape of a recommendation idea: `Sci-Fi` and `Thriller` are its ing
 lives, so read a Mix as **its own instruction plus the instructions of the Genres under it**,
 in that order. The Mix's sentence alone is half of what it means.
 
+### A Mix name is evocative, not descriptive
+
+This is the difference between the two objects, and it is easy to get wrong in the direction of
+being helpful.
+
+A **Genre** is named for what it is. `Clever thriller`, `Slow burn`, `Character story`,
+`Practical effects` — plain, reusable, boring on purpose, because a Genre is an ingredient and
+ingredients are named after themselves.
+
+A **Mix** is named for what it *feels* like. `Space Tension`, `Puzzle Pressure`, `Popcorn Chaos`,
+`Small Town Secrets`, `Beautiful Melancholy`, `Quiet Dread`. The name of a shelf in a good video
+shop, a playlist somebody made at two in the morning, a list they would go back to.
+
+`Smart, not heavy`, `Funny action`, `Emotional drama`, `Light sci-fi` are **not Mix names**. They
+are the Genres said again in one line. A Mix named that way has not been named, it has been
+labelled — and the test is one question:
+
+> **If knowing only the Genres already tells you the name, the name is doing no work.**
+
+The point of the name is that a person can ask for it. *"Something like Quiet Dread, but
+shorter"* is a sentence somebody says a month later, unprompted. Nobody has ever said *"something
+like Smart, not heavy"*.
+
+**Proposing the name is yours to do.** The idea has to be theirs; the words for it can be yours,
+and a name they do not like is one they will tell you to change. What a good name must not do is
+widen the idea — `Quiet Dread`, over an evening they described as "slow, creepy, nothing gory",
+is a name for that evening and not evidence that they like horror. Name the thing they said.
+Never name a bigger thing.
+
 Read what an instruction **rules out** at least as carefully as what it asks for. "Thrillers,
 but nothing too brutal" is a constraint a film cannot be excused from by being excellent. A
 recommendation that contradicts an instruction is worse than none, because it teaches somebody
@@ -94,14 +123,18 @@ beats a longer list with something invented in it.
 
 ## Presenting them
 
-Lead with the idea, then the films. The idea is the Mix — give it a name a person would enjoy
-having, not a taxonomy label:
+Lead with the idea, then the films. The idea is the Mix, so name it the way a Mix is named —
+see **[A Mix name is evocative, not descriptive](#a-mix-name-is-evocative-not-descriptive)**:
 
-> **Smart, tense, but still fun**
+> **Everybody's Lying**
 >
 > **Knives Out** — a whodunnit that is having a wonderful time being one.
 > **Inside Man** — a heist that keeps you a step behind without ever turning grim.
 > **The Outfit** — one room, one night, and everybody lying.
+
+*Everybody's Lying* is what makes that a recommendation rather than a query result. "Clever
+thrillers that are not grim" would have found the same three films and given them nothing to be
+remembered by.
 
 One line per film, saying what about *it* answers what *they* asked. Not a synopsis.
 
@@ -123,9 +156,13 @@ at this without anybody configuring it.
   reusable, that could turn up in a different mood on a different night. `Clever thriller`,
   `Light suspense`, `Practical effects`.
 - **Create the Mix** over those Genres, with an instruction saying what the combination means
-  tonight. Put every Mix through one question: *if I knew only its Genres and not its
-  instruction, what would I get wrong?* If the answer is "nothing", it is not a Mix — it is a
-  pair of Genres, and they are enough on their own.
+  tonight. Put every Mix through two questions, and it has to survive both:
+  - The instruction test: *if I knew only its Genres and not its instruction, what would I get
+    wrong?* If the answer is "nothing", it is not a Mix — it is a pair of Genres, and they are
+    enough on their own.
+  - The name test: *would they ask for this by name in a month?* If the name only summarises
+    the Genres it fails — see **[A Mix name is evocative, not
+    descriptive](#a-mix-name-is-evocative-not-descriptive)**.
 - **Keep it small.** As few objects as express the idea, and no fewer. One conversation should
   not produce eight Genres.
 
@@ -137,6 +174,8 @@ What the tools require, so a write does not fail:
 - **a Mix is built from Genres only.** There is no chaining, and Tonight cannot store one
 - names identify case-insensitively and are how everything refers to everything else; write them
   as ordinary phrases — `Slow burn`, not `SlowBurn`
+- Genre names describe, Mix names evoke — `Clever thriller` is a Genre, `Cheerful Trouble` is a
+  Mix, and a Mix called `Clever thriller, but light` is a Genre list with a comma in it
 - instructions are written in the first person, as the user's own preference
 
 ## What may be persisted, and what may not

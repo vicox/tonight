@@ -148,6 +148,29 @@ check "the idea leads the answer, and the model is not printed at the user" \
         'No field names')" "True"
 
 echo
+echo "--- a Mix is named, not labelled ---"
+
+# The distinguishing product idea. A Genre is named for what it is and a Mix for
+# what it feels like, and the failure is always in the same direction: a helpful
+# assistant restating the ingredients. Both halves are pinned — the rule, and
+# examples of each kind — because the rule alone reads as a matter of taste until
+# `Popcorn Chaos` and `Funny action` are sitting next to each other.
+check "the two kinds of name are distinguished, in that order" \
+    "$(order_check 'A Mix name is evocative, not descriptive' \
+        'A **Genre** is named for what it is' \
+        'A **Mix** is named for what it *feels* like')" "True"
+check "evocative names are shown, not just asked for" \
+    "$(order_check 'Space Tension' 'Popcorn Chaos' 'Quiet Dread')" "True"
+check "descriptive names are shown as the failure they are" \
+    "$(order_check '`Funny action`' '**not Mix names**' 'it has been' 'labelled')" "True"
+check "the test for a name is stated as a test" \
+    "$(order_check 'If knowing only the Genres already tells you the name' \
+        'the name is doing no work')" "True"
+check "naming is the assistant's to do, and may not widen the idea" \
+    "$(order_check 'Proposing the name is yours to do' \
+        'Name the thing they said' 'Never name a bigger thing')" "True"
+
+echo
 echo "--- the model grows from what was said ---"
 
 check "the idea just used is the Mix, and its parts are the Genres" \

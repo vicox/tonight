@@ -56,9 +56,12 @@ const genreName = z
 const mixName = z
   .string()
   .describe(
-    'A mix\'s name — "Space Tension", "Popcorn Chaos". Its only identifier, matched ' +
-      "case-insensitively. Genres and mixes have separate names: a genre called X and a mix " +
-      "called X are different objects.",
+    'A mix\'s name — "Space Tension", "Puzzle Pressure", "Small Town Secrets". Evocative, not ' +
+      "descriptive: a genre is named for what it is and a mix for what it feels like, so if " +
+      "knowing the genres already tells you the name, the name is doing no work. " +
+      '"Smart, not heavy" and "Funny action" are genre lists, not mix names. Its only ' +
+      "identifier, matched case-insensitively. Genres and mixes have separate names: a genre " +
+      "called X and a mix called X are different objects.",
   );
 
 const genreInstruction = z
@@ -188,8 +191,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
       title: "Create a mix",
       description:
         "Combine one or more of the user's genres into a mix of their own. Every named genre " +
-        "must already exist; a mix cannot be built from another mix. Give it a name the user " +
-        "would enjoy having — mixes are personal, and 'Space Tension' beats 'Sci-Fi Thriller'. " +
+        "must already exist; a mix cannot be built from another mix. Name it the way a shelf in " +
+        "a good video shop is named, not the way a filter is: 'Space Tension' beats " +
+        "'Sci-Fi Thriller', and the test is whether they would ask for it by name in a month. " +
         "A mix is the shape of a recommendation idea, so the natural moment to write one is when " +
         "you have just used that idea to choose films the user asked for — but only when the " +
         "idea itself came from them. Having invented a combination, used it, and found films " +

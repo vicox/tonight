@@ -135,7 +135,7 @@ function GenreCard({ genre }: { genre: Genre }) {
 /**
  * A mix, as the composition it is.
  *
- * `[MYSTERY] + [CHARACTER STORY] ↓ Smart, tense, but still fun` read aloud is a
+ * `[MYSTERY] + [CHARACTER STORY] ↓ Small Town Secrets` read aloud is a
  * list of punctuation, so the brackets and the arrow are hidden and the sentence
  * they draw is offered instead. Nothing is lost either way round: the same three
  * facts reach a reader and a listener, in the form each can use.

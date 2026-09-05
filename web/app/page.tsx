@@ -146,6 +146,12 @@ function Landing() {
  * said; the mix is the third thing they decided, and seeing it composed from the
  * other two says more than a sentence about combinations would.
  *
+ * `Cheerful Trouble` is doing the real work here. A genre is named for what it is
+ * and a mix for what it feels like, so a mix called "Clever thriller, but light"
+ * would be its own ingredients read back — and this example is where most people
+ * meet the distinction for the first time. The last line is the proof: the name
+ * has to be something somebody would say out loud a month later.
+ *
  * The "yes" is in it on purpose. Tonight stores what somebody said and never what
  * the assistant concluded about them, so the model grows one accepted offer at a
  * time — showing the acceptance is the difference between a product that keeps
@@ -167,7 +173,7 @@ function WorkedExample() {
           <span className="block">
             <span className="sr-only">
               Saved two genres, Clever thriller and Light suspense, and the mix they make
-              together: Smart, not heavy.
+              together: Cheerful Trouble.
             </span>
             <span aria-hidden="true" className="block">
               <span className="flex flex-wrap items-center gap-1.5">
@@ -177,7 +183,7 @@ function WorkedExample() {
               </span>
               <span className="mt-1.5 block text-[13px] leading-none text-beam">↓</span>
               <span className="mt-1.5 block font-display text-[20px] leading-tight text-ink">
-                Smart, not heavy
+                Cheerful Trouble
               </span>
             </span>
           </span>
@@ -187,7 +193,7 @@ function WorkedExample() {
       <div className="mt-5 border-t border-rule pt-4 text-[12.5px] leading-relaxed text-ink-faint">
         <p>
           <span className="text-ink-soft">Next Friday the whole request is</span> “something like
-          Smart, not heavy, but shorter” <span className="text-ink-soft">— and it knows.</span>
+          Cheerful Trouble, but shorter” <span className="text-ink-soft">— and it knows.</span>
         </p>
         <p className="mt-1.5">
           Tonight keeps what you said, never what it worked out about you. Nothing is saved unless

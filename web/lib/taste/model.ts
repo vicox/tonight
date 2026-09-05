@@ -17,6 +17,14 @@
  * and that decision lives in the Mix's own instruction. Nothing here computes a
  * Mix's meaning from its Genres, because a Mix's meaning is not derivable.
  *
+ * Their names say so too, and the difference is a product decision rather than a
+ * convention: a Genre is named for what it is — `Clever thriller` — and a Mix for
+ * what it feels like — `Space Tension`, `Quiet Dread`. A Mix called
+ * `Clever thriller, but light` is its own ingredient list read aloud. Nothing in
+ * this file enforces that, because it is a judgement and not a rule a string can
+ * be checked against; it is stated here because this is where the two objects are
+ * defined, and the skill and the tool descriptions are where it is asked for.
+ *
  * This is the definition — what the objects are, what spellings are accepted,
  * and how one is rejected. Every way into the product goes through it: the MCP
  * tools, the website's own writes, the store. `store/` adds only the rules that
