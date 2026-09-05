@@ -176,8 +176,8 @@ enough.
    > **You:** yes
    > **Tonight:** `[MYSTERY] + [CLEVER THRILLER] ↓ 🕵️ Everybody's Lying`
    >
-   > *Next Friday the whole request is "something like Everybody's Lying, but shorter" — and it
-   > knows.*
+   > *Next Friday the whole request is "something like Everybody's Lying, where I might actually
+   > guess it" — and it knows.*
 
    **Six of these, browsable.** One example says Tonight remembers a preference. It takes two or
    three to say the thing that actually distinguishes the product — that a Mix is a reusable name

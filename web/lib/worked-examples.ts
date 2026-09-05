@@ -44,12 +44,16 @@ export type WorkedExample = {
    * that all read "but shorter" would say the opposite — that the name is a
    * template slot.
    *
-   * So the six change six different things — the humour, the premise, the mood,
-   * the setting, the emotional register, whether anything supernatural is allowed
-   * — and between them they say the other half of what a Mix is. Not a fixed
-   * shelf but an idea you can lean on and then push against: `Quiet Dread`
-   * without ghosts is still recognisably `Quiet Dread`, which a genre label could
-   * not survive.
+   * So each one grows out of the three films *that evening actually returned*,
+   * not out of the name. That is the harder version and the truer one: anybody
+   * can vary a label, and only somebody who watched what came back says "but let
+   * them end up together" — the trio there ends apart, every time. Read together
+   * they say the other half of what a Mix is. Not a fixed shelf, but an idea you
+   * can lean on and then push against, which comes back still recognisably
+   * itself.
+   *
+   * They also vary in shape on purpose. Six sentences that all began "but" would
+   * be a template with the slot showing, whatever was in it.
    */
   followUp: string;
 };
@@ -61,7 +65,11 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Bullet Train", "Game Night", "The Fall Guy"],
     genres: ["Action", "Comedy"],
     mix: "Popcorn Chaos",
-    followUp: "but with fewer explosions",
+    // Bullet Train is wall-to-wall assassins and Game Night turns on a real
+    // gunshot. Wanting the same evening without the casualties is a joke about
+    // the films, which the earlier "nothing that makes me think" was not — that
+    // one was a joke about the viewer.
+    followUp: "and nobody has to die for it",
   },
   {
     mark: "🕵️",
@@ -69,7 +77,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Knives Out", "The Outfit", "Inside Man"],
     genres: ["Mystery", "Clever Thriller"],
     mix: "Everybody's Lying",
-    followUp: "without the murder",
+    followUp: "where I might actually guess it",
   },
   {
     mark: "🚀",
@@ -77,7 +85,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Arrival", "Ex Machina", "Moon"],
     genres: ["Sci-Fi", "Thriller"],
     mix: "Space Tension",
-    followUp: "but more optimistic",
+    followUp: "but somewhere less lonely",
   },
   {
     mark: "🏡",
@@ -85,7 +93,10 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Blow the Man Down", "Wind River", "Three Billboards Outside Ebbing, Missouri"],
     genres: ["Mystery", "Character Story"],
     mix: "Small Town Secrets",
-    followUp: "by the sea",
+    // All three are led by a woman the town is closing ranks against, and all
+    // three are about who already knows. Asking for that with the town on her
+    // side keeps everyone knowing everyone and flips which way it cuts.
+    followUp: "with the town on her side for once",
   },
   {
     mark: "🌧️",
@@ -93,7 +104,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Past Lives", "Her", "Lost in Translation"],
     genres: ["Drama", "Romance"],
     mix: "Beautiful Melancholy",
-    followUp: "but a little more hopeful",
+    followUp: "but let them end up together",
   },
   {
     mark: "🌲",
@@ -101,7 +112,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["The Witch", "It Follows", "The Others"],
     genres: ["Slow Burn", "Horror"],
     mix: "Quiet Dread",
-    followUp: "without ghosts",
+    followUp: "but one I can sleep after",
   },
 ];
 
