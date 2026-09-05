@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 /**
  * The site's header, which is one header in two states rather than two headers.
  *
@@ -16,6 +18,22 @@ const ACTION =
   "cursor-pointer rounded-md border border-rule bg-screen px-3.5 py-2 text-[12.5px] text-ink " +
   "transition-colors hover:border-ink-faint focus-visible:outline-2 focus-visible:outline-offset-2 " +
   "focus-visible:outline-beam";
+
+/**
+ * The way back to the walkthrough, for somebody already signed in.
+ *
+ * The whole of this site's navigation. There are four pages and three of them are
+ * legal text in the footer, so a bar across the top would be furniture around a
+ * single link — and the one link worth having is the one that says how to connect
+ * an assistant, because that is where the product actually happens.
+ */
+export function SetupLink() {
+  return (
+    <Link href="/setup" className="shrink-0 text-[12.5px] text-ink-faint hover:text-ink-soft">
+      Setup
+    </Link>
+  );
+}
 
 export function SiteHeader({ children }: { children?: React.ReactNode }) {
   return (

@@ -1,8 +1,12 @@
 import { LegalLinks } from "@/components/legal";
-import { SiteHeader, SignIn, Account } from "@/components/site-header";
+import { SetupSteps } from "@/components/setup-steps";
+import { SiteHeader, SignIn, Account, SetupLink } from "@/components/site-header";
 import { TasteBoard } from "@/components/taste-board";
+import { PROJECT_INSTRUCTIONS, PROJECT_INSTRUCTIONS_VERSION } from "@/lib/instructions";
+import { setupSteps } from "@/lib/setup-steps";
 import type { Taste } from "@/lib/taste/model";
 import { tasteStore } from "@/lib/taste/store";
+import { mcpEndpoint } from "@/lib/web/setup";
 import { currentVisitor, type SignedInVisitor } from "@/lib/web/visitor";
 
 /**
@@ -56,65 +60,137 @@ async function resolveVisitor(): Promise<SignedInVisitor | null> {
 }
 
 /**
- * The public page: the mechanic first, and the way in.
+ * The public page: what the loop is, and how to join it.
  *
- * The hero is the product in three lines — two genres, an arrow, the mix they
- * make — because that is understandable in a second and "personalised movie
- * recommendations" is not. It reads nothing and renders the same for everybody.
+ * Setup is the body of the page rather than a link off it. The product happens in
+ * a conversation, so the useful thing this page can do for a stranger is hand
+ * them the two things they have to carry into one — Tonight's address and the
+ * project instructions — and say what to do with them. Signing in is not how
+ * somebody starts; connecting their assistant is.
+ *
+ * It reads nothing about the visitor and renders the same for everybody.
  */
 function Landing() {
+  const endpoint = mcpEndpoint();
+
   return (
-    <main className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-14">
+    <main className="mx-auto max-w-2xl px-5 py-10 sm:px-8 sm:py-14">
       <SiteHeader>
         <SignIn />
       </SiteHeader>
 
-      <section className="py-10 text-center sm:py-16">
-        <p className="font-display text-[34px] leading-tight sm:text-[46px]">
+      <section>
+        <p className="font-display text-[28px] leading-tight sm:text-[32px]">
           Build your taste.
           <br />
           Find your movie.
         </p>
 
-        <div className="mt-12 flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2.5">
-            <HeroChip>Sci-Fi</HeroChip>
-            <span className="text-[13px] text-ink-faint">+</span>
-            <HeroChip>Thriller</HeroChip>
-          </div>
-          <span aria-hidden="true" className="text-[16px] text-beam">
-            ↓
+        <p className="mt-6 text-[13px] leading-relaxed text-ink-soft">
+          {/*
+            The arrows are punctuation standing in for "leads to", and read aloud
+            they are noise. The sentence they draw is available instead.
+          */}
+          <span className="sr-only">
+            A conversation leads to a recommendation, your taste grows, and the recommendations
+            get better.
           </span>
-          <p className="font-display text-[30px] leading-none text-ink sm:text-[36px]">
-            Space Tension
-          </p>
-        </div>
-
-        <p className="mx-auto mt-12 max-w-lg text-[14px] leading-relaxed text-ink-soft">
-          You say what you like, in your own words. Tonight keeps it as genres you own and can
-          edit, and mixes you build from them. Your assistant reads that model and finds you
-          something to watch.
+          <span aria-hidden="true" className="font-mono text-[12.5px]">
+            conversation → recommendation → your taste grows → better recommendations
+          </span>
         </p>
       </section>
+
+      <WorkedExample />
+
+      <div className="mt-14">
+        {endpoint === null ? (
+          <p className="rounded-xl border border-rule bg-screen px-5 py-4 text-[13.5px] leading-relaxed text-ink-soft">
+            The setup steps cannot be shown just now. Try again in a moment.
+          </p>
+        ) : (
+          <SetupSteps
+            steps={setupSteps(endpoint)}
+            endpoint={endpoint}
+            instructions={PROJECT_INSTRUCTIONS}
+            version={PROJECT_INSTRUCTIONS_VERSION}
+          />
+        )}
+      </div>
 
       {/*
         Linked rather than merely present: Google's OAuth branding step asks for a
         home page, a privacy policy and terms on the app's own domain, and a page
         nothing points at is one nobody — reviewer or user — is expected to find.
       */}
-      <footer className="mt-10 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t border-rule pt-5">
-        <p className="text-[12.5px] text-ink-faint">
-          Closed beta. Connect Tonight to your assistant over MCP.
-        </p>
+      <footer className="mt-14 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t border-rule pt-5">
+        <p className="text-[12.5px] text-ink-faint">Closed beta.</p>
         <LegalLinks />
       </footer>
     </main>
   );
 }
 
-function HeroChip({ children }: { children: React.ReactNode }) {
+/**
+ * One exchange, so the loop is something seen rather than described.
+ *
+ * The "yes" is in it on purpose. Tonight stores what somebody said and never what
+ * the assistant concluded about them, so the model grows one accepted offer at a
+ * time — showing the acceptance is the difference between a product that keeps
+ * what you tell it and one that watches you.
+ */
+function WorkedExample() {
   return (
-    <span className="rounded-md border border-rule px-3 py-1.5 text-[12px] tracking-[0.13em] text-ink-soft uppercase">
+    <section className="mt-12 rounded-2xl border border-rule bg-screen p-6 sm:p-8">
+      <dl className="flex flex-col gap-3 text-[13.5px] leading-relaxed">
+        <Turn who="You">I want a clever thriller tonight, nothing too bleak.</Turn>
+        <Turn who="ChatGPT">
+          <em className="text-ink-faint not-italic">
+            recommends three films, then asks whether to remember what you asked for
+          </em>
+        </Turn>
+        <Turn who="You">yes</Turn>
+        <Turn who="Tonight" lit>
+          <span className="flex flex-wrap items-center gap-1.5">
+            <Chip>Clever thriller</Chip>
+            <span aria-hidden="true" className="text-[12px] text-ink-faint">
+              +
+            </span>
+            <Chip>Light suspense</Chip>
+            <span className="text-ink-soft">— and the mix they make together.</span>
+          </span>
+        </Turn>
+      </dl>
+
+      <p className="mt-5 border-t border-rule pt-4 text-[12.5px] leading-relaxed text-ink-faint">
+        Tonight keeps what you said, never what it worked out about you. Nothing is saved unless
+        you say so.
+      </p>
+    </section>
+  );
+}
+
+function Turn({
+  who,
+  lit = false,
+  children,
+}: {
+  who: string;
+  lit?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+      <dt className={`shrink-0 sm:w-20 ${lit ? "text-beam" : "text-ink-faint"}`}>{who}</dt>
+      <dd className="min-w-0 text-ink">{children}</dd>
+    </div>
+  );
+}
+
+/** A genre's name, in film-credit typography. */
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-md border border-rule px-2.5 py-1 text-[11px] tracking-[0.11em] text-ink-soft uppercase">
       {children}
     </span>
   );
@@ -127,7 +203,10 @@ async function Yours({ visitor }: { visitor: SignedInVisitor }) {
   return (
     <main className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
       <SiteHeader>
-        <Account email={visitor.email} />
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-2">
+          <SetupLink />
+          <Account email={visitor.email} />
+        </div>
       </SiteHeader>
 
       {taste === "unavailable" ? (
