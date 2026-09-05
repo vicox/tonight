@@ -546,6 +546,62 @@ for (const driver of drivers) {
       assert.deepEqual(updated.genres, ["Slow burn"]);
     });
 
+    test("an update that does not mention genres leaves the references alone", async () => {
+      const { alice, sql } = await fresh();
+      await genre(alice, "Sci-Fi");
+      await genre(alice, "Thriller");
+      await alice.createMix({
+        name: "Space Tension",
+        genres: ["Sci-Fi", "Thriller"],
+        instruction: "Tense.",
+      });
+
+      // The rows as they stand: which genres, and the transaction that wrote
+      // them. `xmin` is the part that matters — it is the only thing that can
+      // tell "these rows are correct" apart from "these rows were rewritten to
+      // the same values".
+      const rows = async () =>
+        await sql.query<{ genre_id: string; v: string }>(
+          `SELECT genre_id, xmin::text AS v FROM tonight_mix_genres
+            WHERE user_id = $1 ORDER BY position`,
+          [ALICE.id],
+        );
+
+      const before = await rows();
+      assert.equal(before.length, 2);
+
+      await alice.updateMix("Space Tension", { instruction: "Tense, and contained." });
+      assert.deepEqual(await rows(), before, "an instruction change rewrote the reference rows");
+
+      await alice.updateMix("Space Tension", { name: "Quiet Dread" });
+      assert.deepEqual(await rows(), before, "a rename rewrote the reference rows");
+
+      // Untouched, and still saying the same thing.
+      assert.deepEqual((await mixOf(alice, "Quiet Dread"))?.genres, ["Sci-Fi", "Thriller"]);
+
+      // And the other half, so the assertions above cannot pass by the signal
+      // being blind. Naming the *same* genres is the sharpest control available:
+      // the relationship is identical afterwards, so the row count and the genre
+      // ids must match exactly — and `xmin` must move anyway, because passing
+      // `genres` replaces the rows whatever they said. A signal that held still
+      // here would be one that could not have detected a rewrite above either.
+      await alice.updateMix("Quiet Dread", { genres: ["Sci-Fi", "Thriller"] });
+      const rewritten = await rows();
+
+      assert.deepEqual(
+        rewritten.map((row) => row.genre_id),
+        before.map((row) => row.genre_id),
+        "the same genres should still be the same relationships",
+      );
+      for (const [index, row] of rewritten.entries()) {
+        assert.notEqual(
+          row.v,
+          before[index]!.v,
+          `relationship ${index} kept its row version through an explicit replacement`,
+        );
+      }
+    });
+
     // --- reference integrity ---------------------------------------------
 
     test("renaming a genre carries every mix built from it", async () => {
@@ -561,14 +617,97 @@ for (const driver of drivers) {
 
       await alice.updateGenre("Sci-Fi", { name: "Science fiction" });
 
-      // One statement did this, through the foreign key. There is no moment in
-      // which a mix points at a name that is gone.
+      // The reference rows hold the genre's id, so this rename wrote one row and
+      // touched none of them. There is no moment in which a mix points at a name
+      // that is gone, because no mix ever pointed at a name.
       const { genres, mixes } = await alice.taste();
       assert.deepEqual(genres.map((one) => one.name), ["Science fiction", "Thriller"]);
       assert.deepEqual(
         mixes.map((one) => one.genres),
         [["Science fiction"], ["Science fiction", "Thriller"]],
       );
+    });
+
+    test("renaming a genre keeps the object it was, not just the row", async () => {
+      const { alice, sql } = await fresh();
+      await genre(alice, "Sci-Fi");
+
+      const idOf = async (name: string) =>
+        (
+          await sql.query<{ id: string }>(
+            `SELECT id FROM tonight_genres WHERE user_id = $1 AND name = $2`,
+            [ALICE.id, name],
+          )
+        )[0]?.id;
+
+      const before = await idOf("Sci-Fi");
+      await alice.updateGenre("Sci-Fi", { name: "Science fiction" });
+
+      // A rename changes the handle. It must not produce a different object, or
+      // anything that ever refers to one would be referring to the wrong thing.
+      assert.equal(await idOf("Science fiction"), before);
+    });
+
+    test("renaming a genre does not write the rows that reference it", async () => {
+      const { alice, sql } = await fresh();
+      await genre(alice, "Sci-Fi");
+      await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+
+      // `xmin` is the transaction that last wrote the row, so it is the one
+      // signal that says a row was left alone. Comparing the ids would prove
+      // nothing: they are what a rename leaves alone by construction.
+      const versions = async () =>
+        (
+          await sql.query<{ v: string }>(
+            `SELECT xmin::text AS v FROM tonight_mix_genres WHERE user_id = $1 ORDER BY position`,
+            [ALICE.id],
+          )
+        ).map((row) => row.v);
+
+      const before = await versions();
+      assert.equal(before.length, 1, "the mix should have exactly one reference row");
+
+      await alice.updateGenre("Sci-Fi", { name: "Science fiction" });
+
+      // The property the whole migration exists for. Under the v1 schema this
+      // would fail honestly: the foreign key carried ON UPDATE CASCADE, so a
+      // rename rewrote every reference row.
+      assert.deepEqual(await versions(), before, "the rename rewrote a reference row");
+      assert.deepEqual((await mixOf(alice, "Space Tension"))?.genres, ["Science fiction"]);
+    });
+
+    test("the database refuses a mix of one user built from another user's genre", async () => {
+      const { alice, bob, sql } = await fresh();
+      await genre(bob, "Bob only");
+      await genre(alice, "Sci-Fi");
+      await alice.createMix({ name: "Mine", genres: ["Sci-Fi"], instruction: "Mine alone." });
+
+      const [mix] = await sql.query<{ id: string }>(
+        `SELECT id FROM tonight_mixes WHERE user_id = $1`,
+        [ALICE.id],
+      );
+      const [theirs] = await sql.query<{ id: string }>(
+        `SELECT id FROM tonight_genres WHERE user_id = $1`,
+        [BOB.id],
+      );
+
+      // Deliberately not through the store: `createMix` takes names and resolves
+      // them within one user, so it refuses this long before the database is
+      // asked. That refusal is worth having and is tested elsewhere — it is not
+      // evidence that the schema would refuse it too, and a single-column
+      // foreign key would pass that test while allowing this row.
+      const forged = sql.query(
+        `INSERT INTO tonight_mix_genres (user_id, mix_id, genre_id, position)
+         VALUES ($1, $2, $3, 0)`,
+        [ALICE.id, mix!.id, theirs!.id],
+      );
+
+      await assert.rejects(forged, (error: unknown) => {
+        // 23503 — foreign key violation. The composite key carries user_id, so
+        // Alice's tenant has no such genre to point at.
+        assert.equal((error as { code?: string }).code, "23503");
+        return true;
+      });
     });
 
     test("renaming onto a name that already exists is refused, and changes nothing", async () => {

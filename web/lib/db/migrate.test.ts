@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
 import { ConfigurationError } from "../oauth/config.ts";
+import { RECONCILE_MIX_GENRES, TASTE_SCHEMA } from "../taste/store/schema.ts";
+import { sqlTasteStore } from "../taste/store/sql.ts";
 import type { SqlDriver } from "./driver.ts";
 import { migrate, prepareSchema, type SchemaModule } from "./migrate.ts";
 import { embeddedDriver } from "./pglite.ts";
@@ -237,4 +239,152 @@ test("a bootstrap failure that leaves no tracking table is reported", async () =
     /duplicate key/,
   );
   assert.equal(await exists(driver, "migrate_test_one"), false);
+});
+
+/**
+ * The taste model's move from name-keyed to uuid-keyed identity, run against
+ * data shaped the way production's is.
+ *
+ * These tests exist because the migration's whole promise is that nothing a user
+ * has changes meaning. The only way to check that is to write rows the way v1
+ * wrote them and then look at what the store says about them afterwards.
+ *
+ * `upTo` is what makes the phases testable: dev and CI migrate all the way, so
+ * without it there would be no way to stand in the expanded schema and see what
+ * an instance from before the deploy would have done there.
+ */
+
+const ALICE = "google:alice";
+
+const upTo = (version: number): SchemaModule => ({
+  module: TASTE_SCHEMA.module,
+  migrations: TASTE_SCHEMA.migrations.filter((one) => one.version <= version),
+});
+
+/** Rows exactly as the v1 schema held them: names, and no ids anywhere. */
+async function seedV1(sql: SqlDriver): Promise<void> {
+  for (const [name, instruction] of [
+    ["Sci-Fi", "I like ideas over spectacle."],
+    ["Thriller", "I like being kept on edge."],
+  ]) {
+    await sql.query(
+      `INSERT INTO tonight_genres (user_id, name, instruction) VALUES ($1, $2, $3)`,
+      [ALICE, name, instruction],
+    );
+  }
+  await sql.query(
+    `INSERT INTO tonight_mixes (user_id, name, instruction) VALUES ($1, $2, $3)`,
+    [ALICE, "Space Tension", "Contained, and nobody is safe."],
+  );
+  for (const [position, genre] of ["Sci-Fi", "Thriller"].entries()) {
+    await sql.query(
+      `INSERT INTO tonight_mix_genres (user_id, mix, genre, position) VALUES ($1, $2, $3, $4)`,
+      [ALICE, "Space Tension", genre, position],
+    );
+  }
+}
+
+test("v2 gives every row an id and points every reference at one", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(1));
+  await seedV1(sql);
+
+  await migrate(sql, upTo(2));
+
+  // Every reference now carries the id of the row its name names — which is the
+  // whole of the backfill, and the thing the contract migration will trust.
+  const rows = await sql.query<{ mix: string; genre: string; ok: boolean }>(
+    `SELECT r.mix, r.genre,
+            (r.mix_id = m.id AND r.genre_id = g.id) AS ok
+       FROM tonight_mix_genres AS r
+       JOIN tonight_mixes  AS m ON m.user_id = r.user_id AND m.name = r.mix
+       JOIN tonight_genres AS g ON g.user_id = r.user_id AND g.name = r.genre
+      WHERE r.user_id = $1
+      ORDER BY r.position`,
+    [ALICE],
+  );
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every((row) => row.ok), "a reference points at the wrong row");
+
+  // And the names are untouched: expansion adds identity, it does not rewrite
+  // anything the user typed.
+  const names = await sql.query<{ name: string }>(
+    `SELECT name FROM tonight_genres WHERE user_id = $1 ORDER BY name`,
+    [ALICE],
+  );
+  assert.deepEqual(names.map((row) => row.name), ["Sci-Fi", "Thriller"]);
+});
+
+test("reconciliation repairs a reference an old instance wrote after the backfill", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(1));
+  await seedV1(sql);
+  await migrate(sql, upTo(2));
+
+  // What an instance deployed before v2 does: names only, no ids. It is legal
+  // against the expanded schema on purpose — that is what keeps it serving.
+  await sql.query(
+    `INSERT INTO tonight_mixes (user_id, name, instruction) VALUES ($1, $2, $3)`,
+    [ALICE, "Quiet Dread", "Slow, and nothing jumps out."],
+  );
+  await sql.query(
+    `INSERT INTO tonight_mix_genres (user_id, mix, genre, position) VALUES ($1, $2, $3, 0)`,
+    [ALICE, "Quiet Dread", "Thriller"],
+  );
+
+  const nulls = async () =>
+    (
+      await sql.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM tonight_mix_genres
+          WHERE user_id = $1 AND (mix_id IS NULL OR genre_id IS NULL)`,
+        [ALICE],
+      )
+    )[0]!.n;
+
+  assert.equal(await nulls(), 1, "the old-style write should have left ids null");
+
+  await sql.exec(RECONCILE_MIX_GENRES);
+
+  assert.equal(await nulls(), 0, "reconciliation left a row unrepaired");
+  const [repaired] = await sql.query<{ ok: boolean }>(
+    `SELECT (r.mix_id = m.id AND r.genre_id = g.id) AS ok
+       FROM tonight_mix_genres AS r
+       JOIN tonight_mixes  AS m ON m.user_id = r.user_id AND m.name = r.mix
+       JOIN tonight_genres AS g ON g.user_id = r.user_id AND g.name = r.genre
+      WHERE r.user_id = $1 AND r.mix = $2`,
+    [ALICE, "Quiet Dread"],
+  );
+  assert.equal(repaired?.ok, true, "the repaired row points at the wrong object");
+});
+
+test("v1 data survives the whole migration with its meaning intact", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(1));
+  await seedV1(sql);
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  // Read back through the store, because "unchanged" means unchanged to a
+  // caller: the same genres, the same mix, the same genres under it, in the
+  // same order, spelled the way they were typed.
+  const taste = await sqlTasteStore(sql, { id: ALICE }).taste();
+  assert.deepEqual(taste, {
+    genres: [
+      { name: "Sci-Fi", instruction: "I like ideas over spectacle." },
+      { name: "Thriller", instruction: "I like being kept on edge." },
+    ],
+    mixes: [
+      {
+        name: "Space Tension",
+        instruction: "Contained, and nobody is safe.",
+        genres: ["Sci-Fi", "Thriller"],
+      },
+    ],
+  });
+
+  // And no uuid reached the caller on the way. The comparison above would already
+  // reject an extra key, but the fields are named here because this is the
+  // property most easily lost by accident and least likely to be noticed.
+  const fields = new Set([...taste.genres.flatMap(Object.keys), ...taste.mixes.flatMap(Object.keys)]);
+  assert.deepEqual([...fields].sort(), ["genres", "instruction", "name"]);
 });

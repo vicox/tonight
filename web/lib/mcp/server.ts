@@ -49,8 +49,9 @@ export type McpSession = {
 const genreName = z
   .string()
   .describe(
-    'A genre\'s name — "Action", "Sci-Fi", "Slow burn". This is its only identifier; there is ' +
-      "no separate id. Matched case-insensitively.",
+    'A genre\'s name — "Action", "Sci-Fi", "Slow burn". This is the only identifier Tonight ' +
+      "takes: genres are addressed by name everywhere, and there is no id to look up or pass. " +
+      "Matched case-insensitively.",
   );
 
 const mixName = z
@@ -59,9 +60,9 @@ const mixName = z
     'A mix\'s name — "Space Tension", "Puzzle Pressure", "Small Town Secrets". Evocative, not ' +
       "descriptive: a genre is named for what it is and a mix for what it feels like, so if " +
       "knowing the genres already tells you the name, the name is doing no work. " +
-      '"Smart, not heavy" and "Funny action" are genre lists, not mix names. Its only ' +
-      "identifier, matched case-insensitively. Genres and mixes have separate names: a genre " +
-      "called X and a mix called X are different objects.",
+      '"Smart, not heavy" and "Funny action" are genre lists, not mix names. The only ' +
+      "identifier Tonight takes, matched case-insensitively. Genres and mixes have separate " +
+      "names: a genre called X and a mix called X are different objects.",
   );
 
 const genreInstruction = z

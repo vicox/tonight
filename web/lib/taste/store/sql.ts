@@ -33,9 +33,22 @@ export { TASTE_SCHEMA };
  *
  * Anything that changes more than one row runs in a transaction, and the ones
  * that matter lean on the schema instead of doing the work themselves: renaming
- * a genre is one `UPDATE` that cascades into every mix built from it, and
+ * a genre is one `UPDATE` that writes one row and no references at all, and
  * deleting one is a `DELETE` that the database refuses while a mix still needs
- * it. See `schema.ts` for why the name being the key is what makes that possible.
+ * it. See `schema.ts` for the two identities that make that possible.
+ *
+ * ## Ids live here and go no further
+ *
+ * A genre and a mix each have a uuid, and it is the thing every reference and
+ * every mutation is addressed by. It is also invisible above this file: the
+ * public `Genre` and `Mix` carry a name and no id, `TasteStore` takes names, and
+ * the MCP tools and the website speak names. The private rows below carry both,
+ * and `orderGenre`/`orderMix` rebuild the public shape field by field — so an id
+ * cannot reach a caller by being forgotten about, only by somebody adding it on
+ * purpose.
+ *
+ * Names are still what a caller says and still what Postgres resolves. The id is
+ * what the answer is then addressed by.
  */
 export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): TasteStore {
   const owner = user.id;
@@ -51,7 +64,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         // to ask for here and nowhere else: this transaction only reads, so it can
         // never be aborted for a serialization failure.
         await tx.exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
-        return { genres: await readGenres(tx, owner), mixes: await readMixes(tx, owner) };
+        return {
+          genres: (await readGenres(tx, owner)).map(orderGenre),
+          mixes: await readMixes(tx, owner),
+        };
       });
     },
 
@@ -105,18 +121,16 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
             changes.instruction === undefined ? current.instruction : changes.instruction,
         });
 
-        // One statement, and the schema carries the rest: the foreign key on the
-        // reference table is ON UPDATE CASCADE, so every mix built from this
-        // genre follows the new name inside this same statement. Nothing observes
-        // a genre under one name and a mix pointing at the other, because there
-        // is no moment between.
+        // One statement, one row. The reference table holds this genre's id and
+        // not its name, so a rename is invisible to every mix built from it —
+        // there is no cascade to run and nothing that could be caught halfway.
         let changed;
         try {
           changed = await tx.query(
             `UPDATE tonight_genres SET name = $3, instruction = $4, updated_at = now()
-              WHERE user_id = $1 AND name = $2
+              WHERE user_id = $1 AND id = $2
              RETURNING name`,
-            [owner, current.name, entry.name, entry.instruction],
+            [owner, current.id, entry.name, entry.instruction],
           );
         } catch (error) {
           if (isSqlState(error, UNIQUE_VIOLATION)) throw genreExists(entry.name);
@@ -141,32 +155,40 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         // that genre, which this one already has, so no mix can start depending on
         // it between the question and the delete.
         const blocking = await tx.query<{ mix: string }>(
-          `SELECT DISTINCT mix FROM tonight_mix_genres
-            WHERE user_id = $1 AND genre = $2 ORDER BY mix`,
-          [owner, entry.name],
+          `SELECT DISTINCT m.name AS mix
+             FROM tonight_mix_genres AS r
+             JOIN tonight_mixes AS m ON m.user_id = r.user_id AND m.id = r.mix_id
+            WHERE r.user_id = $1 AND r.genre_id = $2
+            ORDER BY m.name`,
+          [owner, entry.id],
         );
         if (blocking.length) {
           throw genreInUse(entry.name, blocking.map((row) => row.mix));
         }
 
         const removed = await tx.query(
-          `DELETE FROM tonight_genres WHERE user_id = $1 AND name = $2 RETURNING name`,
-          [owner, entry.name],
+          `DELETE FROM tonight_genres WHERE user_id = $1 AND id = $2 RETURNING name`,
+          [owner, entry.id],
         );
         if (!removed.length) throw genreNotFound(name);
-        return entry;
+        return orderGenre(entry);
       });
     },
 
     async createMix(draft) {
       return driver.transaction(async (tx) => {
         const genres = await readGenres(tx, owner);
-        const entry = await validateMix(tx, draft, genres);
-        await holdGenres(tx, owner, entry.genres, genres);
+        const { mix: entry, references } = await validateMix(tx, draft, genres);
+        await holdGenres(tx, owner, references, genres);
 
+        // The id Postgres generated for this mix, taken from the statement that
+        // made it. There is no second read to go stale, and nothing above this
+        // line ever sees the value.
+        let created;
         try {
-          await tx.query(
-            `INSERT INTO tonight_mixes (user_id, name, instruction) VALUES ($1, $2, $3)`,
+          created = await tx.query<{ id: string }>(
+            `INSERT INTO tonight_mixes (user_id, name, instruction) VALUES ($1, $2, $3)
+             RETURNING id`,
             [owner, entry.name, entry.instruction],
           );
         } catch (error) {
@@ -174,7 +196,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           throw error;
         }
 
-        await writeMixGenres(tx, owner, entry);
+        await writeMixGenres(tx, owner, created[0]!.id, references);
         return entry;
       });
     },
@@ -191,26 +213,43 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         if (!current) throw mixNotFound(name);
         if (destination && destination.name !== current.name) throw mixExists(destination.name);
 
-        const genres = await readGenres(tx, owner);
-        const entry = await validateMix(
-          tx,
-          {
-            name: renamingTo === undefined ? current.name : renamingTo,
-            instruction:
-              changes.instruction === undefined ? current.instruction : changes.instruction,
-            genres: changes.genres === undefined ? current.genres : changes.genres,
-          },
-          genres,
-        );
-        await holdGenres(tx, owner, entry.genres, genres);
+        const core = {
+          name: renamingTo === undefined ? current.name : renamingTo,
+          instruction:
+            changes.instruction === undefined ? current.instruction : changes.instruction,
+        };
+
+        /**
+         * Only a caller who named genres is changing them.
+         *
+         * Omitting the field means "leave the references alone", and leaving them
+         * alone now means exactly that: the rows hold this mix's id and each
+         * genre's id, and none of those can change under an update to the mix
+         * itself. The earlier version rebuilt the list from the names it had just
+         * read, which was wrong twice over — it rewrote rows that were already
+         * correct, and a genre renamed by another transaction in between made the
+         * whole update fail with "not one of your genres" over a reference the
+         * caller had not touched and that was still perfectly valid.
+         */
+        let references: Reference[] | undefined;
+        let entry: Mix;
+        if (changes.genres === undefined) {
+          entry = orderMix({ ...validateMixCore(core), genres: current.genres });
+        } else {
+          const genres = await readGenres(tx, owner);
+          const validated = await validateMix(tx, { ...core, genres: changes.genres }, genres);
+          entry = validated.mix;
+          references = validated.references;
+          await holdGenres(tx, owner, references, genres);
+        }
 
         let changed;
         try {
           changed = await tx.query(
             `UPDATE tonight_mixes SET name = $3, instruction = $4, updated_at = now()
-              WHERE user_id = $1 AND name = $2
+              WHERE user_id = $1 AND id = $2
              RETURNING name`,
-            [owner, current.name, entry.name, entry.instruction],
+            [owner, current.id, entry.name, entry.instruction],
           );
         } catch (error) {
           if (isSqlState(error, UNIQUE_VIOLATION)) throw mixExists(entry.name);
@@ -218,16 +257,17 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         }
         if (!changed.length) throw mixNotFound(name);
 
-        // The reference rows followed the rename in that same statement, so they
-        // are addressed by the new name here. They are replaced rather than
-        // merged: passing `genres` says what the mix is built from now, and the
-        // model refuses an empty list, so a mix can never be left built from
-        // nothing.
-        await tx.query(`DELETE FROM tonight_mix_genres WHERE user_id = $1 AND mix = $2`, [
-          owner,
-          entry.name,
-        ]);
-        await writeMixGenres(tx, owner, entry);
+        // Replaced rather than merged: passing `genres` says what the mix is
+        // built from now, and the model refuses an empty list, so a mix can never
+        // be left built from nothing. Addressed by the mix's id, which the rename
+        // above did not touch.
+        if (references) {
+          await tx.query(`DELETE FROM tonight_mix_genres WHERE user_id = $1 AND mix_id = $2`, [
+            owner,
+            current.id,
+          ]);
+          await writeMixGenres(tx, owner, current.id, references);
+        }
         return entry;
       });
     },
@@ -241,11 +281,11 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         // the genres themselves are untouched. Deleting a mix is never blocked:
         // nothing in this model is built from a mix.
         const removed = await tx.query(
-          `DELETE FROM tonight_mixes WHERE user_id = $1 AND name = $2 RETURNING name`,
-          [owner, entry.name],
+          `DELETE FROM tonight_mixes WHERE user_id = $1 AND id = $2 RETURNING name`,
+          [owner, entry.id],
         );
         if (!removed.length) throw mixNotFound(name);
-        return entry;
+        return orderMix(entry);
       });
     },
   };
@@ -253,7 +293,25 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
 
 // --- locating, and holding what is about to change -------------------------
 
-type NamedRow = { name: string; instruction: string };
+/**
+ * A row as the store holds it: the public object, plus the identity it is stored
+ * under. Never returned — `orderGenre` and `orderMix` are what a caller sees, and
+ * they rebuild from the public fields.
+ */
+type Stored<T> = T & { id: string };
+
+/**
+ * A genre a mix is about to be built from: the id the reference row will hold,
+ * and the spelling a caller will be shown.
+ *
+ * Both halves travel together from the moment a name is resolved, so nothing
+ * downstream has to look the genre up a second time — and a rename between the
+ * two lookups cannot substitute a different genre under the name that was asked
+ * for.
+ */
+type Reference = { id: string; name: string };
+
+type NamedRow = Stored<{ name: string; instruction: string }>;
 
 /** The two tables a name identifies a row in. Literals, never a caller's value. */
 type Named = "tonight_genres" | "tonight_mixes";
@@ -335,7 +393,7 @@ async function lockNames(
   const held = new Map<string, NamedRow>();
   for (const key of inLockOrder(toKey === undefined ? [fromKey] : [fromKey, toKey])) {
     const [row] = await sql.query<NamedRow>(
-      `SELECT name, instruction FROM ${table}
+      `SELECT id, name, instruction FROM ${table}
         WHERE user_id = $1 AND lower(name) = $2
         FOR UPDATE`,
       [owner, key],
@@ -358,11 +416,11 @@ async function lockGenre(
   owner: string,
   name: string,
   renamingTo?: string,
-): Promise<{ source?: Genre; destination?: Genre }> {
+): Promise<{ source?: Stored<Genre>; destination?: Stored<Genre> }> {
   const { source, destination } = await lockNames(sql, "tonight_genres", owner, name, renamingTo);
   return {
-    source: source && orderGenre(source),
-    destination: destination && orderGenre(destination),
+    source: source && { ...orderGenre(source), id: source.id },
+    destination: destination && { ...orderGenre(destination), id: destination.id },
   };
 }
 
@@ -372,21 +430,35 @@ async function lockMix(
   owner: string,
   name: string,
   renamingTo?: string,
-): Promise<{ source?: Mix; destination?: Mix }> {
+): Promise<{ source?: Stored<Mix>; destination?: Stored<Mix> }> {
   const { source, destination } = await lockNames(sql, "tonight_mixes", owner, name, renamingTo);
-  if (!source) return { destination: destination && orderMix({ ...destination, genres: [] }) };
+  const empty = (row: NamedRow): Stored<Mix> => ({
+    ...orderMix({ ...row, genres: [] }),
+    id: row.id,
+  });
+  if (!source) return { destination: destination && empty(destination) };
 
+  // Addressed by the mix's id and joined for the genres' names: the reference
+  // rows hold ids, and what a caller is shown is the spelling each genre is
+  // stored under.
   const references = await sql.query<{ genre: string }>(
-    `SELECT genre FROM tonight_mix_genres WHERE user_id = $1 AND mix = $2 ORDER BY position`,
-    [owner, source.name],
+    `SELECT g.name AS genre
+       FROM tonight_mix_genres AS r
+       JOIN tonight_genres AS g ON g.user_id = r.user_id AND g.id = r.genre_id
+      WHERE r.user_id = $1 AND r.mix_id = $2
+      ORDER BY r.position`,
+    [owner, source.id],
   );
   return {
-    source: orderMix({
-      name: source.name,
-      instruction: source.instruction,
-      genres: references.map((reference) => reference.genre),
-    }),
-    destination: destination && orderMix({ ...destination, genres: [] }),
+    source: {
+      ...orderMix({
+        name: source.name,
+        instruction: source.instruction,
+        genres: references.map((reference) => reference.genre),
+      }),
+      id: source.id,
+    },
+    destination: destination && empty(destination),
   };
 }
 
@@ -410,38 +482,50 @@ async function lockMix(
  *
  * `known` is what the transaction has already read, used only to phrase the
  * refusal in the same words a name that never existed would get.
+ *
+ * It confirms it locked the genre that was resolved, by id and not only by
+ * name. A name is not stable: between resolving one and reaching here another
+ * transaction can rename that genre away and rename a second one into the name
+ * it left. Matching on the name alone would then hold the wrong row and build
+ * the mix out of a genre nobody asked for. Comparing ids costs a column.
  */
 async function holdGenres(
   sql: Transaction,
   owner: string,
-  wanted: readonly string[],
+  wanted: readonly Reference[],
   known: readonly Genre[],
 ): Promise<void> {
   if (!wanted.length) return;
 
-  const held = new Set<string>();
-  for (const key of inLockOrder(await fold(sql, wanted))) {
-    const [row] = await sql.query<{ name: string }>(
-      `SELECT name FROM tonight_genres
+  const keys = await fold(sql, wanted.map((reference) => reference.name));
+  const held = new Map<string, string>();
+  for (const key of inLockOrder(keys)) {
+    const [row] = await sql.query<{ id: string }>(
+      `SELECT id FROM tonight_genres
         WHERE user_id = $1 AND lower(name) = $2
         FOR KEY SHARE`,
       [owner, key],
     );
-    if (row) held.add(row.name);
+    if (row) held.set(key, row.id);
   }
 
-  const gone = wanted.find((name) => !held.has(name));
-  if (gone) throw mixGenreMissing(gone, known.map((genre) => genre.name));
+  // Gone, or no longer the genre it was. Both are the same answer to a caller:
+  // the genre they named is not there to build from.
+  for (const [index, reference] of wanted.entries()) {
+    if (held.get(keys[index]!) !== reference.id) {
+      throw mixGenreMissing(reference.name, known.map((genre) => genre.name));
+    }
+  }
 }
 
 // --- reading ---------------------------------------------------------------
 
-async function readGenres(sql: Transaction, owner: string): Promise<Genre[]> {
-  const rows = await sql.query<{ name: string; instruction: string }>(
-    `SELECT name, instruction FROM tonight_genres WHERE user_id = $1`,
+async function readGenres(sql: Transaction, owner: string): Promise<Stored<Genre>[]> {
+  const rows = await sql.query<{ id: string; name: string; instruction: string }>(
+    `SELECT id, name, instruction FROM tonight_genres WHERE user_id = $1`,
     [owner],
   );
-  return byName(rows.map(orderGenre));
+  return byName(rows.map((row) => ({ ...orderGenre(row), id: row.id })));
 }
 
 /**
@@ -452,18 +536,29 @@ async function readGenres(sql: Transaction, owner: string): Promise<Genre[]> {
  * `user_id`, which is the only scoping there is.
  */
 async function readMixes(sql: Transaction, owner: string): Promise<Mix[]> {
-  const rows = await sql.query<{ name: string; instruction: string }>(
-    `SELECT name, instruction FROM tonight_mixes WHERE user_id = $1`,
+  const rows = await sql.query<{ id: string; name: string; instruction: string }>(
+    `SELECT id, name, instruction FROM tonight_mixes WHERE user_id = $1`,
     [owner],
   );
-  const references = await sql.query<{ mix: string; genre: string }>(
-    `SELECT mix, genre FROM tonight_mix_genres WHERE user_id = $1 ORDER BY mix, position`,
+  // Grouped by the mix's id and joined for each genre's stored spelling. The ids
+  // never leave this function; what is assembled from them is names.
+  const references = await sql.query<{ mix_id: string; genre: string }>(
+    `SELECT r.mix_id, g.name AS genre
+       FROM tonight_mix_genres AS r
+       JOIN tonight_genres AS g ON g.user_id = r.user_id AND g.id = r.genre_id
+      WHERE r.user_id = $1
+      ORDER BY r.mix_id, r.position`,
     [owner],
   );
 
-  const mixes = rows.map((row) => ({ name: row.name, instruction: row.instruction, genres: [] as string[] }));
-  const byMix = new Map(mixes.map((mix) => [mix.name, mix]));
-  for (const row of references) byMix.get(row.mix)?.genres.push(row.genre);
+  const mixes = rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    instruction: row.instruction,
+    genres: [] as string[],
+  }));
+  const byId = new Map(mixes.map((mix) => [mix.id, mix]));
+  for (const row of references) byId.get(row.mix_id)?.genres.push(row.genre);
 
   return byName(mixes).map(orderMix);
 }
@@ -501,13 +596,30 @@ function validateGenre(draft: GenreDraft): Genre {
 async function validateMix(
   sql: Transaction,
   draft: MixDraft,
-  genres: readonly Genre[],
-): Promise<Mix> {
-  return orderMix({
+  genres: readonly Stored<Genre>[],
+): Promise<{ mix: Mix; references: Reference[] }> {
+  const references = await resolveGenres(sql, checkMixGenres(draft.genres), genres);
+  return {
+    mix: orderMix({ ...validateMixCore(draft), genres: references.map((one) => one.name) }),
+    references,
+  };
+}
+
+/**
+ * The parts of a mix that can be judged without knowing what else exists.
+ *
+ * Split out because an update that does not mention genres has nothing to
+ * resolve: its references are already correct, and asking about them again is
+ * what this fixes.
+ */
+function validateMixCore(draft: { name: unknown; instruction: unknown }): {
+  name: string;
+  instruction: string;
+} {
+  return {
     name: checkName(draft.name, "mix"),
     instruction: checkInstruction(draft.instruction, "mix"),
-    genres: await resolveGenres(sql, checkMixGenres(draft.genres), genres),
-  });
+  };
 }
 
 /**
@@ -532,14 +644,14 @@ async function validateMix(
 async function resolveGenres(
   sql: Transaction,
   wanted: readonly string[],
-  genres: readonly Genre[],
-): Promise<string[]> {
+  genres: readonly Stored<Genre>[],
+): Promise<Reference[]> {
   // One round trip for both sides, so the two are folded by the same call and
   // cannot be folded by different rules.
   const keys = await fold(sql, [...wanted, ...genres.map((genre) => genre.name)]);
   const existing = new Map(keys.slice(wanted.length).map((key, index) => [key, genres[index]!]));
 
-  const resolved: string[] = [];
+  const resolved: Reference[] = [];
   const taken = new Set<string>();
   for (const [index, name] of wanted.entries()) {
     const key = keys[index]!;
@@ -547,17 +659,29 @@ async function resolveGenres(
     if (!genre) throw mixGenreMissing(name, genres.map((one) => one.name));
     if (taken.has(key)) continue;
     taken.add(key);
-    resolved.push(genre.name);
+    resolved.push({ id: genre.id, name: genre.name });
   }
   return resolved;
 }
 
-/** Writes a mix's genre rows, in the order they were given. */
-async function writeMixGenres(sql: Transaction, owner: string, mix: Mix): Promise<void> {
-  for (const [position, genre] of mix.genres.entries()) {
+/**
+ * Writes a mix's genre rows, in the order they were given.
+ *
+ * By id on both sides. The mix's comes from the statement that created or located
+ * it; each genre's comes from `holdGenres`, which is holding that row. Neither
+ * name appears, which is what makes a later rename cost this table nothing.
+ */
+async function writeMixGenres(
+  sql: Transaction,
+  owner: string,
+  mixId: string,
+  references: readonly Reference[],
+): Promise<void> {
+  for (const [position, reference] of references.entries()) {
     await sql.query(
-      `INSERT INTO tonight_mix_genres (user_id, mix, genre, position) VALUES ($1, $2, $3, $4)`,
-      [owner, mix.name, genre, position],
+      `INSERT INTO tonight_mix_genres (user_id, mix_id, genre_id, position)
+       VALUES ($1, $2, $3, $4)`,
+      [owner, mixId, reference.id, position],
     );
   }
 }
