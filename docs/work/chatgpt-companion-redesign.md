@@ -170,16 +170,24 @@ enough.
    `conversation → recommendation → your taste grows → better recommendations`
 3. **A worked example**, short enough to read standing up:
 
-   > **You:** I want a clever thriller tonight, nothing too bleak.
-   > **ChatGPT:** Knives Out, The Nice Guys, or Game Night.
+   > **You:** Give me a clever mystery where nobody tells the truth.
+   > **ChatGPT:** Knives Out, The Outfit, or Inside Man.
    > Want me to remember the kind of thing this is?
    > **You:** yes
-   > **Tonight:** `[CLEVER THRILLER] + [LIGHT SUSPENSE] ↓ Cheerful Trouble`
+   > **Tonight:** `[MYSTERY] + [CLEVER THRILLER] ↓ 🕵️ Everybody's Lying`
    >
-   > *Next Friday the whole request is "something like Cheerful Trouble, but shorter" — and it
+   > *Next Friday the whole request is "something like Everybody's Lying, but shorter" — and it
    > knows.*
 
-   Five things have to be in it, and the first three are what earlier drafts left out.
+   **Six of these, browsable.** One example says Tonight remembers a preference. It takes two or
+   three to say the thing that actually distinguishes the product — that a Mix is a reusable name
+   for a *kind of night*, and that one person has several. `Quiet Dread` and `Popcorn Chaos` are
+   not two points on a scale of taste; they are different Fridays, and the same person wants
+   both. So the six are curated to be far apart — no two share a Genre pair, no film appears
+   twice — and `lib/worked-examples.test.ts` keeps them that way, including that no Mix name
+   contains one of its own Genres.
+
+   Five things have to be in each one, and the first three are what earlier drafts left out.
 
    **The films are named.** A stranger works out what this is from the answer they would have
    got; *"recommends three films"* is a stage direction, not an answer. It also puts the
@@ -190,14 +198,21 @@ enough.
    two genres are two things somebody said, the mix is the third thing they decided. Rendered
    the way the signed-in page renders it, so the same shape teaches twice.
 
-   **The Mix is named, not described.** `Cheerful Trouble`, not *"Smart, not heavy"* — see
-   [The naming principle](#the-naming-principle) below. This example is where most people meet
+   **The Mix is named, not described.** `Everybody's Lying`, not *"Smart, not heavy"* — see
+   [The naming principle](#the-naming-principle) below. These examples are where most people meet
    the distinction, so getting it wrong here would teach the wrong thing to everybody who reads
-   the page and nowhere else.
+   the page and nowhere else. The Mix name is also the visual anchor of the card, set larger than
+   anything else on it: the working is above, and this is the part worth keeping.
 
    **The payoff is stated once.** Without the last line the example explains persistence and
    never says what it buys — which is a shorter request that lands better, next time. It is also
-   what proves the name: the sentence only works because `Cheerful Trouble` is sayable.
+   what proves the name: the sentence only works because `Everybody's Lying` is sayable.
+
+   The browsing itself is deliberately quiet — a cross-fade in a box that never changes height,
+   eight seconds a card, stopping the moment a pointer, a finger or the keyboard is anywhere near
+   it, and not advancing at all under `prefers-reduced-motion`. Six dots say how many there are
+   and jump straight to one. The emphasis is exploration, not motion: nobody should notice the
+   component, only the evenings.
 
    **The "yes" stays.** Tonight saves what somebody said and never what the assistant
    concluded, so not every sentence becomes a genre, and where the host asks before it writes

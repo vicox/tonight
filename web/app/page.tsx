@@ -1,6 +1,7 @@
 import { LegalLinks } from "@/components/legal";
 import { SetupSteps } from "@/components/setup-steps";
 import { SiteHeader, SignIn, Account, SetupLink } from "@/components/site-header";
+import { WorkedExamples } from "@/components/worked-examples";
 import { TasteView } from "@/components/taste-view";
 import { PROJECT_INSTRUCTIONS, PROJECT_INSTRUCTIONS_VERSION } from "@/lib/instructions";
 import { setupSteps } from "@/lib/setup-steps";
@@ -101,7 +102,7 @@ function Landing() {
         </p>
       </section>
 
-      <WorkedExample />
+      <WorkedExamples />
 
       <div className="mt-14">
         {endpoint === null ? (
@@ -128,105 +129,6 @@ function Landing() {
         <LegalLinks />
       </footer>
     </main>
-  );
-}
-
-/**
- * One exchange, start to finish: a request, real films, a yes, and what Tonight
- * kept because of it.
- *
- * The films are named rather than described. A stranger works out what this is
- * from the answer they would have got, and "recommends three films" is not an
- * answer — it is a stage direction. Naming them is also the honest order of
- * events: the recommendation is what the product is for, and the taste model is
- * the residue of having asked well, not a form to fill in first.
- *
- * The mix is drawn the way the signed-in page draws it, because it is the part
- * that is hard to explain and easy to show. Two genres are two things somebody
- * said; the mix is the third thing they decided, and seeing it composed from the
- * other two says more than a sentence about combinations would.
- *
- * `Cheerful Trouble` is doing the real work here. A genre is named for what it is
- * and a mix for what it feels like, so a mix called "Clever thriller, but light"
- * would be its own ingredients read back — and this example is where most people
- * meet the distinction for the first time. The last line is the proof: the name
- * has to be something somebody would say out loud a month later.
- *
- * The "yes" is in it on purpose. Tonight stores what somebody said and never what
- * the assistant concluded about them, so the model grows one accepted offer at a
- * time — showing the acceptance is the difference between a product that keeps
- * what you tell it and one that watches you.
- */
-function WorkedExample() {
-  return (
-    <section className="mt-12 rounded-2xl border border-rule bg-screen p-6 sm:p-8">
-      <dl className="flex flex-col gap-3 text-[13.5px] leading-relaxed">
-        <Turn who="You">I want a clever thriller tonight, nothing too bleak.</Turn>
-        <Turn who="ChatGPT">
-          <span className="block">Knives Out, The Nice Guys, or Game Night.</span>
-          <span className="mt-1 block text-ink-soft">
-            Want me to remember the kind of thing this is?
-          </span>
-        </Turn>
-        <Turn who="You">yes</Turn>
-        <Turn who="Tonight" lit>
-          <span className="block">
-            <span className="sr-only">
-              Saved two genres, Clever thriller and Light suspense, and the mix they make
-              together: Cheerful Trouble.
-            </span>
-            <span aria-hidden="true" className="block">
-              <span className="flex flex-wrap items-center gap-1.5">
-                <Chip>Clever thriller</Chip>
-                <span className="text-[12px] text-ink-faint">+</span>
-                <Chip>Light suspense</Chip>
-              </span>
-              <span className="mt-1.5 block text-[13px] leading-none text-beam">↓</span>
-              <span className="mt-1.5 block font-display text-[20px] leading-tight text-ink">
-                Cheerful Trouble
-              </span>
-            </span>
-          </span>
-        </Turn>
-      </dl>
-
-      <div className="mt-5 border-t border-rule pt-4 text-[12.5px] leading-relaxed text-ink-faint">
-        <p>
-          <span className="text-ink-soft">Next Friday the whole request is</span> “something like
-          Cheerful Trouble, but shorter” <span className="text-ink-soft">— and it knows.</span>
-        </p>
-        <p className="mt-1.5">
-          Tonight keeps what you said, never what it worked out about you. Nothing is saved unless
-          you say so.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function Turn({
-  who,
-  lit = false,
-  children,
-}: {
-  who: string;
-  lit?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-      <dt className={`shrink-0 sm:w-20 ${lit ? "text-beam" : "text-ink-faint"}`}>{who}</dt>
-      <dd className="min-w-0 text-ink">{children}</dd>
-    </div>
-  );
-}
-
-/** A genre's name, in film-credit typography. */
-function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded-md border border-rule px-2.5 py-1 text-[11px] tracking-[0.11em] text-ink-soft uppercase">
-      {children}
-    </span>
   );
 }
 
