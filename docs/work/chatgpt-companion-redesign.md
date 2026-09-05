@@ -1,9 +1,9 @@
 # Turning the website into a companion page
 
-**Status:** proposed, revised after a design review. Nothing has been built except the
-groundwork listed under [Already in the worktree](#already-in-the-worktree). No UI has changed
-yet. The prerequisites in [Who this works for](#who-this-works-for) are new, and they gate the
-walkthrough this document is mostly about.
+**Status:** implemented, in the two commits described under
+[Migration strategy](#migration-strategy). Two sentences of it are deliberately absent and
+marked `TODO(Q2)` in the code — see [What is gated on what](#what-is-gated-on-what). The
+document is kept as written: it is the record of what was decided and why, not a changelog.
 
 Written in English to match the rest of the repository.
 
@@ -367,24 +367,35 @@ be wrong and, worse, would leave Q1 with nothing to paste.
 So commit 1 gets built and its two Q2-dependent sentences get written last. Commit 2 depends on
 neither answer and could go first if the spikes take a while.
 
-### Already in the worktree
+### What it became
 
-Uncommitted groundwork from this cycle, verified (408 tests, typecheck, lint, build, skill
-contract 46/46, `git diff --check` clean):
+Commit 1 — *Show people how to connect Tonight, on the page they land on*:
 
 ```
-web/scripts/sync-instructions.mjs          the mirror, side-effect-free on import
+web/scripts/sync-instructions.mjs          all three steps of AD-4
 web/lib/generated/project-instructions.ts  generated, committed
-web/lib/instructions.ts                    the seam
-web/lib/instructions.test.ts               drift guard, frontmatter guard, length
-web/components/copy-button.tsx             generic, not yet placed on a page
-web/package.json                           + "sync:instructions"
+web/lib/instructions.ts                    the seam: text, version, length
+web/lib/instructions.test.ts               drift, transform, marker, length
+web/lib/setup-steps.ts                     the steps as data; PREREQUISITES empty (Q2)
+web/components/setup-steps.tsx             the compact rendering, for `/`
+web/components/copy-button.tsx             generic, one job
+web/app/setup/page.tsx                     the same data at length
+web/lib/web/setup.ts                       the MCP address, or null
+web/app/page.tsx                           hero, loop, example, steps
+web/components/site-header.tsx             + `SetupLink`
 ```
 
-Built against step 1 of AD-4 only. Steps 2 and 3 — the digest and the appended line — are not
-implemented, and the drift test currently compares against the frontmatter-stripped body. Adding
-them is part of commit 1 and changes the generated module, the test's expectation and nothing
-else.
+Commit 2 — *Make the taste model something you read, not a form you fill in*:
+
+```
+web/components/taste-view.tsx              the read path, a Server Component
+web/components/taste-advanced.tsx          the island; the only writer on the page
+web/lib/web/preview.ts                     what "the opening line" means, with tests
+web/components/taste-board.tsx             removed — replaced by the two above
+web/components/taste-editor.tsx            unchanged, mounted from Advanced
+```
+
+415 tests, typecheck, lint, build, skill contract 46/46.
 
 ---
 
