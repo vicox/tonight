@@ -205,10 +205,19 @@ export function TasteEditor({ draft, available, onSave, onClose }: Props) {
               >
                 {saving ? "Saving…" : "Save"}
               </button>
+              {/*
+                Closed off while a save is in flight, for the same reason Escape
+                and the backdrop are: there is one write happening and no way to
+                call it back. Leaving this open was the one way out that still
+                worked — it would unmount the dialog mid-request, so a refusal
+                would arrive with nothing left to show it in, and focus would be
+                handed to a control that stays disabled until the write settles.
+              */}
               <button
                 type="button"
                 onClick={onClose}
-                className="cursor-pointer rounded-md border border-rule px-4 py-2 text-[13px] text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
+                disabled={saving}
+                className="cursor-pointer rounded-md border border-rule px-4 py-2 text-[13px] text-ink-soft transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
               >
                 Cancel
               </button>
