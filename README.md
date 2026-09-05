@@ -53,29 +53,34 @@ from one vendor's.
 This mirrors Inbox Labeler, whose MCP server holds a user's label model while the mailbox
 belongs to the host's own Gmail connector.
 
-## The skills
+## The skill
 
-Three, with strict boundaries. Each one has a `SKILL.md` and a `test.sh` that checks the
-contract in it has not been edited away.
+One — [`tonight-recommend`](skills/tonight-recommend) — with a `SKILL.md` and a `test.sh` that
+checks the contract in it has not been edited away.
 
-| Skill | Its job |
-| --- | --- |
-| [`tonight-setup`](skills/tonight-setup) | turn a first description of somebody's taste into their first Genres; carries the starter definitions for bare genre names |
-| [`tonight-manage`](skills/tonight-manage) | Genres and Mixes afterwards — model, create, update, rename, delete; suggest Mixes |
-| [`tonight-recommend`](skills/tonight-recommend) | choose films for a Genre, a Mix, or a mood |
+**There is no setup.** Somebody arriving at Tonight wants a film, not a configuration session,
+so the conversation starts where they are:
 
-The semantic behaviour lives here, and so does the static product guidance: the MCP server is
-persisted state and deterministic operations over it, nothing else. `tonight-setup` is what
-knows the starting wording for a bare `Action`, and that "thrillers, but nothing too brutal" is
-one Genre whose instruction carries the exclusion; `tonight-manage` is what knows
-that a good Mix name is `Popcorn Chaos` rather than `Action Comedy`; `tonight-recommend` is what
-knows to read a Mix's instruction together with the instructions of the Genres under it.
+```
+want to watch  →  recommend  →  the model grows  →  better context next time  →  recommend
+```
+
+An empty taste model is the normal first state and is answered with a question about films, not
+with onboarding. What the person says along the way — *"a clever thriller, but nothing too
+bleak"* — becomes the Mix the recommendation was made for and the Genres under it. The model is
+the residue of real conversations rather than something anybody fills in first.
+
+The semantic behaviour lives here: the MCP server is persisted state and deterministic
+operations over it, nothing else. The skill is what knows that a Mix is the shape of a
+recommendation idea, that a good one is called `Popcorn Chaos` rather than `Action Comedy`, and
+— the rule the product rests on — that what may be written down is what the user said, never
+what the agent concluded from it.
 
 ## The MCP tools
 
 Eight, all deterministic, and all of them operations on persisted state. None interprets a
-sentence, invents a Genre or chooses a film — and none serves static product guidance either:
-setup semantics ship in the skills beside the server, not as a runtime tool.
+sentence, invents a Genre or chooses a film — and none serves product guidance either: the
+semantics ship in the skill beside the server, not as a runtime tool.
 
 | Tool | What it does |
 | --- | --- |
@@ -108,9 +113,7 @@ Genre is its primary key:
 - **A Mix names at least one Genre**, and passing a new list replaces the old one.
 - **A Genre always needs an instruction**, and the store supplies none. What `Action` means to
   a particular person is the one thing it cannot work out, so a Genre arriving without one is
-  refused. Starting wording for the common genre names lives in
-  [`skills/tonight-setup`](skills/tonight-setup), where the agent can show it to somebody before
-  they agree to it.
+  refused — the instruction is written from what that person actually said.
 
 ## The website
 
@@ -120,6 +123,8 @@ the MCP tools use. There is no second surface and no second copy of the rules.
 
 The website shows and edits the model. It does not recommend, and it has no model inside it to
 recommend with: the panel at the foot of the page names the sentence to take to your assistant.
+It is *a* place to manage the model rather than the only one — an assistant asked outright to
+rename a Genre or delete a Mix uses the same tools and does it there and then.
 
 ## Running it
 
@@ -141,10 +146,10 @@ npm run typecheck
 npm run lint
 ```
 
-and the skill contracts:
+and the skill contract:
 
 ```bash
-for skill in skills/*/; do "$skill/test.sh"; done
+skills/tonight-recommend/test.sh
 ```
 
 ## Deliberately not here yet

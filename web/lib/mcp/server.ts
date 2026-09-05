@@ -148,8 +148,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "Define a new genre. The name must be unique among this user's genres, ignoring case. " +
         "The instruction is required: a genre with no stated meaning is a movie-database tag " +
         "rather than somebody's taste, and Tonight will not invent one. Write it from what the " +
-        "user said. Agree the genre with them before calling this: the taste model is theirs, " +
-        "and this writes to it.",
+        "user said. Write down what they told you, never what you concluded from it: the taste " +
+        "model is theirs, and this writes to it.",
       inputSchema: z.object({ name: genreName, instruction: genreInstruction }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
@@ -198,8 +198,11 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "Combine one or more of the user's genres into a mix of their own. Every named genre " +
         "must already exist; a mix cannot be built from another mix. Give it a name the user " +
         "would enjoy having — mixes are personal, and 'Space Tension' beats 'Sci-Fi Thriller'. " +
-        "Show them films that fit before asking whether to save it: a mix is far easier to " +
-        "judge from three films than from a sentence.",
+        "A mix is the shape of a recommendation idea, so the natural moment to write one is when " +
+        "you have just used that idea to choose films the user asked for — but only when the " +
+        "idea itself came from them. Having invented a combination, used it, and found films " +
+        "that fit it is not what makes it their taste. Write down what they told you, never " +
+        "what you concluded from it: the taste model is theirs, and this writes to it.",
       inputSchema: z.object({ name: mixName, genres: mixGenres, instruction: mixInstruction }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },

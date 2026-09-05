@@ -6,15 +6,19 @@
 # Markdown *contract regression* tests: they catch deletion and edit of an
 # explicit contract rule, not every sentence that could contradict one.
 #
-# The rules this suite exists for: the taste model is the brief, Tonight holds no
-# film data and never chooses, nothing is remembered, and the only write this
-# skill may make is a Mix the user has just said yes to.
+# The rules this suite exists for: there is no setup phase, an empty taste model
+# is answered with a film question rather than onboarding, Tonight holds no film
+# data and never chooses, what gets written down is what the user said and never
+# what the agent concluded, and nothing is inferred from silence or from what was
+# recommended.
 #
 # Prints one line per check and exits non-zero if any of them fails.
+
 set -u
 
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd -P)"
 SKILL="$SCRIPT_DIR/SKILL.md"
+SKILLS_DIR="$(cd -P "$SCRIPT_DIR/.." && pwd -P)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -46,6 +50,18 @@ PYEOF
 
 order_check() { SKILL="$SKILL" python3 "$WORK/order.py" "$@"; }
 
+echo "--- one skill, and the removed ones stay removed ---"
+
+check "recommend is the only skill" \
+    "$(ls -1 "$SKILLS_DIR" | sort | tr '\n' ' ')" "tonight-recommend "
+check "no setup skill directory has come back" \
+    "$([ -e "$SKILLS_DIR/tonight-setup" ] && echo present || echo absent)" "absent"
+check "no manage skill directory has come back" \
+    "$([ -e "$SKILLS_DIR/tonight-manage" ] && echo present || echo absent)" "absent"
+check "and nothing points at either of them" \
+    "$(grep -ciE 'tonight-setup|tonight-manage' "$SKILL")" "0"
+
+echo
 echo "--- frontmatter ---"
 
 check "the file opens with the YAML delimiter, no leading blank line" \
@@ -55,28 +71,57 @@ check "the name is the skill own name" \
 check "there is a description, and the block closes on line 4" \
     "$(sed -n '3p' "$SKILL" | cut -c1-12)|$(sed -n '4p' "$SKILL")" "description:|---"
 
-echo
-echo "--- one job, and the boundaries around it ---"
+# The frontmatter is what a host reads to decide whether this skill applies, so
+# all three ways into the conversation have to be visible in it. Keyword-level on
+# purpose: the sentence may be reworded freely, the three entry points may not
+# quietly drop to two.
+entry_points="$(sed -n '3p' "$SKILL" | grep -oiE 'watch|inspect|chang' \
+    | tr '[:upper:]' '[:lower:]' | sort -u | tr '\n' ' ')"
+check "the description is discoverable for watching, inspecting and changing" \
+    "$entry_points" "chang inspect watch "
 
-check "the skill states its single job" \
-    "$(order_check 'One job: answer' 'what should I watch tonight?' 'Nothing else.')" "True"
-check "the three skills and their division are named" \
-    "$(order_check '| `tonight-setup` |' '| `tonight-manage` |' '| **recommend** *(this one)*')" "True"
+echo
+echo "--- there is no setup phase ---"
+
+check "the skill states its single job as the watching question" \
+    "$(order_check 'One job: answer' 'what do you want to watch tonight?')" "True"
+check "setup is ruled out, and the model grows from real conversations instead" \
+    "$(order_check 'There is no setup' \
+        'wants a film, not a configuration' \
+        'accumulates from real conversations rather than something')" "True"
+check "the loop is stated: want to watch, recommend, the model grows" \
+    "$(order_check 'want to watch' 'recommend' 'the model grows' \
+        'better context next time')" "True"
+check "an empty model is context missing, not a reason to stop" \
+    "$(order_check 'Read the model first with `get_taste`' \
+        'It is context, not a prerequisite' \
+        'is **not** a reason to stop and set anything up')" "True"
+
+echo
+echo "--- ask a film question, or none at all ---"
+
+check "a sufficient request is answered rather than interrogated" \
+    "$(order_check 'If what they said is already enough, recommend' \
+        'Asking anything before answering it wastes their time')" "True"
+check "the good and bad questions are shown side by side" \
+    "$(order_check 'ask one question about films' \
+        'More clever mystery, or more action?' \
+        'What genres do you like?')" "True"
+check "the database question is named as the wrong one" \
+    "$(grep -c 'What Genres should I save?' "$SKILL")" "1"
+check "nobody has to understand the data model to get a film" \
+    "$(order_check 'Never make somebody understand Genres and Mixes to get a film')" "True"
 
 echo
 echo "--- the tool-orchestration boundary ---"
 
 check "Tonight holds the taste model and nothing else" \
     "$(order_check 'Two kinds of connection do different things' \
-        'holds the user' 'taste model' \
+        'holds nothing else' \
         'no film catalogue, no lookup and no idea what a film is')" "True"
 check "film knowledge and film tools sit beside Tonight, not inside it" \
     "$(order_check 'Whatever knowledge of films you bring' \
-        'film-data or search tools happen to be available in' \
         'sit beside Tonight rather than inside it')" "True"
-check "the separation is drawn as a diagram, with Tonight holding only the model" \
-    "$(order_check 'Tonight MCP' 'the user' 'Genres and Mixes' \
-        'whatever film tools you have')" "True"
 check "never look for films in Tonight, and never write the model elsewhere" \
     "$(order_check 'never look for films in Tonight' \
         'never write a Genre or a Mix anywhere but Tonight')" "True"
@@ -86,54 +131,96 @@ check "there is no Tonight tool that chooses films, and none is planned" \
         'not going to be one')" "True"
 
 echo
-echo "--- the taste model is the brief ---"
+echo "--- a Mix is the recommendation idea ---"
 
-check "get_taste comes first, and a failure stops the run" \
-    "$(order_check '## Step one: read the model' 'Call `get_taste`' \
-        'If `get_taste` fails, report the error verbatim and stop')" "True"
-check "an empty model is offered setup rather than guessed at" \
-    "$(order_check 'An empty model is not an error' 'tonight-setup' \
-        'guessing would be inventing a taste they never described')" "True"
+check "genre and mix are defined as component and combination" \
+    "$(order_check '| **Genre** | one reusable component' \
+        '| **Mix** | one or more of their Genres, plus what the')" "True"
 check "a mix is read as its own instruction plus its genres" \
-    "$(order_check 'For a Mix' 'plus** the instructions of every Genre it is built from' \
-        'alone throws away half of what it means')" "True"
+    "$(order_check 'read a Mix as' 'its own instruction plus the instructions of the Genres' \
+        'in that order')" "True"
 check "an exclusion outranks a preference" \
-    "$(order_check 'read what they **rule out** at least as carefully' \
-        'A recommendation that contradicts an instruction is worse than no' )" "True"
-check "acclaim is not a substitute for what this person said" \
-    "$(order_check 'Do not substitute a general sense of what is acclaimed or popular')" "True"
+    "$(order_check 'rules out' 'at least as carefully as what it asks for' \
+        'worse than none')" "True"
+check "the idea leads the answer, and the model is not printed at the user" \
+    "$(order_check 'Lead with the idea, then the films' \
+        'Do not print the taste model at them' \
+        'No field names')" "True"
 
 echo
-echo "--- choosing, and being accurate about it ---"
+echo "--- the model grows from what was said ---"
 
-check "film tools are used when they help, and their absence is said out loud" \
-    "$(order_check 'use the film-data or search tools available to you' \
-        'this skill does not care which ones you have' \
-        'If you have no such tool and the request needs one, say so rather than guessing')" "True"
-check "the connection between the model and the answer is shown" \
-    "$(order_check 'Say at the top what you recommended *for*' \
-        'That connection is the product')" "True"
+check "the idea just used is the Mix, and its parts are the Genres" \
+    "$(order_check 'The idea you just used' '**is** a Mix' \
+        'that is how Tonight gets better at this without anybody configuring it')" "True"
+check "reuse comes before create, and near-duplicates are called out" \
+    "$(order_check 'Reuse before you create' \
+        'do not add `Slow-paced`' 'A near-duplicate is worse than nothing')" "True"
+check "a Mix has to say something its Genres do not" \
+    "$(order_check 'if I knew only its Genres and not its instruction, what would I get wrong' \
+        'it is not a Mix')" "True"
+check "the write constraints that would otherwise fail a call are stated" \
+    "$(order_check 'a Genre needs a name and an instruction' \
+        'at least one Genre that already exists' \
+        'a Mix is built from Genres only')" "True"
 
 echo
-echo "--- nothing is remembered ---"
+echo "--- persistence: expressed, never inferred ---"
 
-check "Tonight stores the taste model and nothing else" \
-    "$(order_check 'Tonight stores the taste model and nothing else' \
-        'No watch history' 'no film data')" "True"
+check "the rule is stated as expressed versus concluded" \
+    "$(order_check 'Persist what they said. Never persist what you concluded')" "True"
+check "it is explicitly not a save-confirmation dialog" \
+    "$(order_check 'not the same as asking permission' \
+        'would you like me to save this' \
+        'The question is not whether they clicked save')" "True"
+check "a standing preference and a one-night mood are told apart" \
+    "$(order_check 'I love slow science fiction' 'A standing preference, stated plainly' \
+        'Tonight I feel like slow science fiction' \
+        'nothing claiming this is how they always are')" "True"
+check "a recommendation with no feedback persists nothing" \
+    "$(order_check 'You recommended a film. They said nothing' '**nothing**')" "True"
+check "silence, recommendations and patterns are all ruled out as evidence" \
+    "$(order_check 'infer a preference from silence, from a film you recommended, or from a pattern')" "True"
+check "the user own words are never reworded, nor widened into a claim about them" \
+    "$(order_check 'reword an instruction they wrote' \
+        'widen something specific into a claim about the person')" "True"
+check "a suggested change is offered rather than made" \
+    "$(order_check 'say so and let them decide' 'Editing it yourself is not' \
+        'The model is theirs')" "True"
+
+echo
+echo "--- explicit management is handled here, not redirected ---"
+
+check "one skill does not mean one intent: a direct request is done, not deflected" \
+    "$(order_check 'it is not the only thing you will be asked' \
+        'rename my Sci-Fi genre to Spacey' \
+        'do it and answer')" "True"
+check "and the reverse is what must not happen" \
+    "$(order_check 'a request for a film turning into a configuration session')" "True"
+check "the CRUD tools are named as the way to do it" \
+    "$(order_check '## Asked about the model directly' '**Do those.**' \
+        '`get_taste`, `update_genre`, `update_mix`, `delete_genre`, `delete_mix`')" "True"
+check "nobody is sent to the website for something the conversation can do" \
+    "$(order_check 'Do not send somebody to the website for something you can do in the' \
+        'is *a* management surface, not *the* one')" "True"
+check "a read-back is answered by describing the model, which is otherwise discouraged" \
+    "$(order_check 'while recommending' \
+        'A read-back is the easy case' \
+        'describing it is what was asked for')" "True"
+check "an asked-for rename needs no ceremony, but a meaning change is still not silent" \
+    "$(order_check 'changing what something *means* without being asked to' \
+        'A rename they asked for is theirs and needs no ceremony')" "True"
+
+echo
+echo "--- nothing is remembered but the model ---"
+
+check "no history of any kind is kept" \
+    "$(order_check 'The taste model and nothing else' \
+        'No watch history' 'no ratings, no film data')" "True"
 check "the same film can come back, and nothing is learned automatically" \
-    "$(order_check 'The same film can come back' 'Nothing is learned automatically' \
-        'Never say' 'noted for next time')" "True"
-
-echo
-echo "--- the one write, and its limits ---"
-
-check "a discovered combination is offered, never saved" \
-    "$(order_check 'Offer it. Do not save it' \
-        'only if' 'they say yes in so many words, call `create_mix`' \
-        'the single write this skill may make')" "True"
-check "a reaction to a film never edits the model" \
-    "$(order_check 'Never adjust a Genre or Mix because of how somebody reacted to a film' \
-        'never a reason to edit anything yourself')" "True"
+    "$(order_check 'The same film can come back' 'Nothing is learned automatically')" "True"
+check "a failed write is reported rather than claimed as a save" \
+    "$(order_check 'Never claim something was stored when the tool refused')" "True"
 
 echo
 echo "--- what this skill leaves out ---"
@@ -141,8 +228,9 @@ echo "--- what this skill leaves out ---"
 check "no embedded model, no catalogue, no provider, no lookup tool" \
     "$(grep -ciE 'anthropic|openai|claude api|tmdb|themoviedb|find_movies|search_movies' "$SKILL")" \
     "0"
-check "no genre CRUD: modelling belongs to tonight-manage" \
-    "$(grep -ciE 'create_genre|update_genre|delete_genre|update_mix|delete_mix' "$SKILL")" "0"
+check "no starter genres and no onboarding vocabulary" \
+    "$(grep -ciE 'starter definition|starter set|onboarding|first-run setup|get_genre_defaults' "$SKILL")" \
+    "0"
 
 echo
 printf '%s passed, %s failed\n' "$pass" "$fail"

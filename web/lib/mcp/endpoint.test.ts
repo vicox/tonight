@@ -146,9 +146,9 @@ test("every tool is discoverable, and only the intended ones", async () => {
     "update_mix",
   ]);
 
-  // Eight, and every one of them a state operation. Static setup guidance — the
-  // starter wording for a bare genre name — ships in skills/tonight-setup and is
-  // not a runtime tool: an exhaustive list is what keeps one from creeping back.
+  // Eight, and every one of them a state operation. Product guidance ships in
+  // skills/ beside the server rather than as a runtime tool: an exhaustive list
+  // is what keeps one from creeping back.
   assert.equal(tools.length, 8);
 
   const info = tools.find((tool) => tool.name === "get_server_info");

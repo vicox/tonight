@@ -137,8 +137,8 @@ test("a genre without an instruction is refused, even for a familiar name", asyn
   const token = await tokenFor(someone());
 
   // No tool supplies wording on a caller's behalf, for `Action` any more than for
-  // anything else. The starting text for a bare name is in skills/tonight-setup,
-  // and the agent sends it like any other instruction.
+  // anything else. The agent writes the instruction from what the user said and
+  // sends it like any other field.
   //
   // Omitting the field is refused by the schema, which is what tells a client the
   // field is required; sending an empty one gets the product's own sentence.
