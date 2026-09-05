@@ -127,14 +127,32 @@ enough.
 3. **A worked example**, short enough to read standing up:
 
    > **You:** I want a clever thriller tonight, nothing too bleak.
-   > **ChatGPT:** *recommends three films, then asks whether to remember what you asked for*
+   > **ChatGPT:** Knives Out, The Nice Guys, or Game Night.
+   > Want me to remember the kind of thing this is?
    > **You:** yes
-   > **Tonight:** `Clever thriller`, `Light suspense`, and the mix they make together.
+   > **Tonight:** `[CLEVER THRILLER] + [LIGHT SUSPENSE] ↓ Smart, not heavy`
+   >
+   > *Next Friday the whole request is "something like Smart, not heavy, but shorter" — and it
+   > knows.*
 
-   The "yes" is in the example on purpose. Tonight saves what somebody said and never what the
-   assistant concluded, so not every sentence becomes a genre, and where the host asks before it
-   writes the taste model grows one accepted offer at a time. Whether that confirmation comes
-   every time or once is [Q2](#q2--is-the-connector-write-capable-for-the-people-we-invite-blocking-the-walkthrough).
+   Four things have to be in it, and the first two are what an earlier draft left out.
+
+   **The films are named.** A stranger works out what this is from the answer they would have
+   got; *"recommends three films"* is a stage direction, not an answer. It also puts the
+   product the right way round — the recommendation is the point, and the taste model is the
+   residue of having asked well rather than a form to fill in first.
+
+   **The mix is drawn, not mentioned.** It is the idea that is hard to say and easy to show:
+   two genres are two things somebody said, the mix is the third thing they decided. Rendered
+   the way the signed-in page renders it, so the same shape teaches twice.
+
+   **The payoff is stated once.** Without the last line the example explains persistence and
+   never says what it buys — which is a shorter request that lands better, next time.
+
+   **The "yes" stays.** Tonight saves what somebody said and never what the assistant
+   concluded, so not every sentence becomes a genre, and where the host asks before it writes
+   the model grows one accepted offer at a time. Whether that confirmation comes every time or
+   once is [Q2](#q2--is-the-connector-write-capable-for-the-people-we-invite-blocking-the-walkthrough).
 
 4. **Setup — four steps**, the main body of the page, under one line saying what the plan has
    to be:

@@ -132,7 +132,19 @@ function Landing() {
 }
 
 /**
- * One exchange, so the loop is something seen rather than described.
+ * One exchange, start to finish: a request, real films, a yes, and what Tonight
+ * kept because of it.
+ *
+ * The films are named rather than described. A stranger works out what this is
+ * from the answer they would have got, and "recommends three films" is not an
+ * answer — it is a stage direction. Naming them is also the honest order of
+ * events: the recommendation is what the product is for, and the taste model is
+ * the residue of having asked well, not a form to fill in first.
+ *
+ * The mix is drawn the way the signed-in page draws it, because it is the part
+ * that is hard to explain and easy to show. Two genres are two things somebody
+ * said; the mix is the third thing they decided, and seeing it composed from the
+ * other two says more than a sentence about combinations would.
  *
  * The "yes" is in it on purpose. Tonight stores what somebody said and never what
  * the assistant concluded about them, so the model grows one accepted offer at a
@@ -145,27 +157,43 @@ function WorkedExample() {
       <dl className="flex flex-col gap-3 text-[13.5px] leading-relaxed">
         <Turn who="You">I want a clever thriller tonight, nothing too bleak.</Turn>
         <Turn who="ChatGPT">
-          <em className="text-ink-faint not-italic">
-            recommends three films, then asks whether to remember what you asked for
-          </em>
+          <span className="block">Knives Out, The Nice Guys, or Game Night.</span>
+          <span className="mt-1 block text-ink-soft">
+            Want me to remember the kind of thing this is?
+          </span>
         </Turn>
         <Turn who="You">yes</Turn>
         <Turn who="Tonight" lit>
-          <span className="flex flex-wrap items-center gap-1.5">
-            <Chip>Clever thriller</Chip>
-            <span aria-hidden="true" className="text-[12px] text-ink-faint">
-              +
+          <span className="block">
+            <span className="sr-only">
+              Saved two genres, Clever thriller and Light suspense, and the mix they make
+              together: Smart, not heavy.
             </span>
-            <Chip>Light suspense</Chip>
-            <span className="text-ink-soft">— and the mix they make together.</span>
+            <span aria-hidden="true" className="block">
+              <span className="flex flex-wrap items-center gap-1.5">
+                <Chip>Clever thriller</Chip>
+                <span className="text-[12px] text-ink-faint">+</span>
+                <Chip>Light suspense</Chip>
+              </span>
+              <span className="mt-1.5 block text-[13px] leading-none text-beam">↓</span>
+              <span className="mt-1.5 block font-display text-[20px] leading-tight text-ink">
+                Smart, not heavy
+              </span>
+            </span>
           </span>
         </Turn>
       </dl>
 
-      <p className="mt-5 border-t border-rule pt-4 text-[12.5px] leading-relaxed text-ink-faint">
-        Tonight keeps what you said, never what it worked out about you. Nothing is saved unless
-        you say so.
-      </p>
+      <div className="mt-5 border-t border-rule pt-4 text-[12.5px] leading-relaxed text-ink-faint">
+        <p>
+          <span className="text-ink-soft">Next Friday the whole request is</span> “something like
+          Smart, not heavy, but shorter” <span className="text-ink-soft">— and it knows.</span>
+        </p>
+        <p className="mt-1.5">
+          Tonight keeps what you said, never what it worked out about you. Nothing is saved unless
+          you say so.
+        </p>
+      </div>
     </section>
   );
 }
