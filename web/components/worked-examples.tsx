@@ -136,8 +136,13 @@ export function WorkedExamples({
             inert={position !== index}
             style={{ gridArea: "1 / 1" }}
             className={[
-              "transition-opacity duration-500 motion-reduce:transition-none",
-              position === index ? "opacity-100" : "pointer-events-none opacity-0",
+              // Two pixels of travel and half a second. Enough that the eye
+              // registers an arrival rather than a dissolve, far too little to
+              // be called an animation. Reduced motion drops it entirely.
+              "transition-all duration-500 ease-out motion-reduce:transition-none",
+              position === index
+                ? "translate-y-0 opacity-100"
+                : "pointer-events-none translate-y-0.5 opacity-0",
             ].join(" ")}
           >
             <Example example={example} />
@@ -146,6 +151,17 @@ export function WorkedExamples({
       </div>
 
       <Controls index={index} examples={examples} go={go} />
+
+      {/*
+        Outside the fading part, because it is the same sentence on all six. Held
+        inside a card that changes, an invariant reads as content and gets
+        re-read every eight seconds; held still underneath them, it reads as what
+        it is — the standing promise the six examples are evidence for.
+      */}
+      <p className="mt-6 text-[12.5px] leading-relaxed text-ink-faint">
+        Tonight keeps what you said, never what it worked out about you. Nothing is saved unless
+        you say so.
+      </p>
     </section>
   );
 }
@@ -157,8 +173,13 @@ function Example({ example }: { example: WorkedExample }) {
       <dl className="flex flex-col gap-3 text-[13.5px] leading-relaxed">
         <Turn who="You">{example.prompt}</Turn>
         <Turn who="ChatGPT">
-          <span className="block">{list(example.films)}</span>
-          <span className="mt-1 block text-ink-soft">
+          {/*
+            A step up from everything around it. The films are what the product
+            actually did, and at the dialogue's own size they weighed the same as
+            the word "yes" — the eye had no reason to stop on the answer.
+          */}
+          <span className="block text-[15px] leading-snug">{list(example.films)}</span>
+          <span className="mt-1.5 block text-ink-soft">
             Want me to remember the kind of thing this is?
           </span>
         </Turn>
@@ -178,14 +199,19 @@ function Example({ example }: { example: WorkedExample }) {
                   </span>
                 ))}
               </span>
-              <span className="mt-2 block text-[13px] leading-none text-beam">↓</span>
+              <span className="mt-2.5 block text-[13px] leading-none text-beam">↓</span>
               {/*
                 The anchor. Everything above is the working; this is the thing
                 worth keeping, and it is the only line on the card set at a size
                 that says so.
               */}
-              <span className="mt-2 flex items-baseline gap-2.5">
-                <span className="text-[19px] leading-none">{example.mark}</span>
+              {/*
+                Centred rather than baselined: emoji sit on the baseline
+                differently on every platform, so aligning to it makes the mark
+                look dropped on one machine and floating on the next.
+              */}
+              <span className="mt-2.5 flex items-center gap-3">
+                <span className="text-[24px] leading-none sm:text-[27px]">{example.mark}</span>
                 <span className="font-display text-[26px] leading-tight text-ink sm:text-[30px]">
                   {example.mix}
                 </span>
@@ -195,16 +221,15 @@ function Example({ example }: { example: WorkedExample }) {
         </Turn>
       </dl>
 
-      <div className="mt-5 border-t border-rule pt-4 text-[12.5px] leading-relaxed text-ink-faint">
-        <p>
-          <span className="text-ink-soft">Next Friday the whole request is</span> “something like{" "}
-          {example.mix}, but shorter” <span className="text-ink-soft">— and it knows.</span>
-        </p>
-        <p className="mt-1.5">
-          Tonight keeps what you said, never what it worked out about you. Nothing is saved unless
-          you say so.
-        </p>
-      </div>
+      {/*
+        No rule above this. It is the last line of the same thought, not a
+        footnote to it, and a second horizontal line two lines above the controls
+        made the card look like a form.
+      */}
+      <p className="mt-6 text-[12.5px] leading-relaxed text-ink-faint">
+        <span className="text-ink-soft">Next Friday the whole request is</span> “something like{" "}
+        {example.mix}, {example.followUp}” <span className="text-ink-soft">— and it knows.</span>
+      </p>
     </>
   );
 }
@@ -236,16 +261,25 @@ function Controls({
             aria-label={example.mix}
             aria-current={position === index ? "true" : undefined}
             className={[
-              "cursor-pointer rounded-full transition-colors",
+              "group cursor-pointer rounded-full",
               "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-beam",
               // The tap target is comfortable; the mark inside it is small.
               "flex size-6 items-center justify-center",
             ].join(" ")}
           >
+            {/*
+              `rule` on `screen` is about 1.3:1 — a dot nobody can see is not a
+              quiet dot, it is a missing one. `ink-faint` at half strength is
+              quiet and present. The current one widens into a short bar rather
+              than only changing colour, so where you are survives being read at
+              a glance, or in one colour.
+            */}
             <span
               className={[
-                "size-1.5 rounded-full transition-colors",
-                position === index ? "bg-beam" : "bg-rule",
+                "h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none",
+                position === index
+                  ? "w-4 bg-beam"
+                  : "w-1.5 bg-ink-faint/50 group-hover:bg-ink-faint",
               ].join(" ")}
             />
           </button>

@@ -67,6 +67,20 @@ test("every evening is complete enough to render", () => {
   }
 });
 
+test("each evening ends somewhere of its own", () => {
+  const endings = WORKED_EXAMPLES.map((example) => example.followUp);
+  assert.equal(new Set(endings).size, endings.length, "two examples end the same way");
+
+  for (const { mix, followUp } of WORKED_EXAMPLES) {
+    // The sentence is "something like <mix>, <followUp>", so it has to read on
+    // from a comma and stay short enough to be something somebody says.
+    assert.equal(followUp, followUp.trim(), `${mix}: stray whitespace`);
+    assert.match(followUp, /^[a-z]/, `${mix}: the follow-up starts mid-sentence, in lower case`);
+    assert.doesNotMatch(followUp, /[.!?]$/, `${mix}: the quote closes the sentence, not this`);
+    assert.ok(followUp.split(" ").length <= 8, `${mix}: too long to be said in passing`);
+  }
+});
+
 test("the prompts are asked the way somebody would ask", () => {
   // Not keywords, and not a description of the feature. The example only works if
   // the request reads like something said out loud.

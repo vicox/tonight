@@ -35,6 +35,21 @@ export type WorkedExample = {
   genres: readonly string[];
   /** The name of the night. Evocative, on purpose. */
   mix: string;
+  /**
+   * What they say next time, after the comma in "something like <mix>, …".
+   *
+   * The point of the whole example, and the reason it is written per evening
+   * rather than once: a Mix has done its job when the name is the *short* half of
+   * the sentence and the interesting half is what comes after it. Six endings
+   * that all read "but shorter" would say the opposite — that the name is a
+   * template slot.
+   *
+   * So each one is an observation about the films that evening actually returned,
+   * of the kind somebody makes without being asked. Not a dial turned up or down:
+   * "more intense" is a search refinement, "but let them end up together" is a
+   * person talking.
+   */
+  followUp: string;
 };
 
 export const WORKED_EXAMPLES: readonly WorkedExample[] = [
@@ -44,6 +59,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Bullet Train", "Game Night", "The Fall Guy"],
     genres: ["Action", "Comedy"],
     mix: "Popcorn Chaos",
+    followUp: "and nothing that makes me think",
   },
   {
     mark: "🕵️",
@@ -51,6 +67,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Knives Out", "The Outfit", "Inside Man"],
     genres: ["Mystery", "Clever Thriller"],
     mix: "Everybody's Lying",
+    followUp: "where I might actually guess it",
   },
   {
     mark: "🚀",
@@ -58,6 +75,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Arrival", "Ex Machina", "Moon"],
     genres: ["Sci-Fi", "Thriller"],
     mix: "Space Tension",
+    followUp: "but somewhere less lonely",
   },
   {
     mark: "🏡",
@@ -65,6 +83,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Blow the Man Down", "Wind River", "Three Billboards Outside Ebbing, Missouri"],
     genres: ["Mystery", "Character Story"],
     mix: "Small Town Secrets",
+    followUp: "somewhere warmer this time",
   },
   {
     mark: "🌧️",
@@ -72,6 +91,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["Past Lives", "Her", "Lost in Translation"],
     genres: ["Drama", "Romance"],
     mix: "Beautiful Melancholy",
+    followUp: "but let them end up together",
   },
   {
     mark: "🌲",
@@ -79,6 +99,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     films: ["The Witch", "It Follows", "The Others"],
     genres: ["Slow Burn", "Horror"],
     mix: "Quiet Dread",
+    followUp: "but one I can sleep after",
   },
 ];
 
