@@ -898,8 +898,7 @@ for (const driver of drivers) {
         title: "Arrival",
         year: 2016,
         imdbId: null,
-        watched: null,
-        liked: null,
+        state: null,
         mixes: [],
       });
 
@@ -910,10 +909,9 @@ for (const driver of drivers) {
       const { movies } = await alice.taste();
       assert.deepEqual(Object.keys(movies[0]!).sort(), [
         "imdbId",
-        "liked",
         "mixes",
+        "state",
         "title",
-        "watched",
         "year",
       ]);
     });
@@ -944,7 +942,7 @@ for (const driver of drivers) {
       // The same trap as for genres: fold this in JavaScript and the movie
       // becomes unreachable by the title it was created with.
       assert.match(await refusal(alice.createMovie({ title, year: 2000 })), /already exists/);
-      assert.equal((await alice.updateMovie(title, 2000, { watched: true })).watched, true);
+      assert.equal((await alice.updateMovie(title, 2000, { state: "seen" })).state, "seen");
       await alice.deleteMovie(title, 2000);
       assert.deepEqual((await alice.taste()).movies, []);
     });
@@ -1035,7 +1033,7 @@ for (const driver of drivers) {
       assert.equal(await identity(), was, "retitling made a different movie");
       assert.deepEqual(await filings(), before, "retitling rewrote a filing row");
 
-      await alice.updateMovie("Dune: Part One", 2021, { watched: true });
+      await alice.updateMovie("Dune: Part One", 2021, { state: "seen" });
       assert.deepEqual(await filings(), before, "a state change rewrote a filing row");
 
       assert.deepEqual((await movieOf(alice, "Dune: Part One", 2021))?.mixes, ["Space Tension"]);
@@ -1114,7 +1112,7 @@ for (const driver of drivers) {
       const { alice } = await fresh();
       await alice.createMovie({ title: "Shawshank", year: 1994, imdbId: "tt0111161" });
 
-      const kept = await alice.updateMovie("Shawshank", 1994, { watched: true });
+      const kept = await alice.updateMovie("Shawshank", 1994, { state: "seen" });
       assert.equal(kept.imdbId, "tt0111161", "an update that did not mention the id dropped it");
 
       assert.equal((await alice.updateMovie("Shawshank", 1994, { imdbId: null })).imdbId, null);
@@ -1145,60 +1143,60 @@ for (const driver of drivers) {
       assert.deepEqual((await alice.taste()).movies.length, 1, "the refused create left a movie");
     });
 
-    for (const field of ["watched", "liked"] as const) {
-      test(`"${field}" holds three answers, and never invents one`, async () => {
-        const { alice } = await fresh();
+    test("one state holds five answers, and silence is a sixth it never invents", async () => {
+      const { alice } = await fresh();
 
-        const created = await alice.createMovie({ title: "Arrival", year: 2016 });
-        assert.equal(created[field], null, "saving a movie put a statement in the user's mouth");
+      const created = await alice.createMovie({ title: "Arrival", year: 2016 });
+      assert.equal(created.state, null, "saving a movie put a statement in the user's mouth");
 
-        for (const value of [true, false, null] as const) {
-          assert.equal((await alice.updateMovie("Arrival", 2016, { [field]: value }))[field], value);
-          assert.equal((await movieOf(alice, "Arrival", 2016))?.[field], value);
-        }
+      // Every one of the five persists and reads back as itself. `seen` is in
+      // there twice over: it is a real answer, and it is not the absence of one.
+      for (const state of ["not_seen", "seen", "liked", "loved", "disliked"] as const) {
+        assert.equal((await alice.updateMovie("Arrival", 2016, { state })).state, state);
+        assert.equal((await movieOf(alice, "Arrival", 2016))?.state, state);
+      }
 
-        // Cleared from either side. `null` after `false` is the case that matters:
-        // if the two were the same value, this would be a no-op nobody noticed.
-        for (const from of [true, false] as const) {
-          await alice.updateMovie("Arrival", 2016, { [field]: from });
-          const cleared = await alice.updateMovie("Arrival", 2016, { [field]: null });
-          assert.equal(cleared[field], null, `${String(from)} could not be cleared`);
-        }
+      // Cleared from any of them, and clearing is not the same as `not_seen`.
+      for (const from of ["not_seen", "seen", "disliked"] as const) {
+        await alice.updateMovie("Arrival", 2016, { state: from });
+        const cleared = await alice.updateMovie("Arrival", 2016, { state: null });
+        assert.equal(cleared.state, null, `${from} could not be cleared`);
+      }
 
-        // Omitted is not a value either — an unrelated change leaves it standing.
-        await alice.updateMovie("Arrival", 2016, { [field]: false });
-        const untouched = await alice.updateMovie("Arrival", 2016, { imdbId: "tt0000001" });
-        assert.equal(untouched[field], false, "an unrelated update rewrote the state");
+      // Omitted is not a value either — an unrelated change leaves it standing.
+      await alice.updateMovie("Arrival", 2016, { state: "loved" });
+      const untouched = await alice.updateMovie("Arrival", 2016, { imdbId: "tt0000001" });
+      assert.equal(untouched.state, "loved", "an unrelated update rewrote the state");
 
+      for (const wrong of ["yes", "neutral", "watched", true, 1, {}]) {
         assert.match(
-          await refusal(alice.updateMovie("Arrival", 2016, { [field]: "yes" })),
-          /must be true, false, or null/,
+          await refusal(alice.updateMovie("Arrival", 2016, { state: wrong })),
+          /must be one of not_seen, seen, liked, loved, disliked/,
+          JSON.stringify(wrong),
         );
-      });
-    }
+      }
+      assert.equal((await movieOf(alice, "Arrival", 2016))?.state, "loved", "a refusal wrote");
+    });
 
     test("nothing infers a state: not saving a movie, not filing one", async () => {
       const { alice, sql } = await fresh();
       await mix(alice, "Space Tension");
 
       const created = await alice.createMovie({ title: "Arrival", year: 2016 });
-      assert.equal(created.watched, null);
-      assert.equal(created.liked, null);
+      assert.equal(created.state, null);
 
       await alice.updateMovie("Arrival", 2016, { mixes: ["Space Tension"] });
       const filed = await movieOf(alice, "Arrival", 2016);
-      assert.equal(filed?.watched, null, "filing a movie decided it had been watched");
-      assert.equal(filed?.liked, null, "filing a movie decided it was liked");
+      assert.equal(filed?.state, null, "filing a movie decided something about it");
 
       // And the columns themselves are null rather than false. A `DEFAULT false`
       // in the schema would satisfy every assertion above through the store while
       // making the model claim something nobody said.
-      const [row] = await sql.query<{ watched: boolean | null; liked: boolean | null }>(
-        `SELECT watched, liked FROM tonight_movies WHERE user_id = $1`,
+      const [row] = await sql.query<{ state: string | null }>(
+        `SELECT state FROM tonight_movies WHERE user_id = $1`,
         [ALICE.id],
       );
-      assert.equal(row!.watched, null);
-      assert.equal(row!.liked, null);
+      assert.equal(row!.state, null);
     });
 
     test("a movie is filed under none, one or several mixes, and listed once", async () => {
@@ -1275,13 +1273,13 @@ for (const driver of drivers) {
       await alice.createMovie({
         title: "Under the Skin",
         year: 2013,
-        watched: true,
+        state: "loved",
         mixes: ["Space Tension", "Quiet Dread"],
       });
 
       await alice.deleteMix("Space Tension");
       const survivor = await movieOf(alice, "Under the Skin", 2013);
-      assert.equal(survivor?.watched, true, "the movie went with the mix");
+      assert.equal(survivor?.state, "loved", "the movie went with the mix");
       assert.deepEqual(survivor?.mixes, ["Quiet Dread"], "it kept a filing that no longer exists");
 
       const removed = await alice.deleteMovie("Under the Skin", 2013);
@@ -1369,7 +1367,7 @@ for (const driver of drivers) {
       assert.equal((await movieOf(alice, "DUNE", 1985))?.title, "DUNE");
 
       // The same for every other field that is not the title.
-      await alice.updateMovie("dune", 1985, { watched: true });
+      await alice.updateMovie("dune", 1985, { state: "seen" });
       await alice.updateMovie("DuNe", 1985, { imdbId: "tt0087182" });
       assert.equal((await movieOf(alice, "DUNE", 1985))?.title, "DUNE");
 
@@ -1384,7 +1382,7 @@ for (const driver of drivers) {
       await alice.createMovie({ title: "Arrival", year: 2016 });
 
       assert.match(await refusal(alice.updateMovie("Arrival", 2016, {})), /nothing to update/);
-      assert.match(await refusal(alice.updateMovie("Nowhere", 1999, { watched: true })), /no movie/);
+      assert.match(await refusal(alice.updateMovie("Nowhere", 1999, { state: "seen" })), /no movie/);
     });
 
     test("the database refuses a filing that crosses users, from either side", async () => {
@@ -1593,15 +1591,13 @@ for (const driver of drivers) {
       await alice.createMovie({
         title: "Dune",
         year: 1984,
-        watched: true,
-        liked: false,
+        state: "disliked",
         mixes: ["Space Tension"],
       });
       await alice.createMovie({
         title: "Dune",
         year: 2021,
-        watched: false,
-        liked: true,
+        state: "loved",
         imdbId: "tt1160419",
         mixes: ["Space Tension", "Quiet Dread"],
       });
@@ -1610,21 +1606,19 @@ for (const driver of drivers) {
       const { mixes, movies } = await alice.taste();
 
       assert.deepEqual(movies, [
-        { title: "Arrival", year: 2016, imdbId: null, watched: null, liked: null, mixes: [] },
+        { title: "Arrival", year: 2016, imdbId: null, state: null, mixes: [] },
         {
           title: "Dune",
           year: 1984,
           imdbId: null,
-          watched: true,
-          liked: false,
+          state: "disliked",
           mixes: ["Space Tension"],
         },
         {
           title: "Dune",
           year: 2021,
           imdbId: "tt1160419",
-          watched: false,
-          liked: true,
+          state: "loved",
           mixes: ["Quiet Dread", "Space Tension"],
         },
       ]);

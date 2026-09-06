@@ -60,11 +60,28 @@ test("every page says what a film record now holds", () => {
   assert.match(privacy, /Films you tell it about/);
   assert.match(privacy, /the title and release year you gave/);
   assert.match(privacy, /an optional IMDb title id/);
-  assert.match(privacy, /whether you have watched it, whether you liked it/);
+
+  // The whole distinction: five explicit states, plus no state at all, and the
+  // two are not the same thing. Anything vaguer and a reader cannot tell what a
+  // film with nothing said about it is recorded as.
+  assert.match(privacy, /The state is a single answer, and there are five of them/);
+  for (const state of ["not seen", "seen", "liked", "loved", "disliked"]) {
+    assert.match(privacy, new RegExp(`<em>${state}</em>`), `${state} is not named`);
+  }
+  assert.match(privacy, /means you watched it and said nothing about it — it is not a verdict/);
+  assert.match(privacy, /A film may also have no state at all/);
+  assert.match(privacy, /It is different from <em>not seen<\/em>, which is something you said/);
+
+  // The legacy tri-state wording is gone, and so is the duplicated word.
+  assert.equal(privacy.includes("yes, no, and nothing said"), false, "legacy tri-state wording");
+  assert.equal(privacy.includes("hold three answers"), false, "legacy tri-state wording");
+  assert.equal(privacy.includes("Liked and Liked"), false, "the duplicated word is back");
+  assert.doesNotMatch(privacy, /whether you (have )?watched it, whether you liked it/);
+  assert.match(privacy, /The state is a single answer, and there are five of them/);
   assert.match(privacy, /which of your mixes it is in/);
 
   assert.match(text("terms"), /the films you have told it about/);
-  assert.match(text("readme"), /an optional IMDb id, whether they watched it, whether they liked/);
+  assert.match(text("readme"), /an optional IMDb id, the one state they gave it/);
 });
 
 test("a state is disclosed as a state, never as a history", () => {
@@ -105,7 +122,7 @@ test("what an assistant may fetch is disclosed as the whole model, films include
   assert.match(privacy, /may <strong>request<\/strong> your taste model/);
   assert.match(privacy, /returns <strong>all<\/strong> of it/);
   assert.match(privacy, /every film you have saved/);
-  assert.match(privacy, /whether you watched and liked it/);
+  assert.match(privacy, /the one state you gave it/);
 });
 
 test("the website is disclosed as a view of the model, arranged its own way", () => {
@@ -127,11 +144,11 @@ test("the website is disclosed as a view of the model, arranged its own way", ()
   // and nothing else about a film, which a reader exercising a right of
   // rectification has to be told accurately in both directions: what they can
   // change here, and what only an assistant can.
-  assert.match(privacy, /lets you mark whether you watched it and whether you liked it/);
+  assert.match(privacy, /lets you set that state/);
   assert.match(privacy, /changing its title or year, and removing it are done through your assistant/);
-  assert.match(text("terms"), /lets you mark whether you watched and liked it/);
+  assert.match(text("terms"), /set the state of a film/);
   assert.match(text("terms"), /adding or removing one is done through your assistant/);
-  assert.match(text("readme"), /a Movie's watched and liked marks can be set there/);
+  assert.match(text("readme"), /a Movie's state can be set there/);
   assert.match(text("readme"), /everything else about a Movie is done through an assistant/);
 
   // The README has to agree with itself. It said the website "shows the whole
@@ -151,9 +168,9 @@ test("the website is disclosed as a view of the model, arranged its own way", ()
 test("retention covers the films and their state, not only genres and mixes", () => {
   assert.match(
     text("privacy"),
-    /your genres, your mixes, and the films you saved along with their watched and liked state/,
+    /your genres, your mixes, and the films you saved along with the state you gave each/,
   );
-  assert.match(text("terms"), /genres, mixes, and the films you saved with their watched and liked/);
+  assert.match(text("terms"), /genres, mixes, and the films you saved with the state you gave each/);
 });
 
 test("the README no longer describes names as relational identity", () => {

@@ -136,7 +136,7 @@ echo "--- a Mix is the recommendation idea ---"
 
 check "genre and mix are defined as component and combination" \
     "$(order_check '**Genre** — one reusable component of what they like' \
-        '**Mix** — one or more of their Genres plus what the')" "True"
+        '**Mix** — their Genres plus what the')" "True"
 check "a mix is read as its own instruction plus its genres" \
     "$(order_check 'Read a Mix as' \
         'own instruction plus the instructions of its Genres' \
@@ -275,7 +275,7 @@ check "a recommended film may return; a saved one is read rather than offered ag
     "$(order_check 'a film you recommended can come back' \
         'nothing is learned automatically' \
         'A film they saved is different' \
-        'Read its `watched`')" "True"
+        'Read its state')" "True"
 check "a failed write is reported rather than claimed as a save" \
     "$(order_check 'Never claim something was stored when the tool refused')" "True"
 
@@ -287,7 +287,7 @@ check "a Movie is theirs, by either of the two ways one comes to exist" \
         'A Movie is theirs, the same way a Genre or a Mix is' \
         'never an entry from a catalogue')" "True"
 check "a Movie is named by its title and its year" \
-    "$(order_check 'Title and year are its name')" "True"
+    "$(order_check 'Title and year name it')" "True"
 check "the three Movie tools are the way a direct request is done" \
     "$(order_check '`create_movie`, `update_movie`, `delete_movie`' \
         'Two requests write a Movie, and they differ')" "True"
@@ -295,13 +295,14 @@ check "a recommendation is not persistence, for a film as for a Genre" \
     "$(order_check 'A recommendation is not a saved Movie' \
         'Naming three films writes nothing down')" "True"
 check "state is written only from what was expressed or confirmed" \
-    "$(order_check 'Write `watched` and `liked` only from what they expressed or confirmed')" "True"
+    "$(order_check 'Take the state from what they said, at its most specific')" "True"
 check "nothing said is null and never false" \
-    "$(order_check 'Nothing said is `null`, never `false`' \
-        'says they told you no, which is a sentence they did not say')" "True"
-check "one state field is never inferred from the other" \
-    "$(order_check 'says nothing whatever about whether they watched it' \
-        'do not fill the other field in too')" "True"
+    "$(order_check 'Nothing said is `null`, never `not_seen`' \
+        'saving a film never makes it `not_seen`')" "True"
+check "the clearest thing they said wins, and an opinion already means they saw it" \
+    "$(order_check '*"loved it"* → `loved`' \
+        'The last three already say they saw it' \
+        'never ask for a state their sentence gave you')" "True"
 check "the handle is settled before a write, and asking which film is not ceremony" \
     "$(order_check 'Settle title and year first' \
         'resolves *which film*' \
@@ -336,7 +337,7 @@ check "the Mix is proposed conversationally, named and explained, then asked abo
 check "one yes creates the Mix and saves the film, with no second save question" \
     "$(order_check 'A yes is the whole of the permission' \
         'create any Genre it needs, then the Mix' \
-        'Never ask a second time whether to save')" "True"
+        'Never ask a second time')" "True"
 check "a no settles it, and never becomes a film saved loose" \
     "$(order_check 'A no settles it' \
         'never saving the film loose')" "True"

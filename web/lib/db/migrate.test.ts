@@ -394,6 +394,197 @@ test("v4 stands beside what is there rather than rewriting any of it", async () 
   assert.deepEqual(mixes[0]?.movies, [], "a mix arrived already naming something");
 });
 
+/**
+ * The `watched`/`liked` → `state` change, as an expand migration.
+ *
+ * v5 adds a column and a bridge and drops nothing, so the build already in
+ * production keeps working while the new one rolls out. These tests are what say
+ * that out loud: the backfill is right, both shapes still work afterwards, and a
+ * write from either build leaves the other side of the row correct.
+ */
+
+/** How the build already in production writes a movie: two booleans, no state. */
+async function oldCodeInsert(
+  sql: SqlDriver,
+  title: string,
+  watched: boolean | null,
+  liked: boolean | null,
+): Promise<void> {
+  await sql.query(
+    `INSERT INTO tonight_movies (user_id, title, year, imdb_id, watched, liked)
+     VALUES ($1, $2, 2000, NULL, $3, $4)`,
+    [ALICE, title, watched, liked],
+  );
+}
+
+/** And how it updates one: the same whole-row shape, still never naming state. */
+async function oldCodeUpdate(
+  sql: SqlDriver,
+  title: string,
+  watched: boolean | null,
+  liked: boolean | null,
+): Promise<void> {
+  await sql.query(
+    `UPDATE tonight_movies SET title = $2, year = 2000, imdb_id = NULL, watched = $3, liked = $4
+      WHERE user_id = $1 AND title = $2`,
+    [ALICE, title, watched, liked],
+  );
+}
+
+/** What the new build writes: the state, and nothing about the booleans. */
+async function newCodeUpdate(sql: SqlDriver, title: string, state: string | null): Promise<void> {
+  await sql.query(
+    `UPDATE tonight_movies SET title = $2, year = 2000, imdb_id = NULL, state = $3
+      WHERE user_id = $1 AND title = $2`,
+    [ALICE, title, state],
+  );
+}
+
+async function row(sql: SqlDriver, title: string) {
+  const [found] = await sql.query<{ watched: boolean | null; liked: boolean | null; state: string | null }>(
+    `SELECT watched, liked, state FROM tonight_movies WHERE user_id = $1 AND title = $2`,
+    [ALICE, title],
+  );
+  return found;
+}
+
+/** Every combination the old shape could hold, and what v5 makes of each. */
+const BACKFILL: [string, boolean | null, boolean | null, string | null][] = [
+  ["nothing said", null, null, null],
+  ["liked, never told whether seen", null, true, "liked"],
+  ["disliked, never told whether seen", null, false, "disliked"],
+  ["not seen", false, null, "not_seen"],
+  ["not seen, yet liked", false, true, "not_seen"],
+  ["not seen, yet disliked", false, false, "not_seen"],
+  ["seen, said nothing about it", true, null, "seen"],
+  ["seen and liked", true, true, "liked"],
+  ["seen and disliked", true, false, "disliked"],
+];
+
+test("v5 backfills every watched/liked pair into the state that keeps most of it", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(4));
+  for (const [what, watched, liked] of BACKFILL) await oldCodeInsert(sql, what, watched, liked);
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  const rows = await sql.query<{ title: string; state: string | null }>(
+    `SELECT title, state FROM tonight_movies WHERE user_id = $1`,
+    [ALICE],
+  );
+  assert.deepEqual(
+    Object.fromEntries(rows.map((one) => [one.title, one.state])),
+    Object.fromEntries(BACKFILL.map(([what, , , state]) => [what, state])),
+  );
+
+  // A sixth state cannot be written, by either build or by hand.
+  await assert.rejects(
+    sql.query(
+      `INSERT INTO tonight_movies (user_id, title, year, state) VALUES ($1, 'x', 2000, 'neutral')`,
+      [ALICE],
+    ),
+    (error: unknown) => {
+      assert.equal((error as { code?: string }).code, "23514");
+      return true;
+    },
+  );
+});
+
+test("v5 drops nothing, so the build already in production still works", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(4));
+  await migrate(sql, TASTE_SCHEMA);
+
+  // Both columns are still there and still writable by a build that has never
+  // heard of `state`. This is the whole point of the migration being an expand:
+  // deploying the new code is not a prerequisite for running it.
+  await oldCodeInsert(sql, "written by the old build", true, false);
+  const written = await row(sql, "written by the old build");
+  assert.equal(written?.watched, true);
+  assert.equal(written?.liked, false);
+
+  // And the old build can read what the new one wrote.
+  await sql.query(
+    `INSERT INTO tonight_movies (user_id, title, year, state) VALUES ($1, 'new', 2000, 'loved')`,
+    [ALICE],
+  );
+  const read = await sql.query<{ watched: boolean | null; liked: boolean | null }>(
+    `SELECT watched, liked FROM tonight_movies WHERE user_id = $1 AND title = 'new'`,
+    [ALICE],
+  );
+  assert.deepEqual(read[0], { watched: true, liked: true }, "the old build would see nothing");
+});
+
+test("an old-build write after the backfill leaves the state correct, not stale", async () => {
+  // The failure this migration is shaped to avoid. A backfill is a snapshot: the
+  // moment the build still in production writes again, a `state` that is only
+  // backfilled is wrong, and the new build would read the wrong answer for as
+  // long as the rollout takes.
+  const sql = await fresh();
+  await migrate(sql, upTo(4));
+  await oldCodeInsert(sql, "Arrival", true, true);
+  await migrate(sql, TASTE_SCHEMA);
+
+  assert.equal((await row(sql, "Arrival"))?.state, "liked", "the backfill itself is wrong");
+
+  // Now the old build writes again — it knows nothing about `state`.
+  await oldCodeUpdate(sql, "Arrival", true, false);
+  assert.deepEqual(await row(sql, "Arrival"), { watched: true, liked: false, state: "disliked" });
+
+  await oldCodeUpdate(sql, "Arrival", false, null);
+  assert.deepEqual(await row(sql, "Arrival"), { watched: false, liked: null, state: "not_seen" });
+
+  await oldCodeUpdate(sql, "Arrival", null, null);
+  assert.deepEqual(await row(sql, "Arrival"), { watched: null, liked: null, state: null });
+
+  // A row the old build inserts after the migration is filled in too.
+  await oldCodeInsert(sql, "Moon", true, null);
+  assert.equal((await row(sql, "Moon"))?.state, "seen");
+});
+
+test("a new-build write leaves the columns the old build reads correct", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(4));
+  await oldCodeInsert(sql, "Dune", null, null);
+  await migrate(sql, TASTE_SCHEMA);
+
+  for (const [state, watched, liked] of [
+    ["not_seen", false, null],
+    ["seen", true, null],
+    ["liked", true, true],
+    ["loved", true, true],
+    ["disliked", true, false],
+    [null, null, null],
+  ] as const) {
+    await newCodeUpdate(sql, "Dune", state);
+    assert.deepEqual(await row(sql, "Dune"), { watched, liked, state }, String(state));
+  }
+});
+
+test("a write that changes neither side leaves both alone", async () => {
+  // The bridge decides by what moved, so a write that moves nothing — a retitle,
+  // an IMDb id — must not re-derive anything and quietly flatten `loved`.
+  const sql = await fresh();
+  await migrate(sql, upTo(4));
+  await oldCodeInsert(sql, "Past Lives", true, true);
+  await migrate(sql, TASTE_SCHEMA);
+  await newCodeUpdate(sql, "Past Lives", "loved");
+
+  await sql.query(
+    `UPDATE tonight_movies SET imdb_id = 'tt13238346' WHERE user_id = $1 AND title = 'Past Lives'`,
+    [ALICE],
+  );
+  assert.equal((await row(sql, "Past Lives"))?.state, "loved", "an unrelated write re-derived");
+
+  // And the one thing the old shape cannot hold: it reads `loved` as liked, so an
+  // old-build write that confirms what it was shown settles on `liked`.
+  await oldCodeUpdate(sql, "Past Lives", true, true);
+  assert.equal((await row(sql, "Past Lives"))?.state, "loved", "an identical write changed it");
+
+  await oldCodeUpdate(sql, "Past Lives", true, false);
+  assert.equal((await row(sql, "Past Lives"))?.state, "disliked");
+});
+
 test("v1 data survives the whole migration with its meaning intact", async () => {
   const sql = await fresh();
   await migrate(sql, upTo(1));

@@ -261,7 +261,7 @@ test("a session cannot change, delete or borrow another account's genres", async
 // --- a film's two marks ---------------------------------------------------
 
 /** A signed-in user with one film in one mix, which is what a mark sits on. */
-async function withFilm(state: { watched?: unknown; liked?: unknown } = {}) {
+async function withFilm(state: { state?: unknown } = {}) {
   const { cookie, id } = await signedIn();
   await createGenre(
     request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
@@ -300,11 +300,11 @@ test("a successful press answers the outcome, and does not read the model back",
   // confirmed by reading the store rather than by trusting the reply.
   const { cookie, id } = await withFilm();
 
-  const response = await mark(cookie, { title: "Arrival", year: 2016, watched: true });
+  const response = await mark(cookie, { title: "Arrival", year: 2016, state: "seen" });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {}, "the success answer carries a payload");
 
-  assert.equal((await film(id))?.watched, true, "the press did not reach the store");
+  assert.equal((await film(id))?.state, "seen", "the press did not reach the store");
 
   // Structural, because the assertion above cannot tell the two failures apart: a
   // route that never reads the model and one that reads it and drops the result
@@ -322,65 +322,52 @@ test("a successful press answers the outcome, and does not read the model back",
 test("a refusal still carries the reason, which is the part a caller can act on", async () => {
   const { cookie } = await withFilm();
 
-  const refused = await answer(await mark(cookie, { title: "Gone", year: 1999, watched: true }));
+  const refused = await answer(await mark(cookie, { title: "Gone", year: 1999, state: "seen" }));
   assert.equal(refused.status, 400);
   assert.equal(refused.error, "refused");
   assert.match(refused.message ?? "", /no movie "Gone" \(1999\)/);
 });
 
-test("pressing a mark on a film nobody has said anything about states a yes", async () => {
+test("pressing a choice on a film nobody has said anything about records it", async () => {
   const { cookie, id } = await withFilm();
-  assert.equal((await film(id))?.watched, null, "a saved film starts with nothing said");
+  assert.equal((await film(id))?.state, null, "a saved film starts with nothing said");
 
-  const marked = await answer(await mark(cookie, { title: "Arrival", year: 2016, watched: true }));
+  const marked = await answer(await mark(cookie, { title: "Arrival", year: 2016, state: "seen" }));
   assert.equal(marked.status, 200);
-  assert.equal((await film(id))?.watched, true);
+  assert.equal((await film(id))?.state, "seen");
 
-  // And the other mark is untouched by it: two fields, two statements.
-  assert.equal((await film(id))?.liked, null, "marking one field answered the other");
-
-  assert.equal(
-    (await answer(await mark(cookie, { title: "Arrival", year: 2016, liked: true }))).status,
-    200,
-  );
-  assert.equal((await film(id))?.liked, true);
-  assert.equal((await film(id))?.watched, true);
-});
-
-test("pressing a lit mark states a no, and never returns it to nothing said", async () => {
-  // What the page draws is two states; what it writes is one of two answers. The
-  // unlit mark covers both `false` and `null`, so pressing it has to mean the
-  // same thing from either — and pressing a lit one has to leave a `false` the
-  // user can be held to, not a `null` that says they never spoke.
-  const { cookie, id } = await withFilm({ watched: true, liked: false });
-
-  await mark(cookie, { title: "Arrival", year: 2016, watched: false });
-  assert.equal((await film(id))?.watched, false, "a lit mark pressed should read as a no");
-
-  await mark(cookie, { title: "Arrival", year: 2016, liked: true });
-  assert.equal((await film(id))?.liked, true, "an unlit false should light from the same press");
-
-  // Three presses, and not one of them left the film back at "never told".
-  for (const state of [{ watched: true }, { watched: false }, { liked: false }]) {
-    await mark(cookie, { title: "Arrival", year: 2016, ...state });
+  // And each of the five replaces the last: one answer, not a set of flags.
+  for (const state of ["liked", "loved", "disliked", "not_seen"] as const) {
+    await mark(cookie, { title: "Arrival", year: 2016, state });
+    assert.equal((await film(id))?.state, state);
   }
-  const settled = await film(id);
-  assert.equal(settled?.watched, false);
-  assert.equal(settled?.liked, false);
 });
 
-test("a mark changes one field and leaves the rest of the film alone", async () => {
-  const { cookie, id } = await withFilm({ liked: true });
+test("a press never returns a film to having been said nothing about", async () => {
+  // The page draws five choices; the store keeps a sixth. `null` is silence and
+  // `not_seen` is something they said, and pressing anything is a statement — so
+  // this route cannot write the silence back, and refuses rather than guess.
+  const { cookie, id } = await withFilm({ state: "loved" });
+
+  const refused = await answer(await mark(cookie, { title: "Arrival", year: 2016, state: null }));
+  assert.equal(refused.status, 400);
+  assert.equal(refused.error, "refused");
+  assert.match(refused.message ?? "", /"state" must be one of not_seen, seen, liked, loved, disliked/);
+
+  assert.equal((await film(id))?.state, "loved", "a refused null cleared a stated answer");
+});
+
+test("a press changes the state and leaves the rest of the film alone", async () => {
+  const { cookie, id } = await withFilm({ state: "liked" });
   await (await tasteStore({ id })).updateMovie("Arrival", 2016, { imdbId: "tt2543164" });
 
-  await mark(cookie, { title: "Arrival", year: 2016, watched: true });
+  await mark(cookie, { title: "Arrival", year: 2016, state: "loved" });
 
   assert.deepEqual(await film(id), {
     title: "Arrival",
     year: 2016,
     imdbId: "tt2543164",
-    watched: true,
-    liked: true,
+    state: "loved",
     mixes: ["Space Tension"],
   });
 });
@@ -394,7 +381,7 @@ test("the route takes the two marks and nothing else", async () => {
   await mark(cookie, {
     title: "Arrival",
     year: 2016,
-    watched: true,
+    state: "seen",
     new_title: "Something else",
     year_: 1999,
     imdb_id: "tt0000001",
@@ -406,8 +393,7 @@ test("the route takes the two marks and nothing else", async () => {
     title: "Arrival",
     year: 2016,
     imdbId: null,
-    watched: true,
-    liked: null,
+    state: "seen",
     mixes: ["Space Tension"],
   });
 });
@@ -415,63 +401,33 @@ test("the route takes the two marks and nothing else", async () => {
 test("a mark on a film that is not there is the domain's own refusal", async () => {
   const { cookie, id } = await withFilm();
 
-  const missing = await answer(await mark(cookie, { title: "Dune", year: 1984, watched: true }));
+  const missing = await answer(await mark(cookie, { title: "Dune", year: 1984, state: "seen" }));
   assert.equal(missing.status, 400);
   assert.match(missing.message ?? "", /no movie "Dune" \(1984\)/);
 
   // A handle the domain cannot read is refused in the same words, and the route
   // coerces nothing on the way — the year is judged, not parsed.
   for (const handle of [{ title: "Arrival" }, { title: "Arrival", year: "2016" }, { year: 2016 }]) {
-    const refused = await answer(await mark(cookie, { ...handle, watched: true }));
+    const refused = await answer(await mark(cookie, { ...handle, state: "seen" }));
     assert.equal(refused.status, 400, JSON.stringify(handle));
     assert.equal(refused.error, "refused");
   }
 
-  assert.equal((await film(id))?.watched, null, "a refused press changed something");
+  assert.equal((await film(id))?.state, null, "a refused press changed something");
 });
 
-test("null is refused for either mark, and the film is left exactly as it was", async () => {
-  // The store takes three values and always will; this route takes two. A mark
-  // is something the user pressed, so `null` — "Tonight was never told" — is not
-  // a thing pressing one can mean, and a caller sending it is a caller this page
-  // does not have. Refusing it here keeps the page unable to write the third
-  // state at all, without narrowing what the model or an assistant can say.
-  const { cookie, id } = await withFilm({ watched: true, liked: false });
-
-  for (const field of ["watched", "liked"] as const) {
-    const refused = await answer(
-      await mark(cookie, { title: "Arrival", year: 2016, [field]: null }),
-    );
-    assert.equal(refused.status, 400, field);
-    assert.equal(refused.error, "refused", field);
-    assert.match(refused.message ?? "", new RegExp(`"${field}" must be true or false here`), field);
-  }
-
-  // Both refusals wrote nothing — not the field they named, and not the other.
-  const after = await film(id);
-  assert.equal(after?.watched, true, "a refused null cleared a stated yes");
-  assert.equal(after?.liked, false, "a refused null cleared a stated no");
-
-  // And the two mentioned together are refused as a pair rather than half applied.
-  const both = await answer(
-    await mark(cookie, { title: "Arrival", year: 2016, watched: false, liked: null }),
-  );
-  assert.equal(both.status, 400);
-  assert.equal((await film(id))?.watched, true, "half of a refused write landed");
-});
-
-test("a mark that is not a boolean is refused before the store is asked", async () => {
+test("a value that is not one of the five is refused before the store is asked", async () => {
   const { cookie, id } = await withFilm();
 
-  for (const value of ["yes", 1, {}, []]) {
+  for (const value of ["yes", "neutral", "Seen", true, 1, {}]) {
     const refused = await answer(
-      await mark(cookie, { title: "Arrival", year: 2016, watched: value }),
+      await mark(cookie, { title: "Arrival", year: 2016, state: value }),
     );
     assert.equal(refused.status, 400, JSON.stringify(value));
-    assert.match(refused.message ?? "", /"watched" must be true or false here/);
+    assert.match(refused.message ?? "", /"state" must be one of/);
   }
 
-  assert.equal((await film(id))?.watched, null, "a refused value reached the store");
+  assert.equal((await film(id))?.state, null, "a refused value reached the store");
 });
 
 test("a mark cannot be pressed on somebody else's film", async () => {
@@ -480,16 +436,16 @@ test("a mark cannot be pressed on somebody else's film", async () => {
 
   // The store the route opens belongs to whoever the cookie names, so this is
   // not a film they are forbidden to change — it is a film they do not have.
-  const refused = await answer(await mark(theirs, { title: "Arrival", year: 2016, watched: true }));
+  const refused = await answer(await mark(theirs, { title: "Arrival", year: 2016, state: "seen" }));
   assert.equal(refused.status, 400);
   assert.match(refused.message ?? "", /no movie "Arrival" \(2016\)/);
-  assert.equal((await film(mine))?.watched, null, "their press reached my film");
+  assert.equal((await film(mine))?.state, null, "their press reached my film");
 });
 
 test("a mark with no session, or from another site, writes nothing", async () => {
   const { cookie, id } = await withFilm();
 
-  const out = await answer(await mark("", { title: "Arrival", year: 2016, watched: true }));
+  const out = await answer(await mark("", { title: "Arrival", year: 2016, state: "seen" }));
   assert.equal(out.status, 401);
 
   const forged = await answer(
@@ -497,12 +453,12 @@ test("a mark with no session, or from another site, writes nothing", async () =>
       request(
         "/api/movies",
         "PATCH",
-        { title: "Arrival", year: 2016, watched: true },
+        { title: "Arrival", year: 2016, state: "seen" },
         { cookie, origin: "https://elsewhere.example" },
       ),
     ),
   );
   assert.equal(forged.status, 403);
 
-  assert.equal((await film(id))?.watched, null, "a refused press reached the store");
+  assert.equal((await film(id))?.state, null, "a refused press reached the store");
 });

@@ -1,4 +1,9 @@
-import { TasteError, checkMovieTitle, checkYear } from "../../../lib/taste/model.ts";
+import {
+  MOVIE_STATES,
+  TasteError,
+  checkMovieTitle,
+  checkYear,
+} from "../../../lib/taste/model.ts";
 import { authorized, given } from "../../../lib/web/api.ts";
 
 /**
@@ -26,19 +31,19 @@ import { authorized, given } from "../../../lib/web/api.ts";
  * A refusal still carries the domain's own sentence, which is the part a caller
  * can act on.
  *
- * ## Two fields, deliberately
+ * ## One field, deliberately
  *
- * `watched` and `liked` are what the signed-in page can change, so they are what
- * this accepts. A title, a year, an IMDb id and mix membership are all things the
- * store can change and nothing on the website asks for — an endpoint that
- * accepted them would be capability with no caller, and the assistant already
- * reaches all of it through `update_movie`.
+ * `state` is what the signed-in page can change, so it is what this accepts. A
+ * title, a year, an IMDb id and mix membership are all things the store can
+ * change and nothing on the website asks for — an endpoint that accepted them
+ * would be capability with no caller, and the assistant already reaches all of
+ * it through `update_movie`.
  *
- * The store's three-valued semantics are untouched, and this route is narrower
- * than they are on purpose: it takes a boolean or nothing. A mark on the page is
- * something the user pressed, so it can only ever mean yes or no — and a `null`
+ * The store's nullable state is untouched, and this route is narrower than it is
+ * on purpose: it takes one of the five states and nothing else. A press on the
+ * page is something the user did, so it always says something — and a `null`
  * arriving here is a caller this page does not have, which is worth a refusal
- * rather than a silent third meaning. Returning a film to "never told" is a real
+ * rather than a silent sixth meaning. Returning a film to "never told" is a real
  * operation and it stays with the assistant, where `update_movie` accepts it.
  *
  * The handle is checked here rather than cast, because a JSON body is `unknown`
@@ -49,20 +54,24 @@ import { authorized, given } from "../../../lib/web/api.ts";
 export const dynamic = "force-dynamic";
 
 /**
- * One mark as this route accepts it: `true`, `false`, or not mentioned.
+ * The state as this route accepts it: one of the five, or not mentioned.
  *
  * `undefined` is passed straight through, because that is what the store already
- * reads as "leave it alone". Everything else that is not a boolean — `null`
+ * reads as "leave it alone". Everything else that is not one of the five — `null`
  * included — is refused before the store is asked, so nothing on this path can
- * write the third state.
+ * put a film back to having been said nothing about.
  */
-function pressed(body: Record<string, unknown>, field: "watched" | "liked"): boolean | undefined {
-  const value = given(body, field);
-  if (value === undefined || typeof value === "boolean") return value;
+function pressed(body: Record<string, unknown>): string | undefined {
+  const value = given(body, "state");
+  if (value === undefined) return undefined;
+  if (typeof value === "string" && (MOVIE_STATES as readonly string[]).includes(value)) {
+    return value;
+  }
 
   throw new TasteError(
-    `"${field}" must be true or false here — a mark on the page is something the user pressed. ` +
-      "Setting it back to null, meaning Tonight was never told, is done through an assistant.",
+    `"state" must be one of ${MOVIE_STATES.join(", ")} here — a press on the page is something ` +
+      "the user did. Setting it back to null, meaning Tonight was never told, is done through " +
+      "an assistant.",
   );
 }
 
@@ -71,9 +80,6 @@ export async function PATCH(request: Request): Promise<Response> {
     const title = checkMovieTitle(given(body, "title"));
     const year = checkYear(given(body, "year"));
 
-    await store.updateMovie(title, year, {
-      watched: pressed(body, "watched"),
-      liked: pressed(body, "liked"),
-    });
+    await store.updateMovie(title, year, { state: pressed(body) });
   });
 }

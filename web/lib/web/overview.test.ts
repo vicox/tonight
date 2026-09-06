@@ -99,60 +99,119 @@ test("the IMDb link says IMDb, and is absent when there is no id", () => {
   assert.match(link, />\s*IMDb</, "the visible link text does not contain IMDb");
 });
 
-test("both marks are always drawn, and lit only by a yes", () => {
-  // The model keeps three answers; this page draws two. `false` and `null` are
-  // deliberately the same picture here — an unlit eye reads as "not marked as
-  // watched", which is true of both — so nothing may render conditionally on the
-  // value, and only `=== true` may light a mark.
-  const toggle = bodyOf("Toggle", marks);
+test("the row shows one mark, and it is the state the film is in", () => {
+  // One icon per film, not five. A page of twenty films has to stay readable, and
+  // the mark has to say what the film is rather than what it is not.
+  assert.match(marks, /const shown = \(state: MovieState \| null\) =>/);
+  assert.match(marks, /CHOICES\.find\(\(choice\) => choice\.state === state\) \?\? NOTHING_SAID/);
+  assert.match(marks, /<current\.icon/, "the trigger does not draw the current state");
+
+  // Exactly one icon element outside the menu.
+  const trigger = marks.slice(marks.indexOf("<button\n          ref={trigger}"), marks.indexOf("{open && ("));
+  assert.equal((trigger.match(/<current\.icon/g) ?? []).length, 1);
+});
+
+test("each state has its Lucide icon, and nothing-said has its own", () => {
+  assert.match(marks, /from "lucide-react"/);
+  for (const [state, icon] of [
+    ["not_seen", "EyeOff"],
+    ["seen", "Check"],
+    ["liked", "ThumbsUp"],
+    ["loved", "Heart"],
+    ["disliked", "ThumbsDown"],
+  ]) {
+    assert.match(
+      marks,
+      new RegExp(`state: "${state}",[^}]*icon: ${icon}`),
+      `${state} is not drawn with ${icon}`,
+    );
+  }
+
+  // Circle draws `null`, and only that. It must not join the five: nothing in the
+  // model, the store or the tools knows about it.
+  assert.match(marks, /const NOTHING_SAID = \{ label: "Nothing said", icon: Circle \}/);
   assert.equal(
-    /value === null|watched === null|liked === null/.test(marks),
+    /state: "nothing_said"|"circle"|MOVIE_STATES.*Circle/.test(marks),
     false,
-    "a mark still disappears when nothing has been said",
+    "Circle has been made into a sixth state",
+  );
+});
+
+test("the menu offers the five real states, with an icon and words for each", () => {
+  const menu = marks.slice(marks.indexOf("{open && ("));
+
+  assert.match(menu, /role="menu"/);
+  assert.match(menu, /CHOICES\.map/, "the menu does not offer the five");
+  assert.match(menu, /<Icon\n/, "an option has no icon");
+  assert.match(menu, /\{label\}/, "an option has no words");
+
+  // And no way back to nothing said: a press is a statement, and unsaying one is
+  // an operation this page deliberately does not have.
+  assert.equal(menu.includes("NOTHING_SAID"), false, "the menu offers nothing-said");
+  assert.equal(/set\(null\)|state: null/.test(menu), false, "the menu can write null");
+});
+
+test("it is a menu button, with a menu button's semantics", () => {
+  // Radio-group semantics were right when the five were all on screen at once.
+  // Now that they are behind a trigger, the honest description is a menu — and a
+  // control that says radiogroup while behaving like a menu is worse than either.
+  assert.equal(/role="radiogroup"/.test(marks), false, "the old radiogroup role is still here");
+
+  assert.match(marks, /aria-haspopup="menu"/);
+  assert.match(marks, /aria-expanded=\{open\}/);
+  assert.match(marks, /aria-controls=\{open \? menuId : undefined\}/);
+  assert.match(marks, /aria-label=\{`What you said about \$\{title\} \(\$\{year\}\): \$\{current\.label\}`\}/);
+
+  // One answer out of a set is what menuitemradio is for, and `aria-checked` is
+  // how a listener is told which one it currently is.
+  assert.match(marks, /role="menuitemradio"/);
+  assert.match(marks, /aria-checked=\{state === choice\}/);
+});
+
+test("the menu's keyboard is a menu's: arrows move, Enter chooses, Escape returns", () => {
+  const from = marks.indexOf("function steer(");
+  const steer = marks.slice(from, marks.indexOf("\n  }\n", from));
+
+  for (const key of ["ArrowDown", "ArrowUp", "Home", "End", "Escape", "Tab"]) {
+    assert.ok(steer.includes(`"${key}"`), `${key} does nothing`);
+  }
+  assert.match(steer, /\.focus\(\)/, "the arrows do not move focus");
+  assert.match(steer, /event\.preventDefault\(\)/, "the page scrolls under the arrows");
+
+  // Moving is not choosing: every choice is a network write, so walking the list
+  // must not fire four of them to reach the fifth.
+  assert.equal(steer.includes("set("), false, "arrowing writes to the server");
+
+  // Escape hands focus back to the trigger; Tab just closes.
+  assert.match(steer, /close\(event\.key === "Escape"\)/);
+  assert.match(marks, /function close\(toTrigger: boolean\) \{/);
+  assert.match(marks, /if \(toTrigger\) trigger\.current\?\.focus\(\);/);
+
+  // ArrowDown on the trigger opens it, which is the other half of the pattern.
+  assert.match(marks, /if \(busy \|\| event\.key !== "ArrowDown"\) return;/);
+
+  // The trigger is never natively disabled — that would take it out of the
+  // keyboard's reach the moment a choice was taken, undoing the focus the closing
+  // menu just handed back. `lib/web/pending.test.ts` holds the seam itself; this
+  // is the component's side of it.
+  assert.match(marks, /\{\.\.\.pending\(busy\)\}/, "the trigger does not use the pending seam");
+
+  // Any spelling of the native attribute, not just the one that was there before:
+  // `disabled`, `disabled={…}`, `disabled = {…}`. The lookbehind is what lets
+  // `aria-disabled` — in the props and in the Tailwind variants — through.
+  const opening = marks.slice(marks.indexOf("<button\n          ref={trigger}"), marks.indexOf("{open && ("));
+  assert.doesNotMatch(
+    opening,
+    /(?<!aria-)\bdisabled\b/,
+    "the trigger carries a native disabled attribute again",
   );
 
-  assert.match(marks, /on=\{watched === true\}/);
-  assert.match(marks, /on=\{liked === true\}/);
-  assert.match(toggle, /aria-pressed=\{on\}/);
-});
+  // Which means the guard against a second write has to be in the handlers.
+  assert.match(marks, /if \(busy\) return;\n {4}\/\//, "a second write is not guarded in code");
+  assert.match(marks, /if \(busy\) return;\n {12}setOpen/, "a press mid-write still opens it");
 
-test("pressing a mark states the opposite of yes, from either unlit state", () => {
-  // `!== true` is the whole rule, and it is the reason the two unlit states can
-  // look alike: from `false` and from `null` the press means the same thing.
-  // `=== false` would leave a film nobody had spoken about unable to be lit.
-  assert.match(marks, /onPress=\{\(\) => set\("watched", watched !== true\)\}/);
-  assert.match(marks, /onPress=\{\(\) => set\("liked", liked !== true\)\}/);
-
-  // And what is sent is that boolean, so a press always leaves an explicit
-  // answer. Nothing on this page can write `null` back.
-  assert.match(bodyOf("MovieState", marks), /set\(field: "watched" \| "liked", to: boolean\)/);
-  assert.equal(/watched: null|liked: null/.test(marks), false, "the page can write null");
-});
-
-test("a mark is a button with a name and a state, and no words on screen", () => {
-  const toggle = bodyOf("Toggle", marks);
-  assert.match(toggle, /<button/);
-  assert.match(toggle, /type="button"/);
-  assert.match(toggle, /aria-label=\{label\}/);
-  assert.match(toggle, /disabled=\{busy\}/);
-
-  // The glyph is decoration; the button carries the meaning.
-  assert.match(toggle, /aria-hidden="true"/);
-
-  // The whole handle is in the accessible name. A list of these is otherwise a
-  // column of buttons all called the same thing — and with the title alone, the
-  // two `Dune`s would sound identical, which is the case the handle exists for.
-  assert.match(marks, /label=\{`Watched — \$\{title\} \(\$\{year\}\)`\}/);
-  assert.match(marks, /label=\{`Liked — \$\{title\} \(\$\{year\}\)`\}/);
-
-  // And nowhere else. Counted over the code with the prose taken out, because a
-  // comment explaining why the name reads "Watched" is not a caption on screen.
-  const code = withoutComments(marks);
-  for (const word of ["Watched", "Liked", "Seen"]) {
-    const anywhere = [...code.matchAll(new RegExp(word, "g"))].length;
-    const inTheName = [...code.matchAll(new RegExp(`label=\\{\`${word} `, "g"))].length;
-    assert.equal(anywhere, inTheName, `"${word}" is written somewhere other than the label`);
-  }
+  // And a press anywhere else dismisses it.
+  assert.match(marks, /document\.addEventListener\("pointerdown", elsewhere\)/);
 });
 
 test("a mark writes through the one route boundary, and keeps no copy of its own", () => {
@@ -190,9 +249,4 @@ function bodyOf(name: string, file: string = source): string {
   const rest = file.slice(start);
   const ends = ["\n/**", "\nfunction "].map((mark) => rest.indexOf(mark, 1)).filter((at) => at > 0);
   return ends.length ? rest.slice(0, Math.min(...ends)) : rest;
-}
-
-/** The file with its prose removed, for checks about what reaches the screen. */
-function withoutComments(file: string): string {
-  return file.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }

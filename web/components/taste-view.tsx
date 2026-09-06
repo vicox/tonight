@@ -243,9 +243,9 @@ function MixCard({ mix, movies }: { mix: Mix; movies: readonly Movie[] }) {
  * title's own type for the same reason: it is half of the film's name here, not
  * metadata about it.
  *
- * A row is a line of text and two marks. The marks are the one thing on this page
- * that can be changed without an assistant — see `MovieState` for why they show
- * two states while the model keeps three.
+ * A row is a line of text and one control. That control is the one thing on this
+ * page that can be changed without an assistant — see `MovieState` for why it
+ * offers five choices while the model keeps a sixth.
  */
 function Films({ movies, className = "mt-4" }: { movies: readonly Movie[]; className?: string }) {
   if (!movies.length) return null;
@@ -268,12 +268,7 @@ function Films({ movies, className = "mt-4" }: { movies: readonly Movie[]; class
               </>
             )}
           </span>
-          <MovieState
-            title={movie.title}
-            year={movie.year}
-            watched={movie.watched}
-            liked={movie.liked}
-          />
+          <MovieState title={movie.title} year={movie.year} state={movie.state} />
         </li>
       ))}
     </ul>

@@ -7,6 +7,7 @@ import {
   MAX_IMDB_ID_LENGTH,
   MAX_YEAR,
   MIN_YEAR,
+  MOVIE_STATES,
   TasteError,
 } from "../taste/model.ts";
 import type { TasteStore } from "../taste/store.ts";
@@ -137,16 +138,17 @@ const imdbId = z
       "An empty string is not a way to clear it and is refused.",
   );
 
-/** The two state fields, which differ only in the question they answer. */
-const state = (what: string, no: string) =>
-  z
-    .boolean()
-    .nullable()
-    .describe(
-      `Whether the user ${what}. Three answers, and the third is the point: true, false — ` +
-        `they told you ${no} — and null, meaning Tonight was never told. Omit the field when ` +
-        "you were not told; never send false to mean you do not know.",
-    );
+const movieState = z
+  .enum(MOVIE_STATES)
+  .nullable()
+  .describe(
+    "What the user has said about this film, as one answer: not_seen (they said they have not " +
+      "seen it), seen (they watched it and said nothing about it — not a neutral verdict), " +
+      "liked, loved (strongly liked), disliked — those three also mean they saw it. Omit the " +
+      "field when they have not said; that " +
+      "records nothing, and it is not the same as not_seen. Pass null to go back to having " +
+      "been told nothing. These are states the user expressed, never a score or star rating.",
+  );
 
 const movieMixes = z
   .array(z.string())
@@ -199,8 +201,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "with an instruction saying what it means to them. A mix combines one or more genres " +
         "and has an instruction of its own for what the combination means; the films in it are " +
         "listed by title and year. Each film also appears once in movies, which is where the " +
-        "rest of what the user said about it lives — watched and liked, each true, " +
-        "false, or null for never told. A new user has none of it, which is the normal state " +
+        "rest of what the user said about it lives — one state out of not_seen, seen, liked, " +
+        "loved and disliked, or null for never told. A new user has none of it, which is the normal state " +
         "rather than an error. Read this before proposing anything: it is the vocabulary to " +
         "reuse, and the only record of what they have said they watched.",
       annotations: { readOnlyHint: true, openWorldHint: false },
@@ -324,22 +326,21 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "liking your suggestion of one. Write only Movie identity and state the user expressed, " +
         "or a meaning you put to them and they confirmed — and a confirmation covers only the " +
         "meaning they were shown, settling that it is theirs rather than granting permission to " +
-        "write. Absence is never false: leave watched or liked out when you were not told, " +
-        "because null means unknown and false means they said no. Addressed by title and year " +
-        "together, so establish the year before writing.",
+        "write. Absence is never not_seen: leave state out when you were not told, because " +
+        "having said nothing is not the same as having said they have not seen it. Addressed " +
+        "by title and year together, so establish the year before writing.",
       inputSchema: z.object({
         title: movieTitle,
         year: movieYear,
         imdb_id: imdbId.optional(),
-        watched: state("has seen it", "no").optional(),
-        liked: state("liked it", "they did not").optional(),
+        state: movieState.optional(),
         mixes: movieMixes.optional(),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
-    async ({ title, year, imdb_id: imdbId, watched, liked, mixes }) =>
+    async ({ title, year, imdb_id: imdbId, state, mixes }) =>
       attempt(async () => ({
-        movie: await store.createMovie({ title, year, imdbId, watched, liked, mixes }),
+        movie: await store.createMovie({ title, year, imdbId, state, mixes }),
       })),
   );
 
@@ -352,7 +353,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "by its current title and year; new_title and new_year change either half and the film " +
         "stays the same object, so its filings follow it. Omitting a field leaves it alone — " +
         "passing null is what clears one back to unknown, and the two are not the same. " +
-        "Absence is never false: record false only when the user said no. A recommendation is " +
+        "Absence is never not_seen: say a state only when they said it. A recommendation is " +
         "not a saved movie here either — proposing a film, or the user watching one you " +
         "proposed, is nothing Tonight knows unless they said so. Write only what they " +
         "expressed or confirmed, and a confirmation covers only the meaning they were shown; " +
@@ -363,8 +364,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         new_title: movieTitle.describe("Retitle the film to this.").optional(),
         new_year: movieYear.describe("Change the release year to this.").optional(),
         imdb_id: imdbId.optional(),
-        watched: state("has seen it", "no").optional(),
-        liked: state("liked it", "they did not").optional(),
+        state: movieState.optional(),
         mixes: movieMixes.optional(),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -375,8 +375,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
       new_title: retitled,
       new_year: reyeared,
       imdb_id: imdbId,
-      watched,
-      liked,
+      state,
       mixes,
     }) =>
       attempt(async () => ({
@@ -384,8 +383,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
           title: retitled,
           year: reyeared,
           imdbId,
-          watched,
-          liked,
+          state,
           mixes,
         }),
       })),

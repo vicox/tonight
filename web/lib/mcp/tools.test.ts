@@ -323,7 +323,7 @@ test("the write tools say where persistence begins, because a host may read noth
     const description = tools.find((tool) => tool.name === name)?.description ?? "";
 
     assert.match(description, /recommendation is not a saved movie/i, `${name}: recommending`);
-    assert.match(description, /absence is never false/i, `${name}: absence`);
+    assert.match(description, /absence is never not_seen/i, `${name}: absence`);
     assert.match(description, /covers only the meaning they were shown/i, `${name}: confirmation`);
     assert.match(description, /permission to write/i, `${name}: confirming is not approving`);
   }
@@ -342,15 +342,14 @@ test("a movie is saved with what the user said, and appears once in the model", 
     title: "Arrival",
     year: 2016,
     imdb_id: "tt2543164",
-    watched: true,
+    state: "loved",
     mixes: ["Space Tension"],
   });
   assert.deepEqual(created.movie, {
     title: "Arrival",
     year: 2016,
     imdbId: "tt2543164",
-    watched: true,
-    liked: null,
+    state: "loved",
     mixes: ["Space Tension"],
   });
 
@@ -365,30 +364,22 @@ test("a movie is saved with what the user said, and appears once in the model", 
   // searching the text, which would match the "id" inside an ordinary word.
   assert.deepEqual(Object.keys(taste.movies[0]).sort(), [
     "imdbId",
-    "liked",
     "mixes",
+    "state",
     "title",
-    "watched",
     "year",
   ]);
   assert.deepEqual(Object.keys(taste.mixes[0].movies[0]).sort(), ["title", "year"]);
 });
 
-test("omitted, null and false are three different answers over the wire", async () => {
+test("omitted, a state and null are three different answers over the wire", async () => {
   const token = await tokenFor(someone());
 
   const saved = await ok(token, "create_movie", { title: "Arrival", year: 2016 });
-  assert.equal(saved.movie.watched, null, "an omitted field became an answer");
-  assert.equal(saved.movie.liked, null);
+  assert.equal(saved.movie.state, null, "an omitted field became an answer");
 
-  const said = await ok(token, "update_movie", {
-    title: "Arrival",
-    year: 2016,
-    watched: true,
-    liked: false,
-  });
-  assert.equal(said.movie.watched, true);
-  assert.equal(said.movie.liked, false);
+  const said = await ok(token, "update_movie", { title: "Arrival", year: 2016, state: "loved" });
+  assert.equal(said.movie.state, "loved");
 
   // Omitting leaves the answer standing; sending null is what withdraws it.
   const kept = await ok(token, "update_movie", {
@@ -396,22 +387,27 @@ test("omitted, null and false are three different answers over the wire", async 
     year: 2016,
     imdb_id: "tt2543164",
   });
-  assert.equal(kept.movie.watched, true);
-  assert.equal(kept.movie.liked, false, "an unrelated change withdrew a stated no");
+  assert.equal(kept.movie.state, "loved", "an unrelated change withdrew a stated answer");
 
-  const cleared = await ok(token, "update_movie", {
-    title: "Arrival",
-    year: 2016,
-    watched: null,
-    liked: null,
-  });
-  assert.equal(cleared.movie.watched, null);
-  assert.equal(cleared.movie.liked, null);
+  const cleared = await ok(token, "update_movie", { title: "Arrival", year: 2016, state: null });
+  assert.equal(cleared.movie.state, null);
 
   // And null survives serialisation rather than being dropped from the JSON —
   // an absent key would be indistinguishable from one the reader failed to read.
   const { result } = await callTool(token, "get_taste");
-  assert.match(result?.content?.[0]?.text ?? "", /"watched":\s*null/);
+  assert.match(result?.content?.[0]?.text ?? "", /"state":\s*null/);
+});
+
+test("not_seen is a state the user gave, and never what silence means", async () => {
+  const token = await tokenFor(someone());
+  await ok(token, "create_movie", { title: "Dune", year: 2021 });
+
+  const quiet = (await ok(token, "get_taste")).movies[0];
+  assert.equal(quiet.state, null, "saving a film said they had not seen it");
+
+  const said = await ok(token, "update_movie", { title: "Dune", year: 2021, state: "not_seen" });
+  assert.equal(said.movie.state, "not_seen");
+  assert.notEqual(said.movie.state, null, "the two would be one answer");
 });
 
 test("a handle the schema cannot make sense of never reaches the store", async () => {
@@ -423,10 +419,13 @@ test("a handle the schema cannot make sense of never reaches the store", async (
   assert.match(await refused(token, "create_movie", { title: "Dune", year: "2021" }), /year/);
   assert.match(await refused(token, "create_movie", { title: "Dune", year: 2021.5 }), /year/);
   assert.match(await refused(token, "delete_movie", { title: "Dune" }), /year/);
-  assert.match(
-    await refused(token, "create_movie", { title: "Dune", year: 2021, watched: "yes" }),
-    /watched/,
-  );
+  for (const bad of ["yes", "neutral", "Seen", true]) {
+    assert.match(
+      await refused(token, "create_movie", { title: "Dune", year: 2021, state: bad }),
+      /state/,
+      JSON.stringify(bad),
+    );
+  }
 
   // The bounds the domain enforces are in the schema too, so a client is told
   // the shape rather than having to discover it by being refused.
@@ -475,7 +474,7 @@ test("a valid IMDb id survives the boundary, spaces and all", async () => {
 
   // Null still clears it, and omitting it still leaves it alone.
   assert.equal(
-    (await ok(token, "update_movie", { title: "Shawshank", year: 1994, watched: true })).movie
+    (await ok(token, "update_movie", { title: "Shawshank", year: 1994, state: "seen" })).movie
       .imdbId,
     "tt0111161",
   );
@@ -497,7 +496,7 @@ test("retitling a movie keeps it the same film, filed where it was", async () =>
   await ok(token, "create_movie", {
     title: "Dune",
     year: 1984,
-    watched: true,
+    state: "seen",
     mixes: ["Space Tension"],
   });
 
@@ -511,8 +510,7 @@ test("retitling a movie keeps it the same film, filed where it was", async () =>
     title: "Dune (Lynch)",
     year: 1985,
     imdbId: null,
-    watched: true,
-    liked: null,
+    state: "seen",
     mixes: ["Space Tension"],
   });
 

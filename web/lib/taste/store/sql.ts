@@ -9,7 +9,7 @@ import {
   checkMovieMixes,
   checkMovieTitle,
   checkName,
-  checkState,
+  checkMovieState,
   checkYear,
   genreExists,
   genreInUse,
@@ -31,6 +31,7 @@ import {
   type Genre,
   type Mix,
   type Movie,
+  type MovieState,
   type MovieHandle,
 } from "../model.ts";
 import type { MixDraft, GenreDraft, TasteStore } from "../store.ts";
@@ -321,10 +322,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           MOVIE_UNIQUENESS,
           () =>
             tx.query<{ id: string }>(
-              `INSERT INTO tonight_movies (user_id, title, year, imdb_id, watched, liked)
-               VALUES ($1, $2, $3, $4, $5, $6)
+              `INSERT INTO tonight_movies (user_id, title, year, imdb_id, state)
+               VALUES ($1, $2, $3, $4, $5)
                RETURNING id`,
-              [owner, entry.title, entry.year, entry.imdbId, entry.watched, entry.liked],
+              [owner, entry.title, entry.year, entry.imdbId, entry.state],
             ),
           () => movieConflict(tx, owner, entry),
         );
@@ -375,8 +376,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           title: changes.title === undefined ? current.title : checkMovieTitle(changes.title),
           year: changes.year === undefined ? current.year : checkYear(changes.year),
           imdbId: changes.imdbId === undefined ? current.imdbId : changes.imdbId,
-          watched: changes.watched === undefined ? current.watched : changes.watched,
-          liked: changes.liked === undefined ? current.liked : changes.liked,
+          state: changes.state === undefined ? current.state : changes.state,
         });
 
         /**
@@ -403,10 +403,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           () =>
             tx.query(
               `UPDATE tonight_movies
-                  SET title = $3, year = $4, imdb_id = $5, watched = $6, liked = $7
+                  SET title = $3, year = $4, imdb_id = $5, state = $6
                 WHERE user_id = $1 AND id = $2
                RETURNING id`,
-              [owner, current.id, entry.title, entry.year, entry.imdbId, entry.watched, entry.liked],
+              [owner, current.id, entry.title, entry.year, entry.imdbId, entry.state],
             ),
           () => movieConflict(tx, owner, entry, current.id),
         );
@@ -728,8 +728,7 @@ type MovieRow = Stored<{
   title: string;
   year: number;
   imdbId: string | null;
-  watched: boolean | null;
-  liked: boolean | null;
+  state: MovieState | null;
 }>;
 
 /**
@@ -768,10 +767,9 @@ async function lockMovies(
       title: string;
       year: number;
       imdb_id: string | null;
-      watched: boolean | null;
-      liked: boolean | null;
+      state: MovieState | null;
     }>(
-      `SELECT id, title, year, imdb_id, watched, liked FROM tonight_movies
+      `SELECT id, title, year, imdb_id, state FROM tonight_movies
         WHERE user_id = $1 AND lower(title) = $2 AND year = $3
         FOR UPDATE`,
       [owner, at.title, at.year],
@@ -782,8 +780,7 @@ async function lockMovies(
         title: row.title,
         year: row.year,
         imdbId: row.imdb_id,
-        watched: row.watched,
-        liked: row.liked,
+        state: row.state,
       });
     }
   }
@@ -945,10 +942,9 @@ async function readMovies(sql: Transaction, owner: string): Promise<Movie[]> {
     title: string;
     year: number;
     imdb_id: string | null;
-    watched: boolean | null;
-    liked: boolean | null;
+    state: MovieState | null;
   }>(
-    `SELECT id, title, year, imdb_id, watched, liked FROM tonight_movies WHERE user_id = $1`,
+    `SELECT id, title, year, imdb_id, state FROM tonight_movies WHERE user_id = $1`,
     [owner],
   );
 
@@ -966,8 +962,7 @@ async function readMovies(sql: Transaction, owner: string): Promise<Movie[]> {
     title: row.title,
     year: row.year,
     imdbId: row.imdb_id,
-    watched: row.watched,
-    liked: row.liked,
+    state: row.state,
     mixes: [] as string[],
   }));
   const byId = new Map(movies.map((movie) => [movie.id, movie]));
@@ -991,15 +986,13 @@ function validateMovie(draft: {
   title: unknown;
   year: unknown;
   imdbId?: unknown;
-  watched?: unknown;
-  liked?: unknown;
+  state?: unknown;
 }): Omit<Movie, "mixes"> {
   return {
     title: checkMovieTitle(draft.title),
     year: checkYear(draft.year),
     imdbId: draft.imdbId === undefined ? null : checkImdbId(draft.imdbId),
-    watched: draft.watched === undefined ? null : checkState(draft.watched, "watched"),
-    liked: draft.liked === undefined ? null : checkState(draft.liked, "liked"),
+    state: draft.state === undefined ? null : checkMovieState(draft.state),
   };
 }
 

@@ -23,8 +23,8 @@ of their own for what the combination means to you.
 
 **Movies** are the films you have told Tonight about. A Movie has a title and a release year —
 together they are its name, so `Dune / 1984` and `Dune / 2021` are two of them — and it may carry
-an IMDb id, whether you watched it, and whether you liked it. Watched and liked each hold three
-answers: yes, no, and nothing said. A Movie may be in no Mix, one, or several, and it is yours in
+an IMDb id and one state: not seen, seen, liked, loved or disliked. A sixth possibility is that
+you have said nothing, which is not the same as not seen. A Movie may be in no Mix, one, or several, and it is yours in
 its own right either way: nothing is looked up, and no film is here unless you put it there.
 
 A Mix is not the intersection of its Genres. `Sci-Fi` and `Thriller` are the ingredients; what
@@ -64,8 +64,7 @@ choosing films for a Mix are all done by the host agent, guided by the skills in
 [`skills/`](skills).
 
 It also owns no film catalogue. Tonight holds the films a user told it about — a title, a year,
-an optional IMDb id, whether they watched it, whether they liked it, and which of their Mixes it
-is in — and nothing else: no film exists here until somebody names one, and nothing about it is
+an optional IMDb id, the one state they gave it, and which of their Mixes it is in — and nothing else: no film exists here until somebody names one, and nothing about it is
 ever looked up. Catalogues, search, streaming availability and current releases are independent
 capabilities a host combines with Tonight at run time. That separation is the architecture rather
 than a stage of it: Tonight holds the one thing nobody else can hold for you, and stays useful
@@ -148,9 +147,9 @@ addressed from outside, and there is no id in any tool schema or any answer.
   refused — the instruction is written from what that person actually said.
 - **A Movie is named by its title and year together**, unique per user ignoring case, so one
   person's list can hold both `Dune`s.
-- **`watched` and `liked` have no default.** The columns are nullable and nothing fills them in:
-  `null` means Tonight was never told and `false` means the user said no, and turning the first
-  into the second would put a statement in their mouth.
+- **A Movie's `state` has no default**, and is constrained to five values. The column is
+  nullable and nothing fills it in: `null` means Tonight was never told, `not_seen` means the
+  user said so, and turning the first into the second would put a statement in their mouth.
 - **Deleting a Movie is always allowed**, and takes only its Mix memberships with it. A Mix is
   *defined by* its Genres and merely *holds* Movies, which is why one restricts and the other
   cascades.
@@ -162,7 +161,7 @@ and — for whoever is signed in — their own taste model, read and managed thr
 the MCP tools use. There is no second surface and no second copy of the rules.
 
 The website shows a Mix-oriented view of the model and edits part of it: Genres and Mixes are
-managed there, a Movie's watched and liked marks can be set there, and everything else about a
+managed there, a Movie's state can be set there, and everything else about a
 Movie is done through an assistant. It does not recommend, and it has no
 model inside it to recommend with: the panel at the foot of the page names the sentence to take
 to your assistant. It is *a* place to manage the model rather than the only one — an assistant
@@ -201,7 +200,8 @@ skills/tonight-recommend/test.sh
 
 ## Deliberately not here yet
 
-- **Watch history.** A Movie carries a *state* — watched, not watched, or nothing said — and
+- **Watch history.** A Movie carries one *state* — not seen, seen, liked, loved, disliked, or
+  nothing said — and
   never a sequence of events: there is no timestamp on it, so no timeline exists to read back.
   Tonight also records nothing about what was recommended. The model is designed for both — a
   recommendation would reference the Genre or Mix that caused it by uuid, the way every relation

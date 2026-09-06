@@ -96,6 +96,48 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   assert.doesNotMatch(flat, /rating of any kind/);
 });
 
+test("reading a sentence into a Movie state is a rule the agent is given, not left", () => {
+  /**
+   * The one rule in this document most likely to be lost by accident.
+   *
+   * It lives one line away from the `full:start` block that holds the worked
+   * examples it grew out of — and it was behind that marker once, which is how
+   * the gap was found: the agent knew the five states existed and never learnt
+   * which sentence meant which. Nothing fails when a rule moves behind a marker.
+   * This does.
+   *
+   * Each clause is named separately so a failure says which half went, rather
+   * than that a long paragraph no longer matches.
+   */
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  const contract: [string, string][] = [
+    ["the most specific reading wins", "Take the state from what they said, at its most specific"],
+    ["not having seen it", '*"haven\'t seen it"* / *"want to watch it"* → `not_seen`'],
+    ["having seen it", '*"seen it"* → `seen`'],
+    ["a mild yes", '*"it was good"* → `liked`'],
+    ["a strong yes", '*"loved it"* → `loved`'],
+    ["a no", '*"didn\'t like it"* → `disliked`'],
+    ["an opinion already means they saw it", "The last three already say they saw it"],
+    ["not asking what they just said", "never ask for a state their sentence gave you"],
+    ["silence is not a state", "Nothing said is `null`, never `not_seen`"],
+  ];
+
+  for (const [what, rule] of contract) {
+    assert.ok(
+      flat.includes(rule.replace(/\s+/g, " ")),
+      `the agent is never told about ${what}: ${JSON.stringify(rule)}`,
+    );
+  }
+
+  // And as one passage rather than nine sentences that drifted apart: the five
+  // readings have to arrive together to be read as a mapping at all.
+  const from = flat.indexOf("Take the state from what they said");
+  const to = flat.indexOf("Nothing said is `null`, never `not_seen`");
+  assert.ok(to > from, "the mapping and its exception are no longer one thought");
+  assert.ok(to - from < 500, "the mapping has been spread out and is no longer readable as one");
+});
+
 test("a persisted instruction is written in the user's own voice", () => {
   assert.match(
     PROJECT_INSTRUCTIONS.replace(/\s+/g, " "),
@@ -232,11 +274,14 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "do not save the film yet",
     "Never ask them which Mix they want",
     "A yes is the whole of the permission",
-    "Never ask a second time whether to save",
+    "Never ask a second time",
     "A film in no Mix is legitimate",
     "Do not sort them, propose Mixes for them, or mention them unasked",
     "A recommendation is not a saved Movie",
-    "Nothing said is `null`, never `false`",
+    "Take the state from what they said, at its most specific",
+    "The last three already say they saw it",
+    "never ask for a state their sentence gave you",
+    "Nothing said is `null`, never `not_seen`",
     "Settle title and year first",
     // what Tonight is and is not — the boundary, stated so neither half is lost
     "get_taste` returns the Movies they saved",

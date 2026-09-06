@@ -55,7 +55,7 @@ export default function Privacy() {
           answer: an assistant you have authorized may <strong>request</strong> your taste model
           through the MCP endpoint, and Tonight returns <strong>all</strong> of it — every genre and
           mix with its instruction, and every film you have saved with its year, its IMDb id if it
-          has one, and whether you watched and liked it. That is the same model this website shows
+          has one, and the one state you gave it. That is the same model this website shows
           you, arranged differently: the signed-in page groups your films under the mixes they are
           in and lists the rest under &ldquo;Other movies&rdquo;, and it keeps each instruction one
           click away rather than on the page. What that assistant then does with what it receives
@@ -133,11 +133,13 @@ export default function Privacy() {
         <p>
           <strong>Films you tell it about.</strong> A film is in Tonight only because you or an
           assistant acting for you put it there. For each one: the title and release year you gave,
-          an optional IMDb title id, whether you have watched it, whether you liked it, and which
-          of your mixes it is in. Watched and liked each hold three answers
-          — yes, no, and nothing said — and nothing said is what a film starts as. Neither is
-          guessed from anything: being recommended a film records nothing, and neither does saving
-          one.
+          an optional IMDb title id, one state, and which of your mixes it is in. The state is a
+          single answer, and there are five of them: <em>not seen</em>, <em>seen</em>,{" "}
+          <em>liked</em>, <em>loved</em> and <em>disliked</em>. <em>Seen</em> means you watched it
+          and said nothing about it — it is not a verdict. A film may also have no state at all,
+          which means you have said nothing, and that is what a film starts as. It is different
+          from <em>not seen</em>, which is something you said. Neither is guessed from anything:
+          being recommended a film records nothing, and neither does saving one.
         </p>
         <p>
           <strong>What is deliberately not stored.</strong> Tonight keeps no record of what was
@@ -150,9 +152,9 @@ export default function Privacy() {
         <p>
           <strong>A state, never a history.</strong> A film in Tonight says whether you have
           watched it, not when, how often, or in what order. There are no timestamps on it and no
-          event log behind it, so no viewing timeline exists to be reconstructed. Liked and
-          disliked are the two things you can say about a film, and they are not a rating scale:
-          there is no score, no stars and no average of anything.
+          event log behind it, so no viewing timeline exists to be reconstructed. Liked, loved and
+          disliked are things you said about a film, not a rating scale: there is no score, no
+          stars and no average of anything.
         </p>
         <p>
           <strong>Nothing you do changes your taste model except changing it.</strong> Tonight draws no
@@ -408,7 +410,7 @@ export default function Privacy() {
         </p>
         <p>
           <strong>Your taste model</strong> — your genres, your mixes, and the films you saved
-          along with their watched and liked state — is subject to a policy of the operator rather
+          along with the state you gave each — is subject to a policy of the operator rather
           than a rule in the software: it is{" "}
           <strong>intended to be kept until the closed beta ends</strong>, and the operator will delete
           it then, or earlier on a valid request. The application does not delete it by itself, and
@@ -428,7 +430,7 @@ export default function Privacy() {
           You can delete any mix yourself at any time, on this website or through your assistant, and
           any genre no mix is built from. A genre a mix does refer to stays until that mix does not:
           take it out of the mix, or delete the mix, and the genre can go. For a film, the
-          signed-in page lets you mark whether you watched it and whether you liked it; adding one,
+          signed-in page lets you set that state; adding one,
           changing its title or year, and removing it are done through your assistant, which does
           each there and then. To have your account and everything belonging to it removed, write
           to{" "}

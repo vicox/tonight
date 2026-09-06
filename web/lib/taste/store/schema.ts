@@ -61,8 +61,8 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * *shown* to somebody. Recommending reads this and writes nothing.
  *
  * v4 added Movies, and the distinction it turns on is **state, not history**. A
- * Movie says what the user told us — that they have seen it, that they liked it —
- * and it says so as one row that is overwritten, never as a sequence of events.
+ * Movie says what the user told us — not seen, seen, liked, loved, disliked — as
+ * one column on one row that is overwritten, never as a sequence of events.
  * There is no `watched_at`, no ordering, no count, and no way to ask what
  * happened when, because none of that was ever written down. When history does
  * arrive it will be its own migration and its own tables, referencing
@@ -378,6 +378,165 @@ export const TASTE_SCHEMA: SchemaModule = {
         -- "Which mixes is this movie filed under", without a scan.
         CREATE INDEX tonight_mix_movies_movie_index
           ON tonight_mix_movies (user_id, movie_id);
+      `,
+    },
+
+    /**
+     * EXPAND. One state per Movie, alongside the two booleans it replaces.
+     *
+     * `watched` and `liked` were independent, so the table could hold "not seen
+     * but liked" and the product had to keep answering what that meant. What the
+     * user actually says is one thing at a time — not seen, seen, liked, loved,
+     * disliked — and an evaluation already implies having watched it.
+     *
+     * `state` is nullable and has no default: `NULL` is "never told" and it is
+     * not `not_seen`. Turning silence into a statement is the one thing this
+     * model does not do, and collapsing two fields into one does not change it.
+     *
+     * ## Nothing is dropped here
+     *
+     * `watched` and `liked` stay, because the build in production when this runs
+     * still reads and writes them. Dropping them is a later migration and a later
+     * release — see **The contract migration** below. Until then both
+     * representations exist, and `tonight_movies_state_sync` is what stops them
+     * disagreeing.
+     *
+     * ## The backfill
+     *
+     *     watched  liked   state       why
+     *     ----------------------------------------------------------------
+     *     NULL     NULL    NULL        nothing said stays nothing said
+     *     NULL     true    liked       keep the opinion; liking implies seeing
+     *     NULL     false   disliked    the same
+     *     false    *       not_seen    an explicit "not seen" outranks an opinion
+     *     true     NULL    seen        watched, nothing said about it
+     *     true     true    liked
+     *     true     false   disliked
+     *
+     * Two rows of that table lose something, and the direction is deliberate.
+     * Where `watched` was false and an opinion was recorded, the opinion goes:
+     * asserting somebody watched a film they said they had not is worse than
+     * dropping what they thought of it. Where `watched` was unknown and an
+     * opinion was recorded, the state now implies they saw it — the only
+     * alternative was to throw the opinion away, and no state can hold "liked it,
+     * unknown whether seen". Nothing maps to `loved`; the old shape could not
+     * express it.
+     *
+     * ## The bridge, and why it is a trigger
+     *
+     * During the rollout two builds write this table. The old one sets `watched`
+     * and `liked` and has never heard of `state`; the new one sets `state` and
+     * leaves the booleans alone. A backfill alone would be stale the moment the
+     * old build wrote again, and dual-writing from the new code cannot help —
+     * the writes that would go unmirrored are the ones from the build that does
+     * not know there is anything to mirror.
+     *
+     * So the bridge lives where both writers meet. `tonight_movies_state_sync`
+     * runs before every insert and update and fills in whichever side the writer
+     * did not supply, deciding by what actually changed:
+     *
+     *   - the state moved and the booleans did not  → derive the booleans
+     *   - the booleans moved and the state did not  → derive the state
+     *   - neither moved                             → leave both alone
+     *
+     * Both builds issue whole-row updates, so "did not move" is exactly what a
+     * writer that does not know a column looks like. On insert the same rule
+     * reads as: whichever side arrived non-null decides the other.
+     *
+     * `loved` is the one value the old shape cannot hold. It maps to
+     * `(watched, liked) = (true, true)`, which the old build reads as liked — so
+     * a subsequent write from that build re-derives `liked` and the stronger word
+     * is lost. That is the honest outcome: the old build showed "liked", the user
+     * confirmed "liked", and the model now says what they were shown.
+     *
+     * ## The contract migration
+     *
+     * Dropping `watched`, `liked`, the trigger and its function is a separate
+     * migration in a later release, deliberately not written here — adding it to
+     * this list would run it on the next `npm run db:migrate`. It is safe once no
+     * build that reads or writes those columns can still be serving: after the
+     * release carrying this migration is fully rolled out, and after the window
+     * in which rolling back to it is still wanted has passed.
+     */
+    {
+      version: 5,
+      sql: `
+        ALTER TABLE tonight_movies ADD COLUMN state text;
+
+        ALTER TABLE tonight_movies
+          ADD CONSTRAINT tonight_movies_state
+            CHECK (state IS NULL OR state IN ('not_seen', 'seen', 'liked', 'loved', 'disliked'));
+
+        -- The two directions, written once and used by the trigger below and by
+        -- the backfill, so a row cannot be filled in one way here and another way
+        -- at run time.
+        CREATE FUNCTION tonight_movie_state_of(watched boolean, liked boolean)
+          RETURNS text
+          LANGUAGE sql IMMUTABLE
+          AS $$
+            SELECT CASE
+              WHEN watched IS FALSE THEN 'not_seen'
+              WHEN liked   IS TRUE  THEN 'liked'
+              WHEN liked   IS FALSE THEN 'disliked'
+              WHEN watched IS TRUE  THEN 'seen'
+              ELSE NULL
+            END
+          $$;
+
+        CREATE FUNCTION tonight_movie_watched_of(state text)
+          RETURNS boolean
+          LANGUAGE sql IMMUTABLE
+          AS $$
+            SELECT CASE
+              WHEN state = 'not_seen' THEN false
+              WHEN state IS NULL      THEN NULL
+              ELSE true
+            END
+          $$;
+
+        CREATE FUNCTION tonight_movie_liked_of(state text)
+          RETURNS boolean
+          LANGUAGE sql IMMUTABLE
+          AS $$
+            SELECT CASE
+              WHEN state IN ('liked', 'loved') THEN true
+              WHEN state = 'disliked'          THEN false
+              ELSE NULL
+            END
+          $$;
+
+        UPDATE tonight_movies SET state = tonight_movie_state_of(watched, liked);
+
+        CREATE FUNCTION tonight_movies_state_sync() RETURNS trigger
+          LANGUAGE plpgsql
+          AS $$
+          BEGIN
+            IF TG_OP = 'INSERT' THEN
+              -- Whichever side the writer supplied decides the other. A row with
+              -- neither is a film nobody has said anything about, and stays so.
+              IF NEW.state IS NOT NULL THEN
+                NEW.watched := tonight_movie_watched_of(NEW.state);
+                NEW.liked   := tonight_movie_liked_of(NEW.state);
+              ELSE
+                NEW.state := tonight_movie_state_of(NEW.watched, NEW.liked);
+              END IF;
+              RETURN NEW;
+            END IF;
+
+            IF NEW.state IS DISTINCT FROM OLD.state THEN
+              NEW.watched := tonight_movie_watched_of(NEW.state);
+              NEW.liked   := tonight_movie_liked_of(NEW.state);
+            ELSIF NEW.watched IS DISTINCT FROM OLD.watched
+               OR NEW.liked   IS DISTINCT FROM OLD.liked THEN
+              NEW.state := tonight_movie_state_of(NEW.watched, NEW.liked);
+            END IF;
+            RETURN NEW;
+          END;
+          $$;
+
+        CREATE TRIGGER tonight_movies_state_sync
+          BEFORE INSERT OR UPDATE ON tonight_movies
+          FOR EACH ROW EXECUTE FUNCTION tonight_movies_state_sync();
       `,
     },
   ],
