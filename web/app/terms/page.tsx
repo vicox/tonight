@@ -29,9 +29,9 @@ export default function Terms() {
         <p>
           Tonight keeps a <strong>taste model that belongs to you</strong>: genres, each with an
           instruction saying what that genre means to you, mixes that combine them and say what the
-          combination means, and the films you have told it about, each in whichever of your mixes
-          you put it. It stores that model, enforces the rules over it, and makes it available to
-          you on this website and to an assistant you connect over MCP.
+          combination means, and the films you have told it about, in whichever of your mixes you
+          put them or in none. It stores that model, enforces the rules over it, and makes it
+          available to you on this website and to an assistant you connect over MCP.
         </p>
         <p>
           <strong>Tonight does not choose films for you.</strong> It contains no recommendation engine,

@@ -10,6 +10,7 @@ import type { Genre, Mix, Movie, Taste } from "@/lib/taste/model";
  *          ↓
  *     YOUR MIXES      what they mean in combination,
  *                     and the films the user keeps in each
+ *     OTHER MOVIES    the films that are in no Mix
  *
  * Vertical rather than side by side, because the relationship is a derivation and
  * not a comparison: mixes come *from* genres, and an arrow between two stacked
@@ -75,6 +76,8 @@ export function TasteView({ taste }: { taste: Taste }) {
         )}
       </Panel>
 
+      <Loose movies={taste.movies} />
+
       <Prompt taste={taste} />
 
       <p className="mt-10 text-[12.5px] leading-relaxed text-ink-faint">
@@ -84,6 +87,36 @@ export function TasteView({ taste }: { taste: Taste }) {
 
       <TasteAdvanced taste={taste} />
     </>
+  );
+}
+
+/**
+ * The films that are in no Mix.
+ *
+ * A film gets here two ways, and neither is a mistake: saying *"I've seen that"*
+ * about something records a Movie without filing it anywhere, and deleting a Mix
+ * leaves its films behind. Both are ordinary, so this is a place they are visible
+ * rather than a queue to work through — the same rows and the same marks as
+ * anywhere else, under a plain heading, in the order every list here uses.
+ *
+ * It is absent when there are none. An empty section under this heading would
+ * read as something waiting to be dealt with, which is the one thing these films
+ * are not.
+ */
+function Loose({ movies }: { movies: readonly Movie[] }) {
+  const loose = movies.filter((movie) => movie.mixes.length === 0);
+  if (!loose.length) return null;
+
+  return (
+    <div className="mt-6">
+      <Panel
+        title="Other movies"
+        note="Films you have saved that are not in a mix."
+        count={loose.length}
+      >
+        <Films movies={loose} className="" />
+      </Panel>
+    </div>
   );
 }
 
@@ -214,11 +247,11 @@ function MixCard({ mix, movies }: { mix: Mix; movies: readonly Movie[] }) {
  * that can be changed without an assistant — see `MovieState` for why they show
  * two states while the model keeps three.
  */
-function Films({ movies }: { movies: readonly Movie[] }) {
+function Films({ movies, className = "mt-4" }: { movies: readonly Movie[]; className?: string }) {
   if (!movies.length) return null;
 
   return (
-    <ul className="mt-4 flex flex-col gap-1.5 text-[13.5px] leading-relaxed">
+    <ul className={`${className} flex flex-col gap-1.5 text-[13.5px] leading-relaxed`}>
       {movies.map((movie) => (
         <li
           key={`${movie.year} ${movie.title}`}

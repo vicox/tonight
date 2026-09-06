@@ -168,8 +168,9 @@ model inside it to recommend with: the panel at the foot of the page names the s
 to your assistant. It is *a* place to manage the model rather than the only one — an assistant
 asked outright to rename a Genre or delete a Mix uses the same tools and does it there and then.
 
-The page is organised around Mixes, so a Movie in no Mix is not listed on it. `get_taste` returns
-every Movie either way, which is the model's own shape: the website is a view of it, not the
+The page is organised around Mixes, and a Movie in no Mix is listed under *Other movies* beneath
+them — recording that somebody watched a film makes one, and so does deleting the last Mix it was
+in. `get_taste` returns the same model in one piece: the website is a view of it, not the
 definition of it.
 
 ## Running it

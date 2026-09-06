@@ -55,11 +55,11 @@ export default function Privacy() {
           answer: an assistant you have authorized may <strong>request</strong> your taste model
           through the MCP endpoint, and Tonight returns <strong>all</strong> of it — every genre and
           mix with its instruction, and every film you have saved with its year, its IMDb id if it
-          has one, and whether you watched and liked it. That is more than this website shows you at
-          a glance. The signed-in page is organised around your mixes: it lists a film under each
-          mix it belongs to, so a film you have saved that is in no mix does not appear there,
-          while the MCP endpoint returns it like any other. What that assistant then does with what
-          it receives happens in that service, not here, and the operator has no control over it.
+          has one, and whether you watched and liked it. That is the same model this website shows
+          you, arranged differently: the signed-in page groups your films under the mixes they are
+          in and lists the rest under &ldquo;Other movies&rdquo;, and it keeps each instruction one
+          click away rather than on the page. What that assistant then does with what it receives
+          happens in that service, not here, and the operator has no control over it.
         </p>
       </section>
 

@@ -108,13 +108,15 @@ test("what an assistant may fetch is disclosed as the whole model, films include
   assert.match(privacy, /whether you watched and liked it/);
 });
 
-test("the website is disclosed as a view of the model rather than the whole of it", () => {
-  // The signed-in page is organised around mixes, so a film in no mix is not on
-  // it — while `get_taste` returns that film like any other. A policy claiming
-  // the two show the same thing would understate what an assistant receives.
+test("the website is disclosed as a view of the model, arranged its own way", () => {
+  // The page shows every object the endpoint returns, grouped its own way: films
+  // under the mixes they are in, the rest under "Other movies", instructions one
+  // click away. A reader deciding whether to authorize a client needs the
+  // difference stated as arrangement rather than as omission.
   const privacy = text("privacy");
-  assert.match(privacy, /more than this website shows you/);
-  assert.match(privacy, /in no mix does not appear there/);
+  assert.match(privacy, /the same model this website shows you, arranged differently/);
+  assert.match(privacy, /lists the rest under/);
+  assert.match(privacy, /Other movies/);
   assert.equal(
     privacy.includes("the same content you see on this website"),
     false,
@@ -142,7 +144,7 @@ test("the website is disclosed as a view of the model rather than the whole of i
     "the README still claims the website shows the whole model",
   );
   assert.match(readme, /shows a Mix-oriented view of the model/);
-  assert.match(readme, /a Movie in no Mix is not listed on it/);
+  assert.match(readme, /a Movie in no Mix is listed under \*Other movies\*/);
   assert.match(readme, /the website is a view of it, not the definition of it/);
 });
 

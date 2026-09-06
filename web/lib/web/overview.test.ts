@@ -40,6 +40,35 @@ test("the resting page shows names and films, and no instruction", () => {
   assert.ok(disclosure.includes("{instruction}"), "the instruction is outside the disclosure");
 });
 
+test("films in no mix are listed, and the section is absent when there are none", () => {
+  // A film gets there by ordinary means — recording that somebody watched it, or
+  // deleting the last mix it was in — so the page has to show it rather than lose
+  // it. What it must not become is a queue: same rows, same marks, no controls of
+  // its own, and no empty heading standing there implying something is outstanding.
+  // The section being right is not the same as the page having it. Every other
+  // assertion here reads the helper, and all of them would go on passing if the
+  // one line that renders it were deleted — so the invocation is pinned first.
+  assert.match(
+    bodyOf("TasteView"),
+    /<Loose movies=\{taste\.movies\}/,
+    "the page does not render the section, so a film in no mix is nowhere",
+  );
+
+  const loose = bodyOf("Loose");
+
+  assert.match(loose, /movie\.mixes\.length === 0/, "the section is not selected on emptiness");
+  assert.match(loose, /if \(!loose\.length\) return null;/, "an empty section is still rendered");
+  assert.match(loose, /title="Other movies"/);
+  assert.match(loose, /<Films movies=\{loose\}/, "it does not draw its own rows");
+
+  // No second ontology: no sorting, no dating, no status of its own.
+  assert.equal(
+    /sort\(|Date|recent|inbox|unsorted|archive|status/i.test(loose),
+    false,
+    "the section grew a concept of its own",
+  );
+});
+
 test("nothing on the page offers to create anything", () => {
   // The overview is grown in conversation. A create control here would make the
   // website the way in, which it deliberately is not.

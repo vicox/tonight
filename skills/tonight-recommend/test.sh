@@ -178,9 +178,13 @@ echo "--- the model grows from what was said ---"
 check "the idea just used is the Mix, and its parts are the Genres" \
     "$(order_check 'The idea you just used' '**is** a Mix' \
         'that is how Tonight gets better at this without anybody configuring it')" "True"
-check "reuse comes before create, and near-duplicates are called out" \
-    "$(order_check 'Reuse before you create' \
+check "a Genre is reused before it is created, and near-duplicates are called out" \
+    "$(order_check 'Reuse a Genre before you create one' \
         'do not add `Slow-paced`' 'A near-duplicate is worse than nothing')" "True"
+check "a Mix is the opposite case: reused when it fits, proposed when it does not" \
+    "$(order_check 'A Mix is the opposite case' \
+        'reuse a Mix when it genuinely covers the evening' \
+        'stretching an instruction to avoid a second Mix')" "True"
 check "a Mix has to say something its Genres do not" \
     "$(order_check 'if I knew only its Genres and not its instruction, what would I get wrong' \
         'it is not a Mix')" "True"
@@ -280,13 +284,12 @@ check "a failed write is reported rather than claimed as a save" \
 echo
 echo "--- a Movie is the user's own object ---"
 
-check "a Movie is theirs rather than a catalogue entry" \
+check "a Movie is theirs, by either of the two ways one comes to exist" \
     "$(order_check 'A Movie is theirs, the same way a Genre or a Mix is' \
+        'because they asked for it to be kept, or because they said something about it' \
         'never an entry from a catalogue')" "True"
-check "a Movie is named by its title and its year, and belongs to any number of Mixes" \
-    "$(order_check 'a title and a release year' \
-        'that is its name' \
-        'in no Mix, in one, or in several')" "True"
+check "a Movie is named by its title and its year" \
+    "$(order_check 'a title and a release year' 'that is its name')" "True"
 check "the three Movie tools are the way a direct request is done" \
     "$(order_check '`create_movie`, `update_movie` and `delete_movie` manage them' \
         'like any other direct request')" "True"
@@ -305,6 +308,52 @@ check "the handle is settled before a write, and asking which film is not ceremo
     "$(order_check 'Settle the title and year before writing' \
         'resolves *which film*' \
         'not asking permission to save')" "True"
+
+check "keeping a film and recording a remark about one are different requests" \
+    "$(order_check 'Two things a person can be asking for' \
+        'they are not the same intent')" "True"
+check "a film the user asks to keep goes into a Mix, and they need not know that" \
+    "$(order_check 'Adding a film to what they keep goes into a Mix' \
+        'do not write a Movie this way without at least one Mix' \
+        'Nobody has to know that rule exists')" "True"
+check "watched and liked are recorded without inventing a Mix for them" \
+    "$(order_check 'Recording what they said about a film does not' \
+        'not a request to file it anywhere' \
+        'Never invent a Mix, or ask for one, in order to record' \
+        'If they later ask for that film to be kept')" "True"
+check "a Mix that genuinely fits is used, and nothing further is asked" \
+    "$(order_check 'It genuinely fits a Mix they have' \
+        'Ask nothing further' \
+        'the best outcome there is')" "True"
+check "an existing Mix is not a bucket, and its meaning is never widened to fit" \
+    "$(order_check 'It nearly fits one' \
+        'being available is not the same as being right' \
+        'Never widen a' \
+        'it is a different Mix')" "True"
+check "with no good fit the film waits, and a Mix is devised rather than asked for" \
+    "$(order_check 'No Mix is a good fit' \
+        'do not save the film yet' \
+        'Do not hand the problem back by asking which Mix they want' \
+        'taste is the part you are here for')" "True"
+check "the Mix is proposed conversationally, named and explained, then asked about" \
+    "$(order_check 'Say what you noticed, name it, say what it means, and ask' \
+        'Shall I make it?')" "True"
+check "one yes creates the Mix and saves the film, with no second save question" \
+    "$(order_check 'A yes is the whole of the permission' \
+        'because a Mix needs its Genres to exist first' \
+        'asking it twice is the plumbing showing')" "True"
+check "a no settles it, and never becomes a film saved loose" \
+    "$(order_check 'A no is an answer too' \
+        'none of them is a reason to save the film loose')" "True"
+check "proposing a Mix belongs to saving, not to recommending" \
+    "$(order_check 'This is not licence to model at people' \
+        'A recommendation on its own is still just a recommendation')" "True"
+check "a film in no Mix is a legitimate state, listed and left alone" \
+    "$(order_check 'A film in no Mix is not yours to tidy' \
+        'a legitimate state, not a loose end' \
+        'lists them under **Other movies**' \
+        'Do not offer to sort them' \
+        'when they ask you to **keep** a film')" "True"
 
 echo
 echo "--- what this skill leaves out ---"
