@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 /**
@@ -289,6 +290,43 @@ async function film(id: string) {
 
 const mark = (cookie: string, body: unknown) =>
   setMovieState(request("/api/movies", "PATCH", body, { cookie }));
+
+test("a successful press answers the outcome, and does not read the model back", async () => {
+  // The genre and mix routes hand back the whole taste model because the editor
+  // reads it as its success signal. Nothing does that here: `MovieState` looks at
+  // the status, and at the message only when something went wrong. Returning the
+  // model would be nine statements per press thrown away — over a network, per
+  // click — so the contract is pinned as *not* carrying one, and the write is
+  // confirmed by reading the store rather than by trusting the reply.
+  const { cookie, id } = await withFilm();
+
+  const response = await mark(cookie, { title: "Arrival", year: 2016, watched: true });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {}, "the success answer carries a payload");
+
+  assert.equal((await film(id))?.watched, true, "the press did not reach the store");
+
+  // Structural, because the assertion above cannot tell the two failures apart: a
+  // route that never reads the model and one that reads it and drops the result
+  // both answer `{}`. The second costs nine statements per press over a network,
+  // and naming the call is the only thing that keeps it from coming back the next
+  // time somebody copies the shape of the genre and mix routes.
+  const route = readFileSync(new URL("../../app/api/movies/route.ts", import.meta.url), "utf8");
+  assert.equal(
+    /store\s*\.\s*taste\s*\(/.test(route),
+    false,
+    "the movie PATCH reads the whole taste model back, for a caller that discards it",
+  );
+});
+
+test("a refusal still carries the reason, which is the part a caller can act on", async () => {
+  const { cookie } = await withFilm();
+
+  const refused = await answer(await mark(cookie, { title: "Gone", year: 1999, watched: true }));
+  assert.equal(refused.status, 400);
+  assert.equal(refused.error, "refused");
+  assert.match(refused.message ?? "", /no movie "Gone" \(1999\)/);
+});
 
 test("pressing a mark on a film nobody has said anything about states a yes", async () => {
   const { cookie, id } = await withFilm();

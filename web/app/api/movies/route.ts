@@ -14,6 +14,18 @@ import { authorized, given } from "../../../lib/web/api.ts";
  * number the page had, not as text that would have to be turned back into one
  * here, which is the coercion `given` exists to avoid.
  *
+ * ## The answer is the outcome, not the model
+ *
+ * A successful press answers `{}` with a 200. The genre and mix routes hand back
+ * the whole taste model because `TasteAdvanced` reads it as its success signal;
+ * nothing does that here. `MovieState` looks at the status and, when something
+ * went wrong, at the message — so reading the model back would be nine
+ * statements per press whose result is thrown away, and the page re-renders from
+ * the store a moment later anyway.
+ *
+ * A refusal still carries the domain's own sentence, which is the part a caller
+ * can act on.
+ *
  * ## Two fields, deliberately
  *
  * `watched` and `liked` are what the signed-in page can change, so they are what
@@ -63,6 +75,5 @@ export async function PATCH(request: Request): Promise<Response> {
       watched: pressed(body, "watched"),
       liked: pressed(body, "liked"),
     });
-    return { taste: await store.taste() };
   });
 }
