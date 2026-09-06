@@ -427,10 +427,11 @@ export default function Privacy() {
         <p>
           You can delete any mix yourself at any time, on this website or through your assistant, and
           any genre no mix is built from. A genre a mix does refer to stays until that mix does not:
-          take it out of the mix, or delete the mix, and the genre can go. Films are managed through
-          your assistant rather than on this website — ask it to change or forget one and it does so
-          there and then; the signed-in page shows them but has no controls for them. To have your
-          account and everything belonging to it removed, write to{" "}
+          take it out of the mix, or delete the mix, and the genre can go. For a film, the
+          signed-in page lets you mark whether you watched it and whether you liked it; adding one,
+          changing its title or year, and removing it are done through your assistant, which does
+          each there and then. To have your account and everything belonging to it removed, write
+          to{" "}
           <a href={`mailto:${op.email}`}>{op.email}</a>. During this beta, deleting an account is
           carried out by hand rather than by a button in the product. We act without undue delay and,
           as a rule, within one month.

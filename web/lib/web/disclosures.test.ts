@@ -121,10 +121,16 @@ test("the website is disclosed as a view of the model rather than the whole of i
     "privacy still equates the MCP answer with the page",
   );
 
-  // And the page does not edit everything it shows: films are managed through an
-  // assistant, which a reader exercising a right of rectification needs to know.
-  assert.match(privacy, /Films are managed through your assistant rather than on this website/);
-  assert.match(text("terms"), /Films are managed through your assistant rather than on the website/);
+  // And the page does not edit everything it shows. It sets a film's two marks
+  // and nothing else about a film, which a reader exercising a right of
+  // rectification has to be told accurately in both directions: what they can
+  // change here, and what only an assistant can.
+  assert.match(privacy, /lets you mark whether you watched it and whether you liked it/);
+  assert.match(privacy, /changing its title or year, and removing it are done through your assistant/);
+  assert.match(text("terms"), /lets you mark whether you watched and liked it/);
+  assert.match(text("terms"), /adding or removing one is done through your assistant/);
+  assert.match(text("readme"), /a Movie's watched and liked marks can be set there/);
+  assert.match(text("readme"), /everything else about a Movie is done through an assistant/);
 
   // The README has to agree with itself. It said the website "shows the whole
   // model" one paragraph above saying a Movie in no Mix is not on it, and only

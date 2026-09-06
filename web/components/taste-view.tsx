@@ -1,9 +1,10 @@
 import { CopyButton } from "./copy-button";
+import { MovieState } from "./movie-state";
 import { TasteAdvanced } from "./taste-advanced";
 import type { Genre, Mix, Movie, Taste } from "@/lib/taste/model";
 
 /**
- * One person's taste model, read rather than edited.
+ * One person's taste model: a page to read, with two things on it to press.
  *
  *     YOUR GENRES     the reusable components
  *          ↓
@@ -27,12 +28,14 @@ import type { Genre, Mix, Movie, Taste } from "@/lib/taste/model";
  * which is where the wording belongs. The films stay on show underneath: they are
  * the user's own objects, not a detail of the mix that happens to list them.
  *
- * No JavaScript reaches the browser for any of this. The page above is a Server
- * Component that has already opened the signed-in user's store, instructions
- * expand through native `<details>`, and the only client code on the page is the
- * copy button and the management island at the foot — which is where every write
- * lives. What is on show here is a rendering of what the store holds, and nothing
- * here can change it.
+ * ## Almost none of this is JavaScript
+ *
+ * The page is a Server Component that has already opened the signed-in user's
+ * store, and instructions expand through native `<details>`. Three things are
+ * client code: the copy button, the management island at the foot where genres
+ * and mixes are created and renamed, and the two marks on a film's row. Nothing
+ * else here can change anything — what is on show is a rendering of what the
+ * store holds, read on the server each time.
  */
 export function TasteView({ taste }: { taste: Taste }) {
   return (
@@ -206,6 +209,10 @@ function MixCard({ mix, movies }: { mix: Mix; movies: readonly Movie[] }) {
  * because Tonight has no catalogue to take one from. The year is set in the
  * title's own type for the same reason: it is half of the film's name here, not
  * metadata about it.
+ *
+ * A row is a line of text and two marks. The marks are the one thing on this page
+ * that can be changed without an assistant — see `MovieState` for why they show
+ * two states while the model keeps three.
  */
 function Films({ movies }: { movies: readonly Movie[] }) {
   if (!movies.length) return null;
@@ -215,7 +222,9 @@ function Films({ movies }: { movies: readonly Movie[] }) {
       {movies.map((movie) => (
         <li
           key={`${movie.year} ${movie.title}`}
-          className="flex items-baseline justify-between gap-4"
+          // Wrapping, so that the sentence a failed write puts under the row has
+          // somewhere to go. Nothing wraps while nothing is wrong.
+          className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
         >
           <span className="min-w-0 text-ink">
             {movie.title} ({movie.year})
@@ -226,10 +235,12 @@ function Films({ movies }: { movies: readonly Movie[] }) {
               </>
             )}
           </span>
-          <span className="flex shrink-0 items-center gap-2">
-            <Mark value={movie.watched} yes="watched" no="not watched" glyph={Eye} />
-            <Mark value={movie.liked} yes="liked" no="disliked" glyph={Heart} />
-          </span>
+          <MovieState
+            title={movie.title}
+            year={movie.year}
+            watched={movie.watched}
+            liked={movie.liked}
+          />
         </li>
       ))}
     </ul>
@@ -253,94 +264,6 @@ function Imdb({ id, title }: { id: string; title: string }) {
     >
       IMDb<span className="sr-only"> page for {title}</span>
     </a>
-  );
-}
-
-/**
- * One three-valued field, as a mark and as a sentence.
- *
- * `null` renders nothing at all — no faint icon, no placeholder. Tonight says
- * nothing here because it was told nothing, and saying nothing is the only
- * treatment that cannot be mistaken for an answer.
- *
- * Which is also why `false` is a struck glyph rather than a lighter one. In every
- * icon set in common use an outline heart means *unselected*, so using it for
- * "disliked" would render the user's `false` as the thing it is not. A strike
- * reads as a negative on its own, at a glance and in one colour, and a listener
- * is told the same three states in words.
- */
-function Mark({
-  value,
-  yes,
-  no,
-  glyph: Glyph,
-}: {
-  value: boolean | null;
-  yes: string;
-  no: string;
-  glyph: (props: { struck: boolean }) => React.ReactNode;
-}) {
-  if (value === null) return null;
-
-  return (
-    <span className="flex items-center text-ink-soft">
-      <span className="sr-only">{value ? yes : no}</span>
-      <span aria-hidden="true" className="flex">
-        <Glyph struck={!value} />
-      </span>
-    </span>
-  );
-}
-
-function Eye({ struck }: { struck: boolean }) {
-  return (
-    <Icon>
-      <path d="M1.2 8S3.8 3.6 8 3.6 14.8 8 14.8 8 12.2 12.4 8 12.4 1.2 8 1.2 8Z" />
-      <circle cx="8" cy="8" r="1.9" />
-      {struck && <Strike />}
-    </Icon>
-  );
-}
-
-function Heart({ struck }: { struck: boolean }) {
-  return (
-    <Icon>
-      <path
-        fill="currentColor"
-        d="M8 13.6C8 13.6 1.9 9.9 1.9 5.9A2.9 2.9 0 0 1 8 4.4a2.9 2.9 0 0 1 6.1 1.5c0 4-6.1 7.7-6.1 7.7Z"
-      />
-      {struck && <Strike />}
-    </Icon>
-  );
-}
-
-/** The diagonal that turns any of these marks into its own negative. */
-function Strike() {
-  return <path d="M2.6 13.4 13.4 2.6" />;
-}
-
-/**
- * The frame every mark is drawn in.
- *
- * Inline rather than from an icon set: four glyphs is less code than a dependency
- * and, more to the point, the struck variants are the reason the marks exist at
- * all — an off-glyph that a set did not happen to ship could not simply be left
- * out here.
- */
-function Icon({ children }: { children: React.ReactNode }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width="15"
-      height="15"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {children}
-    </svg>
   );
 }
 

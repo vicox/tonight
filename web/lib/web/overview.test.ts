@@ -21,8 +21,10 @@ import test from "node:test";
  */
 
 const VIEW = new URL("../../components/taste-view.tsx", import.meta.url);
+const MARKS = new URL("../../components/movie-state.tsx", import.meta.url);
 
 const source = readFileSync(VIEW, "utf8");
+const marks = readFileSync(MARKS, "utf8");
 
 test("the resting page shows names and films, and no instruction", () => {
   // The instruction appears exactly once, and inside the disclosure. Twice would
@@ -68,34 +70,80 @@ test("the IMDb link says IMDb, and is absent when there is no id", () => {
   assert.match(link, />\s*IMDb</, "the visible link text does not contain IMDb");
 });
 
-test("false is a mark of its own, and null is nothing at all", () => {
-  const mark = bodyOf("Mark");
+test("both marks are always drawn, and lit only by a yes", () => {
+  // The model keeps three answers; this page draws two. `false` and `null` are
+  // deliberately the same picture here — an unlit eye reads as "not marked as
+  // watched", which is true of both — so nothing may render conditionally on the
+  // value, and only `=== true` may light a mark.
+  const toggle = bodyOf("Toggle", marks);
+  assert.equal(
+    /value === null|watched === null|liked === null/.test(marks),
+    false,
+    "a mark still disappears when nothing has been said",
+  );
 
-  // Nothing rendered for null: Tonight says nothing because it was told nothing,
-  // and any glyph at all would be read as an answer.
-  assert.match(mark, /if \(value === null\) return null;/);
-
-  // And `false` is not a lighter version of `true`. `struck={!value}` is the
-  // whole distinction, and both glyphs draw the strike from the same path — an
-  // outline heart would say "unselected", which is the state above.
-  assert.match(mark, /struck=\{!value\}/);
-  for (const glyph of ["Eye", "Heart"]) {
-    assert.match(bodyOf(glyph), /\{struck && <Strike \/>\}/, glyph);
-  }
-  assert.match(source, /function Strike\(\)/);
+  assert.match(marks, /on=\{watched === true\}/);
+  assert.match(marks, /on=\{liked === true\}/);
+  assert.match(toggle, /aria-pressed=\{on\}/);
 });
 
-test("both states are announced in words, and null announces nothing", () => {
-  // A listener has to be able to tell disliked from no opinion. The sr-only text
-  // is inside `Mark`, which renders nothing at all for null — so the third state
-  // is audible precisely by there being no third word.
-  const mark = bodyOf("Mark");
-  assert.match(mark, /<span className="sr-only">\{value \? yes : no\}<\/span>/);
-  assert.match(mark, /aria-hidden="true"/, "the glyph is not hidden from a screen reader");
+test("pressing a mark states the opposite of yes, from either unlit state", () => {
+  // `!== true` is the whole rule, and it is the reason the two unlit states can
+  // look alike: from `false` and from `null` the press means the same thing.
+  // `=== false` would leave a film nobody had spoken about unable to be lit.
+  assert.match(marks, /onPress=\{\(\) => set\("watched", watched !== true\)\}/);
+  assert.match(marks, /onPress=\{\(\) => set\("liked", liked !== true\)\}/);
 
-  const films = bodyOf("Films");
-  assert.match(films, /yes="watched" no="not watched"/);
-  assert.match(films, /yes="liked" no="disliked"/);
+  // And what is sent is that boolean, so a press always leaves an explicit
+  // answer. Nothing on this page can write `null` back.
+  assert.match(bodyOf("MovieState", marks), /set\(field: "watched" \| "liked", to: boolean\)/);
+  assert.equal(/watched: null|liked: null/.test(marks), false, "the page can write null");
+});
+
+test("a mark is a button with a name and a state, and no words on screen", () => {
+  const toggle = bodyOf("Toggle", marks);
+  assert.match(toggle, /<button/);
+  assert.match(toggle, /type="button"/);
+  assert.match(toggle, /aria-label=\{label\}/);
+  assert.match(toggle, /disabled=\{busy\}/);
+
+  // The glyph is decoration; the button carries the meaning.
+  assert.match(toggle, /aria-hidden="true"/);
+
+  // The whole handle is in the accessible name. A list of these is otherwise a
+  // column of buttons all called the same thing — and with the title alone, the
+  // two `Dune`s would sound identical, which is the case the handle exists for.
+  assert.match(marks, /label=\{`Watched — \$\{title\} \(\$\{year\}\)`\}/);
+  assert.match(marks, /label=\{`Liked — \$\{title\} \(\$\{year\}\)`\}/);
+
+  // And nowhere else. Counted over the code with the prose taken out, because a
+  // comment explaining why the name reads "Watched" is not a caption on screen.
+  const code = withoutComments(marks);
+  for (const word of ["Watched", "Liked", "Seen"]) {
+    const anywhere = [...code.matchAll(new RegExp(word, "g"))].length;
+    const inTheName = [...code.matchAll(new RegExp(`label=\\{\`${word} `, "g"))].length;
+    assert.equal(anywhere, inTheName, `"${word}" is written somewhere other than the label`);
+  }
+});
+
+test("a mark writes through the one route boundary, and keeps no copy of its own", () => {
+  const write = bodyOf("MovieState", marks);
+
+  // The same route boundary, the same store, the same domain rules as every
+  // other write from this website. No second path to the movie table.
+  assert.match(write, /fetch\("\/api\/movies", \{/);
+  assert.match(write, /method: "PATCH"/);
+  assert.match(write, /router\.refresh\(\)/);
+
+  // No optimistic state: the mark renders the props it was given, so an
+  // assistant writing between the render and the press cannot leave this
+  // showing a film the store disagrees about.
+  assert.equal(
+    /useState[<(]\s*boolean/.test(marks),
+    false,
+    "the control holds its own copy of the value",
+  );
+  assert.match(write, /if \(busy\) return;/, "a second press during a write is not stopped");
 });
 
 /**
@@ -106,11 +154,16 @@ test("both states are announced in words, and null announces nothing", () => {
  * after it, and a check for the word "poster" would fail on a comment promising
  * there are none.
  */
-function bodyOf(name: string): string {
-  const start = source.indexOf(`function ${name}(`);
+function bodyOf(name: string, file: string = source): string {
+  const start = file.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `no ${name}() in the component`);
 
-  const rest = source.slice(start);
+  const rest = file.slice(start);
   const ends = ["\n/**", "\nfunction "].map((mark) => rest.indexOf(mark, 1)).filter((at) => at > 0);
   return ends.length ? rest.slice(0, Math.min(...ends)) : rest;
+}
+
+/** The file with its prose removed, for checks about what reaches the screen. */
+function withoutComments(file: string): string {
+  return file.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }

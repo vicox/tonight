@@ -162,7 +162,8 @@ and — for whoever is signed in — their own taste model, read and managed thr
 the MCP tools use. There is no second surface and no second copy of the rules.
 
 The website shows a Mix-oriented view of the model and edits part of it: Genres and Mixes are
-managed there, and Movies are managed through an assistant. It does not recommend, and it has no
+managed there, a Movie's watched and liked marks can be set there, and everything else about a
+Movie is done through an assistant. It does not recommend, and it has no
 model inside it to recommend with: the panel at the foot of the page names the sentence to take
 to your assistant. It is *a* place to manage the model rather than the only one — an assistant
 asked outright to rename a Genre or delete a Mix uses the same tools and does it there and then.
