@@ -30,10 +30,9 @@ export { PROJECT_INSTRUCTIONS_VERSION };
 /**
  * How long that text is.
  *
- * Exported because it is the number the open question turns on. ChatGPT caps a
- * project's instructions, and the cap is not documented anywhere reachable — the
- * figures in circulation belong to neighbouring features (about 5,000 characters
- * for the global custom instructions, about 8,000 empirically for a GPT). So the
- * measurement lives here and the answer comes from pasting it in.
+ * Exported because it is the number that decides whether all of it arrives. The
+ * cap is not documented anywhere reachable, so it was measured: pasted whole, a
+ * 22,080-character version was cut off at 8,083. `instructions.test.ts` holds the
+ * generated text below that, with room to spare.
  */
 export const PROJECT_INSTRUCTIONS_LENGTH = PROJECT_INSTRUCTIONS.length;

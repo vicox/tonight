@@ -15,16 +15,35 @@
  * the failure names this command. Committing it is what lets a fresh checkout
  * typecheck, test and build without a prebuild step in the way.
  *
- * ## The transform, in three steps
+ * ## Two renderings, one document
+ *
+ * A ChatGPT project caps its instructions at about eight thousand characters and
+ * silently truncates the rest, so the skill cannot be pasted whole: more than half
+ * of it would never reach the agent. What ships instead is the same document with
+ * its rationale removed.
+ *
+ * The removal is marked in the source rather than worked out here. Anything
+ * between `<!-- full:start -->` and `<!-- full:end -->` is explanation, worked
+ * example or diagram — it belongs in the skill somebody reads and not in the text
+ * an agent is given. Everything else goes.
+ *
+ * **Unmarked content ships.** That direction is the whole safety property: a rule
+ * written without thinking about this file still reaches the agent. Marking what
+ * to *keep* instead would mean a new rule silently never shipping, which is the
+ * failure this mechanism exists to end.
+ *
+ * ## The transform, in four steps
  *
  * 1. Strip the YAML frontmatter. It names the skill for a host that discovers
  *    skills, and inside a ChatGPT project it is noise.
- * 2. Hash what remains, over the body after step 1 and over nothing else.
- * 3. Append one line carrying that digest, after a blank line, at the end.
+ * 2. Remove every `full:start` … `full:end` block, then collapse the blank lines
+ *    they leave behind. Unbalanced markers are an error rather than a guess.
+ * 3. Hash what remains, over the body after step 2 and over nothing else — so the
+ *    version changes exactly when what the agent sees changes.
+ * 4. Append one line carrying that digest, after a blank line, at the end.
  *
- * Nothing is rewritten, shortened or reflowed; step 3 adds a line rather than
- * changing one. "Byte for byte" means byte for byte with the output of these
- * three steps, and `projectInstructionsFrom` is the whole of it.
+ * Nothing is summarised, reworded or reflowed. Every sentence in the output is a
+ * sentence in the skill, and `projectInstructionsFrom` is the whole of it.
  */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -35,10 +54,26 @@ const here = dirname(fileURLToPath(import.meta.url));
 const SOURCE = join(here, "..", "..", "skills", "tonight-recommend", "SKILL.md");
 const TARGET = join(here, "..", "lib", "generated", "project-instructions.ts");
 
-/** Step 1: the skill without its frontmatter block. */
+const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n+/;
+
+/** A block that belongs to the skill somebody reads and not to the agent. */
+const FULL_ONLY = /^[ \t]*<!--[ \t]*full:start[ \t]*-->[\s\S]*?^[ \t]*<!--[ \t]*full:end[ \t]*-->[ \t]*\r?\n?/gm;
+
+const OPENS = /<!--[ \t]*full:start[ \t]*-->/g;
+const CLOSES = /<!--[ \t]*full:end[ \t]*-->/g;
+
+/** Steps 1 and 2: the skill without its frontmatter and without its rationale. */
 export function instructionsFrom(markdown) {
-  const frontmatter = /^---\r?\n[\s\S]*?\r?\n---\r?\n+/;
-  return markdown.replace(frontmatter, "").trim() + "\n";
+  const opens = (markdown.match(OPENS) ?? []).length;
+  const closes = (markdown.match(CLOSES) ?? []).length;
+  if (opens !== closes) {
+    // Left to the regex this would silently keep a block or eat the rest of the
+    // file, and the first anybody would know is an agent behaving oddly.
+    throw new Error(`unbalanced full:start/full:end in the skill: ${opens} open, ${closes} closed`);
+  }
+
+  const body = markdown.replace(FRONTMATTER, "").replace(FULL_ONLY, "");
+  return body.replace(/\n{3,}/g, "\n\n").trim() + "\n";
 }
 
 /**
