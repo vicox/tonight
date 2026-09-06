@@ -2,7 +2,13 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 import type { AuthenticatedUser } from "../identity.ts";
-import { TasteError } from "../taste/model.ts";
+import {
+  IMDB_ID_PATTERN,
+  MAX_IMDB_ID_LENGTH,
+  MAX_YEAR,
+  MIN_YEAR,
+  TasteError,
+} from "../taste/model.ts";
 import type { TasteStore } from "../taste/store.ts";
 import { SERVER_NAME, SERVER_VERSION } from "./identity.ts";
 
@@ -22,8 +28,10 @@ import { SERVER_NAME, SERVER_VERSION } from "./identity.ts";
  *
  * Every tool is deterministic. None interprets a sentence, invents a genre or
  * chooses a film, and there is no model behind any of them: each reads or writes
- * the taste model and answers the same way for the same arguments. The store holds
- * genres and mixes and nothing else — no catalogue, no titles, no film data.
+ * the taste model and answers the same way for the same arguments. The store does
+ * hold films — the ones the user told Tonight about — but only those: there is no
+ * catalogue behind them, nothing is looked up, and no tool here recommends
+ * anything.
  */
 
 /**
@@ -88,6 +96,66 @@ const mixGenres = z
       "a mix cannot be built from another mix. Passing this replaces the stored list.",
   );
 
+const movieTitle = z
+  .string()
+  .describe(
+    "A film's title, as the user writes it. Casing and punctuation are kept exactly; only " +
+      "surrounding and repeated spaces are tidied. Half of how a movie is addressed — the year " +
+      "is the other half — and matched case-insensitively.",
+  );
+
+// The bounds and the syntax below are the domain's own constants rather than
+// numbers repeated here. The store checks them again and the column `CHECK`s
+// them a third time — this layer exists so a client is told the shape in the
+// schema it discovers, not so anything downstream can stop checking.
+const movieYear = z
+  .number()
+  .int()
+  .min(MIN_YEAR, `a movie's year must be between ${MIN_YEAR} and ${MAX_YEAR}`)
+  .max(MAX_YEAR, `a movie's year must be between ${MIN_YEAR} and ${MAX_YEAR}`)
+  .describe(
+    "The film's release year. Required, because it is the other half of how a movie is " +
+      "addressed: Dune 1984 and Dune 2021 are two films. Establish it before writing rather " +
+      "than guessing — if you do not know it, ask.",
+  );
+
+const imdbId = z
+  .string()
+  // Trimmed before the syntax is judged, so this and the store agree about
+  // `" tt0111161 "`. Neither of them accepts a blank one: there is exactly one
+  // way to clear an id, and it is null.
+  .trim()
+  .max(MAX_IMDB_ID_LENGTH, "an IMDb title id is far shorter than that")
+  .regex(
+    IMDB_ID_PATTERN,
+    "an IMDb title id looks like tt0111161 — tt followed by at least seven digits",
+  )
+  .nullable()
+  .describe(
+    'An IMDb title id — "tt0111161". Stored as a pointer and never looked up: Tonight does not ' +
+      "ask IMDb anything. Omit it if you do not have one; pass null to clear one that is there. " +
+      "An empty string is not a way to clear it and is refused.",
+  );
+
+/** The two state fields, which differ only in the question they answer. */
+const state = (what: string, no: string) =>
+  z
+    .boolean()
+    .nullable()
+    .describe(
+      `Whether the user ${what}. Three answers, and the third is the point: true, false — ` +
+        `they told you ${no} — and null, meaning Tonight was never told. Omit the field when ` +
+        "you were not told; never send false to mean you do not know.",
+    );
+
+const movieMixes = z
+  .array(z.string())
+  .describe(
+    "The exact names of the user's mixes this film belongs to. They must already exist, and a " +
+      "film may be in none, one or several. Passing this replaces the whole list; an empty list " +
+      "takes the film out of every mix.",
+  );
+
 /**
  * Builds a server bound to one authenticated user.
  *
@@ -126,11 +194,15 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Read the taste model",
       description:
-        "The user's whole movie taste model: their genres, and the mixes built from them. A " +
-        "genre is a reusable piece of what they like, with an instruction saying what it means " +
-        "to them. A mix combines one or more genres and has an instruction of its own for what " +
-        "the combination means. A new user has neither, which is the normal state rather than " +
-        "an error. Read this before proposing anything: it is the vocabulary to reuse.",
+        "The user's whole movie taste model: their genres, the mixes built from them, and the " +
+        "films they have told Tonight about. A genre is a reusable piece of what they like, " +
+        "with an instruction saying what it means to them. A mix combines one or more genres " +
+        "and has an instruction of its own for what the combination means; the films in it are " +
+        "listed by title and year. Each film also appears once in movies, which is where the " +
+        "rest of what the user said about it lives — watched and liked, each true, " +
+        "false, or null for never told. A new user has none of it, which is the normal state " +
+        "rather than an error. Read this before proposing anything: it is the vocabulary to " +
+        "reuse, and the only record of what they have said they watched.",
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () => attempt(() => store.taste()),
@@ -240,6 +312,97 @@ export function tonightMcpServer(session: McpSession): McpServer {
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
     async ({ name }) => attempt(async () => ({ deleted: await store.deleteMix(name) })),
+  );
+
+  server.registerTool(
+    "create_movie",
+    {
+      title: "Save a movie",
+      description:
+        "Record a film the user told you about, and what they said about it. A recommendation " +
+        "is not a saved movie: naming three films persists nothing, and neither does the user " +
+        "liking your suggestion of one. Write only Movie identity and state the user expressed, " +
+        "or a meaning you put to them and they confirmed — and a confirmation covers only the " +
+        "meaning they were shown, settling that it is theirs rather than granting permission to " +
+        "write. Absence is never false: leave watched or liked out when you were not told, " +
+        "because null means unknown and false means they said no. Addressed by title and year " +
+        "together, so establish the year before writing.",
+      inputSchema: z.object({
+        title: movieTitle,
+        year: movieYear,
+        imdb_id: imdbId.optional(),
+        watched: state("has seen it", "no").optional(),
+        liked: state("liked it", "they did not").optional(),
+        mixes: movieMixes.optional(),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ title, year, imdb_id: imdbId, watched, liked, mixes }) =>
+      attempt(async () => ({
+        movie: await store.createMovie({ title, year, imdbId, watched, liked, mixes }),
+      })),
+  );
+
+  server.registerTool(
+    "update_movie",
+    {
+      title: "Update a movie",
+      description:
+        "Change what is stored about a saved film, or which mixes it is in. Addressed " +
+        "by its current title and year; new_title and new_year change either half and the film " +
+        "stays the same object, so its filings follow it. Omitting a field leaves it alone — " +
+        "passing null is what clears one back to unknown, and the two are not the same. " +
+        "Absence is never false: record false only when the user said no. A recommendation is " +
+        "not a saved movie here either — proposing a film, or the user watching one you " +
+        "proposed, is nothing Tonight knows unless they said so. Write only what they " +
+        "expressed or confirmed, and a confirmation covers only the meaning they were shown; " +
+        "it is not permission to write more than that.",
+      inputSchema: z.object({
+        title: movieTitle.describe("The film to change, by its current title."),
+        year: movieYear.describe("The film to change, by its current year."),
+        new_title: movieTitle.describe("Retitle the film to this.").optional(),
+        new_year: movieYear.describe("Change the release year to this.").optional(),
+        imdb_id: imdbId.optional(),
+        watched: state("has seen it", "no").optional(),
+        liked: state("liked it", "they did not").optional(),
+        mixes: movieMixes.optional(),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    async ({
+      title,
+      year,
+      new_title: retitled,
+      new_year: reyeared,
+      imdb_id: imdbId,
+      watched,
+      liked,
+      mixes,
+    }) =>
+      attempt(async () => ({
+        movie: await store.updateMovie(title, year, {
+          title: retitled,
+          year: reyeared,
+          imdbId,
+          watched,
+          liked,
+          mixes,
+        }),
+      })),
+  );
+
+  server.registerTool(
+    "delete_movie",
+    {
+      title: "Delete a movie",
+      description:
+        "Forget a film the user saved. Always allowed: it leaves every mix it was in and the " +
+        "mixes themselves are left alone. Addressed by title and year together.",
+      inputSchema: z.object({ title: movieTitle, year: movieYear }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
+    },
+    async ({ title, year }) =>
+      attempt(async () => ({ deleted: await store.deleteMovie(title, year) })),
   );
 
   return server;

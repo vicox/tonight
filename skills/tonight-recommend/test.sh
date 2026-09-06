@@ -8,9 +8,9 @@
 #
 # The rules this suite exists for: there is no setup phase, an empty taste model
 # is answered with a film question rather than onboarding, Tonight holds no film
-# data and never chooses, what gets written down is what the user said and never
-# what the agent concluded, and nothing is inferred from silence or from what was
-# recommended.
+# catalogue and never chooses, what gets written down is what the user said and
+# never what the agent concluded, and nothing is inferred from silence or from
+# what was recommended.
 #
 # Prints one line per check and exits non-zero if any of them fails.
 
@@ -118,13 +118,15 @@ echo "--- the tool-orchestration boundary ---"
 check "Tonight holds the taste model and nothing else" \
     "$(order_check 'Two kinds of connection do different things' \
         'holds nothing else' \
-        'no film catalogue, no lookup and no idea what a film is')" "True"
+        'no film catalogue and no lookup' \
+        'nothing about it was ever fetched')" "True"
 check "film knowledge and film tools sit beside Tonight, not inside it" \
     "$(order_check 'Whatever knowledge of films you bring' \
         'sit beside Tonight rather than inside it')" "True"
-check "never look for films in Tonight, and never write the model elsewhere" \
-    "$(order_check 'never look for films in Tonight' \
-        'never write a Genre or a Mix anywhere but Tonight')" "True"
+check "never look in Tonight for films to recommend, and never write the model elsewhere" \
+    "$(order_check 'never look in Tonight for films to recommend' \
+        'never write a Genre, a Mix or a Movie anywhere but Tonight' \
+        'Tonight is not a catalogue')" "True"
 check "there is no Tonight tool that chooses films, and none is planned" \
     "$(order_check 'The choosing is yours' \
         'no Tonight tool that takes a taste and returns films' \
@@ -263,11 +265,46 @@ echo "--- nothing is remembered but the model ---"
 
 check "no history of any kind is kept" \
     "$(order_check 'The taste model and nothing else' \
-        'No watch history' 'no ratings, no film data')" "True"
-check "the same film can come back, and nothing is learned automatically" \
-    "$(order_check 'The same film can come back' 'Nothing is learned automatically')" "True"
+        'no scored or star ratings' \
+        'no watch history' \
+        'never when, how often, or in what order')" "True"
+check "a recommended film may return; a saved one is read rather than offered again" \
+    "$(order_check 'A film you recommended can come back' \
+        'Nothing writes down what you suggested' \
+        'A film they saved is a different thing' \
+        'carries its own `watched` state' \
+        'Nothing is learned automatically')" "True"
 check "a failed write is reported rather than claimed as a save" \
     "$(order_check 'Never claim something was stored when the tool refused')" "True"
+
+echo
+echo "--- a Movie is the user's own object ---"
+
+check "a Movie is theirs rather than a catalogue entry" \
+    "$(order_check 'A Movie is theirs, the same way a Genre or a Mix is' \
+        'never an entry from a catalogue')" "True"
+check "a Movie is named by its title and its year, and belongs to any number of Mixes" \
+    "$(order_check 'a title and a release year' \
+        'that is its name' \
+        'in no Mix, in one, or in several')" "True"
+check "the three Movie tools are the way a direct request is done" \
+    "$(order_check '`create_movie`, `update_movie` and `delete_movie` manage them' \
+        'like any other direct request')" "True"
+check "a recommendation is not persistence, for a film as for a Genre" \
+    "$(order_check 'A recommendation is not a saved Movie' \
+        'Naming three films writes nothing down')" "True"
+check "state is written only from what was expressed or confirmed" \
+    "$(order_check 'Write `watched` and `liked` only from what they expressed or confirmed')" "True"
+check "nothing said is null and never false" \
+    "$(order_check 'Nothing said is `null`, never `false`' \
+        'says they told you no, which is a sentence they did not say')" "True"
+check "one state field is never inferred from the other" \
+    "$(order_check 'says nothing whatever about whether they watched it' \
+        'do not fill the other field in too')" "True"
+check "the handle is settled before a write, and asking which film is not ceremony" \
+    "$(order_check 'Settle the title and year before writing' \
+        'resolves *which film*' \
+        'not asking permission to save')" "True"
 
 echo
 echo "--- what this skill leaves out ---"

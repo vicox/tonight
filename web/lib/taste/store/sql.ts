@@ -2,23 +2,38 @@ import { isSqlState, UNIQUE_VIOLATION, type SqlDriver, type Transaction } from "
 import type { AuthenticatedUser } from "../../identity.ts";
 import {
   byName,
+  byTitle,
+  checkImdbId,
   checkInstruction,
   checkMixGenres,
+  checkMovieMixes,
+  checkMovieTitle,
   checkName,
+  checkState,
+  checkYear,
   genreExists,
   genreInUse,
   genreNotFound,
   mixExists,
   mixGenreMissing,
   mixNotFound,
+  movieExists,
+  movieImdbTaken,
+  movieMixMissing,
+  movieNotFound,
   normalise,
   nothingToUpdate,
   orderGenre,
+  orderHandle,
   orderMix,
+  orderMovie,
+  TasteError,
   type Genre,
   type Mix,
+  type Movie,
+  type MovieHandle,
 } from "../model.ts";
-import type { GenreDraft, MixDraft, TasteStore } from "../store.ts";
+import type { MixDraft, GenreDraft, TasteStore } from "../store.ts";
 import { TASTE_SCHEMA } from "./schema.ts";
 
 export { TASTE_SCHEMA };
@@ -67,6 +82,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         return {
           genres: (await readGenres(tx, owner)).map(orderGenre),
           mixes: await readMixes(tx, owner),
+          movies: await readMovies(tx, owner),
         };
       });
     },
@@ -234,11 +250,17 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         let references: Reference[] | undefined;
         let entry: Mix;
         if (changes.genres === undefined) {
-          entry = orderMix({ ...validateMixCore(core), genres: current.genres });
+          entry = orderMix({
+            ...validateMixCore(core),
+            genres: current.genres,
+            movies: current.movies,
+          });
         } else {
           const genres = await readGenres(tx, owner);
           const validated = await validateMix(tx, { ...core, genres: changes.genres }, genres);
-          entry = validated.mix;
+          // Changing which genres a mix is built from does not change which movies
+          // are filed under it, so the answer keeps the ones it had.
+          entry = orderMix({ ...validated.mix, movies: current.movies });
           references = validated.references;
           await holdGenres(tx, owner, references, genres);
         }
@@ -269,6 +291,161 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           await writeMixGenres(tx, owner, current.id, references);
         }
         return entry;
+      });
+    },
+
+    /**
+     * Creates a movie, and files it under the mixes it was given.
+     *
+     * The order matters and is the plan's: validate, resolve the mixes **without
+     * locking**, insert the movie and take its id, *then* lock the mixes and check
+     * each is still the one that was resolved. Movie side before mix side, which
+     * is the rule every path here obeys so the two tables cannot form a cycle.
+     *
+     * Inserting before locking is safe because it is all one transaction: a mix
+     * that has gone or been replaced refuses the write, and the movie inserted a
+     * moment earlier goes with the rollback. There is no orphan to clean up.
+     */
+    async createMovie(draft) {
+      return driver.transaction(async (tx) => {
+        const entry = validateMovie(draft);
+
+        const known = await readMixRows(tx, owner);
+        const filings =
+          draft.mixes === undefined
+            ? []
+            : await resolveMixes(tx, checkMovieMixes(draft.mixes), known);
+
+        const created = await orExplain(
+          tx,
+          MOVIE_UNIQUENESS,
+          () =>
+            tx.query<{ id: string }>(
+              `INSERT INTO tonight_movies (user_id, title, year, imdb_id, watched, liked)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               RETURNING id`,
+              [owner, entry.title, entry.year, entry.imdbId, entry.watched, entry.liked],
+            ),
+          () => movieConflict(tx, owner, entry),
+        );
+
+        await holdMixes(tx, owner, filings, known);
+        await writeMixMovies(tx, owner, created[0]!.id, filings);
+
+        return orderMovie({ ...entry, mixes: filingNames(filings) });
+      });
+    },
+
+    async updateMovie(title, year, changes) {
+      if (Object.values(changes).every((value) => value === undefined)) {
+        throw nothingToUpdate("movie");
+      }
+
+      return driver.transaction(async (tx) => {
+        // Both halves of the handle can move, and either alone is a move. Worked
+        // out before anything is locked, because it decides what has to be.
+        const renaming =
+          changes.title === undefined && changes.year === undefined
+            ? undefined
+            : {
+                title: changes.title === undefined ? title : checkMovieTitle(changes.title),
+                year: changes.year === undefined ? year : checkYear(changes.year),
+              };
+
+        const here = { title: checkMovieTitle(title), year: checkYear(year) };
+        const { source: current, destination } = await lockMovies(tx, owner, here, renaming);
+        if (!current) throw movieNotFound(title, year);
+
+        // By id, not by handle: a case-only retitle lands on the row it started
+        // from, and that is not a conflict with itself.
+        if (destination && destination.id !== current.id) {
+          throw movieExists(destination.title, destination.year);
+        }
+
+        /**
+         * What the row will say, field by field.
+         *
+         * Each half of the handle comes from the **stored row** unless the caller
+         * changed it. The `title` and `year` arguments only *address* the movie,
+         * and the title is matched ignoring case — so taking the new spelling
+         * from the argument would let somebody who typed `dune` to reach it
+         * silently rewrite a stored `DUNE` while changing only the year.
+         */
+        const entry = validateMovie({
+          title: changes.title === undefined ? current.title : checkMovieTitle(changes.title),
+          year: changes.year === undefined ? current.year : checkYear(changes.year),
+          imdbId: changes.imdbId === undefined ? current.imdbId : changes.imdbId,
+          watched: changes.watched === undefined ? current.watched : changes.watched,
+          liked: changes.liked === undefined ? current.liked : changes.liked,
+        });
+
+        /**
+         * Only a caller who named mixes is changing the filing.
+         *
+         * Omitting the field means leave it alone, and here that means literally
+         * nothing: no read of the current names, no resolution, no mix lock, no
+         * delete and no reinsert. The rows hold this movie's id and each mix's,
+         * and a retitle moves neither — so rebuilding them would rewrite rows
+         * that are already right, and would fail outright if another transaction
+         * renamed one of those mixes in between. That is the `updateMix` bug,
+         * and it is not being repeated here.
+         */
+        let filings: Reference[] | undefined;
+        if (changes.mixes !== undefined) {
+          const known = await readMixRows(tx, owner);
+          filings = await resolveMixes(tx, checkMovieMixes(changes.mixes), known);
+          await holdMixes(tx, owner, filings, known);
+        }
+
+        const changed = await orExplain(
+          tx,
+          MOVIE_UNIQUENESS,
+          () =>
+            tx.query(
+              `UPDATE tonight_movies
+                  SET title = $3, year = $4, imdb_id = $5, watched = $6, liked = $7
+                WHERE user_id = $1 AND id = $2
+               RETURNING id`,
+              [owner, current.id, entry.title, entry.year, entry.imdbId, entry.watched, entry.liked],
+            ),
+          () => movieConflict(tx, owner, entry, current.id),
+        );
+        if (!changed.length) throw movieNotFound(title, year);
+
+        if (filings) {
+          await tx.query(`DELETE FROM tonight_mix_movies WHERE user_id = $1 AND movie_id = $2`, [
+            owner,
+            current.id,
+          ]);
+          await writeMixMovies(tx, owner, current.id, filings);
+        }
+
+        return orderMovie({
+          ...entry,
+          mixes: filings ? filingNames(filings) : await filedUnder(tx, owner, current.id),
+        });
+      });
+    },
+
+    async deleteMovie(title, year) {
+      return driver.transaction(async (tx) => {
+        const { source: entry } = await lockMovies(tx, owner, {
+          title: checkMovieTitle(title),
+          year: checkYear(year),
+        });
+        if (!entry) throw movieNotFound(title, year);
+
+        // What it was filed under, read before the rows cascade away, so the
+        // answer describes the movie that existed a moment ago.
+        const mixes = await filedUnder(tx, owner, entry.id);
+
+        const removed = await tx.query(
+          `DELETE FROM tonight_movies WHERE user_id = $1 AND id = $2 RETURNING id`,
+          [owner, entry.id],
+        );
+        if (!removed.length) throw movieNotFound(title, year);
+
+        return orderMovie({ ...entry, mixes });
       });
     },
 
@@ -433,7 +610,7 @@ async function lockMix(
 ): Promise<{ source?: Stored<Mix>; destination?: Stored<Mix> }> {
   const { source, destination } = await lockNames(sql, "tonight_mixes", owner, name, renamingTo);
   const empty = (row: NamedRow): Stored<Mix> => ({
-    ...orderMix({ ...row, genres: [] }),
+    ...orderMix({ ...row, genres: [], movies: [] }),
     id: row.id,
   });
   if (!source) return { destination: destination && empty(destination) };
@@ -449,12 +626,24 @@ async function lockMix(
       ORDER BY r.position`,
     [owner, source.id],
   );
+  // Its movies too, so what a delete or an update answers with is the mix as it
+  // actually stood. Handles, because a title alone does not identify a film.
+  const filed = await sql.query<{ title: string; year: number }>(
+    `SELECT v.title, v.year
+       FROM tonight_mix_movies AS r
+       JOIN tonight_movies AS v ON v.user_id = r.user_id AND v.id = r.movie_id
+      WHERE r.user_id = $1 AND r.mix_id = $2
+      ORDER BY lower(v.title), v.year`,
+    [owner, source.id],
+  );
+
   return {
     source: {
       ...orderMix({
         name: source.name,
         instruction: source.instruction,
         genres: references.map((reference) => reference.genre),
+        movies: filed.map(orderHandle),
       }),
       id: source.id,
     },
@@ -518,6 +707,162 @@ async function holdGenres(
   }
 }
 
+/**
+ * The lock-ordering key for a movie handle.
+ *
+ * A movie is addressed by two things, so a key built from one of them would make
+ * `Dune / 1984` and `Dune / 2021` contend as though they were the same row — and
+ * would let a lock taken for one match the other. The folded title still comes
+ * from Postgres; only the *composition* happens here, which is the same division
+ * `inLockOrder` already relies on: the ordering has to agree between sessions,
+ * never with Postgres.
+ *
+ * U+0000 separates the halves because it cannot occur in a title that survived
+ * `checkMovieTitle`, so `("ab", 12)` and `("ab1", 2)` cannot produce one key.
+ */
+function movieKey(foldedTitle: string, year: number): string {
+  return `${foldedTitle}\u0000${year}`;
+}
+
+type MovieRow = Stored<{
+  title: string;
+  year: number;
+  imdbId: string | null;
+  watched: boolean | null;
+  liked: boolean | null;
+}>;
+
+/**
+ * The movie a change addresses, and — when the handle is changing — the one whose
+ * handle it wants. Both held for the rest of the transaction.
+ *
+ * The composite twin of `lockNames`, and for the same reason: taking the source
+ * and letting the unique index catch the collision is correct but deadlocks when
+ * two handle changes cross. Sorting both keys means one session waits and then
+ * sees an ordinary conflict.
+ *
+ * One statement per row. Lock order inside a single statement belongs to the
+ * planner, and `ORDER BY` does not govern it.
+ */
+async function lockMovies(
+  sql: Transaction,
+  owner: string,
+  from: MovieHandle,
+  to?: MovieHandle,
+): Promise<{ source?: MovieRow; destination?: MovieRow }> {
+  const wanted = to === undefined ? [from] : [from, to];
+  const folded = await fold(sql, wanted.map((handle) => handle.title));
+
+  const byKey = new Map<string, { title: string; year: number }>();
+  const keys = wanted.map((handle, index) => {
+    const key = movieKey(folded[index]!, handle.year);
+    byKey.set(key, { title: folded[index]!, year: handle.year });
+    return key;
+  });
+
+  const held = new Map<string, MovieRow>();
+  for (const key of inLockOrder(keys)) {
+    const at = byKey.get(key)!;
+    const [row] = await sql.query<{
+      id: string;
+      title: string;
+      year: number;
+      imdb_id: string | null;
+      watched: boolean | null;
+      liked: boolean | null;
+    }>(
+      `SELECT id, title, year, imdb_id, watched, liked FROM tonight_movies
+        WHERE user_id = $1 AND lower(title) = $2 AND year = $3
+        FOR UPDATE`,
+      [owner, at.title, at.year],
+    );
+    if (row) {
+      held.set(key, {
+        id: row.id,
+        title: row.title,
+        year: row.year,
+        imdbId: row.imdb_id,
+        watched: row.watched,
+        liked: row.liked,
+      });
+    }
+  }
+
+  return {
+    source: held.get(keys[0]!),
+    destination: keys[1] === undefined ? undefined : held.get(keys[1]),
+  };
+}
+
+/**
+ * Matches the mix names a movie was filed under against the mixes that exist.
+ *
+ * The twin of `resolveGenres`: both sides folded by the database in one round
+ * trip, duplicates collapsed on the database's key rather than the caller's
+ * spelling, and what comes back is the **stored** name with the id beside it.
+ */
+async function resolveMixes(
+  sql: Transaction,
+  wanted: readonly string[],
+  mixes: readonly Reference[],
+): Promise<Reference[]> {
+  if (!wanted.length) return [];
+
+  const keys = await fold(sql, [...wanted, ...mixes.map((mix) => mix.name)]);
+  const existing = new Map(keys.slice(wanted.length).map((key, index) => [key, mixes[index]!]));
+
+  const resolved: Reference[] = [];
+  const taken = new Set<string>();
+  for (const [index, name] of wanted.entries()) {
+    const key = keys[index]!;
+    const mix = existing.get(key);
+    if (!mix) throw movieMixMissing(name, mixes.map((one) => one.name));
+    if (taken.has(key)) continue;
+    taken.add(key);
+    resolved.push({ id: mix.id, name: mix.name });
+  }
+  return resolved;
+}
+
+/**
+ * Holds the mixes a movie is about to be filed under, and refuses if one has gone.
+ *
+ * `FOR KEY SHARE` in `inLockOrder`, which is deliberately the **same** order a mix
+ * rename takes its rows in — a filing that locked mixes in a different sequence
+ * would form exactly the cycle `holdGenres` was written to avoid.
+ *
+ * It compares ids, not only names. Between resolving a mix and reaching here
+ * another transaction can rename that mix away and rename a second one into the
+ * name it left; matching on the name alone would then file the movie under a mix
+ * nobody asked for.
+ */
+async function holdMixes(
+  sql: Transaction,
+  owner: string,
+  wanted: readonly Reference[],
+  known: readonly Reference[],
+): Promise<void> {
+  if (!wanted.length) return;
+
+  const keys = await fold(sql, wanted.map((reference) => reference.name));
+  const held = new Map<string, string>();
+  for (const key of inLockOrder(keys)) {
+    const [row] = await sql.query<{ id: string }>(
+      `SELECT id FROM tonight_mixes
+        WHERE user_id = $1 AND lower(name) = $2
+        FOR KEY SHARE`,
+      [owner, key],
+    );
+    if (row) held.set(key, row.id);
+  }
+
+  for (const [index, reference] of wanted.entries()) {
+    if (held.get(keys[index]!) !== reference.id) {
+      throw movieMixMissing(reference.name, known.map((mix) => mix.name));
+    }
+  }
+}
+
 // --- reading ---------------------------------------------------------------
 
 async function readGenres(sql: Transaction, owner: string): Promise<Stored<Genre>[]> {
@@ -551,16 +896,235 @@ async function readMixes(sql: Transaction, owner: string): Promise<Mix[]> {
     [owner],
   );
 
+  // The movies filed under each mix, as handles. A title alone could not tell one
+  // Dune from the other, which is the whole reason the handle is a pair.
+  const filed = await sql.query<{ mix_id: string; title: string; year: number }>(
+    `SELECT r.mix_id, v.title, v.year
+       FROM tonight_mix_movies AS r
+       JOIN tonight_movies AS v ON v.user_id = r.user_id AND v.id = r.movie_id
+      WHERE r.user_id = $1
+      ORDER BY r.mix_id, lower(v.title), v.year`,
+    [owner],
+  );
+
   const mixes = rows.map((row) => ({
     id: row.id,
     name: row.name,
     instruction: row.instruction,
     genres: [] as string[],
+    movies: [] as MovieHandle[],
   }));
   const byId = new Map(mixes.map((mix) => [mix.id, mix]));
   for (const row of references) byId.get(row.mix_id)?.genres.push(row.genre);
+  for (const row of filed) {
+    byId.get(row.mix_id)?.movies.push(orderHandle({ title: row.title, year: row.year }));
+  }
 
   return byName(mixes).map(orderMix);
+}
+
+/** Every mix this user has, as `{id, name}` — enough to resolve a filing against. */
+async function readMixRows(sql: Transaction, owner: string): Promise<Reference[]> {
+  const rows = await sql.query<{ id: string; name: string }>(
+    `SELECT id, name FROM tonight_mixes WHERE user_id = $1`,
+    [owner],
+  );
+  return rows.map((row) => ({ id: row.id, name: row.name }));
+}
+
+/**
+ * Every movie this user has, with the mixes each is filed under.
+ *
+ * The canonical list: a movie appears here exactly once however many mixes name
+ * it, so its state has one home and two copies cannot disagree. A movie in no mix
+ * is here too, which is what keeps it reachable at all.
+ */
+async function readMovies(sql: Transaction, owner: string): Promise<Movie[]> {
+  const rows = await sql.query<{
+    id: string;
+    title: string;
+    year: number;
+    imdb_id: string | null;
+    watched: boolean | null;
+    liked: boolean | null;
+  }>(
+    `SELECT id, title, year, imdb_id, watched, liked FROM tonight_movies WHERE user_id = $1`,
+    [owner],
+  );
+
+  const filed = await sql.query<{ movie_id: string; mix: string }>(
+    `SELECT r.movie_id, m.name AS mix
+       FROM tonight_mix_movies AS r
+       JOIN tonight_mixes AS m ON m.user_id = r.user_id AND m.id = r.mix_id
+      WHERE r.user_id = $1
+      ORDER BY r.movie_id, lower(m.name)`,
+    [owner],
+  );
+
+  const movies = rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    year: row.year,
+    imdbId: row.imdb_id,
+    watched: row.watched,
+    liked: row.liked,
+    mixes: [] as string[],
+  }));
+  const byId = new Map(movies.map((movie) => [movie.id, movie]));
+  for (const row of filed) byId.get(row.movie_id)?.mixes.push(row.mix);
+
+  return byTitle(movies).map(orderMovie);
+}
+
+/**
+ * Validates a complete movie.
+ *
+ * Every field goes through the domain, including the two the caller may have
+ * left out — because "left out" was decided by the method above, which passes
+ * what the row already held. By the time a value reaches here it is a value
+ * somebody chose, `null` included.
+ *
+ * Uniqueness is not checked. The two unique indexes decide it, and asking first
+ * would add a read that a concurrent write could invalidate before the insert.
+ */
+function validateMovie(draft: {
+  title: unknown;
+  year: unknown;
+  imdbId?: unknown;
+  watched?: unknown;
+  liked?: unknown;
+}): Omit<Movie, "mixes"> {
+  return {
+    title: checkMovieTitle(draft.title),
+    year: checkYear(draft.year),
+    imdbId: draft.imdbId === undefined ? null : checkImdbId(draft.imdbId),
+    watched: draft.watched === undefined ? null : checkState(draft.watched, "watched"),
+    liked: draft.liked === undefined ? null : checkState(draft.liked, "liked"),
+  };
+}
+
+/**
+ * The two uniqueness rules a movie write is allowed to break, by the name
+ * Postgres reports when one of them does.
+ *
+ * A closed list, because everything else on this table is an invariant rather
+ * than a decision the caller could have made differently: `tonight_movies_pkey`
+ * and `tonight_movies_id_key` guard the generated uuid, and a collision on
+ * either is a fault in this code or in `gen_random_uuid`, not something to
+ * explain to a user as "you already have that film".
+ */
+const MOVIE_UNIQUENESS = ["tonight_movies_identity", "tonight_movies_imdb_index"];
+
+/**
+ * Runs a write that two unique indexes guard, and turns a collision into the
+ * product's own answer rather than a database one.
+ *
+ * The savepoint is what makes that possible. Working out *which* index was hit,
+ * and which movie is in the way, takes a query — and Postgres refuses every
+ * command in a transaction a failed statement has aborted, so without a
+ * savepoint the explanation could never be fetched. Rolling back to one undoes
+ * the failed write alone and leaves the transaction usable, with the row locks
+ * taken before it still held.
+ *
+ * The alternative is to ask before writing, and that is the race the unique
+ * indexes exist to close: between the question and the insert, another
+ * transaction can take the handle.
+ *
+ * Only a collision on one of `known` is translated. A unique violation this did
+ * not expect is a bug here, and dressing it up as a sentence about the user's
+ * films would hide it behind an answer that sounds reasonable — so it is
+ * rethrown exactly as it arrived, and the transaction rolls back with it.
+ */
+async function orExplain<T>(
+  sql: Transaction,
+  known: readonly string[],
+  write: () => Promise<T>,
+  explain: () => Promise<TasteError>,
+): Promise<T> {
+  await sql.exec(`SAVEPOINT unique_write`);
+  try {
+    const done = await write();
+    await sql.exec(`RELEASE SAVEPOINT unique_write`);
+    return done;
+  } catch (error) {
+    const constraint = (error as { constraint?: string } | null)?.constraint;
+    if (!isSqlState(error, UNIQUE_VIOLATION) || !known.includes(constraint ?? "")) throw error;
+
+    await sql.exec(`ROLLBACK TO SAVEPOINT unique_write`);
+    throw await explain();
+  }
+}
+
+/**
+ * Which of the two unique indexes a write collided with, as a sentence.
+ *
+ * Postgres says only that something was unique; the caller needs to know whether
+ * they already have this film, or whether the IMDb id they gave is on a different
+ * one. The two have different fixes, so the refusal has to tell them apart —
+ * which means asking, after the fact, which row is in the way.
+ *
+ * `except` is the row being updated, so a movie is never reported as conflicting
+ * with itself.
+ */
+async function movieConflict(
+  sql: Transaction,
+  owner: string,
+  entry: Omit<Movie, "mixes">,
+  except?: string,
+): Promise<TasteError> {
+  if (entry.imdbId !== null) {
+    const [holder] = await sql.query<{ title: string; year: number }>(
+      `SELECT title, year FROM tonight_movies
+        WHERE user_id = $1 AND imdb_id = $2 AND ($3::uuid IS NULL OR id <> $3)`,
+      [owner, entry.imdbId, except ?? null],
+    );
+    if (holder) return movieImdbTaken(entry.imdbId, holder.title, holder.year);
+  }
+  return movieExists(entry.title, entry.year);
+}
+
+/**
+ * The names of the mixes just written, in the order a later read will show them.
+ *
+ * A caller who files a movie under `["Zulu", "Alpha"]` and then reads the model
+ * back would otherwise see the two lists disagree about order for no reason. The
+ * database sorts by `lower(name)`; so does this.
+ */
+function filingNames(mixes: readonly Reference[]): string[] {
+  return byName([...mixes]).map((mix) => mix.name);
+}
+
+/** The names of the mixes a movie is filed under, in reading order. */
+async function filedUnder(sql: Transaction, owner: string, movieId: string): Promise<string[]> {
+  const rows = await sql.query<{ mix: string }>(
+    `SELECT m.name AS mix
+       FROM tonight_mix_movies AS r
+       JOIN tonight_mixes AS m ON m.user_id = r.user_id AND m.id = r.mix_id
+      WHERE r.user_id = $1 AND r.movie_id = $2
+      ORDER BY lower(m.name)`,
+    [owner, movieId],
+  );
+  return rows.map((row) => row.mix);
+}
+
+/**
+ * Writes a movie's filing rows, by id on both sides.
+ *
+ * No position column and none needed: a mix's genres are a composition the user
+ * authored in an order, its movies are a set. They come back sorted by title.
+ */
+async function writeMixMovies(
+  sql: Transaction,
+  owner: string,
+  movieId: string,
+  mixes: readonly Reference[],
+): Promise<void> {
+  for (const mix of mixes) {
+    await sql.query(
+      `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id) VALUES ($1, $2, $3)`,
+      [owner, mix.id, movieId],
+    );
+  }
 }
 
 // --- writing ---------------------------------------------------------------
@@ -600,7 +1164,13 @@ async function validateMix(
 ): Promise<{ mix: Mix; references: Reference[] }> {
   const references = await resolveGenres(sql, checkMixGenres(draft.genres), genres);
   return {
-    mix: orderMix({ ...validateMixCore(draft), genres: references.map((one) => one.name) }),
+    mix: orderMix({
+      ...validateMixCore(draft),
+      genres: references.map((one) => one.name),
+      // Creating a mix files no movies, and updating its genres does not change
+      // which are filed under it — the caller supplies the real list.
+      movies: [],
+    }),
     references,
   };
 }

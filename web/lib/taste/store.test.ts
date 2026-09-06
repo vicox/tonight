@@ -4,7 +4,7 @@ import test, { after, describe } from "node:test";
 import type { SqlDriver } from "../db/driver.ts";
 import { migrate } from "../db/migrate.ts";
 import { embeddedDriver } from "../db/pglite.ts";
-import { TasteError, type Genre, type Mix } from "./model.ts";
+import { TasteError, type Genre, type Mix, type Movie } from "./model.ts";
 import { TASTE_SCHEMA } from "./store/schema.ts";
 import { sqlTasteStore } from "./store/sql.ts";
 import type { TasteStore } from "./store.ts";
@@ -64,6 +64,11 @@ async function mixOf(store: TasteStore, name: string): Promise<Mix | undefined> 
   return (await store.taste()).mixes.find((one) => one.name === name);
 }
 
+/** The same for a movie, addressed the way the product addresses one. */
+async function movieOf(store: TasteStore, title: string, year: number): Promise<Movie | undefined> {
+  return (await store.taste()).movies.find((one) => one.title === title && one.year === year);
+}
+
 /** The message a rejected operation came back with, or "accepted". */
 async function refusal(work: Promise<unknown>): Promise<string> {
   try {
@@ -84,7 +89,9 @@ for (const driver of drivers) {
       const sql = await driver.open();
       opened.push(sql);
       await migrate(sql, TASTE_SCHEMA);
-      await sql.exec(`TRUNCATE tonight_mix_genres, tonight_mixes, tonight_genres;`);
+      await sql.exec(
+        `TRUNCATE tonight_mix_movies, tonight_mix_genres, tonight_movies, tonight_mixes, tonight_genres;`,
+      );
       return { alice: sqlTasteStore(sql, ALICE), bob: sqlTasteStore(sql, BOB), sql };
     }
 
@@ -105,12 +112,22 @@ for (const driver of drivers) {
     const genre = (store: TasteStore, name: string) =>
       store.createGenre({ name, instruction: `what ${name} means to me` });
 
+    /** A mix, with a genre of its own, since a mix cannot be built from nothing. */
+    const mix = async (store: TasteStore, name: string) => {
+      await genre(store, `${name} feeling`);
+      return store.createMix({
+        name,
+        instruction: `what ${name} is for`,
+        genres: [`${name} feeling`],
+      });
+    };
+
     // --- new users --------------------------------------------------------
 
     test("a new user starts with nothing, and is not seeded with examples", async () => {
       const { alice } = await fresh();
 
-      assert.deepEqual(await alice.taste(), { genres: [], mixes: [] });
+      assert.deepEqual(await alice.taste(), { genres: [], mixes: [], movies: [] });
     });
 
     // --- isolation --------------------------------------------------------
@@ -130,7 +147,7 @@ for (const driver of drivers) {
       await genre(bob, "Bob only");
       await bob.createMix({ name: "Bob's mix", genres: ["Bob only"], instruction: "Bob's." });
 
-      assert.deepEqual(await alice.taste(), { genres: [], mixes: [] });
+      assert.deepEqual(await alice.taste(), { genres: [], mixes: [], movies: [] });
       // Asked through the operations that address one by name, which is where a
       // leak would actually show: neither can reach the other tenant's row.
       assert.match(await refusal(alice.deleteGenre("Bob only")), /^no genre "Bob only"/);
@@ -265,6 +282,7 @@ for (const driver of drivers) {
       assert.deepEqual(await alice.taste(), {
         genres: [{ name: "Sci-Fi", instruction: "what Sci-Fi means to me" }],
         mixes: [],
+        movies: [],
       });
     });
 
@@ -311,8 +329,14 @@ for (const driver of drivers) {
           { name: "Thriller", instruction: "what Thriller means to me" },
         ],
         mixes: [
-          { name: "Space Tension", instruction: "Tense.", genres: ["Sci-Fi", "Thriller"] },
+          {
+            name: "Space Tension",
+            instruction: "Tense.",
+            genres: ["Sci-Fi", "Thriller"],
+            movies: [],
+          },
         ],
+        movies: [],
       });
       assert.equal(await touchedAt(sql, "tonight_genres", "Sci-Fi"), genreAt);
       assert.equal(await touchedAt(sql, "tonight_mixes", "Space Tension"), mixAt);
@@ -377,7 +401,7 @@ for (const driver of drivers) {
 
       await alice.deleteMix(`${DOTTED_I} mix`);
       await alice.deleteGenre(DOTTED_I);
-      assert.deepEqual(await alice.taste(), { genres: [], mixes: [] });
+      assert.deepEqual(await alice.taste(), { genres: [], mixes: [], movies: [] });
     });
 
     test("a mix resolves its genres by the database's identity, not JavaScript's", async () => {
@@ -746,7 +770,7 @@ for (const driver of drivers) {
       await alice.deleteMix("My Sci-Fi");
       await alice.deleteGenre("Sci-Fi");
 
-      assert.deepEqual(await alice.taste(), { genres: [], mixes: [] });
+      assert.deepEqual(await alice.taste(), { genres: [], mixes: [], movies: [] });
     });
 
     test("deleting a mix leaves the genres it was built from", async () => {
@@ -770,7 +794,7 @@ for (const driver of drivers) {
       // What this cannot do here is prove the race: the embedded database serves
       // one connection, so there is no concurrent writer to interleave with, and a
       // harness that pretended otherwise would be testing itself. What it can do
-      // is hold the mechanism — three statements under one snapshot — which is the
+      // is hold the mechanism — every statement under one snapshot — which is the
       // part that would be lost by an edit and is checked against a real Postgres
       // by the same suite whenever TEST_DATABASE_URL is set.
       const sql = await driver.open();
@@ -800,8 +824,8 @@ for (const driver of drivers) {
       assert.match(issued[0] ?? "", /REPEATABLE READ/, "the snapshot is fixed first");
       assert.equal(
         issued.filter((statement) => /^\s*SELECT/.test(statement)).length,
-        3,
-        "genres, mixes and the references between them, all inside it",
+        6,
+        "genres, mixes, movies and the references between them, all inside it",
       );
     });
 
@@ -863,6 +887,757 @@ for (const driver of drivers) {
       );
       assert.deepEqual([...renamed].sort(), renamed);
       assert.equal(new Set(renamed).size, renamed.length, "each row asked for once");
+    });
+
+    // --- movies -----------------------------------------------------------
+
+    test("a movie is what the user said about it, and nothing more", async () => {
+      const { alice } = await fresh();
+
+      assert.deepEqual(await alice.createMovie({ title: "Arrival", year: 2016 }), {
+        title: "Arrival",
+        year: 2016,
+        imdbId: null,
+        watched: null,
+        liked: null,
+        mixes: [],
+      });
+
+      // The identity the row is keyed by never reaches a caller. Asserted as the
+      // set of field names rather than by searching the text: "id" occurs inside
+      // ordinary words, so a substring search over a model containing "I like
+      // ideas over spectacle" would fail while nothing was wrong.
+      const { movies } = await alice.taste();
+      assert.deepEqual(Object.keys(movies[0]!).sort(), [
+        "imdbId",
+        "liked",
+        "mixes",
+        "title",
+        "watched",
+        "year",
+      ]);
+    });
+
+    test("the same title in two years is two movies; the same year is one", async () => {
+      const { alice } = await fresh();
+      await alice.createMovie({ title: "Dune", year: 1984 });
+      await alice.createMovie({ title: "Dune", year: 2021 });
+
+      assert.deepEqual(
+        (await alice.taste()).movies.map((one) => [one.title, one.year]),
+        [
+          ["Dune", 1984],
+          ["Dune", 2021],
+        ],
+      );
+
+      // Half a handle is not a handle: the year is what tells the two apart, and
+      // the pair is matched ignoring case exactly as a genre's name is.
+      assert.match(await refusal(alice.createMovie({ title: "dune", year: 2021 })), /already exists/);
+    });
+
+    test("a movie title the database folds differently from JavaScript stays reachable", async () => {
+      const { alice } = await fresh();
+      const title = `${DOTTED_I}stanbul`;
+      await alice.createMovie({ title, year: 2000 });
+
+      // The same trap as for genres: fold this in JavaScript and the movie
+      // becomes unreachable by the title it was created with.
+      assert.match(await refusal(alice.createMovie({ title, year: 2000 })), /already exists/);
+      assert.equal((await alice.updateMovie(title, 2000, { watched: true })).watched, true);
+      await alice.deleteMovie(title, 2000);
+      assert.deepEqual((await alice.taste()).movies, []);
+    });
+
+    test("a movie needs a year, and an impossible one is refused", async () => {
+      const { alice } = await fresh();
+
+      assert.match(
+        await refusal(alice.createMovie({ title: "Dune", year: undefined })),
+        /needs a release year/,
+      );
+      assert.match(
+        await refusal(alice.createMovie({ title: "Dune", year: "2021" })),
+        /whole number, not a string/,
+      );
+      assert.match(
+        await refusal(alice.createMovie({ title: "Dune", year: 2021.5 })),
+        /whole number, not a fraction/,
+      );
+      for (const year of [1500, 9999]) {
+        assert.match(
+          await refusal(alice.createMovie({ title: "Dune", year })),
+          /between 1878 and 2200/,
+        );
+      }
+    });
+
+    test("the database refuses a movie the application would never write", async () => {
+      const { sql } = await fresh();
+
+      // The domain refuses each of these first, and that refusal is the one a
+      // user sees. These are here because the column constraints are the floor
+      // under it: a future path that skipped the domain would still not be able
+      // to put a yearless, untitled or oversized row in the table.
+      const forged: [string, unknown[]][] = [
+        ["a year outside any plausible film", [ALICE.id, "Forged", 1200, null]],
+        ["a title that is only whitespace", [ALICE.id, "   ", 2024, null]],
+        ["a title past the length limit", [ALICE.id, "D".repeat(201), 2024, null]],
+        ["an IMDb id that is not one", [ALICE.id, "Forged", 2024, "tt42"]],
+      ];
+
+      for (const [what, params] of forged) {
+        await assert.rejects(
+          sql.query(
+            `INSERT INTO tonight_movies (user_id, title, year, imdb_id) VALUES ($1, $2, $3, $4)`,
+            params,
+          ),
+          (error: unknown) => {
+            // 23514 — check violation. Not 23505: nothing here is a duplicate.
+            assert.equal((error as { code?: string }).code, "23514", what);
+            return true;
+          },
+          what,
+        );
+      }
+    });
+
+    test("changing the handle leaves the object it was, and its filings untouched", async () => {
+      const { alice, sql } = await fresh();
+      await mix(alice, "Space Tension");
+      await alice.createMovie({ title: "Dune", year: 1984, mixes: ["Space Tension"] });
+
+      const identity = async () =>
+        (
+          await sql.query<{ id: string }>(`SELECT id FROM tonight_movies WHERE user_id = $1`, [
+            ALICE.id,
+          ])
+        )[0]!.id;
+
+      // `xmin` is the transaction that last wrote the row, and the only signal
+      // that says a row was left alone. Comparing ids would prove nothing: they
+      // are what a retitle leaves alone by construction.
+      const filings = async () =>
+        await sql.query<{ movie_id: string; v: string }>(
+          `SELECT movie_id, xmin::text AS v FROM tonight_mix_movies WHERE user_id = $1`,
+          [ALICE.id],
+        );
+
+      const was = await identity();
+      const before = await filings();
+      assert.equal(before.length, 1, "the movie should be filed under exactly one mix");
+
+      await alice.updateMovie("Dune", 1984, { year: 2021 });
+      assert.equal(await identity(), was, "changing the year made a different movie");
+      assert.deepEqual(await filings(), before, "changing the year rewrote a filing row");
+
+      await alice.updateMovie("Dune", 2021, { title: "Dune: Part One" });
+      assert.equal(await identity(), was, "retitling made a different movie");
+      assert.deepEqual(await filings(), before, "retitling rewrote a filing row");
+
+      await alice.updateMovie("Dune: Part One", 2021, { watched: true });
+      assert.deepEqual(await filings(), before, "a state change rewrote a filing row");
+
+      assert.deepEqual((await movieOf(alice, "Dune: Part One", 2021))?.mixes, ["Space Tension"]);
+
+      // The other half, so none of the above can pass by the signal being blind.
+      // Naming the same mix again is the sharpest control there is: the filing is
+      // identical afterwards, so the movie id must match — and `xmin` must move
+      // anyway, because passing `mixes` replaces the rows whatever they said.
+      await alice.updateMovie("Dune: Part One", 2021, { mixes: ["Space Tension"] });
+      const rewritten = await filings();
+      assert.deepEqual(
+        rewritten.map((row) => row.movie_id),
+        before.map((row) => row.movie_id),
+        "the same mix should still be the same filing",
+      );
+      assert.notEqual(
+        rewritten[0]!.v,
+        before[0]!.v,
+        "the filing kept its row version through an explicit replacement",
+      );
+    });
+
+    test("an IMDb id is syntax the store keeps, never a lookup it performs", async () => {
+      const { alice, bob } = await fresh();
+
+      assert.equal((await alice.createMovie({ title: "Arrival", year: 2016 })).imdbId, null);
+
+      // Seven digits is the shape everyone remembers; IMDb has been issuing more
+      // for years, and refusing those would be an opinion about a catalogue this
+      // product does not have.
+      const long = await alice.createMovie({ title: "Recent", year: 2024, imdbId: "tt9999999999" });
+      assert.equal(long.imdbId, "tt9999999999");
+
+      for (const bad of ["tt123", "0111161", "tt0111161x", 7, `tt${"1".repeat(19)}`]) {
+        assert.match(
+          await refusal(alice.createMovie({ title: "Wrong", year: 2000, imdbId: bad })),
+          /IMDb/,
+        );
+      }
+
+      await alice.createMovie({ title: "Shawshank", year: 1994, imdbId: "tt0111161" });
+      assert.match(
+        await refusal(
+          alice.createMovie({ title: "The Shawshank Redemption", year: 1994, imdbId: "tt0111161" }),
+        ),
+        /"Shawshank" \(1994\) already has the IMDb id tt0111161/,
+      );
+
+      // The same on an update, and the same wording: it is the same collision.
+      assert.match(
+        await refusal(alice.updateMovie("Arrival", 2016, { imdbId: "tt0111161" })),
+        /"Shawshank" \(1994\) already has the IMDb id tt0111161/,
+      );
+
+      // A movie is never reported as conflicting with itself.
+      assert.equal(
+        (await alice.updateMovie("Shawshank", 1994, { imdbId: "tt0111161" })).imdbId,
+        "tt0111161",
+      );
+
+      // Nor is the other index confused for this one: moving a movie onto a
+      // handle somebody else already occupies is the handle's refusal.
+      assert.match(
+        await refusal(alice.updateMovie("Arrival", 2016, { title: "Shawshank", year: 1994 })),
+        /already exists/,
+      );
+
+      // One id points at one of *your* movies. Two people can each have the film.
+      assert.equal(
+        (await bob.createMovie({ title: "Shawshank", year: 1994, imdbId: "tt0111161" })).imdbId,
+        "tt0111161",
+      );
+    });
+
+    test("an IMDb id is cleared when the caller says null, and never by omission", async () => {
+      const { alice } = await fresh();
+      await alice.createMovie({ title: "Shawshank", year: 1994, imdbId: "tt0111161" });
+
+      const kept = await alice.updateMovie("Shawshank", 1994, { watched: true });
+      assert.equal(kept.imdbId, "tt0111161", "an update that did not mention the id dropped it");
+
+      assert.equal((await alice.updateMovie("Shawshank", 1994, { imdbId: null })).imdbId, null);
+    });
+
+    test("a blank IMDb id is a mistake rather than a third way of clearing one", async () => {
+      const { alice } = await fresh();
+      await alice.createMovie({ title: "Shawshank", year: 1994, imdbId: "tt0111161" });
+
+      // An argument built out of something empty is a bug in the caller, and
+      // reading it as "remove the id" would throw a stored pointer away on the
+      // strength of one.
+      for (const blank of ["", "   ", "\t\n"]) {
+        assert.match(
+          await refusal(alice.updateMovie("Shawshank", 1994, { imdbId: blank })),
+          /cannot be blank/,
+          JSON.stringify(blank),
+        );
+      }
+
+      // And the refusal wrote nothing: the id that was there is still there.
+      assert.equal((await movieOf(alice, "Shawshank", 1994))?.imdbId, "tt0111161");
+
+      assert.match(
+        await refusal(alice.createMovie({ title: "Arrival", year: 2016, imdbId: "" })),
+        /cannot be blank/,
+      );
+      assert.deepEqual((await alice.taste()).movies.length, 1, "the refused create left a movie");
+    });
+
+    for (const field of ["watched", "liked"] as const) {
+      test(`"${field}" holds three answers, and never invents one`, async () => {
+        const { alice } = await fresh();
+
+        const created = await alice.createMovie({ title: "Arrival", year: 2016 });
+        assert.equal(created[field], null, "saving a movie put a statement in the user's mouth");
+
+        for (const value of [true, false, null] as const) {
+          assert.equal((await alice.updateMovie("Arrival", 2016, { [field]: value }))[field], value);
+          assert.equal((await movieOf(alice, "Arrival", 2016))?.[field], value);
+        }
+
+        // Cleared from either side. `null` after `false` is the case that matters:
+        // if the two were the same value, this would be a no-op nobody noticed.
+        for (const from of [true, false] as const) {
+          await alice.updateMovie("Arrival", 2016, { [field]: from });
+          const cleared = await alice.updateMovie("Arrival", 2016, { [field]: null });
+          assert.equal(cleared[field], null, `${String(from)} could not be cleared`);
+        }
+
+        // Omitted is not a value either — an unrelated change leaves it standing.
+        await alice.updateMovie("Arrival", 2016, { [field]: false });
+        const untouched = await alice.updateMovie("Arrival", 2016, { imdbId: "tt0000001" });
+        assert.equal(untouched[field], false, "an unrelated update rewrote the state");
+
+        assert.match(
+          await refusal(alice.updateMovie("Arrival", 2016, { [field]: "yes" })),
+          /must be true, false, or null/,
+        );
+      });
+    }
+
+    test("nothing infers a state: not saving a movie, not filing one", async () => {
+      const { alice, sql } = await fresh();
+      await mix(alice, "Space Tension");
+
+      const created = await alice.createMovie({ title: "Arrival", year: 2016 });
+      assert.equal(created.watched, null);
+      assert.equal(created.liked, null);
+
+      await alice.updateMovie("Arrival", 2016, { mixes: ["Space Tension"] });
+      const filed = await movieOf(alice, "Arrival", 2016);
+      assert.equal(filed?.watched, null, "filing a movie decided it had been watched");
+      assert.equal(filed?.liked, null, "filing a movie decided it was liked");
+
+      // And the columns themselves are null rather than false. A `DEFAULT false`
+      // in the schema would satisfy every assertion above through the store while
+      // making the model claim something nobody said.
+      const [row] = await sql.query<{ watched: boolean | null; liked: boolean | null }>(
+        `SELECT watched, liked FROM tonight_movies WHERE user_id = $1`,
+        [ALICE.id],
+      );
+      assert.equal(row!.watched, null);
+      assert.equal(row!.liked, null);
+    });
+
+    test("a movie is filed under none, one or several mixes, and listed once", async () => {
+      const { alice } = await fresh();
+      await mix(alice, "Space Tension");
+      await mix(alice, "Quiet Dread");
+
+      assert.deepEqual((await alice.createMovie({ title: "Arrival", year: 2016 })).mixes, []);
+      const both = await alice.createMovie({
+        title: "Under the Skin",
+        year: 2013,
+        mixes: ["Quiet Dread", "Space Tension"],
+      });
+      assert.deepEqual(both.mixes, ["Quiet Dread", "Space Tension"]);
+
+      const { mixes, movies } = await alice.taste();
+
+      // Once, whatever it is filed under: the state has one home, so two copies
+      // cannot come to disagree about whether it was watched.
+      assert.equal(movies.filter((one) => one.title === "Under the Skin").length, 1);
+
+      // And a movie in no mix is here too, which is the only thing keeping it
+      // reachable at all.
+      assert.ok(movies.some((one) => one.title === "Arrival" && one.mixes.length === 0));
+
+      assert.deepEqual(
+        mixes.map((one) => [one.name, one.movies]),
+        [
+          ["Quiet Dread", [{ title: "Under the Skin", year: 2013 }]],
+          ["Space Tension", [{ title: "Under the Skin", year: 2013 }]],
+        ],
+      );
+    });
+
+    test("passing mixes replaces the filing exactly, and an empty list empties it", async () => {
+      const { alice } = await fresh();
+      for (const name of ["Space Tension", "Quiet Dread", "Popcorn Chaos"]) await mix(alice, name);
+      await alice.createMovie({
+        title: "Under the Skin",
+        year: 2013,
+        mixes: ["Space Tension", "Quiet Dread"],
+      });
+
+      const filed = await alice.updateMovie("Under the Skin", 2013, {
+        mixes: ["Popcorn Chaos", "Quiet Dread"],
+      });
+      assert.deepEqual(filed.mixes, ["Popcorn Chaos", "Quiet Dread"], "the list was added to");
+
+      const loose = await alice.updateMovie("Under the Skin", 2013, { mixes: [] });
+      assert.deepEqual(loose.mixes, []);
+      assert.deepEqual(
+        (await alice.taste()).mixes.flatMap((one) => one.movies),
+        [],
+        "a mix still names a movie that was taken out of it",
+      );
+    });
+
+    test("a movie can only be filed under mixes this user has", async () => {
+      const { alice, bob } = await fresh();
+      await mix(bob, "Theirs");
+      await mix(alice, "Mine");
+
+      assert.match(
+        await refusal(alice.createMovie({ title: "Arrival", year: 2016, mixes: ["Theirs"] })),
+        /"Theirs" is not one of them/,
+      );
+      assert.deepEqual((await alice.taste()).movies, [], "the refused create left a movie behind");
+    });
+
+    test("deleting a mix leaves its movies, and deleting a movie leaves its mixes", async () => {
+      const { alice } = await fresh();
+      await mix(alice, "Space Tension");
+      await mix(alice, "Quiet Dread");
+      await alice.createMovie({
+        title: "Under the Skin",
+        year: 2013,
+        watched: true,
+        mixes: ["Space Tension", "Quiet Dread"],
+      });
+
+      await alice.deleteMix("Space Tension");
+      const survivor = await movieOf(alice, "Under the Skin", 2013);
+      assert.equal(survivor?.watched, true, "the movie went with the mix");
+      assert.deepEqual(survivor?.mixes, ["Quiet Dread"], "it kept a filing that no longer exists");
+
+      const removed = await alice.deleteMovie("Under the Skin", 2013);
+      assert.deepEqual(removed.mixes, ["Quiet Dread"], "the answer forgot where it had been filed");
+      assert.deepEqual(
+        (await alice.taste()).mixes.map((one) => one.name),
+        ["Quiet Dread"],
+        "deleting a movie took a mix with it",
+      );
+      assert.deepEqual((await alice.taste()).movies, []);
+
+      assert.match(await refusal(alice.deleteMovie("Under the Skin", 2013)), /no movie/);
+    });
+
+    test("a movie title is trimmed and collapsed, and its casing stays the user's", async () => {
+      const { alice } = await fresh();
+
+      assert.equal(
+        (await alice.createMovie({ title: "  Dune   Part Two  ", year: 2024 })).title,
+        "Dune Part Two",
+      );
+
+      for (const spelling of [
+        "Dune Part Two",
+        " Dune Part Two",
+        "Dune Part Two ",
+        "dune   part   two",
+      ]) {
+        assert.match(
+          await refusal(alice.createMovie({ title: spelling, year: 2024 })),
+          /already exists/,
+          spelling,
+        );
+      }
+
+      await alice.createMovie({ title: "DUNE", year: 1984 });
+      assert.equal((await movieOf(alice, "DUNE", 1984))?.title, "DUNE", "the store restyled it");
+
+      assert.match(await refusal(alice.createMovie({ title: "   ", year: 2024 })), /needs a title/);
+      assert.match(
+        await refusal(alice.createMovie({ title: "D".repeat(201), year: 2024 })),
+        /at most 200 characters/,
+      );
+    });
+
+    test("a title is measured in the characters Postgres counts, not code units", async () => {
+      const { alice, sql } = await fresh();
+
+      // CLAPPER BOARD, which is one character and two UTF-16 code units. Counted
+      // in code units, two hundred of them look like four hundred — so the
+      // application would refuse a title the column's own CHECK accepts, and a
+      // film with an emoji in its name would hit a limit half the stated one.
+      const clapper = "\u{1F3AC}";
+      const atTheLimit = clapper.repeat(200);
+      assert.equal(atTheLimit.length, 400, "the two counts should disagree, or this proves nothing");
+
+      const stored = await alice.createMovie({ title: atTheLimit, year: 2024 });
+      assert.equal(stored.title, atTheLimit);
+      assert.equal((await movieOf(alice, atTheLimit, 2024))?.title, atTheLimit);
+
+      assert.match(
+        await refusal(alice.createMovie({ title: clapper.repeat(201), year: 2024 })),
+        /at most 200 characters/,
+      );
+
+      // And the database draws the line in the same place, which is the whole
+      // reason the application has to count the way it does.
+      const [measured] = await sql.query<{ n: number }>(`SELECT length($1::text) AS n`, [
+        atTheLimit,
+      ]);
+      assert.equal(measured!.n, 200, "Postgres counts characters, and this test assumes it");
+    });
+
+    test("the handle addresses a movie; it never restyles the one that is stored", async () => {
+      const { alice } = await fresh();
+      await alice.createMovie({ title: "DUNE", year: 1984, mixes: [] });
+
+      // Addressed in the wrong case on purpose. The handle is matched ignoring
+      // case, so this reaches the row — and changing only the year must leave the
+      // spelling the user chose exactly as they wrote it. Taking the new title
+      // from the argument instead would let anybody who could find the movie
+      // rewrite how it reads.
+      const moved = await alice.updateMovie("dune", 1984, { year: 1985 });
+      assert.equal(moved.title, "DUNE", "the addressing spelling was written back");
+      assert.equal((await movieOf(alice, "DUNE", 1985))?.title, "DUNE");
+
+      // The same for every other field that is not the title.
+      await alice.updateMovie("dune", 1985, { watched: true });
+      await alice.updateMovie("DuNe", 1985, { imdbId: "tt0087182" });
+      assert.equal((await movieOf(alice, "DUNE", 1985))?.title, "DUNE");
+
+      // And a caller who does mean to restyle it still can, in one call.
+      const retitled = await alice.updateMovie("dune", 1985, { title: "Dune" });
+      assert.equal(retitled.title, "Dune");
+    });
+
+    test("an update that mentions nothing about a movie is refused rather than ignored", async () => {
+
+      const { alice } = await fresh();
+      await alice.createMovie({ title: "Arrival", year: 2016 });
+
+      assert.match(await refusal(alice.updateMovie("Arrival", 2016, {})), /nothing to update/);
+      assert.match(await refusal(alice.updateMovie("Nowhere", 1999, { watched: true })), /no movie/);
+    });
+
+    test("the database refuses a filing that crosses users, from either side", async () => {
+      const { alice, bob, sql } = await fresh();
+      await mix(alice, "Mine");
+      await mix(bob, "Theirs");
+      await alice.createMovie({ title: "Arrival", year: 2016, mixes: ["Mine"] });
+      await bob.createMovie({ title: "Arrival", year: 2016, mixes: ["Theirs"] });
+
+      const idOf = async (table: string, owner: string) =>
+        (
+          await sql.query<{ id: string }>(`SELECT id FROM ${table} WHERE user_id = $1`, [owner])
+        )[0]!.id;
+
+      const mine = {
+        mix: await idOf("tonight_mixes", ALICE.id),
+        movie: await idOf("tonight_movies", ALICE.id),
+      };
+      const theirs = {
+        mix: await idOf("tonight_mixes", BOB.id),
+        movie: await idOf("tonight_movies", BOB.id),
+      };
+
+      // Deliberately not through the store, which resolves names within one user
+      // and refuses this long before the database is asked. One forged row per
+      // foreign key, because each key is a separate promise: a uuid being
+      // unguessable is a fact about collisions, not an authorisation rule, and
+      // only `user_id` inside the key makes the other tenant unreachable.
+      for (const [what, mixId, movieId] of [
+        ["another user's mix", theirs.mix, mine.movie],
+        ["another user's movie", mine.mix, theirs.movie],
+      ] as const) {
+        await assert.rejects(
+          sql.query(
+            `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id) VALUES ($1, $2, $3)`,
+            [ALICE.id, mixId, movieId],
+          ),
+          (error: unknown) => {
+            // 23503 — foreign key violation. Alice's tenant has no such row to
+            // point at, whichever half of the pair came from Bob.
+            assert.equal((error as { code?: string }).code, "23503", what);
+            return true;
+          },
+          what,
+        );
+      }
+    });
+
+    test("a mix renamed away between resolving and locking is refused, never swapped", async () => {
+      // One embedded database is one session, so the substitution is performed
+      // from inside the transaction rather than by a second connection. What that
+      // exercises is the check itself: `holdMixes` compares the id it resolved
+      // against the id it locked, because a name is not an identity. Another
+      // transaction can rename a mix away and rename a second one into the name
+      // it left, and matching on the name alone would file the movie under a mix
+      // nobody asked for.
+      const { alice, sql } = await fresh();
+      await mix(alice, "One");
+      await mix(alice, "Two");
+
+      let swapped = false;
+      const watched: SqlDriver = {
+        ...sql,
+        transaction: (work) =>
+          sql.transaction((tx) =>
+            work({
+              exec: (script) => tx.exec(script),
+              async query<Row>(statement: string, params?: readonly unknown[]): Promise<Row[]> {
+                if (!swapped && /FROM tonight_mixes[\s\S]*FOR KEY SHARE/.test(statement)) {
+                  swapped = true;
+                  const rename = `UPDATE tonight_mixes SET name = $2 WHERE user_id = $1 AND name = $3`;
+                  await tx.query(rename, [ALICE.id, "Gone", "One"]);
+                  await tx.query(rename, [ALICE.id, "One", "Two"]);
+                }
+                return tx.query<Row>(statement, params);
+              },
+            }),
+          ),
+      };
+
+      const store = sqlTasteStore(watched, ALICE);
+      assert.match(
+        await refusal(store.createMovie({ title: "Arrival", year: 2016, mixes: ["One"] })),
+        /is not one of them/,
+      );
+      assert.ok(swapped, "the hold never ran, so nothing was proved");
+
+      // And the movie inserted a moment before the refusal went with the
+      // rollback, which is what makes inserting before locking safe.
+      assert.deepEqual((await alice.taste()).movies, []);
+    });
+
+    test("a uniqueness rule nobody planned for is reported, not explained away", async () => {
+      // Two unique indexes on this table are the user's business — the handle and
+      // their IMDb ids — and a collision on either becomes a sentence. The
+      // others guard the generated uuid, and a collision there is a fault in this
+      // code or in `gen_random_uuid`. Turning that into "you already have that
+      // film" would hide a real failure behind a plausible answer, and the user
+      // would go looking for a duplicate that does not exist.
+      const { alice, bob, sql } = await fresh();
+      await bob.createMovie({ title: "Theirs", year: 2001 });
+      const [theirs] = await sql.query<{ id: string }>(
+        `SELECT id FROM tonight_movies WHERE user_id = $1`,
+        [BOB.id],
+      );
+
+      // The insert is swapped for one that takes an id another user already
+      // holds, which is the one 23505 the store has no business interpreting.
+      const watched: SqlDriver = {
+        ...sql,
+        transaction: (work) =>
+          sql.transaction((tx) =>
+            work({
+              exec: (script) => tx.exec(script),
+              query<Row>(statement: string, params?: readonly unknown[]): Promise<Row[]> {
+                if (!/INSERT INTO tonight_movies/.test(statement)) {
+                  return tx.query<Row>(statement, params);
+                }
+                return tx.query<Row>(
+                  `INSERT INTO tonight_movies (user_id, id, title, year)
+                   VALUES ($1, $2, $3, $4) RETURNING id`,
+                  [ALICE.id, theirs!.id, "Forced", 2001],
+                );
+              },
+            }),
+          ),
+      };
+
+      await assert.rejects(
+        sqlTasteStore(watched, ALICE).createMovie({ title: "Mine", year: 2001 }),
+        (error: unknown) => {
+          assert.equal(
+            error instanceof TasteError,
+            false,
+            "a uuid collision was dressed up as a conflict the user could act on",
+          );
+          assert.equal((error as { code?: string }).code, "23505");
+          assert.equal((error as { constraint?: string }).constraint, "tonight_movies_id_key");
+          return true;
+        },
+      );
+
+      assert.deepEqual((await alice.taste()).movies, [], "the failed write left something behind");
+    });
+
+    test("a handle change takes both movie locks in one shared order", async () => {
+      // The same argument as for genre locks: what one session can prove is the
+      // order, not that the order prevents a deadlock. A cycle needs two sessions
+      // holding rows in opposite sequences, and a shared total order removes it.
+      const { alice, sql } = await fresh();
+      await alice.createMovie({ title: "Alpha", year: 2000 });
+      await alice.createMovie({ title: "Zulu", year: 1999 });
+
+      /**
+       * The pair a lock was taken on, composed as `movieKey` composes it.
+       *
+       * U+0000 written as an escape rather than typed: it cannot occur in a
+       * folded title, which is why the store picked it, and a control
+       * character in a source file survives no editor, diff or terminal
+       * between here and a reviewer.
+       */
+      const key = (title: string, year: number) => `${title}\u0000${year}`;
+
+      const locking = async (work: (store: TasteStore) => Promise<unknown>) => {
+        const taken: string[] = [];
+        const watched: SqlDriver = {
+          ...sql,
+          transaction: (body) =>
+            sql.transaction((tx) =>
+              body({
+                query: (statement, params) => {
+                  if (/FROM tonight_movies[\s\S]*FOR UPDATE/.test(statement)) {
+                    const [, title, year] = params as [string, string, number];
+                    taken.push(key(title, year));
+                  }
+                  return tx.query(statement, params);
+                },
+                exec: (script) => tx.exec(script),
+              }),
+            ),
+        };
+        await work(sqlTasteStore(watched, ALICE));
+        return taken;
+      };
+
+      // A case-only retitle is one row, asked for once: both halves of the handle
+      // fold to the same key, and locking it twice would be waiting for itself.
+      assert.deepEqual(
+        await locking((store) => store.updateMovie("Alpha", 2000, { title: "ALPHA" })),
+        [key("alpha", 2000)],
+      );
+
+      const forward = await locking((store) => store.updateMovie("ALPHA", 2000, { title: "Mid" }));
+      assert.deepEqual(forward, [key("alpha", 2000), key("mid", 2000)]);
+
+      // Here the destination sorts first, so it is locked first — the caller's
+      // "from, then to" never reaches the locks, which is the whole point.
+      const backward = await locking((store) => store.updateMovie("Zulu", 1999, { title: "Mid" }));
+      assert.deepEqual(backward, [key("mid", 1999), key("zulu", 1999)]);
+    });
+
+    test("the whole model comes back with each movie once and every state intact", async () => {
+      const { alice } = await fresh();
+      await mix(alice, "Space Tension");
+      await mix(alice, "Quiet Dread");
+      await alice.createMovie({
+        title: "Dune",
+        year: 1984,
+        watched: true,
+        liked: false,
+        mixes: ["Space Tension"],
+      });
+      await alice.createMovie({
+        title: "Dune",
+        year: 2021,
+        watched: false,
+        liked: true,
+        imdbId: "tt1160419",
+        mixes: ["Space Tension", "Quiet Dread"],
+      });
+      await alice.createMovie({ title: "Arrival", year: 2016 });
+
+      const { mixes, movies } = await alice.taste();
+
+      assert.deepEqual(movies, [
+        { title: "Arrival", year: 2016, imdbId: null, watched: null, liked: null, mixes: [] },
+        {
+          title: "Dune",
+          year: 1984,
+          imdbId: null,
+          watched: true,
+          liked: false,
+          mixes: ["Space Tension"],
+        },
+        {
+          title: "Dune",
+          year: 2021,
+          imdbId: "tt1160419",
+          watched: false,
+          liked: true,
+          mixes: ["Quiet Dread", "Space Tension"],
+        },
+      ]);
+
+      // A mix names the whole handle. A title alone could not tell one Dune from
+      // the other, and the mix would be pointing at a film nobody put there.
+      assert.deepEqual(mixes.find((one) => one.name === "Space Tension")?.movies, [
+        { title: "Dune", year: 1984 },
+        { title: "Dune", year: 2021 },
+      ]);
+      assert.deepEqual(mixes.find((one) => one.name === "Quiet Dread")?.movies, [
+        { title: "Dune", year: 2021 },
+      ]);
     });
 
     test("no mix ever names a genre that is not in the same answer", async () => {

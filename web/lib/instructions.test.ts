@@ -50,7 +50,8 @@ test("the frontmatter is dropped and nothing else is", () => {
     "There is no setup",
     "Persist durable taste they express or confirm",
     "Asked about the model directly",
-    "never look for films in Tonight",
+    "never look in Tonight for films to recommend",
+    "A recommendation is not a saved Movie",
   ]) {
     assert.ok(PROJECT_INSTRUCTIONS.includes(rule), `missing from the copied text: ${rule}`);
   }

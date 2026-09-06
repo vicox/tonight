@@ -357,6 +357,43 @@ test("reconciliation repairs a reference an old instance wrote after the backfil
   assert.equal(repaired?.ok, true, "the repaired row points at the wrong object");
 });
 
+test("v4 stands beside what is there rather than rewriting any of it", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(3));
+
+  // Written through the store, because v3 is the shape the store already
+  // speaks — and what has to survive is a user's model, not a row layout.
+  const store = sqlTasteStore(sql, { id: ALICE });
+  await store.createGenre({ name: "Sci-Fi", instruction: "I like ideas over spectacle." });
+  await store.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+
+  // `xmin` is the transaction that last wrote each row. An additive migration
+  // has to leave all three untouched; a backfill, a rewritten default or a
+  // table rebuild would move them, and comparing values would not notice.
+  const versions = async () =>
+    await sql.query<{ kind: string; v: string }>(
+      `SELECT 'genre' AS kind, xmin::text AS v FROM tonight_genres WHERE user_id = $1
+        UNION ALL
+       SELECT 'mix', xmin::text FROM tonight_mixes WHERE user_id = $1
+        UNION ALL
+       SELECT 'reference', xmin::text FROM tonight_mix_genres WHERE user_id = $1`,
+      [ALICE],
+    );
+
+  const before = await versions();
+  assert.equal(before.length, 3, "one genre, one mix and the reference between them");
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  assert.deepEqual(await versions(), before, "v4 rewrote a row it should only stand beside");
+
+  // And the movie tables arrive empty: nobody gains a film they never mentioned.
+  const { genres, mixes, movies } = await store.taste();
+  assert.deepEqual(movies, []);
+  assert.deepEqual(genres.map((one) => one.name), ["Sci-Fi"]);
+  assert.deepEqual(mixes[0]?.movies, [], "a mix arrived already naming something");
+});
+
 test("v1 data survives the whole migration with its meaning intact", async () => {
   const sql = await fresh();
   await migrate(sql, upTo(1));
@@ -378,13 +415,18 @@ test("v1 data survives the whole migration with its meaning intact", async () =>
         name: "Space Tension",
         instruction: "Contained, and nobody is safe.",
         genres: ["Sci-Fi", "Thriller"],
+        movies: [],
       },
     ],
+    movies: [],
   });
 
   // And no uuid reached the caller on the way. The comparison above would already
   // reject an extra key, but the fields are named here because this is the
   // property most easily lost by accident and least likely to be noticed.
-  const fields = new Set([...taste.genres.flatMap(Object.keys), ...taste.mixes.flatMap(Object.keys)]);
-  assert.deepEqual([...fields].sort(), ["genres", "instruction", "name"]);
+  const fields = new Set([
+    ...taste.genres.flatMap(Object.keys),
+    ...taste.mixes.flatMap(Object.keys),
+  ]);
+  assert.deepEqual([...fields].sort(), ["genres", "instruction", "movies", "name"]);
 });

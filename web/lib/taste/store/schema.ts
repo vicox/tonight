@@ -57,11 +57,16 @@ import type { SchemaModule } from "../../db/migrate.ts";
  *
  * ## What is not here
  *
- * There is no table of recommendations, no watch history, and nowhere to record
- * that a movie was shown to somebody. Recommending reads this and writes nothing.
- * When history arrives it will be its own migration and its own tables, and the
- * shape of it is already decided by the tables above: it will reference
- * `(user_id, id)`, so a rename will cost it nothing. It will be evidence for
+ * There is no table of recommendations and nowhere to record that a movie was
+ * *shown* to somebody. Recommending reads this and writes nothing.
+ *
+ * v4 added Movies, and the distinction it turns on is **state, not history**. A
+ * Movie says what the user told us — that they have seen it, that they liked it —
+ * and it says so as one row that is overwritten, never as a sequence of events.
+ * There is no `watched_at`, no ordering, no count, and no way to ask what
+ * happened when, because none of that was ever written down. When history does
+ * arrive it will be its own migration and its own tables, referencing
+ * `(user_id, id)` so a rename costs it nothing. It will be evidence for
  * *proposing* changes to this model — never a second, invisible model that
  * quietly outvotes it.
  */
@@ -266,6 +271,113 @@ export const TASTE_SCHEMA: SchemaModule = {
 
         ALTER TABLE tonight_mixes DROP CONSTRAINT tonight_mixes_pkey;
         ALTER TABLE tonight_mixes ADD PRIMARY KEY USING INDEX tonight_mixes_tenant_id;
+      `,
+    },
+
+    /**
+     * Movies: the films the user told us about, and which mixes they are filed
+     * under. Purely additive — two new tables and nothing else touched, so a
+     * build from before this migration keeps working and never names either.
+     *
+     * ## A Movie is the user's, not a catalogue's
+     *
+     * `tonight_movies` is tenant-scoped like everything else here. Two users may
+     * hold the same film and they are two rows, because what is stored is not the
+     * film but what *this person* said about it. Nothing is ever fetched: no
+     * title, no year and no `imdb_id` arrives from anywhere but the caller.
+     *
+     * ## Two identities again, for the same reason as v2
+     *
+     *     id                                  the object, immutable
+     *     (lower(title), year)                the handle, and the user may change it
+     *
+     * The handle is the pair because a title is not unique even inside one
+     * person's list — `Dune` is two films, and asking somebody to type
+     * `Dune (1984)` to work around a schema would be the schema leaking into the
+     * product. `year` is therefore required and part of identity, not decoration.
+     *
+     * ## watched and liked have three states, and the third is the point
+     *
+     * Both are nullable **with no default**, and that is deliberate: `null` means
+     * Tonight was never told, `false` means the user said no. A `DEFAULT false`
+     * would manufacture a statement out of a movie merely existing, which is the
+     * ownership rule this product rests on, inverted.
+     *
+     * ## Why a Movie cascades where a Genre restricts
+     *
+     * A Mix is *defined by* its genres: take one away and the mix means something
+     * else, so deleting a genre a mix needs is refused. A Movie is its own object
+     * and a mix is one of the places the user keeps it — one fewer does not change
+     * what the mix's instruction says. Deleting a Movie therefore takes its
+     * memberships with it rather than being blocked by them.
+     */
+    {
+      version: 4,
+      sql: `
+        CREATE TABLE tonight_movies (
+          user_id  text    NOT NULL,
+          id       uuid    NOT NULL DEFAULT gen_random_uuid(),
+          title    text    NOT NULL,
+          year     integer NOT NULL,
+          imdb_id  text,
+
+          -- No DEFAULT on either. NULL is "we were not told", and it is not the
+          -- same answer as false.
+          watched  boolean,
+          liked    boolean,
+
+          PRIMARY KEY (user_id, id),
+          UNIQUE (id),
+
+          CONSTRAINT tonight_movies_title
+            CHECK (btrim(title) <> '' AND length(title) <= 200),
+          -- 1878 is the first motion picture; the upper bound is loose enough for
+          -- a film announced years out. A CHECK cannot ask what year it is, so the
+          -- bound is static — it exists to catch 20223, not to be a fact.
+          CONSTRAINT tonight_movies_year
+            CHECK (year BETWEEN 1878 AND 2200),
+          -- Syntax only. Tonight never asks IMDb whether this id exists, and an
+          -- open-ended digit count is deliberate: ids have already passed seven
+          -- digits and will pass eight.
+          CONSTRAINT tonight_movies_imdb
+            CHECK (imdb_id IS NULL OR (imdb_id ~ '^tt[0-9]{7,}$' AND length(imdb_id) <= 20))
+        );
+
+        -- The handle. Folded by Postgres, which is the only thing that decides
+        -- whether two spellings are one movie.
+        CREATE UNIQUE INDEX tonight_movies_identity
+          ON tonight_movies (user_id, lower(title), year);
+
+        -- An external pointer, not an identity. This stops one user attaching the
+        -- same supplied pointer to two of their movies; it is not catalogue
+        -- deduplication and cannot be, since the column is optional and unverified.
+        CREATE UNIQUE INDEX tonight_movies_imdb_index
+          ON tonight_movies (user_id, imdb_id) WHERE imdb_id IS NOT NULL;
+
+        -- Which mixes a movie is in. Identity only: no state, no order, no
+        -- timestamp. A mix's genres are authored in an order the user chose; its
+        -- movies are a set, and are read back by title.
+        CREATE TABLE tonight_mix_movies (
+          user_id  text NOT NULL,
+          mix_id   uuid NOT NULL,
+          movie_id uuid NOT NULL,
+
+          PRIMARY KEY (user_id, mix_id, movie_id),
+
+          -- Composite on user_id, both of them. A uuid being unique says something
+          -- about collisions and nothing about permission: the user_id inside the
+          -- key is the whole reason one user's mix cannot name another's movie.
+          CONSTRAINT tonight_mix_movies_mix
+            FOREIGN KEY (user_id, mix_id) REFERENCES tonight_mixes (user_id, id)
+            ON DELETE CASCADE,
+          CONSTRAINT tonight_mix_movies_movie
+            FOREIGN KEY (user_id, movie_id) REFERENCES tonight_movies (user_id, id)
+            ON DELETE CASCADE
+        );
+
+        -- "Which mixes is this movie filed under", without a scan.
+        CREATE INDEX tonight_mix_movies_movie_index
+          ON tonight_mix_movies (user_id, movie_id);
       `,
     },
   ],

@@ -138,18 +138,21 @@ test("every tool is discoverable, and only the intended ones", async () => {
   assert.deepEqual(tools.map((tool) => tool.name).sort(), [
     "create_genre",
     "create_mix",
+    "create_movie",
     "delete_genre",
     "delete_mix",
+    "delete_movie",
     "get_server_info",
     "get_taste",
     "update_genre",
     "update_mix",
+    "update_movie",
   ]);
 
-  // Eight, and every one of them a state operation. Product guidance ships in
+  // Eleven, and every one of them a state operation. Product guidance ships in
   // skills/ beside the server rather than as a runtime tool: an exhaustive list
   // is what keeps one from creeping back.
-  assert.equal(tools.length, 8);
+  assert.equal(tools.length, 11);
 
   const info = tools.find((tool) => tool.name === "get_server_info");
   assert.equal(info?.title, "Server information");

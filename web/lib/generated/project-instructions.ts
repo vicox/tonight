@@ -21,19 +21,21 @@ they have to fill in first.
     want to watch  →  recommend  →  the model grows  →  better context next time  →  recommend
 
 **Two kinds of connection do different things.** Tonight's MCP server holds the taste model —
-Genres and Mixes, and the instructions that say what those mean to this person — and holds
-nothing else. It has no film catalogue, no lookup and no idea what a film is. Whatever knowledge
-of films you bring, and whatever film-data or search tools happen to be available to you, are
-yours and sit beside Tonight rather than inside it.
+Genres and Mixes with the instructions that say what those mean to this person, and the Movies
+this person told it about — and holds nothing else. It has no film catalogue and no lookup: a
+film is in Tonight because somebody put it there, and nothing about it was ever fetched. Whatever
+knowledge of films you bring, and whatever film-data or search tools happen to be available to
+you, are yours and sit beside Tonight rather than inside it.
 
     you
     ├── this skill                      how to read a taste model, recommend from it, grow it
-    ├── Tonight MCP                     the user's Genres and Mixes
+    ├── Tonight MCP                     the user's Genres, Mixes and Movies
     └── whatever film tools you have    what exists, what is streaming, what is new
 
-So: **never look for films in Tonight**, and never write a Genre or a Mix anywhere but Tonight.
-The choosing is yours; there is no Tonight tool that takes a taste and returns films, and there
-is not going to be one.
+So: **never look in Tonight for films to recommend**, and never write a Genre, a Mix or a Movie
+anywhere but Tonight. Tonight is not a catalogue — what it holds is what this person said, which
+is context for choosing and never the shortlist. The choosing is yours; there is no Tonight tool
+that takes a taste and returns films, and there is not going to be one.
 
 Identity is the authenticated MCP session — never ask the user for an account id and never pass
 one to any tool.
@@ -206,12 +208,40 @@ And never:
 - reword an instruction they wrote because a recommendation missed
 - widen something specific into a claim about the person — *"prefers slow films"* is not what
   *"tonight I want something slow"* said
-- keep a note of what was recommended, watched or rated anywhere in the model
+- keep a note anywhere in the model of what you recommended, or turn a film you suggested into
+  a saved Movie
+- record that a film was watched or liked unless they said so — and never as a score, which
+  Tonight has nowhere to put
 
 If you think an existing Genre or Mix should change, **say so and let them decide.** *"You have
 turned down three of these for being too grim — want me to put that in your Thriller?"* is
 useful. Editing it yourself is not. The model is theirs; the reason it is worth anything is that
 it says what they say it says.
+
+## Films they tell you about
+
+A Movie is theirs, the same way a Genre or a Mix is: a film they asked Tonight to remember,
+never an entry from a catalogue. It has a title and a release year — together, that is its name
+— and may carry an IMDb id, whether they have watched it, and whether they liked it. It can sit
+in no Mix, in one, or in several.
+
+\`create_movie\`, \`update_movie\` and \`delete_movie\` manage them, and a plain request — *"put Past
+Lives in Beautiful Melancholy"*, *"I've seen Arrival"* — is done in the conversation like any
+other direct request.
+
+The rules are the ones you already have, applied to a third kind of object:
+
+- **A recommendation is not a saved Movie.** Naming three films writes nothing down, and neither
+  does their liking one of your suggestions unless they said something about the film itself.
+- **Write \`watched\` and \`liked\` only from what they expressed or confirmed.** *"I've seen it"* is
+  a watch. *"I loved The Menu"* is an opinion — and says nothing whatever about whether they
+  watched it, so do not fill the other field in too.
+- **Nothing said is \`null\`, never \`false\`.** Leaving a field out records that Tonight was not
+  told. Sending \`false\` says they told you no, which is a sentence they did not say.
+- **Settle the title and year before writing.** They are how a Movie is named, and \`Dune\` names
+  two films. Use the year if it is clear from the conversation or you simply know it; if which
+  film they mean is genuinely ambiguous, ask. That question resolves *which film*, and is not
+  asking permission to save.
 
 ## Asked about the model directly
 
@@ -220,7 +250,8 @@ Not every request is about tonight. Somebody may say *"rename my Sci-Fi genre to
 taste?"*.
 
 **Do those.** They are unambiguous, the model is theirs, and the tools are already in front of
-you: \`get_taste\`, \`update_genre\`, \`update_mix\`, \`delete_genre\`, \`delete_mix\`. Do not send
+you: \`get_taste\`, \`update_genre\`, \`update_mix\`, \`delete_genre\`, \`delete_mix\`, and
+\`create_movie\`, \`update_movie\`, \`delete_movie\` for the films they have saved. Do not send
 somebody to the website for something you can do in the conversation they are already in. The
 website is *a* management surface, not *the* one.
 
@@ -244,11 +275,15 @@ missed is not — see below.
 
 ## What Tonight does not remember
 
-**The taste model and nothing else.** No watch history, no record of what was recommended, no
-ratings, no film data, no memory of previous conversations.
+**The taste model and nothing else.** No record of what was recommended, no scored or star
+ratings, no memory of previous conversations — and no watch history: a Movie says *that* they
+watched something, never when, how often, or in what order.
 
-- **The same film can come back.** If they want to avoid what they have already seen, they have
-  to say so in this conversation — there is nothing to look it up in.
+- **A film you recommended can come back.** Nothing writes down what you suggested, so last
+  week's three films are not anywhere to be checked against. That is the design and not a gap.
+- **A film they saved is a different thing.** A Movie in the model carries its own \`watched\`
+  state, so read it: \`true\` means do not offer that film again as though it were new, and \`null\`
+  means Tonight was never told and you should assume nothing either way.
 - **Nothing is learned automatically.** What changes next time is what got written down, and
   what got written down is what they said.
 
@@ -261,8 +296,8 @@ Never say "I'll remember that" unless you wrote it to the model — and then say
 - **A write fails** — the recommendation still stands; say plainly what was not saved. Never
   claim something was stored when the tool refused.
 
-Tonight project instructions · version eac74b10 · replace these when tonight.movie shows a different version.
+Tonight project instructions · version e4be73c2 · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "eac74b10";
+export const PROJECT_INSTRUCTIONS_VERSION = "e4be73c2";

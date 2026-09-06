@@ -28,13 +28,15 @@ export default function Terms() {
         <h2>What Tonight does, and what it does not</h2>
         <p>
           Tonight keeps a <strong>taste model that belongs to you</strong>: genres, each with an
-          instruction saying what that genre means to you, and mixes that combine them and say what the
-          combination means. It stores that model, enforces the rules over it, and makes it available
-          to you on this website and to an assistant you connect over MCP.
+          instruction saying what that genre means to you, mixes that combine them and say what the
+          combination means, and the films you have told it about, each in whichever of your mixes
+          you put it. It stores that model, enforces the rules over it, and makes it available to
+          you on this website and to an assistant you connect over MCP.
         </p>
         <p>
           <strong>Tonight does not choose films for you.</strong> It contains no recommendation engine,
-          no language model and no film database. Recommending happens in whatever MCP client you
+          no language model and no film database — the films it holds are the ones you put there,
+          and nothing about them is looked up. Recommending happens in whatever MCP client you
           connect — it reads your genres and mixes and brings its own knowledge of films and whatever
           other tools it has. Anything it tells you about a film comes from it, not from Tonight, and
           the operator makes no promise that it is accurate, complete or up to date. That assistant is
@@ -100,10 +102,13 @@ export default function Terms() {
         <h2>Your data</h2>
         <p>
           What is processed, and for how long, is described in the{" "}
-          <a href="/privacy">Privacy Policy</a>. In short: Tonight stores your genres and mixes and
-          nothing about what you watch — no recommendation history, no viewing history, no profile
-          built from how you use it. Content you create is intended to be kept until the closed beta
-          ends and deleted by the operator then, or earlier on request.
+          <a href="/privacy">Privacy Policy</a>. In short: Tonight stores your genres, your mixes,
+          and the films you told it about — including whether you watched each and whether you
+          liked it. What it does not store is a history: no record of what was recommended, no
+          viewing timeline, and no profile built from how you use it. Everything you create —
+          genres, mixes, and the films you saved with their watched and liked state — is intended
+          to be kept until the closed beta ends and deleted by the operator then, or earlier on
+          request.
         </p>
       </section>
 
@@ -112,8 +117,10 @@ export default function Terms() {
         <p>
           You can stop using Tonight whenever you like and ask for your data to be deleted. You can
           delete any mix yourself, and any genre no mix is built from — a genre a mix refers to stays
-          until you take it out of that mix or delete the mix. The operator may withdraw access at any
-          time, in particular if these terms are not respected or when the closed beta ends.
+          until you take it out of that mix or delete the mix. Films are managed through your
+          assistant rather than on the website: ask it to forget one and it does. The operator may
+          withdraw access at any time, in particular if these terms are not respected or when the
+          closed beta ends.
         </p>
       </section>
 

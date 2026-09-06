@@ -141,6 +141,7 @@ test("a malformed body is refused by the domain rather than coerced on the way i
   assert.deepEqual(await taste(id), {
     genres: [{ name: "Sci-Fi", instruction: "Ideas." }],
     mixes: [],
+    movies: [],
   });
 });
 

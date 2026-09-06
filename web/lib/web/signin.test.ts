@@ -559,7 +559,7 @@ test("one Google account is one owner, whether it arrives by MCP or by browser",
 test("a Google account with no taste reaches an empty home page, not somebody else's", async () => {
   const shown = await home(await signIn(account("newcomer", "newcomer@example.com")));
 
-  assert.deepEqual(shown?.taste, { genres: [], mixes: [] });
+  assert.deepEqual(shown?.taste, { genres: [], mixes: [], movies: [] });
   assert.equal(shown?.email, "newcomer@example.com");
 });
 
@@ -831,7 +831,7 @@ test("loading the signed-in page creates nothing", async () => {
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const shown = await home(session);
-    assert.deepEqual(shown?.taste, { genres: [], mixes: [] }, "no starter genres appeared");
+    assert.deepEqual(shown?.taste, { genres: [], mixes: [], movies: [] }, "no starter genres appeared");
   }
 });
 

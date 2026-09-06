@@ -2,7 +2,7 @@ import { database } from "../db.ts";
 import type { SqlDriver } from "../db/driver.ts";
 import { prepareSchema } from "../db/migrate.ts";
 import type { AuthenticatedUser } from "../identity.ts";
-import type { Genre, Mix, Taste } from "./model.ts";
+import type { Genre, Mix, Movie, MovieHandle, Taste } from "./model.ts";
 
 /**
  * One user's taste model, and every operation on it.
@@ -20,9 +20,11 @@ import type { Genre, Mix, Taste } from "./model.ts";
  * is the adapter's business. That is what keeps SQL out of the MCP tools and out
  * of the web routes.
  *
- * **Nothing here recommends a movie**, and nothing here holds one. This is the
- * user's model and the rules over it; choosing something to watch is the host
- * agent's, over the top of what these operations return.
+ * **Nothing here recommends a movie.** It does hold movies — the ones the user
+ * told Tonight about, and what they said about each — but a film is only here
+ * because somebody put it here. There is no catalogue behind it and nothing is
+ * looked up. Choosing what to watch stays the host agent's, over the top of what
+ * these operations return.
  */
 
 /**
@@ -55,13 +57,50 @@ export type MixDraft = { name: unknown; instruction: unknown; genres: unknown };
  */
 export type MixChanges = { name?: unknown; instruction?: unknown; genres?: unknown };
 
+/**
+ * What creating a movie is given.
+ *
+ * `title` and `year` are required because together they are how a movie is
+ * addressed. Everything else is optional, and the two state fields are optional
+ * in the sense that matters: leaving them out records that nothing was said, not
+ * that the answer was no.
+ */
+export type MovieDraft = {
+  title: unknown;
+  year: unknown;
+  imdbId?: unknown;
+  watched?: unknown;
+  liked?: unknown;
+  mixes?: unknown;
+};
+
+/**
+ * What updating a movie may change.
+ *
+ * `undefined` means leave it alone; `null` is a value the caller can set. The
+ * distinction carries the whole of the state semantics — omitting `watched`
+ * keeps what was there, passing `null` says Tonight no longer knows — so these
+ * are `unknown` rather than typed optionals, and the domain decides.
+ *
+ * Passing `mixes` replaces the filing exactly, `[]` included. Omitting it leaves
+ * the relation rows untouched: not re-derived, not re-resolved, not rewritten.
+ */
+export type MovieChanges = {
+  title?: unknown;
+  year?: unknown;
+  imdbId?: unknown;
+  watched?: unknown;
+  liked?: unknown;
+  mixes?: unknown;
+};
+
 export type TasteStore = {
   /**
-   * The whole model, genres and mixes together, from one database snapshot.
+   * The whole model — genres, mixes and movies — from one database snapshot.
    *
    * The only read there is. Everything that shows a taste model shows all of it —
    * a mix is unreadable without the genres under it — so a per-object read would
-   * be an interface nobody wants and a second way for the two halves to disagree.
+   * be an interface nobody wants and a second way for the parts to disagree.
    */
   taste(): Promise<Taste>;
 
@@ -75,10 +114,21 @@ export type TasteStore = {
   updateMix(name: string, changes: MixChanges): Promise<Mix>;
   /** Removes a mix. Always allowed: nothing is built from a mix. */
   deleteMix(name: string): Promise<Mix>;
+
+  createMovie(draft: MovieDraft): Promise<Movie>;
+  /**
+   * Applies changes, addressed by the movie's current title and year.
+   *
+   * Changing either leaves the object it is: the filings point at an id, so a
+   * retitled movie is still in the same mixes and no relation row is written.
+   */
+  updateMovie(title: string, year: number, changes: MovieChanges): Promise<Movie>;
+  /** Removes a movie. Always allowed: its filings go with it, the mixes stay. */
+  deleteMovie(title: string, year: number): Promise<Movie>;
 };
 
 /** Re-exported so a caller needs one import to work with what these return. */
-export type { Genre, Mix, Taste };
+export type { Genre, Mix, Movie, MovieHandle, Taste };
 
 /**
  * Opens the store for one authenticated user.
@@ -89,8 +139,8 @@ export type { Genre, Mix, Taste };
  * far side of a verified token or a resolved session.
  *
  * A new user has no taste model and none is created for them: a first read
- * returns two empty lists rather than a dozen genres somebody else chose. What a
- * new user gets instead is the question — "what kind of movies do you like?" —
+ * returns three empty lists rather than a dozen genres somebody else chose. What
+ * a new user gets instead is the question — "what kind of movies do you like?" —
  * and everything that follows is theirs.
  */
 export async function tasteStore(user: AuthenticatedUser): Promise<TasteStore> {

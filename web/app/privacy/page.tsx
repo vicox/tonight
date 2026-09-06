@@ -52,10 +52,14 @@ export default function Privacy() {
           knowledge of films and whatever other tools it has. That assistant is a separate service with
           its own privacy policy, and what you type into it is governed by that policy rather than this
           one. Tonight does not send your taste model anywhere on its own initiative. What it does is
-          answer: an assistant you have authorized may <strong>request</strong> your genres and mixes
-          through the MCP endpoint, and Tonight returns them — the same content you see on this
-          website. What that assistant then does with them happens in that service, not here, and the
-          operator has no control over it.
+          answer: an assistant you have authorized may <strong>request</strong> your taste model
+          through the MCP endpoint, and Tonight returns <strong>all</strong> of it — every genre and
+          mix with its instruction, and every film you have saved with its year, its IMDb id if it
+          has one, and whether you watched and liked it. That is more than this website shows you at
+          a glance. The signed-in page is organised around your mixes: it lists a film under each
+          mix it belongs to, so a film you have saved that is in no mix does not appear there,
+          while the MCP endpoint returns it like any other. What that assistant then does with what
+          it receives happens in that service, not here, and the operator has no control over it.
         </p>
       </section>
 
@@ -127,13 +131,28 @@ export default function Privacy() {
           collapsed to one, so that the name you see is the name a mix refers to.
         </p>
         <p>
+          <strong>Films you tell it about.</strong> A film is in Tonight only because you or an
+          assistant acting for you put it there. For each one: the title and release year you gave,
+          an optional IMDb title id, whether you have watched it, whether you liked it, and which
+          of your mixes it is in. Watched and liked each hold three answers
+          — yes, no, and nothing said — and nothing said is what a film starts as. Neither is
+          guessed from anything: being recommended a film records nothing, and neither does saving
+          one.
+        </p>
+        <p>
           <strong>What is deliberately not stored.</strong> Tonight keeps no record of what was
-          recommended to you, no watch history, no ratings, no list of films you were shown or chose,
-          and no behavioural profile of any kind. It keeps no film catalogue either — no records about
-          films, no posters, nothing looked up from a movie database. There is no table for any of
-          this. What your genres and mixes say is up to you, so an instruction of yours may of course
-          name a film; that text is stored as part of your taste model, not as a record about that
-          film.
+          recommended to you, no list of films you were shown, no scored or star ratings, and no
+          behavioural profile of any kind. Nor does it keep a film catalogue: no film exists here
+          until you name one, and nothing about it — not a poster, not a runtime, not a cast — is
+          ever looked up from a movie database. The IMDb id you may give a film is stored as a
+          pointer and never followed.
+        </p>
+        <p>
+          <strong>A state, never a history.</strong> A film in Tonight says whether you have
+          watched it, not when, how often, or in what order. There are no timestamps on it and no
+          event log behind it, so no viewing timeline exists to be reconstructed. Liked and
+          disliked are the two things you can say about a film, and they are not a rating scale:
+          there is no score, no stars and no average of anything.
         </p>
         <p>
           <strong>Nothing you do changes your taste model except changing it.</strong> Tonight draws no
@@ -210,12 +229,14 @@ export default function Privacy() {
           <li>
             <strong>No AI provider.</strong> Tonight contains no language model and calls no model
             provider&rsquo;s API. Interpreting what you like, naming a mix and choosing films all
-            happen in the assistant you connect, not here — which reaches your genres and mixes by
-            asking for them, as described above.
+            happen in the assistant you connect, not here — which reaches your genres, mixes and
+            films by asking for them, as described above.
           </li>
           <li>
-            <strong>No movie database.</strong> Tonight queries no film catalogue or search service,
-            and stores no film records. It has no integration with one.
+            <strong>No movie database.</strong> Tonight queries no film catalogue or search
+            service and has no integration with one. The films it holds are the ones you told it
+            about, in the words you used; nothing is fetched about any of them, including from
+            IMDb.
           </li>
           <li>
             No third-party scripts. The fonts are served from this domain, so your browser makes no
@@ -386,8 +407,9 @@ export default function Privacy() {
           that has lapsed registers itself again the next time it is used.
         </p>
         <p>
-          <strong>Your taste model</strong> — your genres and mixes — is subject to a policy of the
-          operator rather than a rule in the software: it is{" "}
+          <strong>Your taste model</strong> — your genres, your mixes, and the films you saved
+          along with their watched and liked state — is subject to a policy of the operator rather
+          than a rule in the software: it is{" "}
           <strong>intended to be kept until the closed beta ends</strong>, and the operator will delete
           it then, or earlier on a valid request. The application does not delete it by itself, and
           performs no automatic deletion at the end of the beta.
@@ -405,8 +427,10 @@ export default function Privacy() {
         <p>
           You can delete any mix yourself at any time, on this website or through your assistant, and
           any genre no mix is built from. A genre a mix does refer to stays until that mix does not:
-          take it out of the mix, or delete the mix, and the genre can go. To have your account and
-          everything belonging to it removed, write to{" "}
+          take it out of the mix, or delete the mix, and the genre can go. Films are managed through
+          your assistant rather than on this website — ask it to change or forget one and it does so
+          there and then; the signed-in page shows them but has no controls for them. To have your
+          account and everything belonging to it removed, write to{" "}
           <a href={`mailto:${op.email}`}>{op.email}</a>. During this beta, deleting an account is
           carried out by hand rather than by a button in the product. We act without undue delay and,
           as a rule, within one month.
