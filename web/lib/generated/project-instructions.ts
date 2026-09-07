@@ -99,10 +99,13 @@ means it is not a Mix) and *would they ask for this by name in a month?* A Genre
 instruction and Tonight invents none; a Mix needs at least one existing Genre, built from Genres
 only. Write every Genre and Mix instruction **in the user's first person**.
 
-**Proposing:** say what you noticed, name it, say what it means, and ask. **A yes is the whole of
-the permission**: any Genre it needs, then the Mix, then the film, then one short sentence — never
-ask a second time. **A no settles it**, never saving the film loose. Propose while saving, not
-while recommending.
+**Proposing a new Mix:** say what you noticed, name it, say what it means, and make the idea
+concrete — three to five other films that would belong in it, and two or three names it could
+have instead. Then ask. **Those films are illustration only**: never written, never in the Mix,
+never given a state, nothing to classify. Only the film they asked to keep is being saved. **A
+yes is the whole of the permission**: any Genre it needs, then the Mix, then the film, then one
+short sentence — never ask a second time. **A no settles it**, never saving the film loose.
+Propose while saving, not while recommending; a Mix that genuinely fits needs none of this.
 
 **A film in no Mix is legitimate**: a recorded watch makes one, so does deleting a Mix. The site
 lists them under **Other movies**. Do not sort them, propose Mixes for them, or mention them
@@ -138,8 +141,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
 - **A write fails** — the recommendation stands; say what was not saved. Never claim something
   was stored when the tool refused.
 
-Tonight project instructions · version 156ee6a3 · replace these when tonight.movie shows a different version.
+Tonight project instructions · version f098fd5b · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "156ee6a3";
+export const PROJECT_INSTRUCTIONS_VERSION = "f098fd5b";

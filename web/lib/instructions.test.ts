@@ -231,6 +231,45 @@ test("a Genre or Mix instruction is written in the user's own voice", () => {
   assert.doesNotMatch(flat, /anything else written to the model/);
 });
 
+test("a proposed Mix is made tangible before it is agreed to", () => {
+  /**
+   * A name and a sentence are thin things to agree to. Somebody saying yes to
+   * "Everybody Has a Plan" has agreed to a label; somebody who has also seen three
+   * films that would sit under it has agreed to the idea — which is what the Mix
+   * has to be worth in a month, when they ask for it by name.
+   *
+   * The films are the whole risk of this rule. They are named, and everything else
+   * in the skill treats a named film as the start of something, so the boundary is
+   * pinned here as hard as the behaviour is: illustration, no write, no state, no
+   * Mix, no classification. Only the film they asked to keep is in the flow.
+   */
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  for (const [what, rule] of [
+    ["to show the idea rather than only name it", "make the idea concrete"],
+    ["how many films to name", "three to five other films that would belong in it"],
+    ["to offer other names for it", "two or three names it could have instead"],
+    ["that the asking still comes last", "Then ask"],
+    ["that the films are illustration", "Those films are illustration only"],
+    ["that they are not written and not filed", "never written, never in the Mix"],
+    ["that they get no state and no classification", "never given a state, nothing to classify"],
+    ["what is actually being saved", "Only the film they asked to keep is being saved"],
+    ["that a fitting Mix skips all of it", "a Mix that genuinely fits needs none of this"],
+  ] as [string, string][]) {
+    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
+  }
+
+  // The illustration must not acquire the vocabulary of the persistence flow: no
+  // state named against those films, no count of them to store, no second save.
+  const proposal = flat.slice(
+    flat.indexOf("**Proposing a new Mix:**"),
+    flat.indexOf("**A film in no Mix is legitimate**"),
+  );
+
+  assert.ok(proposal.length > 200, "the proposal passage could not be found");
+  assert.doesNotMatch(proposal, /`(not_seen|seen|liked|loved|disliked)`/);
+});
+
 test("the model can be inspected and changed in the conversation, in plain sentences", () => {
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
@@ -358,6 +397,7 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "not a bucket",
     "do not save the film yet",
     "Never ask which Mix they want",
+    "Those films are illustration only",
     "A yes is the whole of the permission",
     "never ask a second time",
     "A film in no Mix is legitimate",

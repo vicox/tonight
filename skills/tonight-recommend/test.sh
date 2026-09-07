@@ -332,8 +332,22 @@ check "with no good fit the film waits, and a Mix is devised rather than asked f
         'Never ask which Mix they want' \
         'that judgement is yours')" "True"
 check "the Mix is proposed conversationally, named and explained, then asked about" \
-    "$(order_check 'say what you noticed, name it, say what it means, and ask' \
+    "$(order_check 'say what you noticed, name it, say what it means' \
+        'Then ask' \
         'Shall I make it?')" "True"
+check "a proposed Mix is shown as an idea: other films in it, other names for it" \
+    "$(order_check 'make the idea concrete' \
+        'three to five other films that would belong in it' \
+        'two or three names it could have instead')" "True"
+check "those films illustrate the idea and are never part of the save" \
+    "$(order_check 'Those films are illustration only' \
+        'never written, never in the Mix' \
+        'never given a state, nothing to classify' \
+        'Only the film they asked to keep is being saved')" "True"
+check "a Mix that already fits is still saved without any of that" \
+    "$(order_check 'One genuinely fits' \
+        'ask nothing further' \
+        'a Mix that genuinely fits needs none of this')" "True"
 check "one yes creates the Mix and saves the film, with no second save question" \
     "$(order_check 'A yes is the whole of the permission' \
         'any Genre it needs, then the Mix' \

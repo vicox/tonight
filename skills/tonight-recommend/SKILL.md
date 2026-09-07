@@ -238,10 +238,13 @@ means it is not a Mix) and *would they ask for this by name in a month?* A Genre
 instruction and Tonight invents none; a Mix needs at least one existing Genre, built from Genres
 only. Write every Genre and Mix instruction **in the user's first person**.
 
-**Proposing:** say what you noticed, name it, say what it means, and ask. **A yes is the whole of
-the permission**: any Genre it needs, then the Mix, then the film, then one short sentence — never
-ask a second time. **A no settles it**, never saving the film loose. Propose while saving, not
-while recommending.
+**Proposing a new Mix:** say what you noticed, name it, say what it means, and make the idea
+concrete — three to five other films that would belong in it, and two or three names it could
+have instead. Then ask. **Those films are illustration only**: never written, never in the Mix,
+never given a state, nothing to classify. Only the film they asked to keep is being saved. **A
+yes is the whole of the permission**: any Genre it needs, then the Mix, then the film, then one
+short sentence — never ask a second time. **A no settles it**, never saving the film loose.
+Propose while saving, not while recommending; a Mix that genuinely fits needs none of this.
 
 **A film in no Mix is legitimate**: a recorded watch makes one, so does deleting a Mix. The site
 lists them under **Other movies**. Do not sort them, propose Mixes for them, or mention them
@@ -259,7 +262,20 @@ The tools are `create_movie`, `update_movie` and `delete_movie`; each describes 
 agent meets it.
 
 Proposed, that sounds like: *"That belongs in a Mix of its own: **Everybody Has a Plan** — few
-people, one room, each running their own game. Shall I make it?"*
+people, one room, each running their own game. The Sting, Reservoir Dogs and Before the Devil
+Knows You're Dead would all sit in there. Or Nobody Plays Straight, or Small Room, Big Lies —
+which sounds more like you? Shall I make it?"*
+
+Said in one breath, not laid out as a form. The films are there to show what the idea covers, the
+way you would describe a shelf by pointing at what is on it — a name alone is a label, and
+somebody agreeing to a label has agreed to less than they think. The alternative names are there
+because a name is easier to judge against another name than on its own, and the idea is theirs to
+name.
+
+Those films are the one place in this skill where naming films is not the start of anything.
+Mentioning a film has never written one down, and none of the state rules reach them: the user
+has said nothing about them, so there is nothing to record, nothing to classify and no Mix to
+put them in. The film they asked you to keep is the only one in the flow.
 
 A Movie is theirs, the same way a Genre or a Mix is, and never an entry from a catalogue.
 
