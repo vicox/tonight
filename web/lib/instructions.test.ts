@@ -63,11 +63,11 @@ test("surfacing a pattern stays optional, and gated on the taste looking durable
   // one thing this product is trying not to be.
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
-  assert.match(flat, /looks lasting and worth keeping/, "the durability gate is gone");
+  assert.match(flat, /looks lasting\? You \*\*may\*\*/, "the durability gate is gone");
   assert.match(flat, /You \*\*may\*\* put it to them/, "asking has become obligatory");
   assert.match(
     flat,
-    /an ordinary recommendation, or a mood that belongs to tonight, is no reason to ask/,
+    /an ordinary recommendation, or a mood for tonight, is no reason to ask/,
     "nothing stops a taste-confirmation prompt after every answer",
   );
 });
@@ -79,19 +79,20 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   // Movies from them or implies Tonight does the choosing.
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
-  assert.match(flat, /`get_taste` returns the Movies they saved/);
+  assert.match(flat, /`get_taste` returns their saved Movies/);
   assert.match(flat, /no Tonight tool turns a taste into film recommendations/);
   assert.equal(flat.includes("No tool here returns films"), false);
 
   // Instructions belong to Genres and Mixes; a Movie carries state.
-  assert.match(flat, /Genres and Mixes with the instructions that say what they mean/);
-  assert.match(flat, /the Movies they told it about with what they said/);
+  assert.match(flat, /holds the taste model and nothing else\*\* — Genres, Mixes, Movies/);
+  assert.match(flat, /A Genre always needs an instruction/);
+  assert.match(flat, /Read a Mix as \*\*its own instruction/);
+  assert.match(flat, /Take the state from what they said/);
 
   // And the ratings wording was too broad twice over: liked and disliked are
   // real Movie state the user gave, and only a score is out of scope. Both of the
   // earlier phrasings would have told the agent not to record them.
-  assert.match(flat, /no scored or star ratings/);
-  assert.match(flat, /Never record a score or star rating/);
+  assert.match(flat, /or record a score or star rating/);
   assert.doesNotMatch(flat, /no ratings\b/);
   assert.doesNotMatch(flat, /rating of any kind/);
 });
@@ -138,11 +139,96 @@ test("reading a sentence into a Movie state is a rule the agent is given, not le
   assert.ok(to - from < 500, "the mapping has been spread out and is no longer readable as one");
 });
 
-test("a persisted instruction is written in the user's own voice", () => {
-  assert.match(
-    PROJECT_INSTRUCTIONS.replace(/\s+/g, " "),
-    /Write every instruction \*\*in the first person\*\*, as the user's own preference/,
-  );
+test("an ordinary request is Discovery, and the model does not bound it", () => {
+  /**
+   * The distinction this document exists to teach twice over: what to recommend,
+   * and what the saved model has to do with it. Before it, every request read as
+   * "find the matching Mix" — a new user with two Genres got recommendations
+   * filtered through two Genres. Nothing failed; the answers were just narrow.
+   */
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  for (const [what, rule] of [
+    ["that there are two kinds of request", "Two kinds of request, told apart from what they said"],
+    ["that it is never asked about", "never by asking"],
+    ["which one is the default", "**Discovery is the default**"],
+    ["what an ordinary request asks for", "a good film, not their model"],
+    ["what does bind in Discovery", "What **they** asked for binds"],
+    ["that this includes tonight's exclusions", "including what they ruled out just now"],
+    ["that availability binds too", "what they can watch"],
+    ["that nothing persisted binds", "**Nothing persisted binds**"],
+    ["that this covers every kind of persisted thing",
+     "not a Genre, not a Mix, not a saved film or its state"],
+    ["that a persisted exclusion is not a rule over every evening",
+     "not what a Genre's or Mix's instruction rules out"],
+    ["that an exclusion was written for one idea",
+     "an exclusion they wrote for one idea is not a rule over every evening"],
+    ["that nothing in it is a criterion unasked", "nothing in it is a criterion unless they asked"],
+    ["that a small model is not a filter", "a small or new one must never become a filter"],
+    ["when taste leads instead", "**Taste-aware is what they ask for**"],
+    ["reading the model for it", "Read it with `get_taste` and weigh it"],
+    ["that exclusions are evidence once they ask",
+     "Now the model is evidence, including what its instructions rule out"],
+  ] as [string, string][]) {
+    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
+  }
+});
+
+test("what counts as taste evidence, and what does not", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  for (const [what, rule] of [
+    ["that liked is positive", "`liked` is a positive sign"],
+    ["that loved is stronger", "`loved` a stronger one"],
+    ["that disliked is negative but not a ban", "`disliked` is a negative sign, not a ban"],
+    ["that the other three carry no preference",
+     "`seen`, `not_seen` and `null` are no preference evidence at all"],
+    ["that existing is not liking", "A Genre or Mix existing is not evidence they like it"],
+    ["what does make one trustworthy", "What makes one trustworthy is the film states under it"],
+    ["that evidence accumulates", "and they accumulate"],
+    ["that one film settles nothing", "one `loved` film is a hint"],
+    ["that consistency is what earns confidence", "several consistent ones something to lean on"],
+    ["that conflicting evidence weakens it", "conflicting ones weaken it again"],
+    ["to say how sure it is", "Say how sure you are"],
+  ] as [string, string][]) {
+    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
+  }
+});
+
+test("taste is read qualitatively — no score, no threshold, no count", () => {
+  // The rules above describe evidence getting stronger or weaker. They must not
+  // turn into arithmetic: a weight or a minimum number of films would be a second
+  // taste model, kept in the agent's head, that nobody can read or correct.
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const taste = flat.slice(flat.indexOf("**Taste-aware is what they ask for**"), flat.indexOf("Either way:"));
+
+  assert.ok(taste.length > 200, "the taste-aware passage could not be found");
+  assert.doesNotMatch(taste, /\b(score|weight|threshold|points?|at least \d+|\d+ or more)\b/i);
+});
+
+test("saving a film classifies it, and may grow the model rather than bend it", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  for (const [what, rule] of [
+    ["to classify rather than fit", "Classify the film; do not fit it to what is there"],
+    ["to look before deciding", "Read the Genres and Mixes first"],
+    ["to reuse a Genre that fits", "Reuse the Genres that genuinely fit"],
+    ["to create one when none covers it", "create one for anything no Genre covers"],
+    ["how many, and not to pad", "never filler to hit a number"],
+    ["not to stretch a Mix", "Never stretch a Mix to avoid making one"],
+  ] as [string, string][]) {
+    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
+  }
+});
+
+test("a Genre or Mix instruction is written in the user's own voice", () => {
+  // Only those two. A name, a film title, a state, an IMDb id and a year are not
+  // sentences the user said, and a rule reaching that far would have the agent
+  // rewriting handles it is supposed to leave alone.
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  assert.match(flat, /Write every Genre and Mix instruction \*\*in the user's first person\*\*/);
+  assert.doesNotMatch(flat, /anything else written to the model/);
 });
 
 test("the model can be inspected and changed in the conversation, in plain sentences", () => {
@@ -150,7 +236,7 @@ test("the model can be inspected and changed in the conversation, in plain sente
 
   assert.match(flat, /## Asked about the model directly/);
   assert.match(flat, /\*\*do those\*\*, in the conversation/);
-  assert.match(flat, /call `get_taste` and say what is there in ordinary sentences/);
+  assert.match(flat, /call `get_taste` and answer in ordinary sentences/);
   assert.match(flat, /is \*a\* management surface, not \*the\* one/);
 });
 
@@ -250,31 +336,30 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Never write a Genre, a Mix or a Movie anywhere but Tonight",
     "Never ask for or pass an account id",
     // reading and recommending
-    "Read the model first with `get_taste`",
+    "Read it with `get_taste` and weigh it",
     "rules out",
     "Never print the taste model while",
-    "Recommend three to six films, for range as well as fit",
+    "three to six films, for range as well as fit",
     // ownership and semantic confirmation
     "Persist durable taste they express or confirm. Never persist what you conclude alone.",
-    "only the meaning they could see themselves agreeing to",
-    "it is not asking permission",
+    "only the meaning they could agree to",
+    "is not asking permission",
     "writes **nothing** — what they want now, not what they are like",
     "watched and said nothing about writes **nothing**",
     "Never infer a preference from silence",
-    "Never record a score or star rating",
+    "or record a score or star rating",
     "Say so and let them decide",
     // genre against mix
     "A Genre is named for what it is; a Mix for what it feels like",
-    "the name is doing no work",
-    "Never stretch a Mix's instruction to avoid a second Mix",
+    "Never stretch a Mix to avoid making one",
     // movies
     "Never write a Movie this way without at least one Mix",
     "Never invent a Mix, or ask for one, to record",
-    "an existing Mix is not a bucket",
+    "not a bucket",
     "do not save the film yet",
-    "Never ask them which Mix they want",
+    "Never ask which Mix they want",
     "A yes is the whole of the permission",
-    "Never ask a second time",
+    "never ask a second time",
     "A film in no Mix is legitimate",
     "Do not sort them, propose Mixes for them, or mention them unasked",
     "A recommendation is not a saved Movie",
@@ -284,13 +369,13 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Nothing said is `null`, never `not_seen`",
     "Settle title and year first",
     // what Tonight is and is not — the boundary, stated so neither half is lost
-    "get_taste` returns the Movies they saved",
+    "get_taste` returns their saved Movies",
     "no Tonight tool turns a taste into film recommendations",
-    "no scored or star ratings",
+    "record a score or star rating",
     // the model is inspected and managed in conversation, in plain sentences
     "## Asked about the model directly",
     "**do those**",
-    "call `get_taste` and say what is there in ordinary sentences",
+    "call `get_taste` and answer in ordinary sentences",
     // failures
     "report the error verbatim and stop",
     "Never claim something was stored when the tool refused",

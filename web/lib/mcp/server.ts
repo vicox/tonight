@@ -203,8 +203,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "listed by title and year. Each film also appears once in movies, which is where the " +
         "rest of what the user said about it lives — one state out of not_seen, seen, liked, " +
         "loved and disliked, or null for never told. A new user has none of it, which is the normal state " +
-        "rather than an error. Read this before proposing anything: it is the vocabulary to " +
-        "reuse, and the only record of what they have said they watched.",
+        "rather than an error. It is context and the vocabulary to reuse when writing — not a " +
+        "list of what may be recommended, and a genre or mix existing does not by itself say " +
+        "they like it. It is the only record of what they have said they watched.",
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () => attempt(() => store.taste()),

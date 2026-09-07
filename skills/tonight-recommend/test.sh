@@ -94,33 +94,33 @@ check "the loop is stated: want to watch, recommend, the model grows" \
         'better context next time')" "True"
 check "an empty model is context missing, not a reason to stop" \
     "$(order_check 'never a reason to stop' \
-        'Read the model first with `get_taste`' \
-        'context, not a prerequisite')" "True"
+        'Discovery is the default' \
+        'Read it for context if you like')" "True"
 
 echo
 echo "--- ask a film question, or none at all ---"
 
 check "a sufficient request is answered rather than interrogated" \
-    "$(order_check 'Enough said already? Recommend' \
-        'One question about films')" "True"
+    "$(order_check 'ask **one' \
+        'question about films')" "True"
 check "the good and bad questions are shown side by side" \
-    "$(order_check 'One question about films' \
+    "$(order_check 'question about films' \
         'More clever mystery, or more action?' \
         'What genres do you like?')" "True"
 check "the database question is named as the wrong one" \
     "$(grep -c 'What Genres should I save?' "$SKILL")" "1"
 check "nobody has to understand the data model to get a film" \
-    "$(order_check 'Never make somebody understand Genres and Mixes to get a film')" "True"
+    "$(order_check 'never make somebody learn Genres and Mixes to get a film')" "True"
 
 echo
 echo "--- the tool-orchestration boundary ---"
 
 check "Tonight holds the taste model and nothing else" \
     "$(order_check 'Tonight holds the taste model and nothing else' \
-        'No catalogue and no lookup' \
+        'No catalogue, no lookup' \
         'nothing about it was ever fetched')" "True"
 check "film knowledge and film tools sit beside Tonight, not inside it" \
-    "$(order_check 'your film knowledge and film tools sit beside it' \
+    "$(order_check 'your own film knowledge and tools sit beside it' \
         'sit beside it')" "True"
 check "never look in Tonight for films to recommend, and never write the model elsewhere" \
     "$(order_check 'Never look in Tonight for films to recommend' \
@@ -135,18 +135,18 @@ echo
 echo "--- a Mix is the recommendation idea ---"
 
 check "genre and mix are defined as component and combination" \
-    "$(order_check '**Genre** — one reusable component of what they like' \
-        '**Mix** — their Genres plus what the')" "True"
+    "$(order_check 'A **Genre** is a reusable component of what they like' \
+        'a **Mix** is Genres plus what the')" "True"
 check "a mix is read as its own instruction plus its genres" \
-    "$(order_check 'Read a Mix as' \
-        'own instruction plus the instructions of its Genres' \
+    "$(order_check '**its own instruction plus the instructions of its Genres**' \
+        'plus the instructions of its Genres' \
         'in that order')" "True"
 check "an exclusion outranks a preference" \
-    "$(order_check 'rules out' 'counts as much as what it asks for' \
+    "$(order_check 'rules out' 'an exclusion they wrote for one idea is not a rule over every evening' \
         'worse than none')" "True"
 check "the idea leads the answer, and the model is not printed at the user" \
-    "$(order_check 'the idea first, named the way a Mix is named' \
-        'Never print the taste model while' \
+    "$(order_check 'Never print the taste model while' \
+        'Presenting: the idea first' \
         'No field names')" "True"
 
 echo
@@ -166,10 +166,10 @@ check "evocative names are shown, not just asked for" \
 check "descriptive names are shown as the failure they are" \
     "$(order_check '`Funny action`' '**not Mix names**' 'it has been' 'labelled')" "True"
 check "the test for a name is stated as a test" \
-    "$(order_check 'if knowing only the Genres already tells you' \
+    "$(order_check 'If knowing only the Genres already tells you' \
         'the name is doing no work')" "True"
 check "naming is the assistant's to do, and may not widen the idea" \
-    "$(order_check 'Proposing a name is yours' \
+    "$(order_check 'Proposing the name is yours' \
         'Name the thing they said' 'Never name a bigger thing')" "True"
 
 echo
@@ -179,13 +179,13 @@ check "the idea just used is the Mix, and its parts are the Genres" \
     "$(order_check 'The idea you just used' '**is** a Mix' \
         'Writing them down is how Tonight gets better at this')" "True"
 check "a Genre is reused before it is created, and near-duplicates are called out" \
-    "$(order_check 'Reuse a Genre before you create one' \
-        'A near-duplicate splits one taste in two' \
+    "$(order_check 'Reuse the Genres that genuinely fit' \
+        'create one for anything no Genre covers' \
         'do not add `Slow-paced`')" "True"
-check "a Mix is the opposite case: reused when it fits, proposed when it does not" \
-    "$(order_check 'A Mix is the opposite case' \
-        'Reuse one when it genuinely covers the evening' \
-        'Never stretch a Mix' 'instruction to avoid a second Mix')" "True"
+check "a Mix is reused when it fits and made new when it does not" \
+    "$(order_check 'One genuinely fits' \
+        'Never stretch a Mix to avoid making one' \
+        'a different evening is a different Mix')" "True"
 check "a Mix has to say something its Genres do not" \
     "$(order_check 'if I knew only its Genres, what would I get wrong' \
         'it is not a Mix')" "True"
@@ -208,13 +208,13 @@ check "a noticed pattern may be asked about, and never assumed" \
         'A conclusion they have confirmed' \
         'a pattern to ask about, not a preference')" "True"
 check "a confirmation grounds only the meaning that was made plain" \
-    "$(order_check 'only the meaning they could see themselves agreeing to' \
+    "$(order_check 'only the meaning they could agree to' \
         'reaches further than the last thing said')" "True"
 check "the asking is about taste, not about permission to write" \
-    "$(order_check 'asks about their taste' \
+    "$(order_check 'Asking that is not asking permission' \
         'somebody who has just said plainly what they like has already answered it')" "True"
 check "it is explicitly not a save-confirmation dialog" \
-    "$(order_check 'it is not asking permission' \
+    "$(order_check 'is not asking permission' \
         'would you like me to save this' \
         'The question is not whether they clicked save')" "True"
 check "a standing preference and a one-night mood are told apart" \
@@ -225,7 +225,7 @@ check "a standing preference and a one-night mood are told apart" \
 # The write-authorising section has to agree with the table: a request for
 # tonight is usable immediately and persists nothing by itself.
 check "both routes may create, and a bare request for tonight may not" \
-    "$(order_check 'component they expressed or confirmed' \
+    "$(order_check 'create one for anything no Genre covers' \
         'Wanting something tonight is not saying it' \
         'leaves nothing behind')" "True"
 check "a recommendation with no feedback persists nothing" \
@@ -251,7 +251,7 @@ check "and the reverse is what must not happen" \
 check "the CRUD tools are named as the way to do it" \
     "$(order_check '## Asked about the model directly' \
         '**do those**' \
-        'call `get_taste` and say what is there in ordinary sentences')" "True"
+        'call `get_taste` and answer in ordinary sentences')" "True"
 check "nobody is sent to the website for something the conversation can do" \
     "$(order_check 'is *a* management surface, not *the* one' \
         'Do not send somebody to the website for something you can do in the')" "True"
@@ -260,22 +260,23 @@ check "a read-back is answered by describing the model, which is otherwise disco
         'A read-back is the easy case' \
         'describing it is what was asked for')" "True"
 check "an asked-for rename needs no ceremony, but a meaning change is still not silent" \
-    "$(order_check 'A rename they asked for needs no ceremony' \
-        'Changing what something *means* unasked')" "True"
+    "$(order_check 'A rename needs no ceremony' \
+        'changing what something *means* unasked')" "True"
 
 echo
 echo "--- nothing is remembered but the model ---"
 
 check "no history of any kind is kept" \
     "$(order_check 'The taste model and nothing else' \
-        'no scored or star ratings' \
         'no watch history' \
         'never when')" "True"
+check "a rating is never invented, scored or starred" \
+    "$(order_check 'record a score or star rating')" "True"
 check "a recommended film may return; a saved one is read rather than offered again" \
     "$(order_check 'a film you recommended can come back' \
         'nothing is learned automatically' \
         'A film they saved is different' \
-        'Read its state')" "True"
+        'read its state')" "True"
 check "a failed write is reported rather than claimed as a save" \
     "$(order_check 'Never claim something was stored when the tool refused')" "True"
 
@@ -289,8 +290,8 @@ check "a Movie is theirs, by either of the two ways one comes to exist" \
 check "a Movie is named by its title and its year" \
     "$(order_check 'Title and year name it')" "True"
 check "the three Movie tools are the way a direct request is done" \
-    "$(order_check '`create_movie`, `update_movie`, `delete_movie`' \
-        'Two requests write a Movie, and they differ')" "True"
+    "$(order_check 'Two requests write a Movie, and they differ' \
+        'The tools are `create_movie`, `update_movie` and `delete_movie`')" "True"
 check "a recommendation is not persistence, for a film as for a Genre" \
     "$(order_check 'A recommendation is not a saved Movie' \
         'Naming three films writes nothing down')" "True"
@@ -312,32 +313,31 @@ check "keeping a film and recording a remark about one are different requests" \
     "$(order_check 'Two requests write a Movie, and they differ')" "True"
 check "a film the user asks to keep goes into a Mix, and they need not know that" \
     "$(order_check 'Keeping a film goes into a Mix' \
-        'Never write a Movie this way without at least one Mix' \
-        'Nobody has to know that rule exists')" "True"
+        'Never write a Movie this way without at least one Mix')" "True"
 check "watched and liked are recorded without inventing a Mix for them" \
     "$(order_check 'Recording what they said does not' \
-        'leave the Mixes alone' \
+        'leave Mixes alone' \
         'Never invent a Mix, or ask for one, to record' \
         'A later request to keep it takes a Mix')" "True"
 check "a Mix that genuinely fits is used, and nothing further is asked" \
-    "$(order_check 'Genuinely fits one they have' \
+    "$(order_check 'One genuinely fits' \
         'ask nothing further')" "True"
 check "an existing Mix is not a bucket, and its meaning is never widened to fit" \
-    "$(order_check 'Nearly fits' \
-        'an existing Mix is not a bucket' \
+    "$(order_check 'One nearly fits' \
+        'not a bucket' \
         'a different evening is a different Mix')" "True"
 check "with no good fit the film waits, and a Mix is devised rather than asked for" \
     "$(order_check 'None fits' \
         'do not save the film yet' \
-        'Never ask them which Mix they want' \
+        'Never ask which Mix they want' \
         'that judgement is yours')" "True"
 check "the Mix is proposed conversationally, named and explained, then asked about" \
-    "$(order_check 'what you noticed, the name, what it means, then ask' \
+    "$(order_check 'say what you noticed, name it, say what it means, and ask' \
         'Shall I make it?')" "True"
 check "one yes creates the Mix and saves the film, with no second save question" \
     "$(order_check 'A yes is the whole of the permission' \
-        'create any Genre it needs, then the Mix' \
-        'Never ask a second time')" "True"
+        'any Genre it needs, then the Mix' \
+        'never ask a second time')" "True"
 check "a no settles it, and never becomes a film saved loose" \
     "$(order_check 'A no settles it' \
         'never saving the film loose')" "True"
@@ -345,7 +345,7 @@ check "proposing a Mix belongs to saving, not to recommending" \
     "$(order_check 'Propose while saving, not while recommending')" "True"
 check "a film in no Mix is a legitimate state, listed and left alone" \
     "$(order_check 'A film in no Mix is legitimate' \
-        'website lists them under **Other movies**' \
+        'lists them under **Other movies**' \
         'Do not sort them' \
         'when they ask you to **keep** a film')" "True"
 
