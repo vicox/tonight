@@ -31,12 +31,22 @@ import type { Movie } from "../taste/model.ts";
  * the other is that they have not.
  */
 
-/** The four tiles, in the order they are read. `all` first: it is the whole. */
+/**
+ * The four tiles, in the order they are read.
+ *
+ * `all` first, because it is the whole and the other three are part of it. Then
+ * the states in the direction somebody moves through them — not watched yet,
+ * liked, loved — so the row reads left to right as a film's way through the
+ * collection rather than as three unrelated piles.
+ *
+ * Order only. Which films each one holds is `selected` below, and nothing there
+ * reads this sequence.
+ */
 export const SELECTIONS = [
   { name: "all", label: "Total" },
-  { name: "loved", label: "Loved" },
-  { name: "liked", label: "Liked" },
   { name: "not_seen", label: "Not seen" },
+  { name: "liked", label: "Liked" },
+  { name: "loved", label: "Loved" },
 ] as const;
 
 export type Selection = (typeof SELECTIONS)[number];

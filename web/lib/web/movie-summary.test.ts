@@ -48,10 +48,16 @@ test("the four tiles count the collection and three of its states", () => {
   assert.deepEqual(counts(COLLECTION), { all: 8, loved: 2, liked: 1, not_seen: 1 });
 });
 
-test("the four tiles are Total, Loved, Liked and Not seen", () => {
+test("the four tiles are Total, Not seen, Liked and Loved, in that order", () => {
+  // The names are what a tile promises and the order is how the row is read, so
+  // both are pinned. Nothing about which films a tile holds depends on either.
   assert.deepEqual(
     SELECTIONS.map(({ label }) => label),
-    ["Total", "Loved", "Liked", "Not seen"],
+    ["Total", "Not seen", "Liked", "Loved"],
+  );
+  assert.deepEqual(
+    SELECTIONS.map(({ name }) => name),
+    ["all", "not_seen", "liked", "loved"],
   );
 });
 
