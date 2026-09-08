@@ -1,66 +1,89 @@
-import type { Movie } from "../taste/model.ts";
+import type { Movie, MovieState } from "../taste/model.ts";
 
 /**
- * The film collection at a glance: four counts, and the films behind each one.
+ * The film collection at a glance: how many there are, what was said about
+ * them, and the films behind each answer.
  *
  * The overview page shows films where they are filed — inside the mix they
  * belong to, or under "Other movies" when they are in none. That answers "what
- * is in this mix" and cannot answer "how many films have I loved", because the
- * loved ones are spread across every mix on the page. These four selections are
- * that second question, and they are the only reason this module exists.
+ * is in this mix" and cannot answer "how many have I loved", because the loved
+ * ones are spread across every mix on the page. These selections are that second
+ * question, and they are the only reason this module exists.
  *
- * ## One function behind the number and the list
+ * ## One function behind every number and every list
  *
  * A tile shows `selected(…).length` and opens `selected(…)`. Counting and
  * listing are therefore the same statement evaluated twice rather than two
  * pieces of arithmetic that could drift — there is no expression anywhere in
  * which a tile could say four and open three films.
  *
- * ## Three states and a whole
+ * ## Five states, and the absence of one
  *
- * `loved`, `liked` and `not_seen` are three of the five `MovieState` values,
- * matched by equality with `Movie.state`; `all` is the collection. Nothing here
- * adds to the domain: there is no fourth state, no bucket a film is put into and
- * no order of its own — the store's order is the order every list on the page
- * uses.
+ * The five tiles are the five `MovieState` values, matched by equality with
+ * `Movie.state`. `null` — Tonight was never told — is what the sixth selection
+ * matches, and it is deliberately *not* a sixth state: nothing here adds to the
+ * domain, `selected` takes the type `Movie.state` already has, and asking for
+ * `null` asks for the films that have not been spoken about rather than for the
+ * films in some state called "without status". Silence is not `not_seen` and
+ * nothing here infers one from the other.
  *
- * Which is also why `null` — Tonight was never told — is in `all` and in none of
- * the other three. `null === "not_seen"` is false, so silence being excluded from
- * "Not seen" is the shape of the comparison rather than a rule somebody has to
- * remember to keep. The two are different things: one is something the user said,
- * the other is that they have not.
+ * The total is not a selection at all. It is `movies.length`, it belongs beside
+ * the section's heading the way a genre count does, and it includes the films
+ * nobody has said anything about — they are films the user saved.
  */
 
+/** A named part of the collection: what to match, and what to call it. */
+export type Selection = {
+  /** The state to match, or `null` for the films with none. */
+  readonly name: MovieState | null;
+  readonly label: string;
+};
+
 /**
- * The four tiles, in the order they are read.
- *
- * `all` first, because it is the whole and the other three are part of it. Then
- * the states in the direction somebody moves through them — not watched yet,
- * liked, loved — so the row reads left to right as a film's way through the
- * collection rather than as three unrelated piles.
- *
- * Order only. Which films each one holds is `selected` below, and nothing there
- * reads this sequence.
+ * The five tiles, in the order they are read: the two facts, then the three
+ * ways of having an opinion. The same order the mark's own menu offers, because
+ * a reader meeting both should not have to learn two.
  */
-export const SELECTIONS = [
-  { name: "all", label: "Total" },
+export const STATE_TILES: readonly Selection[] = [
+  { name: "seen", label: "Seen" },
   { name: "not_seen", label: "Not seen" },
   { name: "liked", label: "Liked" },
   { name: "loved", label: "Loved" },
-] as const;
-
-export type Selection = (typeof SELECTIONS)[number];
+  { name: "disliked", label: "Disliked" },
+];
 
 /**
- * The films one tile stands for.
+ * The films Tonight was never told about.
  *
- * Called for the count and again for the list a tile opens, and called on the
+ * Not a tile. It is one quiet line under the five, because it is not a sixth
+ * thing the user said — it is the films they have not said anything about yet,
+ * and giving it the same weight as `Loved` would make silence look like a
+ * verdict.
+ */
+export const WITHOUT_STATUS: Selection = { name: null, label: "Without status" };
+
+/**
+ * The films one selection stands for.
+ *
+ * Called for a count and again for the list a press opens, and called on the
  * films the page was rendered with — so a state written from either place is
  * reflected by the next render rather than by an adjustment made here.
  */
-export function selected(selection: Selection["name"], movies: readonly Movie[]): Movie[] {
-  if (selection === "all") return [...movies];
-  return movies.filter((movie) => movie.state === selection);
+export function selected(state: MovieState | null, movies: readonly Movie[]): Movie[] {
+  return movies.filter((movie) => movie.state === state);
+}
+
+/**
+ * How the quiet line reads: `2 without status`.
+ *
+ * One template for one and for many, because the phrase does not inflect — it
+ * is the number of films and then the thing they are without, and "1 without
+ * status" is as English as "2 without status". Written here so that the wording
+ * is one decision rather than a string in a component, and so that a test can
+ * hold it.
+ */
+export function withoutStatus(count: number): string {
+  return `${count} without status`;
 }
 
 /**

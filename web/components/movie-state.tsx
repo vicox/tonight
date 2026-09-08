@@ -169,8 +169,22 @@ export function MovieState({
 
   /** Arrow, Home and End move focus. Choosing is Enter, Space or a click. */
   function steer(event: React.KeyboardEvent) {
-    if (event.key === "Escape" || event.key === "Tab") {
-      close(event.key === "Escape");
+    if (event.key === "Escape") {
+      // The default action of this key is the browser's close request, and a row
+      // can be inside a dialog — the summary opens one full of them. Without
+      // taking the default, one press would dismiss this menu *and* the dialog
+      // around it, which is two things for one keystroke and the wrong one
+      // first. So Escape closes the menu and stops there; a second press, with
+      // no menu open to take it, reaches the dialog.
+      event.preventDefault();
+      close(true);
+      return;
+    }
+
+    if (event.key === "Tab") {
+      // Not prevented: moving on is what Tab is for, and the menu closing is
+      // this control tidying up after itself on the way out.
+      close(false);
       return;
     }
 

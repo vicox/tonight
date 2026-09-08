@@ -46,3 +46,27 @@ export function refocus<T>(remaining: readonly T[], at: number, fallback: T | nu
 export function returnTo<T>(invoker: T | null, present: boolean, fallback: T | null): T | null {
   return invoker !== null && present ? invoker : fallback;
 }
+
+/**
+ * Where focus goes when the control it was handed back to then disappears.
+ *
+ * The other order of the same race. A write from inside the dialog and the
+ * closing of it are two things the user does, and a re-render arriving from the
+ * server is a third; if the dialog closes first, focus is handed back to a
+ * control that is still there, and the render that removes it lands afterwards.
+ * A browser drops focus to the document when the focused element is removed, so
+ * this is the second chance: the thing we focused has gone, nothing else has
+ * taken focus, and the fallback is where it belongs.
+ *
+ * `null` when there is nothing to do — which is almost always, because almost
+ * every render leaves the focused control exactly where it was.
+ */
+export function rescueTo<T>(
+  handedTo: T | null,
+  present: boolean,
+  stranded: boolean,
+  fallback: T | null,
+): T | null {
+  if (handedTo === null || present) return null;
+  return stranded ? fallback : null;
+}

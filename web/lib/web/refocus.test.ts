@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { refocus, returnTo } from "./refocus.ts";
+import { refocus, rescueTo, returnTo } from "./refocus.ts";
 
 /**
  * Where focus lands when a row leaves the list it was being read in.
@@ -60,9 +60,9 @@ test("an unchanged list focuses where focus already was", () => {
  * Where focus goes when a dialog closes, and where it goes if that place then
  * disappears.
  *
- * With strings standing in for controls: what a component does is turn a DOM
- * fact — is this element still in the document — into the argument, and the
- * decision is here.
+ * Two moments of one race, with strings standing in for controls. What the
+ * components do is turn DOM facts — is this element still in the document, has
+ * anything else taken focus — into these arguments; the decisions are here.
  */
 
 test("focus goes back to the control that opened the dialog", () => {
@@ -79,4 +79,21 @@ test("a refresh that removes the invoker before the dialog closes", () => {
 
   // And nothing at all is an answer, not a throw: a caller has `?.focus()`.
   assert.equal(returnTo(null, false, null), null);
+});
+
+test("a refresh that removes the invoker after the dialog closes", () => {
+  // Order B: the dialog closed first, so focus went back to the quiet line —
+  // and the render that takes the line off the page arrives next, leaving focus
+  // on the document. That is the one case worth moving focus for.
+  assert.equal(rescueTo("2 without status", false, true, "a tile"), "a tile");
+
+  // Still there: nothing to rescue, and nothing to disturb.
+  assert.equal(rescueTo("2 without status", true, true, "a tile"), null);
+
+  // Gone, but somebody else has focus — they tabbed away, or pressed something.
+  // Taking it off them would be worse than the problem.
+  assert.equal(rescueTo("2 without status", false, false, "a tile"), null);
+
+  // No dialog has been closed yet, so nothing is owed.
+  assert.equal(rescueTo(null, false, true, "a tile"), null);
 });

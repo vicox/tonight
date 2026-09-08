@@ -50,6 +50,7 @@ const MARKS = new URL("../../components/movie-state.tsx", import.meta.url);
 const source = readFileSync(VIEW, "utf8");
 const section = readFileSync(SECTION, "utf8");
 const chip = readFileSync(CHIP, "utf8");
+const model = readFileSync(new URL("./movie-summary.ts", import.meta.url), "utf8");
 const labels = readFileSync(LABELS, "utf8");
 const row = readFileSync(ROW, "utf8");
 const summary = readFileSync(SUMMARY, "utf8");
@@ -224,8 +225,21 @@ test("the menu's keyboard is a menu's: arrows move, Enter chooses, Escape return
   // must not fire four of them to reach the fifth.
   assert.equal(steer.includes("set("), false, "arrowing writes to the server");
 
-  // Escape hands focus back to the trigger; Tab just closes.
-  assert.match(steer, /close\(event\.key === "Escape"\)/);
+  // Escape closes the menu and stops there. The default action of the key is the
+  // browser's close request, and a row can be inside a dialog — so one press
+  // that dismissed the menu *and* the dialog around it would be two things for
+  // one keystroke. Pinned as the pair it has to be: the key, then its default
+  // taken, before anything closes. An `preventDefault()` somewhere else in the
+  // handler — the arrows have one — is not this.
+  const escape = steer.slice(steer.indexOf('=== "Escape"'), steer.indexOf('=== "Tab"'));
+  assert.match(escape, /event\.preventDefault\(\)/, "Escape reaches the dialog around the menu");
+  assert.match(escape, /close\(true\)/, "Escape does not hand focus back to the trigger");
+
+  // Tab closes the menu and is deliberately not prevented: moving on is what it
+  // is for, and focus stays where the browser is taking it.
+  const tab = steer.slice(steer.indexOf('=== "Tab"'), steer.indexOf("const keys"));
+  assert.match(tab, /close\(false\)/, "Tab pulls focus back instead of moving on");
+  assert.doesNotMatch(tab, /preventDefault/, "Tab no longer moves focus on");
   assert.match(marks, /function close\(toTrigger: boolean\) \{/);
   assert.match(marks, /if \(toTrigger\) trigger\.current\?\.focus\(\);/);
 
@@ -288,8 +302,8 @@ test("the counts sit above every film they count", () => {
   assert.ok(at < view.indexOf("<Loose movies="), "the counts are below the films in no mix");
 });
 
-test("four tiles, each a control, with the count as the thing you read first", () => {
-  assert.match(summary, /SELECTIONS\.map\(\(selection\)/, "the tiles are not the four selections");
+test("five tiles, each a control, with the count as the thing you read first", () => {
+  assert.match(summary, /STATE_TILES\.map/, "the tiles are not the five states");
 
   const tile = bodyOf("Tile", summary);
   assert.match(tile, /<button/, "a tile is not something you can press");
@@ -314,6 +328,69 @@ test("four tiles, each a control, with the count as the thing you read first", (
   assert.match(tile, /aria-label=\{`\$\{selection\.label\}: \$\{count\}`\}/);
 });
 
+test("the total is beside the heading, and is not a tile", () => {
+  const films = bodyOf("MovieSummary", summary);
+
+  // The same heading treatment the genres and the mixes get, with every film
+  // counted — the ones nobody has said anything about included.
+  assert.match(
+    films,
+    /<Section title="Your movies" count=\{movies\.length\}>/,
+    "the films section does not carry the total beside its heading",
+  );
+
+  // And not a second time as a tile. A number for "all of them" in the row
+  // invited reading the row as a breakdown of its first entry.
+  assert.equal(/"Total"/.test(summary + model), false, "Total is still a tile");
+});
+
+test("the films with no state are a quiet line, not a sixth tile", () => {
+  const films = bodyOf("MovieSummary", summary);
+
+  // Absent when there are none: nothing to say, and a zero here would read as a
+  // state that happens to be empty.
+  assert.match(films, /\{quiet\.length > 0 && \(/, "the line is rendered even when there are none");
+  assert.match(films, /withoutStatus\(quiet\.length\)/, "the line does not say how many there are");
+  // The arrow is punctuation standing in for "opens these", and the words
+  // already say it, so a listener is not read a direction.
+  assert.match(films, /<span aria-hidden="true">→<\/span>/);
+  assert.match(films, /setOpen\(WITHOUT_STATUS\)/, "the line opens something else");
+  assert.match(films, /aria-haspopup="dialog"/);
+
+  // Quiet: the small faint type the page uses for an aside, and none of what
+  // makes a tile a tile.
+  const line = films.slice(films.indexOf("quiet.length > 0"));
+  assert.match(line, /text-\[12\.5px\][^"]*text-ink-faint/, "the line is not set as an aside");
+  assert.equal(
+    /bg-screen|rounded-xl|border-rule|font-display/.test(line),
+    false,
+    "the line has been given a tile's surface",
+  );
+
+  // It is below the tiles, and outside the grid they are laid out in.
+  assert.ok(films.indexOf("STATE_TILES.map") < films.indexOf("quiet.length > 0"));
+  assert.ok(
+    films.slice(films.indexOf("STATE_TILES.map"), films.indexOf("quiet.length > 0")).includes("</div>"),
+    "the line is inside the tile grid",
+  );
+});
+
+test("one dialog serves the tiles and the quiet line alike", () => {
+  const films = bodyOf("MovieSummary", summary);
+
+  // The same `Chosen`, opened with whichever selection was pressed. A second
+  // implementation for the films with no state would be a second set of rules
+  // about a film's row, its mark and its dialog.
+  assert.equal(
+    (summary.match(/element\.showModal\(\)/g) ?? []).length,
+    1,
+    "there is more than one dialog in here",
+  );
+  assert.equal((bodyOf("Chosen", summary).match(/<dialog/g) ?? []).length, 1);
+  assert.equal((films.match(/<Chosen/g) ?? []).length, 1, "the two selections open different dialogs");
+  assert.match(films, /selection=\{open\}/, "the dialog is not given what was pressed");
+});
+
 test("the summary is an overview of a collection, not a report about it", () => {
   // Four numbers. No share of anything, no direction of travel, nothing to
   // animate and no fifth metric — a tile reading "+3 this week" would be a claim
@@ -330,7 +407,7 @@ test("the summary is an overview of a collection, not a report about it", () => 
   for (const [name, file] of [
     ["the tiles", summary],
     ["a film's row", row],
-    ["the counts themselves", readFileSync(new URL("./movie-summary.ts", import.meta.url), "utf8")],
+    ["the counts themselves", model],
   ] as [string, string][]) {
     assert.equal(/createdAt|updatedAt/.test(file), false, `${name} reads a timestamp`);
   }
@@ -467,6 +544,39 @@ test("a press outside the card closes the dialog, and so do Escape and Close", (
   assert.match(chosen, /ref=\{exit\}[\s\S]*?>\s*Close\s*</, "there is no Close button");
 });
 
+test("closing the dialog puts focus back on the control that opened it", () => {
+  const films = bodyOf("MovieSummary", summary);
+
+  // What was pressed is kept from the press — `event.currentTarget` — and not
+  // read back off the document: a pointer press does not make a button the
+  // active element in every browser, so `document.activeElement` would answer a
+  // question about the browser rather than about what somebody pressed.
+  assert.match(films, /invoker\.current = event\.currentTarget;/, "the press is not remembered");
+  assert.equal(
+    (films.match(/invoker\.current = event\.currentTarget;/g) ?? []).length,
+    2,
+    "one of the two controls does not remember what was pressed",
+  );
+
+  // And restoring it is this component's, not the dialog's: React unmounts a
+  // dialog in the same commit that closes it, so the only thing that can be sure
+  // of putting focus anywhere is the thing still mounted afterwards.
+  assert.match(films, /returnTo\(invoker\.current, document\.contains\(invoker\.current\)/);
+  const chosen = bodyOf("Chosen", summary);
+  const from = chosen.indexOf("const element = dialog.current;");
+  const opening = chosen.slice(from, chosen.indexOf("useEffect", from));
+  assert.match(opening, /showModal\(\)/, "the effect sliced is not the one that opens it");
+  assert.doesNotMatch(opening, /\.focus\(\)/, "the dialog restores focus on its way out again");
+
+  // The two orderings of the race are decided in `refocus.ts` and tested there.
+  // What is pinned here is that both are asked: the invoker at the moment of
+  // closing, and — for the one that arrives after it — whatever focus was handed
+  // to, once it has left the document with nothing else taking focus.
+  assert.match(films, /rescueTo\(/, "the later half of the race is not handled");
+  assert.match(films, /document\.activeElement === document\.body/);
+  assert.match(films, /handedTo\.current = back;/, "what focus went to is not remembered");
+});
+
 test("focus stays in the dialog when the film it was on leaves the list", () => {
   const chosen = bodyOf("Chosen", summary);
 
@@ -528,7 +638,7 @@ test("films, genres and mixes are three peers, drawn by one section", () => {
   // The three parts of a taste model, each a section of the page and none of
   // them inside another. One component draws all three, which is what keeps
   // their headings from drifting apart.
-  assert.match(bodyOf("MovieSummary", summary), /<Section title="Your movies">/);
+  assert.match(bodyOf("MovieSummary", summary), /<Section title="Your movies" count=/);
   assert.match(view, /<Section\n\s+title="Your genres"/);
   assert.match(view, /<Section\n\s+title="Your mixes"/);
   assert.match(bodyOf("Loose"), /<Section\n\s+title="Other movies"/);
@@ -569,12 +679,12 @@ test("each section keeps its own copy, and the films section stays quiet", () =>
   assert.match(view, /note="Your genres, mixed into something of your own\."/);
   assert.match(bodyOf("Loose"), /note="Films you have saved that are not in a mix\."/);
 
-  // The films section has neither a note nor a count beside its heading: four
-  // labelled numbers already say what they are, and the first of them is the
-  // count, so a number by the heading would be the same fact twice.
+  // The films section carries the total beside its heading, like the other two,
+  // and no note under it: labelled numbers say what they are, and a sentence
+  // explaining them would be the only copy of its kind on the page.
   const movies = bodyOf("MovieSummary", summary);
   const opening = movies.slice(movies.indexOf("<Section"), movies.indexOf(">", movies.indexOf("<Section")) + 1);
-  assert.equal(opening, '<Section title="Your movies">');
+  assert.equal(opening, '<Section title="Your movies" count={movies.length}>');
 });
 
 test("a genre is a compact label, and a mix is still a card", () => {
