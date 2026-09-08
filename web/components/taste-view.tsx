@@ -247,6 +247,12 @@ function spoken(genres: readonly string[]): string {
  * overview rather than detail.
  *
  * `lit` gives a mix the accent edge that says it is theirs.
+ *
+ * The card is raised off the page, on the same surface as a count's tile: the
+ * three sections of this page are peers, so the things you press in them are
+ * lifted by the same amount. `night` — the page's own colour — left a card as an
+ * outline in a section that had lost its box, which read as a lighter kind of
+ * object than a tile rather than as the same kind.
  */
 function Card({
   children,
@@ -261,9 +267,10 @@ function Card({
 }) {
   return (
     <article
-      className={["rounded-xl border bg-night px-5 py-4", lit ? "border-beam-dim" : "border-rule"].join(
-        " ",
-      )}
+      className={[
+        "rounded-xl border bg-screen px-5 py-4",
+        lit ? "border-beam-dim" : "border-rule",
+      ].join(" ")}
     >
       <details className="group">
         <summary className="cursor-pointer list-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam [&::-webkit-details-marker]:hidden">
