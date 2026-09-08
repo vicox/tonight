@@ -451,12 +451,10 @@ export const TASTE_SCHEMA: SchemaModule = {
      *
      * ## The contract migration
      *
-     * Dropping `watched`, `liked`, the trigger and its function is a separate
-     * migration in a later release, deliberately not written here — adding it to
-     * this list would run it on the next `npm run db:migrate`. It is safe once no
-     * build that reads or writes those columns can still be serving: after the
-     * release carrying this migration is fully rolled out, and after the window
-     * in which rolling back to it is still wanted has passed.
+     * Dropping `watched`, `liked`, the trigger and its function is v7, and it was
+     * left unwritten until both conditions below had been met: no build that
+     * reads or writes those columns could still be serving, and the window in
+     * which rolling back to one was still wanted had passed.
      */
     {
       version: 5,
@@ -765,6 +763,62 @@ export const TASTE_SCHEMA: SchemaModule = {
         CREATE TRIGGER tonight_mix_movies_touch
           AFTER UPDATE OR DELETE ON tonight_mix_movies
           FOR EACH ROW EXECUTE FUNCTION tonight_mix_movies_touch();
+      `,
+    },
+
+    /**
+     * CONTRACT. The other half of v5, and the only destructive migration here.
+     *
+     * v5 added `state` beside `watched` and `liked` and left all three in place,
+     * because the build serving traffic at the time knew only the booleans. A
+     * trigger kept the two representations agreeing so that either build could
+     * write. Every part of that arrangement existed for the rollout and for
+     * nothing else, and the rollout is over: no build that names either column
+     * has been able to serve since the state release, and the window for rolling
+     * back to one has long passed.
+     *
+     * So this removes the scaffolding: the bridge trigger, its function, the two
+     * columns, and the three helpers that converted between the shapes. What is
+     * left is one column saying one thing, which is what the product always
+     * meant.
+     *
+     * ## Order within the statement
+     *
+     * The trigger goes before its function, and both before the columns they
+     * read. plpgsql resolves names when it runs rather than when it is defined,
+     * so a column dropped underneath a live trigger is not a migration error —
+     * it is the next write failing, which is worse.
+     *
+     * ## Order of the release
+     *
+     * The reverse of v6's, and worth reading twice. v6 needed code deployed
+     * *before* the migration. This one needs the migration *before* the code:
+     *
+     *     run this, then deploy
+     *
+     * because `requireSchema` refuses to serve a build whose migrations are not
+     * all applied, and the build carrying this list needs v7 recorded. The
+     * migration itself is safe against what is already deployed — that build has
+     * never named `watched` or `liked` — so there is no window in which the two
+     * disagree.
+     *
+     * The one thing this closes off is a rollback past the state release. Nothing
+     * that writes the booleans can work afterwards, and that is the point of a
+     * contract migration rather than a regrettable side effect.
+     */
+    {
+      version: 7,
+      sql: `
+        DROP TRIGGER tonight_movies_state_sync ON tonight_movies;
+        DROP FUNCTION tonight_movies_state_sync();
+
+        ALTER TABLE tonight_movies
+          DROP COLUMN watched,
+          DROP COLUMN liked;
+
+        DROP FUNCTION tonight_movie_state_of(boolean, boolean);
+        DROP FUNCTION tonight_movie_watched_of(text);
+        DROP FUNCTION tonight_movie_liked_of(text);
       `,
     },
   ],

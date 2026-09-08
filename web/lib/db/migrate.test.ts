@@ -467,7 +467,10 @@ test("v5 backfills every watched/liked pair into the state that keeps most of it
   await migrate(sql, upTo(4));
   for (const [what, watched, liked] of BACKFILL) await oldCodeInsert(sql, what, watched, liked);
 
-  await migrate(sql, TASTE_SCHEMA);
+  // Pinned at v5 rather than migrated all the way: everything this test is about
+  // is the bridge, and v7 takes the bridge away. Migrating past it would be
+  // asserting the arrangement outlives the release it was built for.
+  await migrate(sql, upTo(5));
 
   const rows = await sql.query<{ title: string; state: string | null }>(
     `SELECT title, state FROM tonight_movies WHERE user_id = $1`,
@@ -494,7 +497,7 @@ test("v5 backfills every watched/liked pair into the state that keeps most of it
 test("v5 drops nothing, so the build already in production still works", async () => {
   const sql = await fresh();
   await migrate(sql, upTo(4));
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, upTo(5));
 
   // Both columns are still there and still writable by a build that has never
   // heard of `state`. This is the whole point of the migration being an expand:
@@ -524,7 +527,7 @@ test("an old-build write after the backfill leaves the state correct, not stale"
   const sql = await fresh();
   await migrate(sql, upTo(4));
   await oldCodeInsert(sql, "Arrival", true, true);
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, upTo(5));
 
   assert.equal((await row(sql, "Arrival"))?.state, "liked", "the backfill itself is wrong");
 
@@ -547,7 +550,7 @@ test("a new-build write leaves the columns the old build reads correct", async (
   const sql = await fresh();
   await migrate(sql, upTo(4));
   await oldCodeInsert(sql, "Dune", null, null);
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, upTo(5));
 
   for (const [state, watched, liked] of [
     ["not_seen", false, null],
@@ -568,7 +571,7 @@ test("a write that changes neither side leaves both alone", async () => {
   const sql = await fresh();
   await migrate(sql, upTo(4));
   await oldCodeInsert(sql, "Past Lives", true, true);
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, upTo(5));
   await newCodeUpdate(sql, "Past Lives", "loved");
 
   await sql.query(
@@ -864,8 +867,125 @@ test("the reordered deleteMix runs against the schema as it is before v6", async
   );
   assert.equal(Number(filings!.count), 0);
 
-  // And v6 still applies cleanly on top of a database that has been served by it.
-  assert.equal(await migrate(sql, TASTE_SCHEMA), 1);
+  // And the rest of the list still applies cleanly on top of a database that has
+  // been served by it. Counted from the list rather than written down, so adding
+  // a migration does not turn this into a puzzle about the number 1.
+  const remaining = TASTE_SCHEMA.migrations.filter((one) => one.version > 5).length;
+  assert.equal(await migrate(sql, TASTE_SCHEMA), remaining);
+});
+
+/** Whether the database still has a thing of this kind by this name. */
+async function present(sql: SqlDriver, kind: "column" | "trigger" | "function", name: string) {
+  const asked = {
+    column: `SELECT count(*) AS count FROM information_schema.columns
+              WHERE table_name = 'tonight_movies' AND column_name = $1`,
+    trigger: `SELECT count(*) AS count FROM information_schema.triggers
+               WHERE event_object_table = 'tonight_movies' AND trigger_name = $1`,
+    function: `SELECT count(*) AS count FROM pg_proc WHERE proname = $1`,
+  }[kind];
+  const [row] = await sql.query<{ count: string }>(asked, [name]);
+  return Number(row!.count) > 0;
+}
+
+test("v7 takes the bridge away, and only the bridge", async () => {
+  // The other half of v5. Everything it removes existed so that two builds could
+  // write the same film at once, and there has been one build for a long time.
+  const sql = await fresh();
+  await migrate(sql, upTo(5));
+
+  for (const [kind, name] of [
+    ["column", "watched"],
+    ["column", "liked"],
+    ["trigger", "tonight_movies_state_sync"],
+    ["function", "tonight_movies_state_sync"],
+    ["function", "tonight_movie_state_of"],
+    ["function", "tonight_movie_watched_of"],
+    ["function", "tonight_movie_liked_of"],
+  ] as const) {
+    assert.equal(await present(sql, kind, name), true, `${kind} ${name} was not there to remove`);
+  }
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  for (const [kind, name] of [
+    ["column", "watched"],
+    ["column", "liked"],
+    ["trigger", "tonight_movies_state_sync"],
+    ["function", "tonight_movies_state_sync"],
+    ["function", "tonight_movie_state_of"],
+    ["function", "tonight_movie_watched_of"],
+    ["function", "tonight_movie_liked_of"],
+  ] as const) {
+    assert.equal(await present(sql, kind, name), false, `${kind} ${name} survived v7`);
+  }
+
+  // And nothing else went with it. v6's triggers are on the same table and were
+  // added after the ones being dropped, which is exactly how a contract migration
+  // takes too much.
+  assert.equal(await present(sql, "column", "state"), true, "state was dropped");
+  assert.equal(await present(sql, "trigger", "tonight_movies_written_at"), true, "v6 lost a trigger");
+  assert.equal(await present(sql, "function", "tonight_written_at"), true, "v6 lost its function");
+  assert.equal(await present(sql, "function", "tonight_mix_movies_touch"), true, "v6 lost a touch");
+});
+
+test("what the user said survives the contract migration untouched", async () => {
+  // The whole point of the two representations was that neither of them lost
+  // anything. Dropping one has to be the moment that stays true.
+  const sql = await fresh();
+  await migrate(sql, upTo(4));
+  for (const [what, watched, liked] of BACKFILL) await oldCodeInsert(sql, what, watched, liked);
+  await migrate(sql, upTo(5));
+
+  const before = await sql.query<{ title: string; state: string | null }>(
+    `SELECT title, state FROM tonight_movies WHERE user_id = $1 ORDER BY title`,
+    [ALICE],
+  );
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  const afterwards = await sql.query<{ title: string; state: string | null }>(
+    `SELECT title, state FROM tonight_movies WHERE user_id = $1 ORDER BY title`,
+    [ALICE],
+  );
+  assert.deepEqual(afterwards, before);
+
+  // And the store reads them back as the films they are, with the states intact.
+  const { movies } = await sqlTasteStore(sql, { id: ALICE }).taste();
+  assert.equal(movies.length, BACKFILL.length);
+  assert.deepEqual(
+    Object.fromEntries(movies.map((one) => [one.title, one.state])),
+    Object.fromEntries(BACKFILL.map(([what, , , state]) => [what, state])),
+  );
+});
+
+test("a state is still written and read after the bridge is gone", async () => {
+  // The trigger that is being dropped fired on every insert and update of this
+  // table. Taking it away must leave ordinary writing exactly as it was.
+  const sql = await fresh();
+  await migrate(sql, TASTE_SCHEMA);
+
+  const store = sqlTasteStore(sql, { id: ALICE });
+  await store.createMovie({ title: "Arrival", year: 2016, state: "loved" });
+  await store.updateMovie("Arrival", 2016, { state: "disliked" });
+  await store.createMovie({ title: "Moon", year: 2009 });
+
+  const { movies } = await store.taste();
+  assert.deepEqual(
+    movies.map((one) => [one.title, one.state]),
+    [
+      ["Arrival", "disliked"],
+      ["Moon", null],
+    ],
+  );
+
+  // Silence is still not a statement, and the check still refuses a sixth state.
+  await assert.rejects(
+    sql.query(
+      `INSERT INTO tonight_movies (user_id, title, year, state) VALUES ($1, 'x', 2000, 'neutral')`,
+      [ALICE],
+    ),
+    (error: unknown) => (error as { code?: string }).code === "23514",
+  );
 });
 
 test("a caller cannot set either stamp, in any build", async () => {
