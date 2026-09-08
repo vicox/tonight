@@ -1,9 +1,11 @@
+import { Chip } from "./chip";
 import { CopyButton } from "./copy-button";
+import { GenreLabels } from "./genre-labels";
 import { Films } from "./movie-row";
 import { MovieSummary } from "./movie-summary";
 import { Section } from "./section";
 import { TasteAdvanced } from "./taste-advanced";
-import type { Genre, Mix, Movie, Taste } from "@/lib/taste/model";
+import type { Mix, Movie, Taste } from "@/lib/taste/model";
 
 /**
  * One person's taste model: a page to read, with two things on it to press.
@@ -71,11 +73,7 @@ export function TasteView({ taste }: { taste: Taste }) {
             be saved here.
           </Empty>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {taste.genres.map((genre) => (
-              <GenreLabel key={genre.name} genre={genre} />
-            ))}
-          </div>
+          <GenreLabels genres={taste.genres} />
         )}
       </Section>
 
@@ -180,46 +178,6 @@ function Prompt({ taste }: { taste: Taste }) {
       </p>
       <CopyButton text={sentence}>Copy</CopyButton>
     </section>
-  );
-}
-
-/**
- * A genre: its name, and — one press in — what it means to this user.
- *
- * A label rather than a row. A genre *is* its name: there is nothing else on it
- * to show, so a full-width row spent most of its width proving that, and three
- * of them read as a list of three things you had to scroll rather than as the
- * handful of pieces a taste is made of. Read across in one line, they are what
- * they are — the ingredients. A mix keeps its card, because a mix is a
- * composition with films in it and has something to put there.
- *
- * Still the same disclosure underneath: `<summary>` is the whole label, and the
- * browser brings the keyboard, the expanded state and the announcement with it.
- * Nothing about a genre's meaning, or about editing one, has moved — the
- * instruction is here and management is where it was, at the foot of the page.
- *
- * Opening one gives it the row to itself, which is what `open:w-full` is for: an
- * instruction set in a column as narrow as the word `MYSTERY` would be unreadable.
- * The label stays the size of its own name either way, so `inline-block` — a
- * summary is a block, and a block in a full-width item is a full-width bar.
- */
-function GenreLabel({ genre }: { genre: Genre }) {
-  return (
-    <details className="open:w-full">
-      <summary
-        className={[
-          CHIP,
-          "inline-block cursor-pointer list-none bg-screen transition-colors",
-          "hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2",
-          "focus-visible:outline-beam [&::-webkit-details-marker]:hidden",
-        ].join(" ")}
-      >
-        {genre.name}
-      </summary>
-      <p className="mt-3 text-[13.5px] leading-relaxed whitespace-pre-line text-ink-soft">
-        {genre.instruction}
-      </p>
-    </details>
   );
 }
 
@@ -354,28 +312,6 @@ function Arrow() {
       ↓
     </div>
   );
-}
-
-/**
- * A genre's or mix's name, as a chip.
- *
- * Uppercase and tracked, which is film-credit typography rather than decoration:
- * it is what makes `[SCI-FI] + [THRILLER] ↓ SPACE TENSION` read as a composition
- * at a glance. The name itself is stored as the user wrote it — this is a
- * rendering, and nothing here changes what is in the database.
- *
- * The typography is `CHIP` and the surface is not, because the same name is set
- * the same way on two different grounds: cut into a mix's card as `night`
- * against its `screen`, and raised off the page as `screen` where a genre labels
- * itself. A name has no fill of its own to lose — it shows whatever is behind
- * it, and when that is the surface it sits on the shape stops being a chip and
- * becomes a rectangle drawn around some words.
- */
-const CHIP =
-  "rounded-md border border-rule px-2.5 py-1 text-[11px] tracking-[0.11em] text-ink-soft uppercase";
-
-function Chip({ children }: { children: React.ReactNode }) {
-  return <span className={`${CHIP} bg-night`}>{children}</span>;
 }
 
 function Empty({ children }: { children: React.ReactNode }) {

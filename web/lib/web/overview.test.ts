@@ -19,9 +19,10 @@ import test from "node:test";
  * that quietly grew a poster, a `false` that became indistinguishable from
  * "nothing said", a create control on a page that is supposed to be read.
  *
- * Five sources, because the page is now five files: the board itself, the section
- * all three of its parts are drawn by, a film's row — shared by the board and the
- * summary's dialog — the summary tiles, and the mark on a row. What can be tested for real is kept out of here and tested
+ * Seven sources, because the page is that many files: the board itself, the
+ * section all three of its parts are drawn by, the genre labels, the type a name
+ * is set in, a film's row — shared by the board and the summary's dialog — the
+ * summary tiles, and the mark on a row. What can be tested for real is kept out of here and tested
  * that way: the arithmetic behind the tiles in `movie-summary.test.ts`, and where
  * focus goes when a row is removed in `refocus.test.ts`.
  *
@@ -40,32 +41,45 @@ import test from "node:test";
 
 const VIEW = new URL("../../components/taste-view.tsx", import.meta.url);
 const SECTION = new URL("../../components/section.tsx", import.meta.url);
+const CHIP = new URL("../../components/chip.tsx", import.meta.url);
+const LABELS = new URL("../../components/genre-labels.tsx", import.meta.url);
 const ROW = new URL("../../components/movie-row.tsx", import.meta.url);
 const SUMMARY = new URL("../../components/movie-summary.tsx", import.meta.url);
 const MARKS = new URL("../../components/movie-state.tsx", import.meta.url);
 
 const source = readFileSync(VIEW, "utf8");
 const section = readFileSync(SECTION, "utf8");
+const chip = readFileSync(CHIP, "utf8");
+const labels = readFileSync(LABELS, "utf8");
 const row = readFileSync(ROW, "utf8");
 const summary = readFileSync(SUMMARY, "utf8");
 const marks = readFileSync(MARKS, "utf8");
 
 test("the resting page shows names and films, and no instruction", () => {
-  // Both kinds keep their meaning behind a disclosure: a mix inside its card, a
-  // genre inside its label. What must not come back is an instruction on show in
-  // the resting page, or a second place that renders one.
-  for (const [what, body] of [
-    ["a mix", bodyOf("Card")],
-    ["a genre", bodyOf("GenreLabel")],
-  ] as [string, string][]) {
-    const disclosure = body.slice(body.indexOf("<details"), body.indexOf("</details>"));
-    assert.match(disclosure, /instruction\}/, `${what} shows its instruction outside a disclosure`);
-    assert.equal(
-      (body.match(/instruction\}/g) ?? []).length,
-      1,
-      `${what} renders its instruction in more than one place`,
-    );
-  }
+  // A mix keeps its meaning inside the disclosure its card already is.
+  const card = bodyOf("Card");
+  const disclosure = card.slice(card.indexOf("<details"), card.indexOf("</details>"));
+  assert.match(disclosure, /instruction\}/, "a mix shows its instruction outside its disclosure");
+  assert.equal(
+    (card.match(/instruction\}/g) ?? []).length,
+    1,
+    "a mix renders its instruction in more than one place",
+  );
+
+  // A genre's is in the dialog its label opens, and in one place there too. The
+  // page itself no longer renders a genre's instruction anywhere: there is no
+  // instruction text in the line of labels to be read or to take up room.
+  assert.equal(
+    /genre\.instruction/.test(source),
+    false,
+    "the page still renders a genre's instruction inline",
+  );
+  assert.match(bodyOf("Meaning", labels), /\{genre\.instruction\}/, "the dialog has no meaning in it");
+  assert.equal(
+    (labels.match(/genre\.instruction/g) ?? []).length,
+    1,
+    "a genre's instruction is rendered in more than one place",
+  );
 });
 
 test("films in no mix are listed, and the section is absent when there are none", () => {
@@ -564,31 +578,52 @@ test("each section keeps its own copy, and the films section stays quiet", () =>
 });
 
 test("a genre is a compact label, and a mix is still a card", () => {
-  const view = bodyOf("TasteView");
-
-  // A genre is its name and nothing else, so it is the size of its name and
-  // sits next to the others rather than under them. A mix is a composition with
-  // films in it, and keeps the card it needs.
-  assert.match(view, /<GenreLabel key=\{genre\.name\} genre=\{genre\}/, "genres are not labels");
-  assert.match(view, /flex flex-wrap/, "the labels are not laid out to wrap");
+  // A genre is its name and nothing else, so it is the size of its name and sits
+  // next to the others rather than under them. A mix is a composition with films
+  // in it, and keeps the card it needs.
+  assert.match(bodyOf("TasteView"), /<GenreLabels genres=\{taste\.genres\}/, "genres are not labels");
   assert.match(bodyOf("MixCard"), /<Card /, "a mix has stopped being a card");
 
-  const label = bodyOf("GenreLabel");
+  const row = bodyOf("GenreLabels", labels);
+  assert.match(row, /flex flex-wrap/, "the labels are not laid out to wrap");
+  assert.match(row, /<button/, "a label is not a control");
+  assert.match(row, /aria-haspopup="dialog"/, "a label does not say what it opens");
 
-  // Pressing it still opens what it means, through the element that brings its
-  // own keyboard and its own announcement.
-  assert.match(label, /<details/, "the label is not a disclosure any more");
-  assert.match(label, /<summary/, "the label itself is not the control");
-
-  // The size of its own name, and no row furniture left on it. Full width is
-  // the open state's, and only the open state's: the label itself never has it.
-  assert.match(label, /inline-block/, "an open label stretches into a full-width bar");
-  assert.match(label, /open:w-full/, "an open label leaves its instruction in a narrow column");
+  // Nothing left of the row it used to be, and — the point of the change —
+  // nothing that could grow: no disclosure in the line, and no class that
+  // behaves one way while something is open.
   assert.equal(
-    /<Chevron|<Card|(?<!open:)\bw-full/.test(label),
+    // `max-w-full` is a ceiling and not a width — a long name has to wrap inside
+    // its label rather than push the page sideways — so only a bare `w-full` is
+    // the label giving up being the size of its own name.
+    /<Chevron|<details|<summary|open:|(?<!max-)\bw-full/.test(row),
     false,
-    "the label kept the row's furniture, or is full width when closed",
+    "a label can still expand in place, so opening one moves the others",
   );
+
+  // The minimum a long name needs: it wraps inside the label, the label stops at
+  // the width of the line, and the words stay left where a button would centre
+  // them.
+  assert.match(row, /max-w-full/, "a long name can push the page sideways");
+  assert.match(row, /break-words/, "an unbroken name has nowhere to break");
+  assert.match(row, /text-left/, "a wrapped name is centred");
+});
+
+test("opening a genre cannot move the labels", () => {
+  const row = bodyOf("GenreLabels", labels);
+
+  // The dialog is a sibling of the line rather than a child of it: whatever it
+  // does, it does outside the flow the labels are laid out in.
+  const line = row.indexOf("flex flex-wrap");
+  const dialog = row.indexOf("<Meaning");
+  assert.ok(line < dialog, "the dialog is rendered before the labels");
+  assert.ok(
+    row.slice(line, dialog).includes("</div>"),
+    "the dialog is inside the wrapping line, where it can push the labels around",
+  );
+
+  // And what is open is a genre, not a piece of layout.
+  assert.match(row, /useState<Genre \| null>\(null\)/, "the labels keep something else in state");
 });
 
 test("a name is set one way, on whichever surface it is read", () => {
@@ -597,26 +632,90 @@ test("a name is set one way, on whichever surface it is read", () => {
   // the rule is declared and how the classes are joined are the component's
   // business, and a check on either would fail on a reformatting that changed
   // nothing.
+  const everywhere = source + labels + chip;
   for (const [rule, count] of [
-    ["tracking-[0.11em]", (source.match(/tracking-\[0\.11em\]/g) ?? []).length],
-    ["uppercase", (source.match(/\buppercase\b/g) ?? []).length],
+    ["tracking-[0.11em]", (everywhere.match(/tracking-\[0\.11em\]/g) ?? []).length],
+    ["uppercase", (everywhere.match(/\buppercase\b/g) ?? []).length],
   ] as [string, number][]) {
     assert.equal(count, 1, `${rule} is written out in more than one place`);
   }
 
   // Both the label and the chip inside a mix reach for that one rule.
-  const label = bodyOf("GenreLabel");
-  const chip = bodyOf("Chip");
+  const label = bodyOf("GenreLabels", labels);
+  const inCard = bodyOf("Chip", chip);
   assert.match(label, /\bCHIP\b/, "a genre label sets its own name styling");
-  assert.match(chip, /\bCHIP\b/, "a chip in a mix sets its own name styling");
+  assert.match(inCard, /\bCHIP\b/, "a chip in a mix sets its own name styling");
 
   // And they are told apart by the ground each sits on: a genre labels itself on
   // the page and is raised off it, the same name inside a mix's card is cut into
   // it. Whichever way they are written, the two must not end up the same.
   assert.match(label, /bg-screen/, "a genre label is not raised off the page");
   assert.doesNotMatch(label, /bg-night/, "a genre label is cut into the page");
-  assert.match(chip, /bg-night/, "a chip in a mix is not cut into the card");
-  assert.doesNotMatch(chip, /bg-screen/, "a chip in a mix is raised off the card");
+  assert.match(inCard, /bg-night/, "a chip in a mix is not cut into the card");
+  assert.doesNotMatch(inCard, /bg-screen/, "a chip in a mix is raised off the card");
+});
+
+test("a genre's meaning can be dismissed three ways, and hands focus back", () => {
+  const dialog = bodyOf("Meaning", labels);
+
+  // The same dialog the summary tiles open, for the same reasons: `showModal`
+  // brings the top layer, the page's inertness, Escape and the focus handed back
+  // to the control that opened it.
+  assert.match(dialog, /<dialog/, "the meaning opens in something other than a dialog");
+  assert.match(labels, /element\.showModal\(\);/, "it is not opened as a modal");
+  assert.match(dialog, /onCancel=\{\(event\) => \{/, "Escape does not close it");
+  assert.match(dialog, /event\.target === dialog\.current/, "a press outside the card does nothing");
+  assert.match(dialog, />\s*Close\s*</, "there is no Close control");
+  assert.match(dialog, /backdrop:bg-scrim/);
+
+  // Which means none of what the element brings is re-implemented beside it: no
+  // role to declare, no trap to keep, no inertness to arrange.
+  assert.equal(
+    /role="dialog"|aria-modal=|inert=|tabIndex=/.test(labels),
+    false,
+    "the dialog has grown a hand-written half",
+  );
+
+  // A long name in the heading wraps rather than widening the card.
+  assert.match(dialog, /<h2[^>]*break-words/, "a long name can stretch the dialog");
+
+  // Focus on the way out is the exception, and it belongs to the labels rather
+  // than to this: React unmounts a dialog in the same commit that closes it. So
+  // what is pinned is that the label pressed is remembered from the press and
+  // restored by the component that outlives the dialog.
+  const row = bodyOf("GenreLabels", labels);
+
+  // The label that was pressed, taken from the press. Not `document.activeElement`
+  // — clicking a button does not make it the active element in every browser, so
+  // that would answer a question about the browser rather than about what
+  // somebody pressed.
+  assert.match(row, /invoker\.current = event\.currentTarget;/, "the label pressed is not kept");
+  assert.match(row, /onClick=\{\(event\) => \{/, "the press does not carry what was pressed");
+
+  // Restored to that exact button when it is still there, and to a label that is
+  // still there when it is not — renaming a genre re-keys its row — rather than
+  // to `<body>`, which is a reader at the top of the page with no way back.
+  assert.match(row, /returnTo\(\s*pressed,\s*document\.contains\(pressed\)/);
+  assert.match(
+    row,
+    /line\.current\?\.querySelector<HTMLButtonElement>\("button"\)/,
+    "there is nowhere to put focus when the label pressed has gone",
+  );
+  assert.match(row, /<div ref=\{line\}/, "the line of labels cannot be reached to fall back to");
+  assert.doesNotMatch(dialog, /\.focus\(\)/, "the dialog restores focus on its way out again");
+
+  // Nothing inside it writes. A genre is renamed and rewritten at the foot of
+  // the page, and a second way in would be a second set of rules about a name.
+  assert.equal(
+    /fetch\(|onSave|<input|<textarea|method: "/.test(labels),
+    false,
+    "the meaning has become a second editor",
+  );
+
+  // The card, the heading and the surface are the page's own.
+  assert.match(dialog, /rounded-2xl border border-rule bg-screen/);
+  assert.match(dialog, /<h2 className="font-display/, "the name is not the dialog's heading");
+  assert.match(dialog, /aria-label=\{genre\.name\}/, "the dialog is not named for its genre");
 });
 
 /**

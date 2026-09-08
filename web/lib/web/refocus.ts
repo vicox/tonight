@@ -27,3 +27,22 @@ export function refocus<T>(remaining: readonly T[], at: number, fallback: T | nu
   const clamped = Math.min(Math.max(at, 0), remaining.length - 1);
   return remaining[clamped] ?? fallback;
 }
+
+/**
+ * Which control focus is owed to when a dialog closes.
+ *
+ * The invoker — the control that opened it — and not "whatever had focus before
+ * `showModal`": a pointer press does not always make a button the document's
+ * active element, so reading that back tells you about the browser rather than
+ * about what somebody pressed. What opened the dialog is known at the moment it
+ * was opened, and this is that answer used again.
+ *
+ * `present` is whether the invoker is still in the document. It can have gone:
+ * the quiet line under the summary's tiles leaves the page when the last film
+ * without a status is given one, which is exactly what somebody may have just
+ * done from inside the dialog it opened. The fallback is a control that does not
+ * come and go — one of the state tiles.
+ */
+export function returnTo<T>(invoker: T | null, present: boolean, fallback: T | null): T | null {
+  return invoker !== null && present ? invoker : fallback;
+}

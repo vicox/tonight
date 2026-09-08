@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { refocus } from "./refocus.ts";
+import { refocus, returnTo } from "./refocus.ts";
 
 /**
  * Where focus lands when a row leaves the list it was being read in.
@@ -54,4 +54,29 @@ test("an unchanged list focuses where focus already was", () => {
   // but the rule has to be total, and a list that did not change is the one
   // place it could be asked something ambiguous.
   assert.equal(refocus(MARKS, 2, "Close"), "Arrival");
+});
+
+/**
+ * Where focus goes when a dialog closes, and where it goes if that place then
+ * disappears.
+ *
+ * With strings standing in for controls: what a component does is turn a DOM
+ * fact — is this element still in the document — into the argument, and the
+ * decision is here.
+ */
+
+test("focus goes back to the control that opened the dialog", () => {
+  assert.equal(returnTo("the tile", true, "a tile"), "the tile");
+  assert.equal(returnTo("2 without status", true, "a tile"), "2 without status");
+});
+
+test("a refresh that removes the invoker before the dialog closes", () => {
+  // Order A: the last film without a status was given one, the page came back
+  // without the quiet line, and only then was the dialog dismissed. There is
+  // nothing left to focus but something stable.
+  assert.equal(returnTo("2 without status", false, "a tile"), "a tile");
+  assert.equal(returnTo(null, false, "a tile"), "a tile");
+
+  // And nothing at all is an answer, not a throw: a caller has `?.focus()`.
+  assert.equal(returnTo(null, false, null), null);
 });
