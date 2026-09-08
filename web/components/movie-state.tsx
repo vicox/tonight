@@ -216,7 +216,10 @@ export function MovieState({
           }}
           className={[
             "flex size-7 cursor-pointer items-center justify-center rounded-md transition-colors",
-            "hover:bg-screen focus-visible:outline-2 focus-visible:outline-offset-2",
+            // A wash rather than a named surface: a row is read on the page, on a
+            // mix's card and in the summary's dialog, and `screen` — which the
+            // last two are — is a hover nobody can see on two of the three.
+            "hover:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2",
             "focus-visible:outline-beam aria-disabled:cursor-default aria-disabled:opacity-60",
             // Lit when they have said something, muted while they have not. A
             // mark nobody can see is a missing one, so muted is still present.

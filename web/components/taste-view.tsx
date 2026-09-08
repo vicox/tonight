@@ -327,10 +327,16 @@ function Arrow() {
  * it is what makes `[SCI-FI] + [THRILLER] ↓ SPACE TENSION` read as a composition
  * at a glance. The name itself is stored as the user wrote it — this is a
  * rendering, and nothing here changes what is in the database.
+ *
+ * Cut into the card rather than raised on it: `night` against the card's
+ * `screen`, which is the same difference the other way round. A chip has no fill
+ * of its own to lose — it was showing whatever was behind it, and when that
+ * became the card's own surface the shape stopped being a chip and became a
+ * rectangle drawn around some words.
  */
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-md border border-rule px-2.5 py-1 text-[11px] tracking-[0.11em] text-ink-soft uppercase">
+    <span className="rounded-md border border-rule bg-night px-2.5 py-1 text-[11px] tracking-[0.11em] text-ink-soft uppercase">
       {children}
     </span>
   );
