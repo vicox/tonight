@@ -51,17 +51,21 @@ const summary = readFileSync(SUMMARY, "utf8");
 const marks = readFileSync(MARKS, "utf8");
 
 test("the resting page shows names and films, and no instruction", () => {
-  // The instruction appears exactly once, and inside the disclosure. Twice would
-  // mean the old always-on opening had come back under another name.
-  assert.equal(
-    source.split("{instruction}").length - 1,
-    1,
-    "an instruction is rendered in more than one place",
-  );
-
-  const card = bodyOf("Card");
-  const disclosure = card.slice(card.indexOf("<details"), card.indexOf("</details>"));
-  assert.ok(disclosure.includes("{instruction}"), "the instruction is outside the disclosure");
+  // Both kinds keep their meaning behind a disclosure: a mix inside its card, a
+  // genre inside its label. What must not come back is an instruction on show in
+  // the resting page, or a second place that renders one.
+  for (const [what, body] of [
+    ["a mix", bodyOf("Card")],
+    ["a genre", bodyOf("GenreLabel")],
+  ] as [string, string][]) {
+    const disclosure = body.slice(body.indexOf("<details"), body.indexOf("</details>"));
+    assert.match(disclosure, /instruction\}/, `${what} shows its instruction outside a disclosure`);
+    assert.equal(
+      (body.match(/instruction\}/g) ?? []).length,
+      1,
+      `${what} renders its instruction in more than one place`,
+    );
+  }
 });
 
 test("films in no mix are listed, and the section is absent when there are none", () => {
@@ -557,6 +561,62 @@ test("each section keeps its own copy, and the films section stays quiet", () =>
   const movies = bodyOf("MovieSummary", summary);
   const opening = movies.slice(movies.indexOf("<Section"), movies.indexOf(">", movies.indexOf("<Section")) + 1);
   assert.equal(opening, '<Section title="Your movies">');
+});
+
+test("a genre is a compact label, and a mix is still a card", () => {
+  const view = bodyOf("TasteView");
+
+  // A genre is its name and nothing else, so it is the size of its name and
+  // sits next to the others rather than under them. A mix is a composition with
+  // films in it, and keeps the card it needs.
+  assert.match(view, /<GenreLabel key=\{genre\.name\} genre=\{genre\}/, "genres are not labels");
+  assert.match(view, /flex flex-wrap/, "the labels are not laid out to wrap");
+  assert.match(bodyOf("MixCard"), /<Card /, "a mix has stopped being a card");
+
+  const label = bodyOf("GenreLabel");
+
+  // Pressing it still opens what it means, through the element that brings its
+  // own keyboard and its own announcement.
+  assert.match(label, /<details/, "the label is not a disclosure any more");
+  assert.match(label, /<summary/, "the label itself is not the control");
+
+  // The size of its own name, and no row furniture left on it. Full width is
+  // the open state's, and only the open state's: the label itself never has it.
+  assert.match(label, /inline-block/, "an open label stretches into a full-width bar");
+  assert.match(label, /open:w-full/, "an open label leaves its instruction in a narrow column");
+  assert.equal(
+    /<Chevron|<Card|(?<!open:)\bw-full/.test(label),
+    false,
+    "the label kept the row's furniture, or is full width when closed",
+  );
+});
+
+test("a name is set one way, on whichever surface it is read", () => {
+  // One rule for the typography, and the ground it sits on chosen where it is
+  // used. Written as what has to be true rather than as how it is spelled: how
+  // the rule is declared and how the classes are joined are the component's
+  // business, and a check on either would fail on a reformatting that changed
+  // nothing.
+  for (const [rule, count] of [
+    ["tracking-[0.11em]", (source.match(/tracking-\[0\.11em\]/g) ?? []).length],
+    ["uppercase", (source.match(/\buppercase\b/g) ?? []).length],
+  ] as [string, number][]) {
+    assert.equal(count, 1, `${rule} is written out in more than one place`);
+  }
+
+  // Both the label and the chip inside a mix reach for that one rule.
+  const label = bodyOf("GenreLabel");
+  const chip = bodyOf("Chip");
+  assert.match(label, /\bCHIP\b/, "a genre label sets its own name styling");
+  assert.match(chip, /\bCHIP\b/, "a chip in a mix sets its own name styling");
+
+  // And they are told apart by the ground each sits on: a genre labels itself on
+  // the page and is raised off it, the same name inside a mix's card is cut into
+  // it. Whichever way they are written, the two must not end up the same.
+  assert.match(label, /bg-screen/, "a genre label is not raised off the page");
+  assert.doesNotMatch(label, /bg-night/, "a genre label is cut into the page");
+  assert.match(chip, /bg-night/, "a chip in a mix is not cut into the card");
+  assert.doesNotMatch(chip, /bg-screen/, "a chip in a mix is raised off the card");
 });
 
 /**
