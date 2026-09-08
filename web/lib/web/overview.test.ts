@@ -19,9 +19,9 @@ import test from "node:test";
  * that quietly grew a poster, a `false` that became indistinguishable from
  * "nothing said", a create control on a page that is supposed to be read.
  *
- * Four sources, because the page is now four files: the board itself, a film's
- * row — shared by the board and the summary's dialog — the summary tiles, and
- * the mark on a row. What can be tested for real is kept out of here and tested
+ * Five sources, because the page is now five files: the board itself, the section
+ * all three of its parts are drawn by, a film's row — shared by the board and the
+ * summary's dialog — the summary tiles, and the mark on a row. What can be tested for real is kept out of here and tested
  * that way: the arithmetic behind the tiles in `movie-summary.test.ts`, and where
  * focus goes when a row is removed in `refocus.test.ts`.
  *
@@ -39,11 +39,13 @@ import test from "node:test";
  */
 
 const VIEW = new URL("../../components/taste-view.tsx", import.meta.url);
+const SECTION = new URL("../../components/section.tsx", import.meta.url);
 const ROW = new URL("../../components/movie-row.tsx", import.meta.url);
 const SUMMARY = new URL("../../components/movie-summary.tsx", import.meta.url);
 const MARKS = new URL("../../components/movie-state.tsx", import.meta.url);
 
 const source = readFileSync(VIEW, "utf8");
+const section = readFileSync(SECTION, "utf8");
 const row = readFileSync(ROW, "utf8");
 const summary = readFileSync(SUMMARY, "utf8");
 const marks = readFileSync(MARKS, "utf8");
@@ -500,6 +502,61 @@ test("the mark stays on the right of a row, however the words wrap", () => {
   // Which is also why the row is no longer three items spread apart: with two,
   // one of them growing, there is nothing left to spread.
   assert.equal(/justify-between/.test(films), false, "the row spreads its items again");
+});
+
+test("films, genres and mixes are three peers, drawn by one section", () => {
+  const view = bodyOf("TasteView");
+
+  // The three parts of a taste model, each a section of the page and none of
+  // them inside another. One component draws all three, which is what keeps
+  // their headings from drifting apart.
+  assert.match(bodyOf("MovieSummary", summary), /<Section title="Your movies">/);
+  assert.match(view, /<Section\n\s+title="Your genres"/);
+  assert.match(view, /<Section\n\s+title="Your mixes"/);
+  assert.match(bodyOf("Loose"), /<Section\n\s+title="Other movies"/);
+
+  // And the heading itself is written once, in that component. A second <h2> on
+  // the page would be a section drawing its own.
+  assert.match(section, /<h2 className="font-display text-\[26px\] leading-none">\{title\}<\/h2>/);
+  assert.equal(/<h2/.test(source), false, "the page draws a section heading of its own");
+});
+
+test("a section carries no surface, and is not handed one", () => {
+  // The change this test exists for: genres and mixes used to sit inside a
+  // rounded, filled box while the films floated above them, which read as two
+  // containers and a caption rather than as three of a kind. What has an edge on
+  // this page is a row or a card — never a section.
+  const drawn = bodyOf("Section", section);
+  assert.equal(
+    // Word-bounded, so that a `gap-3` is not read as padding.
+    /rounded|\bborder|bg-|shadow|\bp-\d|\bpx-\d|\bpy-\d/.test(drawn),
+    false,
+    "the section draws a box around itself again",
+  );
+
+  // Nor through the class name it is given: that is the page's rhythm — where a
+  // section sits — and nothing else.
+  assert.equal(
+    /<Section[^>]*className="[^"]*(bg-|\bborder|rounded|\bp-\d|\bpx-\d|\bpy-\d)/.test(source + summary),
+    false,
+    "a section is handed a surface through its class name",
+  );
+});
+
+test("each section keeps its own copy, and the films section stays quiet", () => {
+  const view = bodyOf("TasteView");
+
+  // The descriptive lines under the two headings are the ones that were there.
+  assert.match(view, /note="The pieces your taste is made of\./);
+  assert.match(view, /note="Your genres, mixed into something of your own\."/);
+  assert.match(bodyOf("Loose"), /note="Films you have saved that are not in a mix\."/);
+
+  // The films section has neither a note nor a count beside its heading: four
+  // labelled numbers already say what they are, and the first of them is the
+  // count, so a number by the heading would be the same fact twice.
+  const movies = bodyOf("MovieSummary", summary);
+  const opening = movies.slice(movies.indexOf("<Section"), movies.indexOf(">", movies.indexOf("<Section")) + 1);
+  assert.equal(opening, '<Section title="Your movies">');
 });
 
 /**

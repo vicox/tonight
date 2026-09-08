@@ -1,13 +1,14 @@
 import { CopyButton } from "./copy-button";
 import { Films } from "./movie-row";
 import { MovieSummary } from "./movie-summary";
+import { Section } from "./section";
 import { TasteAdvanced } from "./taste-advanced";
 import type { Genre, Mix, Movie, Taste } from "@/lib/taste/model";
 
 /**
  * One person's taste model: a page to read, with two things on it to press.
  *
- *     THE COUNTS      how many films there are, and how they were marked
+ *     YOUR MOVIES     how many films there are, and how they were marked
  *
  *     YOUR GENRES     the reusable components
  *          ↓
@@ -17,7 +18,13 @@ import type { Genre, Mix, Movie, Taste } from "@/lib/taste/model";
  *
  * Vertical rather than side by side, because the relationship is a derivation and
  * not a comparison: mixes come *from* genres, and an arrow between two stacked
- * panels says that in a way two columns cannot.
+ * sections says that in a way two columns cannot.
+ *
+ * Three peers, drawn by one `Section`. Films used to float over two boxes with
+ * the genres and mixes inside them, which said that those two were containers and
+ * the films were a caption on the page — where in fact they are the three things
+ * a taste model is made of, and a reader should meet them as three of a kind.
+ * What carries an edge on this page is a row or a card, never a section.
  *
  * Genres are unlit and mixes carry the accent. That is the one piece of colour on
  * the page and it is spent saying which of the two the user built themselves — a
@@ -45,17 +52,18 @@ export function TasteView({ taste }: { taste: Taste }) {
   return (
     <>
       {/*
-        Above the whole board rather than wedged in between the two panels: the
-        arrow says a mix comes from genres, and it only says that while the two
-        it points between are next to each other. So the counts sit over the
-        board they summarise — every film on the page is under one of them.
+        First, and above the two sections rather than between them: the arrow says
+        a mix comes from genres, and it only says that while the two it points
+        between are next to each other. Every film on the page is under one of
+        these counts, genres and mixes included.
       */}
       <MovieSummary movies={taste.movies} />
 
-      <Panel
+      <Section
         title="Your genres"
         note="The pieces your taste is made of. Each one means whatever you say it means."
         count={taste.genres.length}
+        className="mt-14"
       >
         {taste.genres.length === 0 ? (
           <Empty>
@@ -65,11 +73,11 @@ export function TasteView({ taste }: { taste: Taste }) {
         ) : (
           taste.genres.map((genre) => <GenreCard key={genre.name} genre={genre} />)
         )}
-      </Panel>
+      </Section>
 
       <Arrow />
 
-      <Panel
+      <Section
         title="Your mixes"
         note="Your genres, mixed into something of your own."
         count={taste.mixes.length}
@@ -85,7 +93,7 @@ export function TasteView({ taste }: { taste: Taste }) {
             <MixCard key={mix.name} mix={mix} movies={moviesIn(mix, taste.movies)} />
           ))
         )}
-      </Panel>
+      </Section>
 
       <Loose movies={taste.movies} />
 
@@ -119,15 +127,14 @@ function Loose({ movies }: { movies: readonly Movie[] }) {
   if (!loose.length) return null;
 
   return (
-    <div className="mt-6">
-      <Panel
-        title="Other movies"
-        note="Films you have saved that are not in a mix."
-        count={loose.length}
-      >
-        <Films movies={loose} className="" />
-      </Panel>
-    </div>
+    <Section
+      title="Other movies"
+      note="Films you have saved that are not in a mix."
+      count={loose.length}
+      className="mt-14"
+    >
+      <Films movies={loose} className="" />
+    </Section>
   );
 }
 
@@ -168,32 +175,6 @@ function Prompt({ taste }: { taste: Taste }) {
         {sentence}
       </p>
       <CopyButton text={sentence}>Copy</CopyButton>
-    </section>
-  );
-}
-
-/** One vertical section of the board. */
-function Panel({
-  title,
-  note,
-  count,
-  children,
-}: {
-  title: string;
-  note: string;
-  count: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-rule bg-screen p-6 sm:p-8">
-      <header className="mb-6">
-        <div className="flex items-baseline gap-3">
-          <h2 className="font-display text-[26px] leading-none">{title}</h2>
-          <span className="text-[12px] text-ink-faint tabular-nums">{count}</span>
-        </div>
-        <p className="mt-2 text-[12.5px] text-ink-soft">{note}</p>
-      </header>
-      <div className="flex flex-col gap-3">{children}</div>
     </section>
   );
 }
@@ -318,11 +299,11 @@ function Chevron() {
 }
 
 /**
- * The connector between two panels.
+ * The connector between two sections.
  *
- * Decorative, so it is hidden from a screen reader: the heading of the panel below
- * says what it is, and "down arrow" read aloud between two sections says nothing a
- * listener can use.
+ * Decorative, so it is hidden from a screen reader: the heading of the section
+ * below says what it is, and "down arrow" read aloud between two of them says
+ * nothing a listener can use.
  */
 function Arrow() {
   return (

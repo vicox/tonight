@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Films } from "./movie-row";
+import { Section } from "./section";
 import type { Movie } from "@/lib/taste/model";
 import { SELECTIONS, selected, type Selection } from "@/lib/web/movie-summary";
 import { refocus } from "@/lib/web/refocus";
@@ -10,7 +11,13 @@ import { refocus } from "@/lib/web/refocus";
 /**
  * How many films there are, and — one press in — which ones.
  *
- * Four counts above a page that files films by mix. The page answers "what is in
+ * The films section of the page, and one of its three peers: the same `Section`
+ * heading as the genres and the mixes, with the four counts under it where those
+ * two have their rows. The heading lives here rather than on the page because
+ * this is what knows whether there is anything to count — a heading with nothing
+ * under it would be the empty instrument this section is careful not to be.
+ *
+ * Four counts over a page that files films by mix. The page answers "what is in
  * this mix"; these answer "how many have I loved", which the page cannot, because
  * the loved ones are spread across every mix on it. Pressing one opens the films
  * it counted, which is the only place on the website where a film can be met
@@ -61,16 +68,24 @@ export function MovieSummary({ movies }: { movies: readonly Movie[] }) {
 
   return (
     <>
-      <section aria-label="Your films" className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {SELECTIONS.map((selection) => (
-          <Tile
-            key={selection.name}
-            selection={selection}
-            count={selected(selection.name, movies).length}
-            onOpen={() => setOpen(selection)}
-          />
-        ))}
-      </section>
+      <Section title="Your movies">
+        {/*
+          The tiles, in one row where a genre or a mix has a column of cards. No
+          copy under the heading: four labelled numbers say what they are, and a
+          sentence explaining them would be the only section on the page that
+          needed one.
+        */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {SELECTIONS.map((selection) => (
+            <Tile
+              key={selection.name}
+              selection={selection}
+              count={selected(selection.name, movies).length}
+              onOpen={() => setOpen(selection)}
+            />
+          ))}
+        </div>
+      </Section>
 
       {open && <Chosen selection={open} movies={movies} onClose={() => setOpen(null)} />}
     </>
