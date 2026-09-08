@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Circle, EyeOff, Heart, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Circle, Eye, EyeOff, Heart, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
@@ -52,10 +52,18 @@ import { pending } from "@/lib/web/pending";
  * the press would leave the wrong one on screen with nothing to correct it.
  */
 
-/** The five states, in the order somebody moves through them. */
-const CHOICES: { state: MovieState; label: string; icon: typeof Check }[] = [
+/**
+ * The five states, in the order they are offered.
+ *
+ * The two facts first — an eye and the same eye struck through, which is the one
+ * pair on this list that is a single question with two answers — and then the
+ * three ways of having an opinion. It is a menu's order and nothing else reads
+ * it: `MOVIE_STATES` in the model is the domain's own order, and the store, the
+ * tools and the five values themselves are untouched by how they are listed here.
+ */
+const CHOICES: { state: MovieState; label: string; icon: typeof Eye }[] = [
+  { state: "seen", label: "Seen", icon: Eye },
   { state: "not_seen", label: "Not seen", icon: EyeOff },
-  { state: "seen", label: "Seen", icon: Check },
   { state: "liked", label: "Liked", icon: ThumbsUp },
   { state: "loved", label: "Loved", icon: Heart },
   { state: "disliked", label: "Disliked", icon: ThumbsDown },

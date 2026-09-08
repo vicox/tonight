@@ -136,8 +136,8 @@ test("the row shows one mark, and it is the state the film is in", () => {
 test("each state has its Lucide icon, and nothing-said has its own", () => {
   assert.match(marks, /from "lucide-react"/);
   for (const [state, icon] of [
+    ["seen", "Eye"],
     ["not_seen", "EyeOff"],
-    ["seen", "Check"],
     ["liked", "ThumbsUp"],
     ["loved", "Heart"],
     ["disliked", "ThumbsDown"],
