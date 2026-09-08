@@ -158,8 +158,53 @@ export type Movie = {
   mixes: string[];
 };
 
+/**
+ * A stored object, with when it was written.
+ *
+ * The timestamps are the database's, and they are the only fields here that did
+ * not come from the user. That is why they are a wrapper rather than two more
+ * fields on `Genre`, `Mix` and `Movie`: those three types are what the user said,
+ * and every one of them is validated, refused and rewritten from a caller's
+ * words. Nothing about `createdAt` is. Keeping the two apart is what makes
+ * "a caller cannot supply a timestamp" a shape instead of a rule — there is no
+ * draft, no changes type and no validator that has anywhere to put one.
+ *
+ * So this appears on the read and nowhere else. A create or an update answers
+ * with the object it wrote, which is the caller's own words back; `taste()`
+ * answers with the record, which has a history of being written.
+ */
+export type Written<T> = T & {
+  /**
+   * ISO 8601 in UTC, or `null` for "not known".
+   *
+   * Set once, when the row was inserted, and never again. `null` is not a gap in
+   * the answer: it is a film saved before Tonight recorded creation times at all.
+   * Nobody wrote that moment down, so nothing is put in its place — a value there
+   * would be indistinguishable from a real one and wrong. Only Movies can have
+   * it; genres and mixes have been dated since the first schema.
+   */
+  createdAt: string | null;
+  /**
+   * ISO 8601 in UTC. Moved whenever the object changed — its own fields, and the
+   * memberships that are part of what it is: a Mix's genres, a Movie's mixes.
+   *
+   * Never `null`, because the use of it is comparison, and a reader would have to
+   * decide for itself what a missing one meant. For a Movie that predates the
+   * column it is the moment the column arrived: a baseline, shared by every such
+   * row, and the earliest time anyone can honestly say the film already existed.
+   *
+   * Equal to `createdAt` until something changes. Not a change count and not a
+   * history: what happened is not recorded anywhere, only that it did.
+   */
+  updatedAt: string;
+};
+
 /** One user's whole explicit taste model, which is all Tonight knows about them. */
-export type Taste = { genres: Genre[]; mixes: Mix[]; movies: Movie[] };
+export type Taste = {
+  genres: Written<Genre>[];
+  mixes: Written<Mix>[];
+  movies: Written<Movie>[];
+};
 
 /**
  * Something the caller got wrong, phrased for them.

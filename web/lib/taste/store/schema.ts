@@ -539,5 +539,233 @@ export const TASTE_SCHEMA: SchemaModule = {
           FOR EACH ROW EXECUTE FUNCTION tonight_movies_state_sync();
       `,
     },
+
+    /**
+     * When each object was written, and who decides that.
+     *
+     * `tonight_genres` and `tonight_mixes` have carried `created_at` and
+     * `updated_at` since v1; `tonight_movies` arrived in v4 without them, so the
+     * three domain objects disagreed about whether they remember being written.
+     *
+     * ## Why this is triggers and not two more columns the store fills in
+     *
+     * The build serving traffic when this migration runs has never heard of
+     * either column. It goes on updating movies — a state, a retitle, a different
+     * set of mixes — and every one of those writes would leave `updated_at`
+     * standing still. Migrating and deploying are not one instant, a rolling
+     * deploy runs both builds at once on purpose, and a rollback puts the old one
+     * back. A store-side `SET updated_at = ...` is therefore correct only in the
+     * build that has it, which is the half of the problem that does not need
+     * solving.
+     *
+     * So the timestamps live where every writer meets, exactly as v5's state
+     * bridge does. `tonight_written_at` runs before every insert and update of
+     * the three tables and is the only thing that ever sets either column:
+     *
+     *     INSERT   both set to now, whatever the writer supplied
+     *     UPDATE   `created_at` put back to what it was, `updated_at` moved on
+     *
+     * That makes three separate promises structural rather than remembered. A
+     * caller cannot supply a timestamp — there is no statement it could survive.
+     * `created_at` cannot change, because the trigger overwrites any attempt.
+     * And a build from before this migration keeps `updated_at` correct without
+     * knowing the column exists, so there is no window between migrating and
+     * deploying in which a movie can change without saying so.
+     *
+     * ## clock_timestamp(), not now()
+     *
+     * `now()` is the transaction's start. Two transactions that overlap would
+     * then stamp in the order they *began*, so a change committed second could
+     * carry an earlier `updated_at` than the change it followed — and a reader
+     * polling "has this moved" would see it move backwards. `clock_timestamp()`
+     * is read when the trigger runs, which for the row being written is after its
+     * lock has been taken: whoever writes second waits, and then reads a later
+     * clock. The backfill below is the one place `now()` is right, because there
+     * the whole point is that every legacy row shares one value.
+     *
+     * ## Membership belongs to the object, and the join tables say so
+     *
+     * A mix's genres are part of what the mix is; a movie's filing is part of
+     * what the movie is. Both are rows in a table nobody updates directly — they
+     * are deleted and reinserted, and they vanish underneath their owner when a
+     * mix is deleted, without the owner's row being written at all. So each join
+     * table has an AFTER trigger that touches its owning object, and the touch is
+     * a write of the row rather than a value: `updated_at = updated_at` fires the
+     * owner's own BEFORE trigger, which is the one place that decides what the
+     * new value is.
+     *
+     * They fire on delete and update, **not on insert**, and that is deliberate.
+     * A reference row is never inserted on its own: either its owner is being
+     * created in the same breath — a new mix and the genres it is built from, a
+     * new movie and the mixes it is filed under — or an existing owner's list is
+     * being replaced, and replacing deletes the whole list before writing it
+     * back. Both leave the owner's row written by something else, so an insert
+     * has nothing left to record.
+     *
+     * What firing on insert would cost is not hypothetical: a mix cannot exist
+     * without genres, so every mix would be dated a fraction after its own
+     * creation, for ever, and `createdAt == updatedAt` — the plainest way to ask
+     * "has anything happened to this since I made it" — would be false of every
+     * mix in the model. A signal that is always on is not a signal.
+     *
+     * The one gap this leaves is a writer that adds a reference row and touches
+     * nothing else. Nothing in this repository does, both builds write the owner
+     * on the same call, and `store.test.ts` pins it from the outside: adding a
+     * genre to a mix dates the mix, filing a film dates the film.
+     *
+     * The reverse is deliberately absent. Filing a movie under a mix does not
+     * date the mix — v4 settled why: "a Movie is its own object and a mix is one
+     * of the places the user keeps it; one fewer does not change what the mix's
+     * instruction says". Neither join table carries a timestamp of its own.
+     *
+     * ## What a legacy Movie's stamps mean
+     *
+     * `created_at` is nullable, and for every movie that existed before this ran
+     * it is **null**. Nobody wrote that time down, and the moment the column
+     * arrived is not it — filling it in would be inventing a fact and would make
+     * a film from March indistinguishable from one saved during the migration.
+     * Null says the one true thing: not known.
+     *
+     * `updated_at` is not null and those rows get the migration's own `now()`,
+     * which is a baseline rather than an event: identical across every legacy row
+     * and equal to `schema_migrations.applied_at` for this version, so they are
+     * recognisable as a baseline rather than mistakable for a change. It has to
+     * hold a value because the whole use of the column is comparing it, and a
+     * null would have to be read as "older than everything" by every reader
+     * separately.
+     *
+     * Genres and mixes are untouched: theirs have been real since v1.
+     *
+     * ## This migration needs a release before it
+     *
+     * Everything above is additive and safe for the build already running — but
+     * one thing here is not additive in the way that matters, and it is the
+     * cascade. Deleting a mix now writes the movies that were in it, which means
+     * the deletion takes movie locks. The build in production takes the mix lock
+     * first and knows nothing about movies, so from the moment this migration
+     * lands, an old-build deletion holds the mix and reaches for a film while an
+     * `updateMovie` holds the film and reaches for the mix. That is a cycle, and
+     * Postgres ends it by aborting somebody's write.
+     *
+     * The fix is not a maintenance window. It is one release, in this order:
+     *
+     *     A   deploy the store with the reordered `deleteMix` — it holds every
+     *         filed movie before it holds the mix, and it depends on nothing
+     *         here: no timestamp column is read or written by it, so it runs
+     *         against this schema *before* v6 exists. `migrate.test.ts` proves
+     *         that by running it against a database migrated only to v5.
+     *
+     *         Wait for the old instances to drain. Until they have, an old
+     *         deletion can still cross a new one — but neither of them writes a
+     *         movie yet, so the worst case is the behaviour that exists today.
+     *
+     *     B   run `npm run db:migrate`, which applies this. From here every
+     *         writer dates what it changes, including a build from phase A.
+     *
+     *     C   deploy the build that reads the two columns, whenever convenient.
+     *         Phase A's build serves correctly against the migrated schema; it
+     *         simply does not show the timestamps.
+     *
+     * The ordering matters in one direction only. Running this migration before
+     * phase A has drained is what opens the window; running it long afterwards
+     * costs nothing.
+     */
+    {
+      version: 6,
+      sql: `
+        ALTER TABLE tonight_movies
+          ADD COLUMN created_at timestamptz,
+          ADD COLUMN updated_at timestamptz;
+
+        -- The baseline. Not when these films were saved — that was never
+        -- recorded — but the one moment we can prove they already existed.
+        UPDATE tonight_movies SET updated_at = now() WHERE updated_at IS NULL;
+
+        CREATE FUNCTION tonight_written_at() RETURNS trigger
+          LANGUAGE plpgsql
+          AS $$
+          BEGIN
+            IF TG_OP = 'INSERT' THEN
+              NEW.created_at := clock_timestamp();
+              NEW.updated_at := NEW.created_at;
+              RETURN NEW;
+            END IF;
+
+            -- Whatever the writer said about either, the row keeps its own
+            -- creation and gets the time this update actually happened.
+            NEW.created_at := OLD.created_at;
+            NEW.updated_at := clock_timestamp();
+            RETURN NEW;
+          END;
+          $$;
+
+        CREATE TRIGGER tonight_genres_written_at
+          BEFORE INSERT OR UPDATE ON tonight_genres
+          FOR EACH ROW EXECUTE FUNCTION tonight_written_at();
+
+        CREATE TRIGGER tonight_mixes_written_at
+          BEFORE INSERT OR UPDATE ON tonight_mixes
+          FOR EACH ROW EXECUTE FUNCTION tonight_written_at();
+
+        CREATE TRIGGER tonight_movies_written_at
+          BEFORE INSERT OR UPDATE ON tonight_movies
+          FOR EACH ROW EXECUTE FUNCTION tonight_written_at();
+
+        -- After the trigger exists, so an insert from the old build cannot leave
+        -- it null on the way past.
+        ALTER TABLE tonight_movies ALTER COLUMN updated_at SET NOT NULL;
+
+        -- A membership change is a change to the object that owns it. The row is
+        -- written rather than given a value: setting updated_at to itself is not
+        -- a no-op, it is an UPDATE, and the owner's own BEFORE trigger is what
+        -- puts the new time in. One place decides that, and it is not here.
+        CREATE FUNCTION tonight_mix_genres_touch() RETURNS trigger
+          LANGUAGE plpgsql
+          AS $$
+          BEGIN
+            IF TG_OP <> 'INSERT' THEN
+              UPDATE tonight_mixes SET updated_at = updated_at
+                WHERE user_id = OLD.user_id AND id = OLD.mix_id;
+            END IF;
+            IF TG_OP <> 'DELETE' THEN
+              UPDATE tonight_mixes SET updated_at = updated_at
+                WHERE user_id = NEW.user_id AND id = NEW.mix_id;
+            END IF;
+            RETURN NULL;
+          END;
+          $$;
+
+        CREATE FUNCTION tonight_mix_movies_touch() RETURNS trigger
+          LANGUAGE plpgsql
+          AS $$
+          BEGIN
+            IF TG_OP <> 'INSERT' THEN
+              UPDATE tonight_movies SET updated_at = updated_at
+                WHERE user_id = OLD.user_id AND id = OLD.movie_id;
+            END IF;
+            IF TG_OP <> 'DELETE' THEN
+              UPDATE tonight_movies SET updated_at = updated_at
+                WHERE user_id = NEW.user_id AND id = NEW.movie_id;
+            END IF;
+            RETURN NULL;
+          END;
+          $$;
+
+        -- AFTER, because what is being recorded is that the change happened. A
+        -- mix or movie deleted alongside its references matches nothing here,
+        -- which is the correct amount of work for a row that has gone.
+        --
+        -- Not on INSERT, and that is the one subtle line in this migration. See
+        -- the note above the migration for why a bare insert cannot be the whole
+        -- of a membership change, and for what firing on it would cost.
+        CREATE TRIGGER tonight_mix_genres_touch
+          AFTER UPDATE OR DELETE ON tonight_mix_genres
+          FOR EACH ROW EXECUTE FUNCTION tonight_mix_genres_touch();
+
+        CREATE TRIGGER tonight_mix_movies_touch
+          AFTER UPDATE OR DELETE ON tonight_mix_movies
+          FOR EACH ROW EXECUTE FUNCTION tonight_mix_movies_touch();
+      `,
+    },
   ],
 };

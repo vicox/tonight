@@ -2,29 +2,30 @@ import assert from "node:assert/strict";
 import test, { after, before, describe, type TestContext } from "node:test";
 
 import type { SqlDriver } from "../../db/driver.ts";
-import { migrate } from "../../db/migrate.ts";
+import { migrate, type SchemaModule } from "../../db/migrate.ts";
 import { TasteError } from "../model.ts";
 import { TASTE_SCHEMA } from "./schema.ts";
 import { sqlTasteStore } from "./sql.ts";
 
 /**
- * How deleting a mix behaves while somebody else is writing.
+ * What only two connections can show.
  *
- * Everything else about deleting one is asserted in `store.test.ts`, which runs
- * against the embedded Postgres and needs one connection. None of this can be:
- * the whole subject is *where the deletion waits*, which is only visible while
- * something else is holding what it wants.
+ * Everything else about timestamps and about deleting a mix is asserted in
+ * `store.test.ts`, which runs against the embedded Postgres and needs one
+ * connection. These do not have that option, and each of them is here because a
+ * sequential version of it would pass against code that is wrong:
  *
- * The deletion takes every film in the mix before it takes the mix, and if the
- * set of films turns out to have changed it lets go of everything and looks
- * again. Neither of those shows up in the final state — the mix ends up deleted
- * either way — so each test here holds a lock, checks the deletion is still
- * blocked, and then asks the mix whether it is free. That question is the proof;
- * the state assertions after it are description.
+ *   - a stamp must not move backwards, which is about two transactions whose
+ *     lifetimes overlap;
+ *   - deleting a mix must take its movie locks before its mix lock, which is
+ *     only visible while something else holds one of them;
+ *   - and the three ways the filing can change *while* a deletion is taking
+ *     those locks, each of which has to end in the right answer rather than in a
+ *     deadlock or a half-held set.
  *
- * Every test asserts the deletion is still waiting at the moment the other
- * connection acts. Without that the interleaving never happened and the test has
- * quietly become a sequential one.
+ * Every one of them asserts that the deletion is still blocked at the moment the
+ * other connection acts. Without that the interleaving never happened and the
+ * test has quietly become a sequential one.
  *
  * The embedded driver opens a fresh in-process database per call, so two of them
  * are two databases and none of this can be put to it. This file therefore runs
@@ -36,6 +37,24 @@ const URL = process.env.TEST_DATABASE_URL;
 /** Long enough for a blocked statement to have reached the lock it waits on. */
 const SETTLE = 400;
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Set to opt out of the phase-A test, which needs a database of its own.
+ *
+ * It exists so that skipping is something somebody chose, in an environment
+ * where `CREATE DATABASE` is genuinely not available — a managed server, a
+ * restricted role. Unset, the test runs, and a database it cannot create is a
+ * failure rather than a quiet pass: a verification run that reports green
+ * without having exercised the rollout's one hard prerequisite is worse than one
+ * that reports red.
+ */
+const SKIP_BRIDGE = process.env.TEST_SKIP_BRIDGE_DATABASE;
+
+/** Everything up to but not including the timestamp migration. */
+const upTo = (version: number): SchemaModule => ({
+  module: TASTE_SCHEMA.module,
+  migrations: TASTE_SCHEMA.migrations.filter((one) => one.version <= version),
+});
 
 if (!URL) {
   test("concurrency is not exercised without TEST_DATABASE_URL", () => {
@@ -54,10 +73,10 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
    * not a deadlock Postgres can break. It is an ordinary wait that never ends,
    * and without this the run hangs instead of failing.
    */
-  async function connection(): Promise<SqlDriver> {
+  async function connection(url = URL!): Promise<SqlDriver> {
     const { postgresDriver } = await import("../../db/postgres.ts");
-    const separator = URL!.includes("?") ? "&" : "?";
-    const driver = await postgresDriver(`${URL!}${separator}options=-c%20lock_timeout%3D15000`);
+    const separator = url.includes("?") ? "&" : "?";
+    const driver = await postgresDriver(`${url}${separator}options=-c%20lock_timeout%3D15000`);
     opened.push(driver);
     return driver;
   }
@@ -93,7 +112,12 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
    * between reading the filing and taking the mix — which is the window every
    * question here is about.
    */
-  function holdMovie(t: TestContext, driver: SqlDriver, owner: { id: string }, title: string) {
+  function holdMovie(
+    t: TestContext,
+    driver: SqlDriver,
+    owner: { id: string },
+    title: string,
+  ) {
     let release!: () => void;
     let holding!: () => void;
     const held = new Promise<void>((resolve) => (release = resolve));
@@ -136,36 +160,59 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     return { state, done };
   }
 
-  /** Asserts the mix is not held by anybody, right now. */
-  async function mixIsFree(driver: SqlDriver, owner: { id: string }, name: string) {
-    // NOWAIT rather than a timeout: the question is whether the lock is held at
-    // this moment, and an error is the answer to it.
-    await driver.transaction(async (tx) => {
+  test("a change committed second is dated second, however early its transaction began", async (t) => {
+    // The bug this exists for is `now()`. It is the transaction's *start*, so a
+    // long transaction that began at 12:00 and committed at 12:05 would stamp
+    // 12:00 — over the top of a change that committed at 12:03 and stamped 12:03.
+    // The row would then say it last changed before the change it followed, and
+    // anything asking "has this moved since I looked" would be told no.
+    const first = await connection();
+    const second = await connection();
+    const owner = await fresh(first, "clock");
+
+    await sqlTasteStore(first, owner).createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+
+    let began!: () => void;
+    const hasBegun = new Promise<void>((resolve) => (began = resolve));
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+
+    // Begins first, and its opening statement is what fixes `now()` for it.
+    const early = first.transaction(async (tx) => {
+      await tx.query("SELECT now()");
+      began();
+      await held;
       await tx.query(
-        `SELECT id FROM tonight_mixes
-          WHERE user_id = $1 AND lower(name) = $2
-          FOR UPDATE NOWAIT`,
-        [owner.id, name],
+        `UPDATE tonight_genres SET instruction = 'Early.' WHERE user_id = $1 AND name = 'Sci-Fi'`,
+        [owner.id],
       );
     });
-  }
+    await hasBegun;
 
-  test("this suite ran against the schema the bridge release is deployed onto", async () => {
-    // Phase A of the rollout is a build that must run against the schema as it
-    // stands in production *before* the timestamp migration. Saying which schema
-    // these tests proved the lock order against is the difference between that
-    // being true and being assumed.
-    const [row] = await (await connection()).query<{ version: number }>(
-      `SELECT max(version) AS version FROM schema_migrations WHERE module = 'taste'`,
+    // Begins second, commits first.
+    await second.transaction(async (tx) => {
+      await tx.query(
+        `UPDATE tonight_genres SET instruction = 'Late.' WHERE user_id = $1 AND name = 'Sci-Fi'`,
+        [owner.id],
+      );
+    });
+    const between = (await sqlTasteStore(second, owner).taste()).genres[0]!.updatedAt;
+
+    release();
+    await early;
+    const afterwards = (await sqlTasteStore(second, owner).taste()).genres[0]!.updatedAt;
+
+    assert.ok(
+      afterwards > between,
+      `the last change is dated ${afterwards}, before the ${between} it overwrote`,
     );
-    assert.equal(row!.version, 5, "the bridge was not exercised against the pre-timestamp schema");
   });
 
   test("deleting a mix takes its movies before it takes the mix", async (t) => {
     // The invariant every path in the store obeys — movie side before mix side —
-    // stated as something observable. A deletion that took the mix first would
-    // hold it while waiting for a movie, which is the other half of the cycle an
-    // `updateMovie` filing a film into that same mix would complete.
+    // stated as something observable. If the deletion took the mix first it would
+    // hold the mix while waiting for a movie, which is the other half of the cycle
+    // an `updateMovie` filing a film into that same mix would complete.
     const deleting = await connection();
     const holder = await connection();
     const watcher = await connection();
@@ -183,7 +230,16 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     await pause(SETTLE);
     assert.equal(deletion.state.settled, false, "it did not wait for the film; this proves nothing");
 
-    await mixIsFree(watcher, owner, "space tension");
+    // The mix must still be free. NOWAIT rather than a timeout: the question is
+    // whether the lock is held right now, and an error is the answer to it.
+    await watcher.transaction(async (tx) => {
+      await tx.query(
+        `SELECT id FROM tonight_mixes
+          WHERE user_id = $1 AND lower(name) = 'space tension'
+          FOR UPDATE NOWAIT`,
+        [owner.id],
+      );
+    });
 
     hold.release();
     await hold.done;
@@ -195,15 +251,84 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     assert.deepEqual(taste.movies[0]!.mixes, []);
   });
 
-  test("a film filed while the deletion is taking locks is picked up, not reached for", async (t) => {
-    // The deletion reads the filing, starts locking, and a film it never saw is
-    // added — one that sorts *below* the film it is waiting on. Carrying on would
-    // mean taking that lower lock from inside the mix lock, which is the half of
-    // the cycle this store never takes.
+  test(
+    "the same order holds against the schema as it stood before the timestamps",
+    {
+      skip: SKIP_BRIDGE
+        ? "TEST_SKIP_BRIDGE_DATABASE is set: phase A was not exercised"
+        : false,
+    },
+    async (t) => {
+    // Phase A of the rollout: the reordered deletion is deployed while the
+    // database is still at v5, so that no old-build deletion is running by the
+    // time the cascade starts writing movies. The lock order has to be the final
+    // one *there*, which is the whole point of shipping it first.
     //
-    // The proof is the probe at the end. An implementation that noticed nothing
-    // would lock the film it knew about, take the mix, and only then have the
-    // cascade reach for the film it did not — with the mix held.
+    // Its own database, because a schema is a database-wide thing and the rest of
+    // this file needs the migrated one. Creating it is part of the test: this is
+    // the run that is supposed to prove phase A, so being unable to set it up is
+    // a failure and says so. Somewhere that genuinely cannot, the environment
+    // variable above turns it into a skip — visible in the output, and chosen.
+    const admin = await connection();
+    const name = "tonight_bridge_test";
+    // FORCE, because a previous run that failed part way can leave a session on
+    // it, and "somebody is still connected" is not a reason to stop testing.
+    await admin.exec(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+    await admin.exec(`CREATE DATABASE ${name}`);
+
+    const bridge = URL!.replace(/\/[^/?]+(\?|$)/, `/${name}$1`);
+    const deleting = await connection(bridge);
+    const holder = await connection(bridge);
+    const watcher = await connection(bridge);
+    await migrate(deleting, upTo(5));
+
+    const owner = await fresh(deleting, "bridge");
+    const store = sqlTasteStore(deleting, owner);
+    await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+    await store.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+    await store.createMovie({ title: "Arrival", year: 2016, mixes: ["Space Tension"] });
+
+    const hold = holdMovie(t, holder, owner, "arrival");
+    await hold.ready;
+
+    const deletion = watch(store.deleteMix("Space Tension"));
+    await pause(SETTLE);
+    assert.equal(deletion.state.settled, false, "it did not wait for the film on the old schema");
+
+    await watcher.transaction(async (tx) => {
+      await tx.query(
+        `SELECT id FROM tonight_mixes
+          WHERE user_id = $1 AND lower(name) = 'space tension'
+          FOR UPDATE NOWAIT`,
+        [owner.id],
+      );
+    });
+
+    hold.release();
+    await hold.done;
+    await deletion.done;
+    assert.equal(deletion.state.error, undefined, "the deletion failed on the pre-timestamp schema");
+
+    // Said out loud, because the whole point of this test is knowing it ran.
+    const [{ version }] = await deleting.query<{ version: number }>(
+      `SELECT max(version) AS version FROM schema_migrations WHERE module = 'taste'`,
+    );
+    assert.equal(version, 5, "phase A was not exercised against the pre-timestamp schema");
+  },
+  );
+
+  test("a film filed while the deletion is taking locks is picked up, not reached for", async (t) => {
+    // The dangerous shape, and the one the retry exists for: the deletion reads
+    // the filing, starts locking, and a film it never saw is added — one that
+    // sorts *below* the film it is waiting on. Carrying on would mean taking that
+    // lower lock from inside the mix lock, which is the half of the cycle this
+    // store never takes.
+    //
+    // What makes this a test of the retry rather than of the outcome is the probe
+    // at the end. An implementation that noticed nothing would lock the film it
+    // knew about, take the mix, and only then have the cascade reach for the film
+    // it did not — with the mix held. Here the mix has to be free at that moment,
+    // because letting go of everything is what the retry is.
     const deleting = await connection();
     const holder = await connection();
     const filer = await connection();
@@ -219,6 +344,9 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     // have to reach backwards for.
     await store.createMovie({ title: "Moon", year: 2009, mixes: ["Space Tension"] });
     await store.createMovie({ title: "Arrival", year: 2016 });
+
+    const before = await sqlTasteStore(filer, owner).taste();
+    const arrivalWas = before.movies.find((one) => one.title === "Arrival")!.updatedAt;
 
     const hold = holdMovie(t, holder, owner, "moon");
     await hold.ready;
@@ -241,28 +369,47 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     await pause(SETTLE);
     assert.equal(deletion.state.settled, false, "the deletion did not wait for the late film");
 
-    await mixIsFree(watcher, owner, "space tension");
+    // The proof. If the deletion had carried on with the set it first read, it
+    // would be holding the mix right now and waiting for Arrival underneath it.
+    await watcher.transaction(async (tx) => {
+      await tx.query(
+        `SELECT id FROM tonight_mixes
+          WHERE user_id = $1 AND lower(name) = 'space tension'
+          FOR UPDATE NOWAIT`,
+        [owner.id],
+      );
+    });
 
     late.release();
     await late.done;
     await deletion.done;
     assert.equal(deletion.state.error, undefined, "the late filing broke the deletion");
 
+    // Both films are out of it, and both were dated by the cascade — including the
+    // one the first pass never saw.
     const afterwards = await sqlTasteStore(filer, owner).taste();
     assert.deepEqual(afterwards.mixes, []);
     for (const movie of afterwards.movies) assert.deepEqual(movie.mixes, []);
+    const arrivalNow = afterwards.movies.find((one) => one.title === "Arrival")!.updatedAt;
+    assert.ok(arrivalNow > arrivalWas, "the film that arrived late was not dated");
   });
 
   test("a handle that changes hands under the deletion is noticed, not locked blindly", async (t) => {
     // A handle is not an identity. Between reading the filing and reaching a key,
     // a retitle can move that film out of the handle and another film into it.
     //
-    // The difference between locking by handle and locking by handle *and then
-    // checking the id* is not visible in the final state — both end with the mix
-    // gone. It is visible in where the deletion waits: the unchecked version
-    // locks the replacement under the old handle, decides it has everything,
-    // takes the mix, and only then has the cascade reach for the film that
-    // actually moved. With the mix already held.
+    // The implementation this is written against locks by handle and then checks
+    // that the row it got is the film it meant. The one it replaced did not, and
+    // the difference is not visible in the final state — both end with the mix
+    // gone. It is visible in *where the deletion waits*: the faulty version locks
+    // the replacement under the old handle, decides it has everything, takes the
+    // mix, and only then has the cascade reach for the film that actually moved.
+    // With the mix already held.
+    //
+    // So the real film is held under its new handle before the deletion is let
+    // go, and the mix is probed while the deletion waits for it. Free means the
+    // deletion let go and looked again. Held means it carried on with the wrong
+    // set — which is the bug.
     const deleting = await connection();
     const holder = await connection();
     const retitling = await connection();
@@ -276,6 +423,9 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     await store.createMovie({ title: "Aaa", year: 2000, mixes: ["Space Tension"] });
     await store.createMovie({ title: "Arrival", year: 2016, mixes: ["Space Tension"] });
     await store.createMovie({ title: "Www", year: 2016 });
+
+    const before = await sqlTasteStore(watcher, owner).taste();
+    const movedWas = before.movies.find((one) => one.title === "Arrival")!.updatedAt;
 
     // "aaa" sorts first, so the deletion stops there with the filing already read
     // and the interesting handle still untaken.
@@ -303,23 +453,39 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     await pause(SETTLE);
     assert.equal(deletion.state.settled, false, "the deletion did not come back for the moved film");
 
-    await mixIsFree(watcher, owner, "space tension");
+    // The proof. Not a final-state check: this is the moment the two
+    // implementations differ, and NOWAIT is how the difference is asked about.
+    await watcher.transaction(async (tx) => {
+      await tx.query(
+        `SELECT id FROM tonight_mixes
+          WHERE user_id = $1 AND lower(name) = 'space tension'
+          FOR UPDATE NOWAIT`,
+        [owner.id],
+      );
+    });
 
     moved.release();
     await moved.done;
     await deletion.done;
     assert.equal(deletion.state.error, undefined, "the retitle broke the deletion");
 
+    // Kept, but as description rather than as proof.
     const afterwards = await sqlTasteStore(watcher, owner).taste();
     assert.deepEqual(afterwards.mixes, []);
     const filed = Object.fromEntries(afterwards.movies.map((one) => [one.title, one.mixes]));
     assert.deepEqual(filed, { Aaa: [], Arrival: [], Xxx: [] });
+
+    // The film that moved was in the mix and was dated by the cascade; the one
+    // that took its old handle never was, and must not have been.
+    const movedNow = afterwards.movies.find((one) => one.title === "Xxx")!.updatedAt;
+    assert.ok(movedNow > movedWas, "the film that changed handle was not dated");
   });
 
   test("a mix remade under the same name mid-deletion is not the one that gets deleted", async (t) => {
-    // The identity race. The deletion resolves the name to an id without a lock;
-    // if a different mix answers to that name by the time the mix lock is taken,
-    // deleting *that* would remove a mix nobody asked about.
+    // The identity race, run rather than described. The deletion resolves the
+    // name to an id without a lock; if that mix has gone and a new one has taken
+    // the name by the time the mix lock is taken, deleting *that* would remove a
+    // mix nobody asked about and date films that were never in it.
     const deleting = await connection();
     const holder = await connection();
     const other = await connection();
@@ -356,14 +522,14 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
 
     // Nothing was deleted: the mix they meant is still there under its new name,
     // and the newcomer holding the old name is untouched.
-    const afterwards = await sqlTasteStore(other, owner).taste();
+    const after = await sqlTasteStore(other, owner).taste();
     assert.deepEqual(
-      afterwards.mixes.map((one) => [one.name, one.instruction]),
+      after.mixes.map((one) => [one.name, one.instruction]),
       [
         ["Quiet Dread", "First."],
         ["Space Tension", "Second."],
       ],
     );
-    assert.deepEqual(afterwards.movies[0]!.mixes, ["Quiet Dread"]);
+    assert.deepEqual(after.movies[0]!.mixes, ["Quiet Dread"]);
   });
 });

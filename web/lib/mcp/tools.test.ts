@@ -93,6 +93,28 @@ async function ok(token: string, name: string, args: Record<string, unknown> = {
   return result.structuredContent as any;
 }
 
+/** The shape Tonight states an instant in: fixed-width UTC, to the microsecond. */
+const STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+
+/**
+ * One object out of a read, with the two stamps taken off — and checked on the way.
+ *
+ * `get_taste` answers with the record: the object, plus when Tonight wrote it. A
+ * create or an update answers with the object alone, which is the caller's own
+ * words back. Comparing the two therefore means naming the fields the read adds,
+ * rather than dropping whatever happens to be extra — so a third field appearing
+ * in a read would fail these comparisons instead of being swallowed by them.
+ */
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+function content(one: any) {
+  assert.match(one.createdAt, STAMP, "createdAt");
+  assert.match(one.updatedAt, STAMP, "updatedAt");
+  const rest = { ...one };
+  delete rest.createdAt;
+  delete rest.updatedAt;
+  return rest;
+}
+
 /** The reason a tool refused. */
 async function refused(token: string, name: string, args: Record<string, unknown> = {}) {
   const { status, result } = await callTool(token, name, args);
@@ -129,7 +151,13 @@ async function listTools(token: string) {
   );
 
   const body = (await response.json()) as {
-    result?: { tools?: { name: string; description: string; inputSchema: { required?: string[] } }[] };
+    result?: {
+      tools?: {
+        name: string;
+        description: string;
+        inputSchema: { required?: string[]; properties?: Record<string, unknown> };
+      }[];
+    };
   };
   return body.result?.tools ?? [];
 }
@@ -163,7 +191,7 @@ test("a genre can be created and read back", async () => {
   assert.deepEqual(created.genre, { name: "Thriller", instruction: "Tension, not brutality." });
 
   const taste = await ok(token, "get_taste");
-  assert.deepEqual(taste.genres, [created.genre]);
+  assert.deepEqual(taste.genres.map(content), [created.genre]);
 });
 
 test("a genre without an instruction is refused, even for a familiar name", async () => {
@@ -196,7 +224,7 @@ test("a mix names the genres it is built from, and comes back with them", async 
   assert.deepEqual(created.mix.genres, ["Sci-Fi", "Thriller"]);
 
   const taste = await ok(token, "get_taste");
-  assert.deepEqual(taste.mixes, [created.mix]);
+  assert.deepEqual(taste.mixes.map(content), [created.mix]);
 });
 
 test("renaming a genre carries its mixes, in one call", async () => {
@@ -357,19 +385,70 @@ test("a movie is saved with what the user said, and appears once in the model", 
 
   // The state lives in one place. The mix carries the handle — both halves of
   // it — so a title that names two films still names one here.
-  assert.deepEqual(taste.movies, [created.movie]);
+  //
+  // The create answered with the object it wrote, which is the caller's own words
+  // back. The read answers with the *record*, which is that plus when Tonight
+  // wrote it — and the difference between the two is exactly those two fields.
+  assert.equal(
+    taste.movies[0].createdAt,
+    taste.movies[0].updatedAt,
+    "nothing has happened to it yet",
+  );
+  assert.deepEqual(taste.movies.map(content), [created.movie]);
   assert.deepEqual(taste.mixes[0].movies, [{ title: "Arrival", year: 2016 }]);
 
   // No uuid, anywhere. Asserted as the set of field names rather than by
   // searching the text, which would match the "id" inside an ordinary word.
   assert.deepEqual(Object.keys(taste.movies[0]).sort(), [
+    "createdAt",
     "imdbId",
     "mixes",
     "state",
     "title",
+    "updatedAt",
     "year",
   ]);
   assert.deepEqual(Object.keys(taste.mixes[0].movies[0]).sort(), ["title", "year"]);
+});
+
+test("when a thing was written is Tonight's answer, and not a caller's argument", async () => {
+  const token = await tokenFor(someone());
+  const tools = await listTools(token);
+
+  // Not one tool takes either, under either spelling. Asserted over every tool
+  // rather than the write ones, because the point is that there is nowhere in
+  // this interface to say when something happened.
+  for (const tool of tools) {
+    for (const field of ["created_at", "updated_at", "createdAt", "updatedAt"]) {
+      assert.ok(
+        !Object.keys(tool.inputSchema.properties ?? {}).includes(field),
+        `${tool.name} takes ${field}`,
+      );
+    }
+  }
+
+  // Sent anyway, the way an over-helpful client would. The schema has no field
+  // for it, so it goes no further than the boundary — and what comes back is the
+  // time this call happened, not the time it was told.
+  await ok(token, "create_genre", {
+    name: "Sci-Fi",
+    instruction: "Ideas over spectacle.",
+    created_at: "1999-01-01T00:00:00Z",
+    updatedAt: "1999-01-01T00:00:00Z",
+  });
+
+  const taste = await ok(token, "get_taste");
+  const [genre] = taste.genres;
+  assert.match(genre.createdAt, STAMP);
+  // A window rather than a comparison against a bracket taken here: the stamp
+  // comes from the database's clock and this test reads a different one. What is
+  // being asserted is that a supplied 1999 had no effect, and five minutes
+  // settles that without either clock having to be right about the other.
+  assert.ok(
+    Math.abs(Date.parse(genre.createdAt) - Date.now()) < 5 * 60_000,
+    `created_at came from the caller: ${genre.createdAt}`,
+  );
+  assert.equal(genre.createdAt, genre.updatedAt);
 });
 
 test("omitted, a state and null are three different answers over the wire", async () => {

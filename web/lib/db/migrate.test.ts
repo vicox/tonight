@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
 import { ConfigurationError } from "../oauth/config.ts";
+import { orderGenre, orderMix, orderMovie } from "../taste/model.ts";
 import { RECONCILE_MIX_GENRES, TASTE_SCHEMA } from "../taste/store/schema.ts";
 import { sqlTasteStore } from "../taste/store/sql.ts";
 import type { SqlDriver } from "./driver.ts";
@@ -596,7 +597,11 @@ test("v1 data survives the whole migration with its meaning intact", async () =>
   // caller: the same genres, the same mix, the same genres under it, in the
   // same order, spelled the way they were typed.
   const taste = await sqlTasteStore(sql, { id: ALICE }).taste();
-  assert.deepEqual(taste, {
+  assert.deepEqual({
+    genres: taste.genres.map(orderGenre),
+    mixes: taste.mixes.map(orderMix),
+    movies: taste.movies.map(orderMovie),
+  }, {
     genres: [
       { name: "Sci-Fi", instruction: "I like ideas over spectacle." },
       { name: "Thriller", instruction: "I like being kept on edge." },
@@ -619,5 +624,276 @@ test("v1 data survives the whole migration with its meaning intact", async () =>
     ...taste.genres.flatMap(Object.keys),
     ...taste.mixes.flatMap(Object.keys),
   ]);
-  assert.deepEqual([...fields].sort(), ["genres", "instruction", "movies", "name"]);
+  assert.deepEqual([...fields].sort(), [
+    "createdAt",
+    "genres",
+    "instruction",
+    "movies",
+    "name",
+    "updatedAt",
+  ]);
+});
+
+/**
+ * The build that is in production when v6 runs, as SQL.
+ *
+ * Not a paraphrase: these are the statements from `git show HEAD` — the movie
+ * update naming four columns and no stamp, the filing replaced by deleting every
+ * reference row and writing the new ones, and the mix deleted by id. What the
+ * tests below assert is that a build which has never heard of `updated_at` keeps
+ * it correct anyway, because migrating and deploying are not one instant and a
+ * rolling deploy runs both builds at once on purpose.
+ */
+const oldCode = {
+  async createMovie(sql: SqlDriver, title: string, mixes: string[] = []): Promise<string> {
+    const [movie] = await sql.query<{ id: string }>(
+      `INSERT INTO tonight_movies (user_id, title, year, imdb_id, state)
+       VALUES ($1, $2, 2016, NULL, 'loved') RETURNING id`,
+      [ALICE, title],
+    );
+    for (const mix of mixes) {
+      await sql.query(
+        `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id)
+         SELECT $1, m.id, $3 FROM tonight_mixes AS m WHERE m.user_id = $1 AND m.name = $2`,
+        [ALICE, mix, movie!.id],
+      );
+    }
+    return movie!.id;
+  },
+
+  /** The old `updateMovie`: four columns, no stamp anywhere in it. */
+  async updateMovie(sql: SqlDriver, id: string, state: string): Promise<void> {
+    await sql.query(
+      `UPDATE tonight_movies
+          SET title = $3, year = $4, imdb_id = $5, state = $6
+        WHERE user_id = $1 AND id = $2`,
+      [ALICE, id, "Arrival", 2016, null, state],
+    );
+  },
+
+  /** The old filing replacement: delete the lot, write what is left. */
+  async refile(sql: SqlDriver, id: string, mixes: string[]): Promise<void> {
+    await sql.query(`DELETE FROM tonight_mix_movies WHERE user_id = $1 AND movie_id = $2`, [
+      ALICE,
+      id,
+    ]);
+    for (const mix of mixes) {
+      await sql.query(
+        `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id)
+         SELECT $1, m.id, $3 FROM tonight_mixes AS m WHERE m.user_id = $1 AND m.name = $2`,
+        [ALICE, mix, id],
+      );
+    }
+  },
+
+  /** The old `deleteMix`: by id, and nothing said about the films in it. */
+  async deleteMix(sql: SqlDriver, name: string): Promise<void> {
+    await sql.query(`DELETE FROM tonight_mixes WHERE user_id = $1 AND name = $2`, [ALICE, name]);
+  },
+
+  async createMix(sql: SqlDriver, name: string, genre: string): Promise<void> {
+    await sql.query(
+      `INSERT INTO tonight_genres (user_id, name, instruction) VALUES ($1, $2, 'Mine.')
+       ON CONFLICT DO NOTHING`,
+      [ALICE, genre],
+    );
+    const [mix] = await sql.query<{ id: string }>(
+      `INSERT INTO tonight_mixes (user_id, name, instruction) VALUES ($1, $2, 'Tense.')
+       RETURNING id`,
+      [ALICE, name],
+    );
+    await sql.query(
+      `INSERT INTO tonight_mix_genres (user_id, mix_id, genre_id, position)
+       SELECT $1, $2, g.id, 0 FROM tonight_genres AS g WHERE g.user_id = $1 AND g.name = $3`,
+      [ALICE, mix!.id, genre],
+    );
+  },
+};
+
+/** One movie's stamps, to the microsecond, as text so they compare exactly. */
+async function stamps(
+  sql: SqlDriver,
+  title: string,
+): Promise<{ created: string | null; updated: string }> {
+  const [row] = await sql.query<{ created: string | null; updated: string }>(
+    `SELECT to_char(created_at, 'YYYY-MM-DD HH24:MI:SS.US') AS created,
+            to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS.US') AS updated
+       FROM tonight_movies WHERE user_id = $1 AND title = $2`,
+    [ALICE, title],
+  );
+  return row!;
+}
+
+test("v6 leaves a pre-existing movie with no creation time and one baseline", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(5));
+  for (const title of ["Arrival", "Moon"]) await oldCode.createMovie(sql, title);
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  const [tracking] = await sql.query<{ applied: string }>(
+    `SELECT to_char(applied_at, 'YYYY-MM-DD HH24:MI:SS.US') AS applied
+       FROM schema_migrations WHERE module = 'taste' AND version = 6`,
+  );
+
+  for (const title of ["Arrival", "Moon"]) {
+    const one = await stamps(sql, title);
+    // Not the migration's clock, and not a guess: nobody wrote this down, so
+    // nothing stands in its place. A value here would be indistinguishable from
+    // a real one and would be wrong.
+    assert.equal(one.created, null, `${title} was given a creation time it never had`);
+    // A baseline instead — shared by every legacy row and equal to the migration's
+    // own tracking row, so it reads as a floor rather than as an event.
+    assert.equal(one.updated, tracking!.applied, `${title} baseline`);
+  }
+
+  // And it survives as a movie: the store reads it back, creation unknown.
+  const { movies } = await sqlTasteStore(sql, { id: ALICE }).taste();
+  assert.deepEqual(
+    movies.map((one) => [one.title, one.createdAt]),
+    [
+      ["Arrival", null],
+      ["Moon", null],
+    ],
+  );
+  for (const movie of movies) assert.match(movie.updatedAt, /^\d{4}-\d{2}-\d{2}T/);
+});
+
+test("a movie written after v6 knows when it was written", async () => {
+  const sql = await fresh();
+  await migrate(sql, TASTE_SCHEMA);
+  await oldCode.createMovie(sql, "Arrival");
+
+  const one = await stamps(sql, "Arrival");
+  assert.notEqual(one.created, null, "a movie written under v6 has no creation time");
+  assert.equal(one.created, one.updated, "nothing has happened to it yet");
+});
+
+test("the old build still dates a movie it edits, without naming the column", async () => {
+  // Written before the migration and edited after it, which is the arrangement
+  // this whole trigger exists for — and it makes the assertion exact rather than
+  // a race against the clock. The film's stamp starts at the migration's own
+  // baseline, so "it moved" is a comparison across a migration rather than
+  // between two statements that can land in the same millisecond.
+  const sql = await fresh();
+  await migrate(sql, upTo(5));
+  const id = await oldCode.createMovie(sql, "Arrival");
+  await migrate(sql, TASTE_SCHEMA);
+
+  const was = await stamps(sql, "Arrival");
+  assert.equal(was.created, null, "a legacy row was given a creation time");
+
+  await oldCode.updateMovie(sql, id, "disliked");
+
+  const now = await stamps(sql, "Arrival");
+  assert.ok(now.updated > was.updated, `old-build update: ${now.updated} is not after ${was.updated}`);
+  // Still unknown. An update must not invent what an insert did not record.
+  assert.equal(now.created, null, "the old build invented a creation time");
+});
+
+test("the old build still dates a movie whose filing it replaces", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(5));
+  await oldCode.createMix(sql, "Space Tension", "Sci-Fi");
+  const id = await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
+  await migrate(sql, TASTE_SCHEMA);
+  const was = await stamps(sql, "Arrival");
+
+  // Taken out of every mix, by a build that writes no timestamp and does not
+  // touch the movie's own row on this path at all.
+  await oldCode.refile(sql, id, []);
+
+  const now = await stamps(sql, "Arrival");
+  assert.ok(now.updated > was.updated, `old-build refile: ${now.updated} is not after ${was.updated}`);
+});
+
+test("the old build deleting a mix still dates the films that were in it", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(5));
+  await oldCode.createMix(sql, "Space Tension", "Sci-Fi");
+  await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
+  await oldCode.createMovie(sql, "Moon");
+  await migrate(sql, TASTE_SCHEMA);
+
+  const filedWas = await stamps(sql, "Arrival");
+  const looseWas = await stamps(sql, "Moon");
+
+  // The films are neither named nor written by this statement. Their reference
+  // rows go with the mix, and that is the only thing the database sees.
+  await oldCode.deleteMix(sql, "Space Tension");
+
+  const filedNow = await stamps(sql, "Arrival");
+  assert.ok(
+    filedNow.updated > filedWas.updated,
+    `old-build mix deletion: ${filedNow.updated} is not after ${filedWas.updated}`,
+  );
+  assert.equal(filedNow.created, filedWas.created);
+  // A film that was not in it did not change, and its stamp says so.
+  assert.deepEqual(await stamps(sql, "Moon"), looseWas);
+});
+
+test("the reordered deleteMix runs against the schema as it is before v6", async () => {
+  // Phase A of the rollout, asserted rather than promised. The deletion has to be
+  // deployable *before* this migration exists, because it is what stops an
+  // old-build deletion — mix first, movies never — from crossing an updateMovie
+  // once the cascade starts writing movies. If it named a timestamp column
+  // anywhere, it could not ship first, and the whole order would collapse into a
+  // maintenance window.
+  const sql = await fresh();
+  await migrate(sql, upTo(5));
+
+  await oldCode.createMix(sql, "Space Tension", "Sci-Fi");
+  await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
+  await oldCode.createMovie(sql, "Moon");
+
+  const store = sqlTasteStore(sql, { id: ALICE });
+  const gone = await store.deleteMix("Space Tension");
+  assert.equal(gone.name, "Space Tension");
+  assert.deepEqual(gone.movies, [{ title: "Arrival", year: 2016 }]);
+
+  // The films outlive it, unfiled, and nothing here needed a column that is not
+  // there yet.
+  const [{ count }] = await sql.query<{ count: string }>(
+    `SELECT count(*) AS count FROM tonight_movies WHERE user_id = $1`,
+    [ALICE],
+  );
+  assert.equal(Number(count), 2);
+  const [filings] = await sql.query<{ count: string }>(
+    `SELECT count(*) AS count FROM tonight_mix_movies WHERE user_id = $1`,
+    [ALICE],
+  );
+  assert.equal(Number(filings!.count), 0);
+
+  // And v6 still applies cleanly on top of a database that has been served by it.
+  assert.equal(await migrate(sql, TASTE_SCHEMA), 1);
+});
+
+test("a caller cannot set either stamp, in any build", async () => {
+  const sql = await fresh();
+  await migrate(sql, TASTE_SCHEMA);
+
+  // Named outright, which no build does and the schema has no reason to allow.
+  await sql.query(
+    `INSERT INTO tonight_movies (user_id, title, year, state, created_at, updated_at)
+     VALUES ($1, 'Arrival', 2016, 'loved', '1999-01-01Z', '1999-01-01Z')`,
+    [ALICE],
+  );
+  const [fresh1] = await sql.query<{ old: boolean }>(
+    `SELECT created_at < now() - interval '1 hour' AS old FROM tonight_movies
+      WHERE user_id = $1 AND title = 'Arrival'`,
+    [ALICE],
+  );
+  assert.equal(fresh1!.old, false, "an insert set its own creation time");
+
+  const was = await stamps(sql, "Arrival");
+  await sql.query(
+    `UPDATE tonight_movies SET created_at = '1999-01-01Z', updated_at = '1999-01-01Z'
+      WHERE user_id = $1 AND title = 'Arrival'`,
+    [ALICE],
+  );
+  const now = await stamps(sql, "Arrival");
+  // Asked of the values rather than of the clock: what was sent is what must not
+  // be stored, and no elapsed time is needed to see that.
+  assert.equal(now.created, was.created, "an update rewrote a creation time");
+  assert.notEqual(now.updated, "1999-01-01 00:00:00.000000", "an update set its own change time");
 });

@@ -4,7 +4,17 @@ import test, { after, describe } from "node:test";
 import type { SqlDriver } from "../db/driver.ts";
 import { migrate } from "../db/migrate.ts";
 import { embeddedDriver } from "../db/pglite.ts";
-import { TasteError, type Genre, type Mix, type Movie } from "./model.ts";
+import {
+  orderGenre,
+  orderMix,
+  orderMovie,
+  TasteError,
+  type Genre,
+  type Mix,
+  type Movie,
+  type Taste,
+  type Written,
+} from "./model.ts";
 import { TASTE_SCHEMA } from "./store/schema.ts";
 import { sqlTasteStore } from "./store/sql.ts";
 import type { TasteStore } from "./store.ts";
@@ -55,18 +65,40 @@ if (process.env.TEST_DATABASE_URL) {
  * second identity rule these tests exist to catch. Case-insensitive lookup is
  * asserted through the store's own operations instead.
  */
-async function genreOf(store: TasteStore, name: string): Promise<Genre | undefined> {
+async function genreOf(store: TasteStore, name: string): Promise<Written<Genre> | undefined> {
   return (await store.taste()).genres.find((one) => one.name === name);
 }
 
 /** The same for a mix. */
-async function mixOf(store: TasteStore, name: string): Promise<Mix | undefined> {
+async function mixOf(store: TasteStore, name: string): Promise<Written<Mix> | undefined> {
   return (await store.taste()).mixes.find((one) => one.name === name);
 }
 
 /** The same for a movie, addressed the way the product addresses one. */
-async function movieOf(store: TasteStore, title: string, year: number): Promise<Movie | undefined> {
+async function movieOf(
+  store: TasteStore,
+  title: string,
+  year: number,
+): Promise<Written<Movie> | undefined> {
   return (await store.taste()).movies.find((one) => one.title === title && one.year === year);
+}
+
+/**
+ * The whole model with the timestamps taken off.
+ *
+ * Most assertions here are about what the user said, and the two stamps are the
+ * only fields in an answer they did not say — a wall-clock value cannot be
+ * written into a `deepEqual` anyway. Stripped with the domain's own field-order
+ * functions rather than by deleting keys, so a field added to `Genre`, `Mix` or
+ * `Movie` shows up in these comparisons instead of being quietly dropped from
+ * them. What the stamps do is asserted on its own, further down.
+ */
+function content(taste: Taste): { genres: Genre[]; mixes: Mix[]; movies: Movie[] } {
+  return {
+    genres: taste.genres.map(orderGenre),
+    mixes: taste.mixes.map(orderMix),
+    movies: taste.movies.map(orderMovie),
+  };
 }
 
 /** The message a rejected operation came back with, or "accepted". */
@@ -279,7 +311,7 @@ for (const driver of drivers) {
         /entry 2 is empty/,
       );
 
-      assert.deepEqual(await alice.taste(), {
+      assert.deepEqual(content(await alice.taste()), {
         genres: [{ name: "Sci-Fi", instruction: "what Sci-Fi means to me" }],
         mixes: [],
         movies: [],
@@ -323,7 +355,7 @@ for (const driver of drivers) {
       );
 
       // Nothing moved: not the values, not the genre list, not the timestamps.
-      assert.deepEqual(await alice.taste(), {
+      assert.deepEqual(content(await alice.taste()), {
         genres: [
           { name: "Sci-Fi", instruction: "what Sci-Fi means to me" },
           { name: "Thriller", instruction: "what Thriller means to me" },
@@ -908,10 +940,12 @@ for (const driver of drivers) {
       // ideas over spectacle" would fail while nothing was wrong.
       const { movies } = await alice.taste();
       assert.deepEqual(Object.keys(movies[0]!).sort(), [
+        "createdAt",
         "imdbId",
         "mixes",
         "state",
         "title",
+        "updatedAt",
         "year",
       ]);
     });
@@ -1605,7 +1639,7 @@ for (const driver of drivers) {
 
       const { mixes, movies } = await alice.taste();
 
-      assert.deepEqual(movies, [
+      assert.deepEqual(movies.map(orderMovie), [
         { title: "Arrival", year: 2016, imdbId: null, state: null, mixes: [] },
         {
           title: "Dune",
@@ -1660,6 +1694,340 @@ for (const driver of drivers) {
           assert.ok(known.has(name), `${mix.name} names "${name}", which is not a genre`);
         }
       }
+    });
+
+    /**
+     * When each object was written.
+     *
+     * Two stamps, and the interesting one is `updatedAt`: the question it answers
+     * is "has this changed since I last looked", so what counts as a change is
+     * the whole of its meaning. A Mix's genre list and a Movie's filing are part
+     * of what those objects *are* — an assertion for each, because both are
+     * changes that leave the object's own columns alone and would be the ones to
+     * go unnoticed.
+     *
+     * Neither stamp is anything the caller can reach. There is no draft field, no
+     * changes field and no validator with anywhere to put one, so the assertions
+     * about that are about the shape of the interface rather than about a check.
+     */
+    describe("when it was written", () => {
+      /** Both stamps of one genre, straight from the read. */
+      const genreStamps = async (store: TasteStore, name: string) => {
+        const one = await genreOf(store, name);
+        return { createdAt: one!.createdAt, updatedAt: one!.updatedAt };
+      };
+
+      /** Every movie's stamps, by title, for the paths that change several. */
+      const allMovieStamps = async (store: TasteStore) =>
+        Object.fromEntries(
+          (await store.taste()).movies.map((one) => [`${one.title} ${one.year}`, one.updatedAt]),
+        );
+
+      const mixStamps = async (store: TasteStore, name: string) => {
+        const one = await mixOf(store, name);
+        return { createdAt: one!.createdAt, updatedAt: one!.updatedAt };
+      };
+
+      const movieStamps = async (store: TasteStore, title: string, year: number) => {
+        const one = await movieOf(store, title, year);
+        return { createdAt: one!.createdAt, updatedAt: one!.updatedAt };
+      };
+
+      /**
+       * Strictly later, compared as text.
+       *
+       * Both values come from the same fixed-width UTC rendering, so string order
+       * *is* chronological order — and it keeps the full resolution, which
+       * `Date.parse` would truncate to milliseconds.
+       */
+      const after = (later: string, earlier: string, what: string) =>
+        assert.ok(later > earlier, `${what}: ${later} is not after ${earlier}`);
+
+      /**
+       * Written at about the time this test ran, not at some time a caller named.
+       *
+       * A generous window rather than "after a bracket taken a moment ago", and
+       * the reason is a real failure: against a Postgres in a container the row
+       * came back a millisecond *before* a `new Date()` taken before the insert.
+       * Two clocks, one in this process and one on the server, and nothing here
+       * has any business asserting they agree. What the assertion is actually for
+       * is a stamp of 1970 or a supplied 1999, and a window catches those without
+       * measuring anybody's clock skew.
+       */
+      const recent = (stamp: string | null, what: string) => {
+        assert.ok(stamp !== null, `${what}: not known, and this test wrote it`);
+        const drift = Math.abs(Date.parse(stamp) - Date.now());
+        assert.ok(drift < 5 * 60_000, `${what}: ${stamp} is not a time this test wrote`);
+      };
+
+      test("creating anything stamps it, both stamps the same and both real", async () => {
+        const { alice } = await fresh();
+        await genre(alice, "Sci-Fi");
+        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createMovie({ title: "Arrival", year: 2016 });
+
+        const taste = await alice.taste();
+        const written = [...taste.genres, ...taste.mixes, ...taste.movies];
+        assert.equal(written.length, 3);
+
+        for (const one of written) {
+          // Equal on creation, because nothing has happened to it yet. That is
+          // what makes "updatedAt is later" a statement about a change rather
+          // than about how the row was written.
+          assert.equal(one.createdAt, one.updatedAt);
+          // Anything written through the store knows when it was written. Null is
+          // reserved for films that predate the column — see the migration tests.
+          assert.match(one.createdAt ?? "", /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/);
+          recent(one.createdAt, "created");
+        }
+      });
+
+      test("being created with memberships is still just being created", async () => {
+        // A mix cannot exist without genres and a film may be filed as it is
+        // saved, so both are written and then have reference rows added. Neither
+        // is a change *to* the object, and its stamps must not say it was: equal
+        // stamps are how a reader asks "has anything happened to this since I
+        // made it", and an answer that is always yes answers nothing.
+        const { alice } = await fresh();
+        await genre(alice, "Sci-Fi");
+        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createMovie({ title: "Arrival", year: 2016, mixes: ["Space Tension"] });
+
+        for (const one of [
+          await mixStamps(alice, "Space Tension"),
+          await movieStamps(alice, "Arrival", 2016),
+        ]) {
+          assert.equal(one.updatedAt, one.createdAt);
+        }
+      });
+
+      test("adding to a membership dates the owner, with nothing else changed", async () => {
+        // The gap the join triggers deliberately leave: they do not fire on a
+        // bare insert, because nothing inserts a reference row without writing
+        // its owner. That is a claim about this store, so it is checked from
+        // outside it — both directions, both objects, neither call touching a
+        // single field of its own.
+        const { alice } = await fresh();
+        await genre(alice, "Sci-Fi");
+        await genre(alice, "Thriller");
+        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createMovie({ title: "Arrival", year: 2016 });
+
+        const mixWas = await mixStamps(alice, "Space Tension");
+        await alice.updateMix("Space Tension", { genres: ["Sci-Fi", "Thriller"] });
+        after((await mixStamps(alice, "Space Tension")).updatedAt, mixWas.updatedAt, "genre added");
+
+        // A film with no filings at all: the delete half of the replacement
+        // matches nothing, so only the movie's own write can date it.
+        const movieWas = await movieStamps(alice, "Arrival", 2016);
+        await alice.updateMovie("Arrival", 2016, { mixes: ["Space Tension"] });
+        after(
+          (await movieStamps(alice, "Arrival", 2016)).updatedAt,
+          movieWas.updatedAt,
+          "first filing",
+        );
+      });
+
+      test("a field changing moves updatedAt and leaves createdAt alone", async () => {
+        const { alice } = await fresh();
+        await genre(alice, "Sci-Fi");
+        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createMovie({ title: "Arrival", year: 2016 });
+
+        const genreWas = await genreStamps(alice, "Sci-Fi");
+        const mixWas = await mixStamps(alice, "Space Tension");
+        const movieWas = await movieStamps(alice, "Arrival", 2016);
+
+        await alice.updateGenre("Sci-Fi", { instruction: "Ideas over spectacle." });
+        await alice.updateMix("Space Tension", { instruction: "The danger is in the room." });
+        await alice.updateMovie("Arrival", 2016, { state: "loved" });
+
+        const genreNow = await genreStamps(alice, "Sci-Fi");
+        const mixNow = await mixStamps(alice, "Space Tension");
+        const movieNow = await movieStamps(alice, "Arrival", 2016);
+
+        after(genreNow.updatedAt, genreWas.updatedAt, "genre instruction");
+        after(mixNow.updatedAt, mixWas.updatedAt, "mix instruction");
+        after(movieNow.updatedAt, movieWas.updatedAt, "movie state");
+
+        // Creation happened once. Nothing an update does is allowed to restate it.
+        assert.equal(genreNow.createdAt, genreWas.createdAt);
+        assert.equal(mixNow.createdAt, mixWas.createdAt);
+        assert.equal(movieNow.createdAt, movieWas.createdAt);
+      });
+
+      test("a rename is a change too, and does not restate creation", async () => {
+        const { alice } = await fresh();
+        await genre(alice, "Sci-Fi");
+        await alice.createMovie({ title: "Arrival", year: 2016 });
+
+        const genreWas = await genreStamps(alice, "Sci-Fi");
+        const movieWas = await movieStamps(alice, "Arrival", 2016);
+
+        await alice.updateGenre("Sci-Fi", { name: "Science fiction" });
+        await alice.updateMovie("Arrival", 2016, { year: 2017 });
+
+        const genreNow = await genreStamps(alice, "Science fiction");
+        const movieNow = await movieStamps(alice, "Arrival", 2017);
+
+        after(genreNow.updatedAt, genreWas.updatedAt, "genre rename");
+        after(movieNow.updatedAt, movieWas.updatedAt, "movie reyear");
+        assert.equal(genreNow.createdAt, genreWas.createdAt);
+        assert.equal(movieNow.createdAt, movieWas.createdAt);
+      });
+
+      test("changing which genres a mix is built from is a change to the mix", async () => {
+        const { alice } = await fresh();
+        await genre(alice, "Sci-Fi");
+        await genre(alice, "Thriller");
+        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+
+        const was = await mixStamps(alice, "Space Tension");
+        // Only the membership. Name and instruction are left exactly as they
+        // were, so nothing in the mix's own columns has a new value to write.
+        await alice.updateMix("Space Tension", { genres: ["Sci-Fi", "Thriller"] });
+
+        const now = await mixStamps(alice, "Space Tension");
+        after(now.updatedAt, was.updatedAt, "mix genre membership");
+        assert.equal(now.createdAt, was.createdAt);
+      });
+
+      test("changing which mixes a movie is in is a change to the movie", async () => {
+        const { alice } = await fresh();
+        await genre(alice, "Sci-Fi");
+        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createMovie({ title: "Arrival", year: 2016 });
+
+        const was = await movieStamps(alice, "Arrival", 2016);
+        // Again only the membership: same title, same year, same state.
+        await alice.updateMovie("Arrival", 2016, { mixes: ["Space Tension"] });
+
+        const filed = await movieStamps(alice, "Arrival", 2016);
+        after(filed.updatedAt, was.updatedAt, "movie filed");
+        assert.equal(filed.createdAt, was.createdAt);
+
+        // And taking it out again, which is the same change in the other
+        // direction and the one an implementation keyed on "has a mix" misses.
+        await alice.updateMovie("Arrival", 2016, { mixes: [] });
+        const loose = await movieStamps(alice, "Arrival", 2016);
+        after(loose.updatedAt, filed.updatedAt, "movie unfiled");
+        assert.equal(loose.createdAt, was.createdAt);
+      });
+
+      test("deleting a mix is a change to every movie that was in it", async () => {
+        const { alice } = await fresh();
+        await genre(alice, "Sci-Fi");
+        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createMovie({
+          title: "Arrival",
+          year: 2016,
+          state: "loved",
+          mixes: ["Space Tension"],
+        });
+        await alice.createMovie({ title: "Moon", year: 2009 });
+
+        const filedWas = await movieStamps(alice, "Arrival", 2016);
+        const looseWas = await movieStamps(alice, "Moon", 2009);
+
+        // The film is not deleted and not edited. What changed is that it is now
+        // in one fewer mix — which the movie's own row is never told about,
+        // because the reference rows cascade away underneath it.
+        await alice.deleteMix("Space Tension");
+
+        const filedNow = await movieStamps(alice, "Arrival", 2016);
+        // The whole film, not just its filing: dating a row means writing it, and
+        // that write goes through v5's state bridge like any other. A trigger
+        // that re-derived `state` from the booleans on the way past would show up
+        // right here, as a `loved` quietly demoted to `liked`.
+        assert.deepEqual(orderMovie((await movieOf(alice, "Arrival", 2016))!), {
+          title: "Arrival",
+          year: 2016,
+          imdbId: null,
+          state: "loved",
+          mixes: [],
+        });
+        after(filedNow.updatedAt, filedWas.updatedAt, "movie unfiled by a deletion");
+        assert.equal(filedNow.createdAt, filedWas.createdAt);
+
+        // A film that was never in it did not change, and its stamp says so.
+        assert.deepEqual(await movieStamps(alice, "Moon", 2009), looseWas);
+      });
+
+      test("filing a movie is not a change to the mix it is filed under", async () => {
+        // The asymmetry is deliberate and is v4's reasoning: a mix is defined by
+        // its genres and its instruction, and a film is one of the things the user
+        // keeps in it. One more does not change what the mix means.
+        const { alice } = await fresh();
+        await genre(alice, "Sci-Fi");
+        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+
+        const was = await mixStamps(alice, "Space Tension");
+        await alice.createMovie({ title: "Arrival", year: 2016, mixes: ["Space Tension"] });
+
+        assert.deepEqual(await mixStamps(alice, "Space Tension"), was);
+      });
+
+      test("a caller cannot supply either stamp, on create or on update", async () => {
+        const { alice, sql } = await fresh();
+        const ancient = "1999-01-01T00:00:00.000Z";
+
+        // Passed the way an MCP client's arguments arrive: extra properties on the
+        // draft object. The store builds every statement from named columns, so
+        // there is no route from here to either column — and the store's own types
+        // have no field to name, which is what this asserts at run time as well.
+        await alice.createGenre({
+          name: "Sci-Fi",
+          instruction: "Ideas.",
+          ...{ createdAt: ancient, created_at: ancient, updatedAt: ancient },
+        } as never);
+        await alice.createMovie({
+          title: "Arrival",
+          year: 2016,
+          ...{ created_at: ancient, updated_at: ancient },
+        } as never);
+
+        for (const one of [
+          await genreStamps(alice, "Sci-Fi"),
+          await movieStamps(alice, "Arrival", 2016),
+        ]) {
+          recent(one.createdAt, "created despite a supplied stamp");
+          assert.equal(one.createdAt, one.updatedAt);
+        }
+
+        const was = await genreStamps(alice, "Sci-Fi");
+        await alice.updateGenre("Sci-Fi", {
+          instruction: "Ideas over spectacle.",
+          ...{ createdAt: ancient, created_at: ancient },
+        } as never);
+        const now = await genreStamps(alice, "Sci-Fi");
+        assert.equal(now.createdAt, was.createdAt);
+        after(now.updatedAt, was.updatedAt, "updated after a supplied stamp");
+
+        // And nothing anywhere took the value: not under either spelling, not in
+        // any row of any of the three tables. Asked against the database's own
+        // clock, which is the only clock these columns are ever set from.
+        for (const table of ["tonight_genres", "tonight_mixes", "tonight_movies"]) {
+          const [row] = await sql.query<{ count: string }>(
+            `SELECT count(*) AS count FROM ${table}
+              WHERE user_id = $1
+                AND (created_at < now() - interval '1 hour'
+                  OR updated_at < now() - interval '1 hour')`,
+            [ALICE.id],
+          );
+          assert.equal(Number(row!.count), 0, `${table} took a stamp from the caller`);
+        }
+      });
+
+      test("one user's writes never date another's objects", async () => {
+        const { alice, bob } = await fresh();
+        await genre(alice, "Sci-Fi");
+        await genre(bob, "Sci-Fi");
+
+        const was = await genreStamps(bob, "Sci-Fi");
+        await alice.updateGenre("Sci-Fi", { instruction: "Mine." });
+
+        assert.deepEqual(await genreStamps(bob, "Sci-Fi"), was);
+      });
     });
   });
 }

@@ -29,6 +29,7 @@ const setMovieState = (await import("../../app/api/movies/route.ts")).PATCH;
 const { webStore } = await import("./store.ts");
 const { SESSION_COOKIE } = await import("./cookies.ts");
 const { tasteStore } = await import("../taste/store.ts");
+const { orderGenre, orderMovie } = await import("../taste/model.ts");
 
 type Taste = import("../taste/model.ts").Taste;
 
@@ -140,11 +141,11 @@ test("a malformed body is refused by the domain rather than coerced on the way i
     assert.match(refused.message ?? "", expected);
   }
 
-  assert.deepEqual(await taste(id), {
-    genres: [{ name: "Sci-Fi", instruction: "Ideas." }],
-    mixes: [],
-    movies: [],
-  });
+  const untouched = await taste(id);
+  assert.deepEqual(
+    { genres: untouched.genres.map(orderGenre), mixes: untouched.mixes, movies: untouched.movies },
+    { genres: [{ name: "Sci-Fi", instruction: "Ideas." }], mixes: [], movies: [] },
+  );
 });
 
 test("a conflict and a missing target come back as the domain's own answers", async () => {
@@ -254,7 +255,9 @@ test("a session cannot change, delete or borrow another account's genres", async
   assert.equal(borrowed.status, 400);
   assert.match(borrowed.message ?? "", /"Alice only" is not one of them/);
 
-  assert.deepEqual((await taste(alice.id)).genres, [{ name: "Alice only", instruction: "Hers." }]);
+  assert.deepEqual((await taste(alice.id)).genres.map(orderGenre), [
+    { name: "Alice only", instruction: "Hers." },
+  ]);
   assert.deepEqual((await taste(bob.id)).mixes, []);
 });
 
@@ -285,7 +288,13 @@ async function withFilm(state: { state?: unknown } = {}) {
 
 /** The film as the store holds it, read outside the route that changed it. */
 async function film(id: string) {
-  return (await taste(id)).movies[0];
+  const [one] = (await taste(id)).movies;
+  // Without the two stamps: these tests are about what a press writes, and a
+  // wall-clock value cannot be named in a comparison. Stripped with the domain's
+  // own field-order function, so a new field on `Movie` shows up here rather than
+  // being quietly dropped. When the stamps were written is asserted in the store's
+  // own suite.
+  return one && orderMovie(one);
 }
 
 const mark = (cookie: string, body: unknown) =>

@@ -205,7 +205,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "loved and disliked, or null for never told. A new user has none of it, which is the normal state " +
         "rather than an error. It is context and the vocabulary to reuse when writing — not a " +
         "list of what may be recommended, and a genre or mix existing does not by itself say " +
-        "they like it. It is the only record of what they have said they watched.",
+        "they like it. It is the only record of what they have said they watched. Every genre, " +
+        "mix and movie also carries createdAt and updatedAt: when Tonight wrote it, and when " +
+        "it last changed — which includes a mix's genres changing and a movie being filed " +
+        "differently. Both are Tonight's own, ISO 8601 in UTC. No tool takes either, and " +
+        "nothing you send can set or move them. createdAt is null on a film saved before " +
+        "Tonight recorded creation times; that is not known rather than not set.",
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () => attempt(() => store.taste()),
