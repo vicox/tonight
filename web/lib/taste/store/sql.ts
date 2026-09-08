@@ -15,6 +15,7 @@ import {
   genreInUse,
   genreNotFound,
   mixExists,
+  mixBusy,
   mixGenreMissing,
   mixNotFound,
   movieExists,
@@ -449,21 +450,84 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
       });
     },
 
+    /**
+     * Removes a mix, and with it the filing of every movie that was in one.
+     *
+     * The shape of this is entirely about the order the locks are taken in:
+     *
+     *     resolve the mix                  by name, unlocked, to an id
+     *     read what is filed under it      ids and handles together
+     *     hold exactly those movies        canonical order, each id confirmed
+     *     hold the mix                     and confirm it is still that id
+     *     read what is filed again         and confirm the set is the same
+     *     delete by the id                 never by the name
+     *
+     * The rule it exists for is one sentence: **never reach for a movie while
+     * holding the mix.** An `updateMovie` filing a film into this mix holds the
+     * film and waits for the mix; a deletion that held the mix and waited for a
+     * film would close that cycle, and Postgres would break it by aborting one of
+     * them. So every movie this needs is held before the mix is, and if the set
+     * turns out to have changed the answer is to let go of everything and start
+     * again — never to take one more lock from here.
+     *
+     * Nothing about a movie is written here, and today nothing needs to be: a
+     * deletion cascades its reference rows away and that is the whole of it. The
+     * locks are taken for what comes next. A migration is coming that makes the
+     * database write each of those films as its filing disappears, and from the
+     * moment it lands, a deletion that has not been reordered holds the mix and
+     * reaches for a film underneath it. That is why this ships first and on its
+     * own: by the time the migration runs, no build taking the old order can
+     * still be serving.
+     */
     async deleteMix(name) {
-      return driver.transaction(async (tx) => {
-        const { source: entry } = await lockMix(tx, owner, name);
-        if (!entry) throw mixNotFound(name);
+      for (let attempt = 1; ; attempt += 1) {
+        const outcome = await driver.transaction<Mix | typeof AGAIN>(async (tx) => {
+          // Unlocked, and nothing is decided from it: it says which movies to
+          // hold, and the mix is confirmed by this id under a lock below.
+          const found = await findMix(tx, owner, name);
+          if (!found) throw mixNotFound(name);
 
-        // The genre list goes with it — the reference rows cascade on delete — and
-        // the genres themselves are untouched. Deleting a mix is never blocked:
-        // nothing in this model is built from a mix.
-        const removed = await tx.query(
-          `DELETE FROM tonight_mixes WHERE user_id = $1 AND id = $2 RETURNING name`,
-          [owner, entry.id],
-        );
-        if (!removed.length) throw mixNotFound(name);
-        return orderMix(entry);
-      });
+          // Ids and handles together. The handle is how a movie is locked; the id
+          // is how it is recognised, because a handle can be somebody else's by
+          // the time the lock is taken.
+          const filed = await filedMovies(tx, owner, found.id);
+          if (!(await holdFiledMovies(tx, owner, filed))) return AGAIN;
+
+          const { source: entry } = await lockMix(tx, owner, name);
+
+          // Not merely "is it still there". Between the resolve above and this
+          // lock the mix could have been deleted and a new one given the same
+          // name, and that new mix is not the one whose movies are held —
+          // deleting it would remove a mix nobody asked about. The name no longer
+          // reaches the mix they meant, which is what "no mix" says.
+          if (!entry || entry.id !== found.id) throw mixNotFound(name);
+
+          // Nothing can be filed under it from here on: writing a reference row
+          // takes a KEY SHARE on the mix, which this FOR UPDATE excludes. So this
+          // read settles the set for good — and if it disagrees with what is held,
+          // the difference arrived while the movies were being locked. Starting
+          // again is the only move: the alternative is another movie lock from
+          // inside the mix lock, which is the deadlock this method is shaped to
+          // avoid.
+          if (!same(filed, await filedMovies(tx, owner, found.id))) return AGAIN;
+
+          // The genre list goes with it — the reference rows cascade on delete —
+          // and the genres themselves are untouched. Deleting a mix is never
+          // blocked: nothing in this model is built from a mix.
+          const removed = await tx.query(
+            `DELETE FROM tonight_mixes WHERE user_id = $1 AND id = $2 RETURNING name`,
+            [owner, found.id],
+          );
+          if (!removed.length) throw mixNotFound(name);
+          return orderMix(entry);
+        });
+
+        if (outcome !== AGAIN) return outcome;
+        // Each attempt lets go of everything first, so a retry is a fresh look
+        // rather than a longer hold. What it races with has to commit to win, so
+        // a few of these settle anything that is not a caller in a loop.
+        if (attempt === DELETION_ATTEMPTS) throw mixBusy(name);
+      }
     },
   };
 }
@@ -705,6 +769,109 @@ async function holdGenres(
       throw mixGenreMissing(reference.name, known.map((genre) => genre.name));
     }
   }
+}
+
+/**
+ * How many times a deletion looks again before it gives up.
+ *
+ * Three, because what it retries on is another transaction having committed a
+ * change to the same mix's filing while this one was taking locks. That is a
+ * race a competing writer has to *win* to cause, not a state to wait out, so a
+ * fourth attempt says something is repeatedly beating this one rather than that
+ * it needs longer.
+ */
+const DELETION_ATTEMPTS = 3;
+
+/** Returned by a deletion attempt that has to let go and look again. */
+const AGAIN = Symbol("look again");
+
+/** A movie as a deletion has to see it: which film, and how to lock it. */
+type Filed = { id: string; title: string; year: number };
+
+/**
+ * One mix by name, resolved and not held.
+ *
+ * Folded by Postgres on both sides, like every other name comparison here: the
+ * unique index is on `lower(name)`, and nothing else decides what one mix is.
+ * What it gives back is an id, which is the only thing worth carrying — a name
+ * can be somebody else's a moment later, an id cannot.
+ */
+async function findMix(
+  sql: Transaction,
+  owner: string,
+  name: string,
+): Promise<{ id: string } | undefined> {
+  const [row] = await sql.query<{ id: string }>(
+    `SELECT id FROM tonight_mixes WHERE user_id = $1 AND lower(name) = lower($2)`,
+    [owner, name],
+  );
+  return row;
+}
+
+/**
+ * The movies filed under one mix — by id, and by the handle each is locked under.
+ *
+ * Addressed by the mix's id, never by its name: this is called before the mix is
+ * locked, and a name resolved twice can resolve to two different mixes.
+ *
+ * The title comes back folded by Postgres, which is the same folding the unique
+ * index and `lockMovies` use. Nothing about which two spellings are one movie is
+ * decided here.
+ */
+async function filedMovies(sql: Transaction, owner: string, mixId: string): Promise<Filed[]> {
+  return sql.query<Filed>(
+    `SELECT v.id, lower(v.title) AS title, v.year
+       FROM tonight_mix_movies AS r
+       JOIN tonight_movies AS v ON v.user_id = r.user_id AND v.id = r.movie_id
+      WHERE r.user_id = $1 AND r.mix_id = $2`,
+    [owner, mixId],
+  );
+}
+
+/** Whether two filings name the same films, however they are ordered. */
+function same(one: readonly Filed[], other: readonly Filed[]): boolean {
+  if (one.length !== other.length) return false;
+  const held = new Set(one.map((film) => film.id));
+  return other.every((film) => held.has(film.id));
+}
+
+/**
+ * Holds exactly these movies, and confirms each one is still the movie it was.
+ *
+ * Locked in `inLockOrder` over `movieKey`, which is the order `lockMovies` uses
+ * and therefore the only order in which anything here takes more than one movie.
+ * An ordering of its own — by id, say — would be a second order, and two orders
+ * over the same rows is the cycle both of them exist to prevent: this holding
+ * `A` and waiting for `B` while a retitle holds `B` and waits for `A`.
+ *
+ * One statement per row, because lock order inside a single statement belongs to
+ * the planner and `ORDER BY` does not govern it.
+ *
+ * A handle is not an identity, which is why the id travels with it. Between
+ * reading the filing and reaching a key, a retitle can move that film out of the
+ * handle and move another film into it — so the row this locks is compared to the
+ * film it was supposed to be. A mismatch, or nothing there at all, means the set
+ * being held is no longer the set that was read, and `false` says to start over
+ * rather than to carry on holding a film nobody asked about while missing one
+ * that matters.
+ */
+async function holdFiledMovies(
+  sql: Transaction,
+  owner: string,
+  filed: readonly Filed[],
+): Promise<boolean> {
+  const byKey = new Map(filed.map((film) => [movieKey(film.title, film.year), film]));
+  for (const key of inLockOrder([...byKey.keys()])) {
+    const at = byKey.get(key)!;
+    const [row] = await sql.query<{ id: string }>(
+      `SELECT id FROM tonight_movies
+        WHERE user_id = $1 AND lower(title) = $2 AND year = $3
+        FOR UPDATE`,
+      [owner, at.title, at.year],
+    );
+    if (row?.id !== at.id) return false;
+  }
+  return true;
 }
 
 /**

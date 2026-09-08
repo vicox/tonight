@@ -562,6 +562,23 @@ export function mixNotFound(name: string): TasteError {
   return new TasteError(`no mix "${normalise(name)}" (use get_taste to see them)`);
 }
 
+/**
+ * A mix that kept changing underneath a deletion.
+ *
+ * Deleting one has to hold every film in it before it holds the mix, so that it
+ * never waits for a film while something else waits for the mix. When the list
+ * changes between those two moments the only safe move is to let go of
+ * everything and look again — holding the mix and reaching for a film it has
+ * just gained is the one order this store does not take. A few attempts settle
+ * it; this is what is said when they do not, and it is a "try again" rather than
+ * a "that is wrong".
+ */
+export function mixBusy(name: string): TasteError {
+  return new TasteError(
+    `"${normalise(name)}" was being changed while it was being deleted — try again`,
+  );
+}
+
 export function genreExists(existing: string): TasteError {
   return new TasteError(
     `a genre called "${existing}" already exists — genres are unique, ignoring case`,
