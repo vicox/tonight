@@ -1,10 +1,13 @@
 import { CopyButton } from "./copy-button";
-import { MovieState } from "./movie-state";
+import { Films } from "./movie-row";
+import { MovieSummary } from "./movie-summary";
 import { TasteAdvanced } from "./taste-advanced";
 import type { Genre, Mix, Movie, Taste } from "@/lib/taste/model";
 
 /**
  * One person's taste model: a page to read, with two things on it to press.
+ *
+ *     THE COUNTS      how many films there are, and how they were marked
  *
  *     YOUR GENRES     the reusable components
  *          ↓
@@ -32,15 +35,23 @@ import type { Genre, Mix, Movie, Taste } from "@/lib/taste/model";
  * ## Almost none of this is JavaScript
  *
  * The page is a Server Component that has already opened the signed-in user's
- * store, and instructions expand through native `<details>`. Three things are
- * client code: the copy button, the management island at the foot where genres
- * and mixes are created and renamed, and the two marks on a film's row. Nothing
- * else here can change anything — what is on show is a rendering of what the
- * store holds, read on the server each time.
+ * store, and instructions expand through native `<details>`. Four things are
+ * client code: the counts and the dialog they open, the copy button, the
+ * management island at the foot where genres and mixes are created and renamed,
+ * and the mark on a film's row. Nothing else here can change anything — what is
+ * on show is a rendering of what the store holds, read on the server each time.
  */
 export function TasteView({ taste }: { taste: Taste }) {
   return (
     <>
+      {/*
+        Above the whole board rather than wedged in between the two panels: the
+        arrow says a mix comes from genres, and it only says that while the two
+        it points between are next to each other. So the counts sit over the
+        board they summarise — every film on the page is under one of them.
+      */}
+      <MovieSummary movies={taste.movies} />
+
       <Panel
         title="Your genres"
         note="The pieces your taste is made of. Each one means whatever you say it means."
@@ -231,67 +242,6 @@ function MixCard({ mix, movies }: { mix: Mix; movies: readonly Movie[] }) {
         </span>
       </span>
     </Card>
-  );
-}
-
-/**
- * The user's films in one mix: a list, and deliberately only a list.
- *
- * Not a table and without rules between the rows, because a table invites reading
- * down a column and there is no column here worth comparing — and no posters,
- * because Tonight has no catalogue to take one from. The year is set in the
- * title's own type for the same reason: it is half of the film's name here, not
- * metadata about it.
- *
- * A row is a line of text and one control. That control is the one thing on this
- * page that can be changed without an assistant — see `MovieState` for why it
- * offers five choices while the model keeps a sixth.
- */
-function Films({ movies, className = "mt-4" }: { movies: readonly Movie[]; className?: string }) {
-  if (!movies.length) return null;
-
-  return (
-    <ul className={`${className} flex flex-col gap-1.5 text-[13.5px] leading-relaxed`}>
-      {movies.map((movie) => (
-        <li
-          key={`${movie.year} ${movie.title}`}
-          // Wrapping, so that the sentence a failed write puts under the row has
-          // somewhere to go. Nothing wraps while nothing is wrong.
-          className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
-        >
-          <span className="min-w-0 text-ink">
-            {movie.title} ({movie.year})
-            {movie.imdbId !== null && (
-              <>
-                {" "}
-                <Imdb id={movie.imdbId} title={movie.title} />
-              </>
-            )}
-          </span>
-          <MovieState title={movie.title} year={movie.year} state={movie.state} />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/**
- * A pointer out to IMDb, and the only outbound link on the page.
- *
- * The user supplied the id and Tonight has never checked it — nothing here is
- * fetched, and no title, year or poster comes back. What the link does is let
- * somebody go and look, which is the whole reason to keep an id nobody verified.
- */
-function Imdb({ id, title }: { id: string; title: string }) {
-  return (
-    <a
-      href={`https://www.imdb.com/title/${id}/`}
-      target="_blank"
-      rel="noreferrer noopener"
-      className="text-ink-soft underline decoration-rule underline-offset-2 hover:text-ink hover:decoration-ink-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
-    >
-      IMDb<span className="sr-only"> page for {title}</span>
-    </a>
   );
 }
 
