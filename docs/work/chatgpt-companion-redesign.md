@@ -1,9 +1,10 @@
 # Turning the website into a companion page
 
 **Status:** implemented, in the two commits described under
-[Migration strategy](#migration-strategy). Two sentences of it are deliberately absent and
-marked `TODO(Q2)` in the code — see [What is gated on what](#what-is-gated-on-what). The
-document is kept as written: it is the record of what was decided and why, not a changelog.
+[Migration strategy](#migration-strategy). Q1 and Q2 were both answered on 8 September 2026 and
+the `VALIDATED` gate they controlled has been removed from the code — see
+[What is gated on what](#what-is-gated-on-what). The document is kept as written: it is the
+record of what was decided and why, not a changelog.
 
 Written in English to match the rest of the repository.
 
@@ -450,8 +451,9 @@ be wrong and, worse, would leave Q1 with nothing to paste.
 So commit 1 gets built and its two Q2-dependent sentences get written last. Commit 2 depends on
 neither answer and could go first if the spikes take a while.
 
-**The gate is `VALIDATED` in `web/lib/setup-steps.ts`** — two booleans, one per spike, both
-`false`. While either is false, `/` and `/setup` say at the top that the walkthrough has not been
+**The gate was `VALIDATED` in `web/lib/setup-steps.ts`** — two booleans, one per spike, both
+`false`. Both spikes have since been answered and the gate is gone; what it did while it stood
+was this. While either is false, `/` and `/setup` say at the top that the walkthrough has not been
 tested end to end and name the three things that are open. It does not hide the steps or disable
 the buttons: Q1 is answered by pasting the text the page hands over, so gating the instrument
 behind the measurement would leave no way to take it. `lib/setup-steps.test.ts` holds the other
@@ -499,7 +501,15 @@ web/components/taste-editor.tsx            unchanged, mounted from Advanced
 
 ### Q1 — Do the instructions fit a ChatGPT project, and work once pasted? *(blocking step 3)*
 
-Measured: **11,203 characters** after the frontmatter (11,543 with it).
+**Answered.** They did not fit: pasting measured the cut at **8,083 characters**, silently. The
+choice below went the way the last paragraph leans against — deriving rather than shortening,
+because the cut would have removed behaviour rather than words. `full:start`/`full:end` fences in
+the skill mark what is explanation, `sync:instructions` ships everything else, and the generated
+text is held under 8,000 by `lib/instructions.test.ts` — the assertion this section left out.
+Pasted, it behaves: an empty model reads, what is said in conversation gets written, and a
+management request reaches the MCP.
+
+Measured at the time: **11,203 characters** after the frontmatter (11,543 with it).
 
 No authoritative limit for *Project* instructions could be found. OpenAI's help centre returns
 403 to fetching, and the figures in circulation belong to neighbouring features:
@@ -534,6 +544,12 @@ would remove behaviour rather than words, deriving is the better trade and AD-5 
 seam for it. Decide after the spike, not before it.
 
 ### Q2 — Is the connector write-capable for the people we invite? *(blocking the walkthrough)*
+
+**Answered.** The connector installs, reading answers and writing works; nothing had to be
+arranged before step 1 that the step does not already say, so `PREREQUISITES` stays empty and no
+plan is named. The inventory below is what was asked. The rule it was written to protect has not
+been retired with it: a requirement published here still has to come from an account somebody
+tried.
 
 Not "is there a connector" — reading is the easy half, and a Tonight that only reads is not
 Tonight. Write capability is gated more tightly than read capability, and beyond that this

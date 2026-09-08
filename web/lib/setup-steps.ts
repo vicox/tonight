@@ -15,36 +15,6 @@
 
 import { SERVER_VERSION } from "./mcp/identity.ts";
 
-/**
- * Whether this walkthrough has been tried against a real ChatGPT account.
- *
- * Both are `false`, and neither can be flipped from inside this repository: they
- * are questions about somebody else's product, and the answers come from somebody
- * with the accounts sitting down and doing it. Q1 and Q2 in
- * `docs/work/chatgpt-companion-redesign.md` say what to try and what to write
- * down.
- *
- * While either is `false` the setup pages say so, at the top, before the first
- * step. That is not a disclaimer for its own sake. Three specific things below
- * are unverified — what an account has to be, what the control that enables
- * Tonight is called, and whether a write is confirmed each time — and somebody
- * following instructions that turn out to be wrong deserves to have been told
- * they might be, in advance, rather than to discover it at step four.
- *
- * What it deliberately does not do is hide the steps or disable the buttons. Q1
- * is answered by pasting the instructions this page hands over: gating the
- * instrument behind the measurement would leave no way to take it.
- */
-export const VALIDATED = {
-  /** Q1 — the instructions were pasted into a real project and behaved there. */
-  instructions: false,
-  /** Q2 — eligibility, the activation control, and whether writes are confirmed. */
-  connector: false,
-} as const;
-
-/** True while any part of the walkthrough is still unverified. */
-export const UNVALIDATED = !VALIDATED.instructions || !VALIDATED.connector;
-
 /** Something that goes wrong, and what it actually means. */
 export type Trouble = {
   /** What the person sees. */
@@ -77,21 +47,13 @@ export type SetupStep = {
 /**
  * What somebody has to have before step 1 is worth attempting.
  *
- * Empty, deliberately. Calling a write tool is gated more tightly than calling a
- * read one, and Tonight is writes — so somebody whose account can read but not
- * write completes all four steps, watches Tonight answer, and never gains a
- * single genre. That failure is silent, which is why the requirement belongs
- * above step 1 rather than in the troubleshooting list.
- *
- * What it says has to come from trying it on real accounts. Naming a plan we have
- * only read about second-hand would put a confident, unverified sentence in the
- * first thing anybody reads, and the first person it misled would be the one
- * finding out. So nothing is claimed until Q2 in
- * `docs/work/chatgpt-companion-redesign.md` has been run and written up; the
- * pages render this list, and render nothing when it is empty.
- *
- * TODO(Q2): fill in from the spike's written record — plan, role, workspace
- * setting, platform.
+ * Empty, and the pages render nothing while it is: the walkthrough was run on a
+ * real account and nothing had to be true beforehand that step 1 does not already
+ * say. This is where a requirement goes if one turns up — a plan, a role, an
+ * administrator's permission — and the rule for writing one holds: it has to come
+ * from an account somebody actually tried, never from second-hand reporting. A
+ * confident, unverified sentence in the first thing anybody reads is worse than
+ * no sentence at all.
  */
 export const PREREQUISITES: readonly string[] = [];
 
@@ -168,9 +130,11 @@ export function setupSteps(endpoint: string): readonly SetupStep[] {
       title: "Turn Tonight on, then ask",
       summary: "Enable Tonight in the project, then ask it what to watch.",
       detail: [
-        // TODO(Q2): name the control once the spike has seen it. Until then this
-        // says what has to be true rather than which thing to press, which is
-        // correct everywhere and precise nowhere.
+        // Says what has to be true rather than which thing to press. That began as
+        // a hedge around an unrun spike; it is kept now because the affordance is
+        // named differently in different places and moves with a beta interface,
+        // and a sentence naming the wrong control reads as a broken product
+        // rather than as a stale guide. Name it here if it settles.
         "A connector that is installed is not a connector that is being used. Tonight has to " +
           "be switched on for this project, or named in your message, before the assistant " +
           "will reach for it. This is the step people skip, because nothing in the first " +

@@ -2,50 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { SERVER_VERSION } from "./mcp/identity.ts";
-import { PREREQUISITES, UNVALIDATED, VALIDATED, setupSteps } from "./setup-steps.ts";
+import { setupSteps } from "./setup-steps.ts";
 
 /**
- * The setup guide's contract with the two open spikes.
+ * What the setup guide has to keep saying.
  *
- * Q1 and Q2 are questions about somebody else's product, so nothing here can
- * answer them. What it can do is stop the answers being invented: the pages must
- * not claim a prerequisite nobody verified, and must not call the walkthrough
- * finished while the claims in it are guesses.
+ * It used to hold one more thing: while the walkthrough was still unverified, no
+ * prerequisite could be published and no ChatGPT plan named anywhere in it. Both
+ * questions have since been answered by running the walkthrough on a real
+ * account, so those two assertions were removed rather than left passing
+ * vacuously. The rule they encoded outlives them and is written where it applies
+ * — see `PREREQUISITES` — but it is about where a sentence came from, which no
+ * test can see.
  */
 
 const STEPS = setupSteps("https://tonight.movie/mcp");
-
-test("nothing is claimed about eligibility until Q2 has been run", () => {
-  // The two go together. A prerequisite is exactly the kind of sentence somebody
-  // acts on before doing anything else, so publishing one we have not verified is
-  // worse than publishing none — and the notice is what says so out loud.
-  if (!VALIDATED.connector) {
-    assert.deepEqual([...PREREQUISITES], [], "prerequisites were written before Q2 answered them");
-    assert.equal(UNVALIDATED, true, "the pages would stop saying the guide is unverified");
-  }
-});
-
-test("the guide names no ChatGPT plan anywhere while Q2 is open", () => {
-  if (VALIDATED.connector) return;
-
-  const prose = STEPS.flatMap((step) => [
-    step.title,
-    step.summary,
-    step.confirms,
-    ...step.detail,
-    ...step.trouble.flatMap((trouble) => [trouble.symptom, trouble.meaning]),
-  ]).join("\n");
-
-  // Read second-hand and never confirmed. A plan named here is a plan somebody
-  // will choose a subscription on.
-  for (const plan of ["Plus", "Pro", "Business", "Enterprise", "Edu", "Team"]) {
-    assert.doesNotMatch(
-      prose,
-      new RegExp(`\\b${plan}\\b`),
-      `the guide names the ${plan} plan, which Q2 has not established`,
-    );
-  }
-});
 
 test("the connection check asks for something only a tool call can produce", () => {
   const last = STEPS[STEPS.length - 1];
