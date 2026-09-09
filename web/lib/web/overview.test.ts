@@ -743,6 +743,38 @@ test("a closed mix card is a name and two numbers, and nothing else", () => {
   );
 });
 
+test("a card previews three of its films, quietly, under the name", () => {
+  const stack = bodyOf("MixCards", cards);
+
+  // Titles and nothing else, and which three is a rule the card does not carry:
+  // `lib/web/mixes.ts` decides, and its own tests hold the ordering.
+  assert.match(stack, /const glance = preview\(films\);/, "the card chooses its own preview");
+  assert.match(stack, /\{glance !== null && \(/, "an empty mix still gets a line");
+
+  // Under the name rather than beside it, and on a line of its own: `w-full` is
+  // what puts it there without disturbing the name or the loved signal above.
+  const line = stack.match(/className="([^"]*text-\[12\.5px\][^"]*)"[\s\S]{0,80}\{glance\}/);
+  assert.ok(line, "the preview is not the quiet aside it should be");
+  assert.match(line[1], /\bw-full\b/, "the preview shares a line with the name");
+  assert.match(line[1], /text-ink-faint/, "the preview is not quieter than the name");
+  assert.match(line[1], /text-left/, "the preview is centred");
+
+  // A film's title can be long and need not contain a space.
+  assert.match(line[1], /min-w-0/, "a long title can widen the card");
+  assert.match(line[1], /break-words/, "a long title has nowhere to break");
+
+  // Written after both numbers, which is what keeps them on one line together:
+  // a `w-full` item takes the line it is placed on, so putting the preview first
+  // pushed the heart down to a line of its own. Reading order is unaffected —
+  // the preview has a line to itself either way.
+  const name = stack.search(/>\s*\{mix\.name\}\s*</);
+  assert.ok(name < stack.indexOf("{glance}"), "the preview is above the name");
+  assert.ok(
+    stack.indexOf("{loved}") < stack.indexOf("{glance}"),
+    "the preview is written before the heart, which costs the heart its line",
+  );
+});
+
 test("a mix card opens its own dialog, in the order the mix was built", () => {
   const stack = bodyOf("MixCards", cards);
   assert.match(stack, /aria-haspopup="dialog"/, "the card does not say what it opens");

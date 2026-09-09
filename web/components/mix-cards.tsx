@@ -5,8 +5,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { Chip } from "./chip";
 import { Films } from "./movie-row";
-import type { Mix, Movie } from "@/lib/taste/model";
-import { filmsIn, spokenMix } from "@/lib/web/mixes";
+import type { Mix, Movie, Written } from "@/lib/taste/model";
+import { filmsIn, preview, spokenMix } from "@/lib/web/mixes";
 import { selected } from "@/lib/web/movie-summary";
 import { returnTo } from "@/lib/web/refocus";
 
@@ -40,7 +40,13 @@ import { returnTo } from "@/lib/web/refocus";
  * next render, and cannot move the count, because saying something about a film
  * does not take it out of a mix. See `lib/web/mixes.ts`.
  */
-export function MixCards({ mixes, movies }: { mixes: readonly Mix[]; movies: readonly Movie[] }) {
+export function MixCards({
+  mixes,
+  movies,
+}: {
+  mixes: readonly Mix[];
+  movies: readonly Written<Movie>[];
+}) {
   const [open, setOpen] = useState<Mix | null>(null);
   /** The stack of cards, which is where focus goes if the one pressed has gone. */
   const stack = useRef<HTMLDivElement>(null);
@@ -84,6 +90,7 @@ export function MixCards({ mixes, movies }: { mixes: readonly Mix[]; movies: rea
         {mixes.map((mix) => {
           const films = filmsIn(mix, movies);
           const loved = selected("loved", films).length;
+          const glance = preview(films);
 
           return (
             <button
@@ -138,6 +145,32 @@ export function MixCards({ mixes, movies }: { mixes: readonly Mix[]; movies: rea
                   {loved}
                 </span>
               )}
+
+              {/*
+                Three of the films, to be glanced at. A name and a count say
+                which mix this is and how much is in it; the titles are what
+                somebody recognises their own shelf by, and reading them here is
+                usually the press they would otherwise have to make.
+
+                Last of the three, and that is the whole reason it is written
+                after the heart rather than before it: `w-full` gives it a line
+                of its own wherever it sits, and put first it took the line the
+                heart was on and pushed the heart down to a third. So the name
+                and both numbers stay on one line and this reads underneath
+                them. It breaks rather than pushing the card sideways.
+
+                Which three, and in which order, is `lib/web/mixes.ts` — a card
+                should not carry a rule.
+              */}
+              {glance !== null && (
+                <span
+                  aria-hidden="true"
+                  className="mt-1.5 w-full min-w-0 text-left text-[12.5px] leading-relaxed text-ink-faint break-words"
+                >
+                  {glance}
+                </span>
+              )}
+
             </button>
           );
         })}
