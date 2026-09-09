@@ -1,0 +1,235 @@
+"use client";
+
+import { Heart } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+import { Chip } from "./chip";
+import { Films } from "./movie-row";
+import type { Mix, Movie } from "@/lib/taste/model";
+import { filmsIn, spokenMix } from "@/lib/web/mixes";
+import { selected } from "@/lib/web/movie-summary";
+import { returnTo } from "@/lib/web/refocus";
+
+/**
+ * The user's mixes: a name and two numbers each, and everything else one press
+ * in.
+ *
+ * A card used to be the whole mix — its genres as chips, an arrow, its name, its
+ * instruction behind a disclosure and its films underneath. Two mixes filled a
+ * screen, which made the one thing this section is for, *seeing which mixes you
+ * have*, the thing it was worst at. So a card is now the answer to "which mix
+ * is this and how much is in it", and the rest is a dialog.
+ *
+ * ## What survives on the card, and why those three
+ *
+ * The name, because a mix *is* its name. The number of films in it, because
+ * that is what tells a mix somebody uses from one they made once. And a heart
+ * with a number when any of those films are loved, because that is the reason
+ * to open this mix tonight rather than another one. Nothing else on a mix is a
+ * fact you can scan.
+ *
+ * The heart is one heart and a number, never one heart per film: three hearts in
+ * a row is a rating, and this is a count. It says that three films in this mix
+ * are loved, and it is absent when none are, because there is nothing to say.
+ *
+ * ## Both numbers come from the films, every render
+ *
+ * Neither is stored on a mix and neither is kept here. The membership count is
+ * the films the mix's handles resolve to and the heart is how many of those are
+ * loved — so a mark pressed inside the dialog moves the heart on the card by the
+ * next render, and cannot move the count, because saying something about a film
+ * does not take it out of a mix. See `lib/web/mixes.ts`.
+ */
+export function MixCards({ mixes, movies }: { mixes: readonly Mix[]; movies: readonly Movie[] }) {
+  const [open, setOpen] = useState<Mix | null>(null);
+  /** The stack of cards, which is where focus goes if the one pressed has gone. */
+  const stack = useRef<HTMLDivElement>(null);
+  /**
+   * The card somebody pressed.
+   *
+   * Kept from the press itself rather than read back off the document: clicking
+   * a button does not make it the active element in every browser, so
+   * `document.activeElement` answers a question about the browser instead of
+   * about what was pressed.
+   */
+  const invoker = useRef<HTMLElement | null>(null);
+
+  /**
+   * Focus, once there is no dialog to hold it.
+   *
+   * React unmounts a dialog in the same commit that closes it, so the browser's
+   * own restoration has no dialog left to restore from and leaves focus on the
+   * document. This component is still mounted afterwards, which is what makes it
+   * the place that can put focus back on the card that was pressed — and a card
+   * can be gone by then, since renaming a mix re-keys its row, so the stack it
+   * came from is the fallback.
+   */
+  useEffect(() => {
+    if (open !== null || invoker.current === null) return;
+
+    const pressed = invoker.current;
+    invoker.current = null;
+
+    const back = returnTo(
+      pressed,
+      document.contains(pressed),
+      stack.current?.querySelector<HTMLButtonElement>("button") ?? null,
+    );
+    back?.focus();
+  });
+
+  return (
+    <>
+      <div ref={stack} className="flex flex-col gap-3">
+        {mixes.map((mix) => {
+          const films = filmsIn(mix, movies);
+          const loved = selected("loved", films).length;
+
+          return (
+            <button
+              key={mix.name}
+              type="button"
+              aria-haspopup="dialog"
+              // The name and both numbers, said the way somebody would say them:
+              // the heart is a shape, and the order that reads best is not the
+              // order that sounds best.
+              aria-label={spokenMix(mix.name, films.length, loved)}
+              // The card pressed, from the press itself. See `invoker`.
+              onClick={(event) => {
+                invoker.current = event.currentTarget;
+                setOpen(mix);
+              }}
+              className={[
+                "flex w-full flex-wrap items-baseline justify-between gap-x-4 gap-y-1",
+                // The accent edge a mix has always had: it is the thing on this
+                // page the user built themselves.
+                "cursor-pointer rounded-xl border border-beam-dim bg-screen px-5 py-4 text-left",
+                "transition-colors hover:border-beam focus-visible:outline-2",
+                "focus-visible:outline-offset-2 focus-visible:outline-beam",
+              ].join(" ")}
+            >
+              <span aria-hidden="true" className="flex min-w-0 items-baseline gap-2.5">
+                {/*
+                  A name is valid up to two hundred characters, so it wraps rather
+                  than pushing the card sideways, and the count stays beside it
+                  either way: they are one phrase.
+
+                  `min-w-0` is what makes `break-words` mean anything here. A flex
+                  item is as wide as its longest unbreakable word unless it is
+                  allowed to be narrower, and a name need not contain a space —
+                  without it a long one was 507px wide in a 350px card.
+                */}
+                <span className="min-w-0 font-display text-[22px] leading-tight break-words text-ink">
+                  {mix.name}
+                </span>
+                <span className="text-[12px] text-ink-faint tabular-nums">{films.length}</span>
+              </span>
+
+              {loved > 0 && (
+                <span
+                  aria-hidden="true"
+                  // `ml-auto` and not only the row's `justify-between`: a long
+                  // name pushes this onto a line of its own, and a lone item on
+                  // a line is at its start. The margin puts it on the right
+                  // either way.
+                  className="ml-auto flex shrink-0 items-center gap-1.5 text-[12px] text-ink-soft tabular-nums"
+                >
+                  <Heart size={13} strokeWidth={1.5} fill="currentColor" />
+                  {loved}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Outside the stack, so that opening one cannot move the others. */}
+      {open && (
+        <Detail mix={open} films={filmsIn(open, movies)} onClose={() => setOpen(null)} />
+      )}
+    </>
+  );
+}
+
+/**
+ * One mix, in full: what it is called, what it means, what it is made of, and
+ * what is in it.
+ *
+ * That order, and it is the order the mix was built in — a name for an idea, the
+ * idea in the user's own words, the genres it combines, and then the films they
+ * have kept under it. The films are the only part that can be changed from here,
+ * through the same rows and the same marks as everywhere else.
+ *
+ * The genres are chips and nothing more. On the overview a genre's own label
+ * opens its meaning; here a genre is context for the mix, and a control inside
+ * a dialog that opened another dialog would be a maze.
+ */
+function Detail({
+  mix,
+  films,
+  onClose,
+}: {
+  mix: Mix;
+  films: readonly Movie[];
+  onClose: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const element = dialog.current;
+    if (!element || element.open) return;
+
+    element.showModal();
+    return () => element.close();
+  }, []);
+
+  return (
+    <dialog
+      ref={dialog}
+      aria-label={mix.name}
+      // Escape is the browser's: it fires `cancel`, and taking the default would
+      // let the element close itself while React still had it mounted. A mark's
+      // menu inside here takes its own Escape first — see `movie-state.tsx`.
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      // A press that lands on the dialog rather than on the card is a press
+      // outside it, and the element itself is the surface around the card.
+      onClick={(event) => {
+        if (event.target === dialog.current) onClose();
+      }}
+      className="m-0 h-dvh max-h-none w-dvw max-w-none overflow-y-auto bg-transparent px-5 py-[8vh] backdrop:bg-scrim"
+    >
+      <div className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8">
+        <h2 className="font-display text-[24px] leading-tight break-words">{mix.name}</h2>
+
+        <p className="mt-4 text-[13.5px] leading-relaxed whitespace-pre-line text-ink-soft">
+          {mix.instruction}
+        </p>
+
+        <div className="mt-5 flex flex-wrap items-center gap-1.5">
+          {mix.genres.map((genre) => (
+            <Chip key={genre}>{genre}</Chip>
+          ))}
+        </div>
+
+        {films.length === 0 ? (
+          <p className="py-6 text-center text-[13px] text-ink-faint">No films in this mix yet.</p>
+        ) : (
+          <Films movies={films} className="mt-5" />
+        )}
+
+        <div className="mt-7">
+          <button
+            type="button"
+            onClick={onClose}
+            className="cursor-pointer rounded-md border border-rule px-4 py-2 text-[13px] text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}

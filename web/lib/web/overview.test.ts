@@ -19,9 +19,9 @@ import test from "node:test";
  * that quietly grew a poster, a `false` that became indistinguishable from
  * "nothing said", a create control on a page that is supposed to be read.
  *
- * Seven sources, because the page is that many files: the board itself, the
- * section all three of its parts are drawn by, the genre labels, the type a name
- * is set in, a film's row — shared by the board and the summary's dialog — the
+ * Eight sources, because the page is that many files: the board itself, the
+ * section all three of its parts are drawn by, the genre labels, the mix cards,
+ * the type a name is set in, a film's row — shared by the board and the summary's dialog — the
  * summary tiles, and the mark on a row. What can be tested for real is kept out of here and tested
  * that way: the arithmetic behind the tiles in `movie-summary.test.ts`, and where
  * focus goes when a row is removed in `refocus.test.ts`.
@@ -43,6 +43,7 @@ const VIEW = new URL("../../components/taste-view.tsx", import.meta.url);
 const SECTION = new URL("../../components/section.tsx", import.meta.url);
 const CHIP = new URL("../../components/chip.tsx", import.meta.url);
 const LABELS = new URL("../../components/genre-labels.tsx", import.meta.url);
+const MIXES = new URL("../../components/mix-cards.tsx", import.meta.url);
 const ROW = new URL("../../components/movie-row.tsx", import.meta.url);
 const SUMMARY = new URL("../../components/movie-summary.tsx", import.meta.url);
 const MARKS = new URL("../../components/movie-state.tsx", import.meta.url);
@@ -52,35 +53,35 @@ const section = readFileSync(SECTION, "utf8");
 const chip = readFileSync(CHIP, "utf8");
 const model = readFileSync(new URL("./movie-summary.ts", import.meta.url), "utf8");
 const labels = readFileSync(LABELS, "utf8");
+const cards = readFileSync(MIXES, "utf8");
 const row = readFileSync(ROW, "utf8");
 const summary = readFileSync(SUMMARY, "utf8");
 const marks = readFileSync(MARKS, "utf8");
 
-test("the resting page shows names and films, and no instruction", () => {
-  // A mix keeps its meaning inside the disclosure its card already is.
-  const card = bodyOf("Card");
-  const disclosure = card.slice(card.indexOf("<details"), card.indexOf("</details>"));
-  assert.match(disclosure, /instruction\}/, "a mix shows its instruction outside its disclosure");
+test("the resting page shows names and counts, and no instruction", () => {
+  // Neither kind of instruction is on the page at rest any more: a genre's is in
+  // the dialog its label opens, a mix's is in the dialog its card opens. What is
+  // left outside is what can be scanned.
+  // Read as what is rendered rather than as the word: the page's own prose
+  // explains that there is no instruction on it, and prose is not a defect.
   assert.equal(
-    (card.match(/instruction\}/g) ?? []).length,
-    1,
-    "a mix renders its instruction in more than one place",
+    /\.instruction\}|instruction=/.test(source),
+    false,
+    "the page renders an instruction, or hands one to something that does",
   );
 
-  // A genre's is in the dialog its label opens, and in one place there too. The
-  // page itself no longer renders a genre's instruction anywhere: there is no
-  // instruction text in the line of labels to be read or to take up room.
-  assert.equal(
-    /genre\.instruction/.test(source),
-    false,
-    "the page still renders a genre's instruction inline",
-  );
-  assert.match(bodyOf("Meaning", labels), /\{genre\.instruction\}/, "the dialog has no meaning in it");
-  assert.equal(
-    (labels.match(/genre\.instruction/g) ?? []).length,
-    1,
-    "a genre's instruction is rendered in more than one place",
-  );
+  // And each is rendered in exactly one place, inside the dialog that owns it.
+  for (const [what, body, file] of [
+    ["a genre", bodyOf("Meaning", labels), labels],
+    ["a mix", bodyOf("Detail", cards), cards],
+  ] as [string, string, string][]) {
+    assert.match(body, /\{mix\.instruction\}|\{genre\.instruction\}/, `${what} has no meaning in its dialog`);
+    assert.equal(
+      (file.match(/\.instruction\}/g) ?? []).length,
+      1,
+      `${what}'s instruction is rendered in more than one place`,
+    );
+  }
 });
 
 test("films in no mix are listed, and the section is absent when there are none", () => {
@@ -687,36 +688,198 @@ test("each section keeps its own copy, and the films section stays quiet", () =>
   assert.equal(opening, '<Section title="Your movies" count={movies.length}>');
 });
 
-test("a genre is a compact label, and a mix is still a card", () => {
+test("a genre is a compact label, and a mix is a compact card", () => {
   // A genre is its name and nothing else, so it is the size of its name and sits
-  // next to the others rather than under them. A mix is a composition with films
-  // in it, and keeps the card it needs.
+  // next to the others. A mix is a composition, so it keeps a card — with the
+  // accent edge that says the user made it — and the card is now a name and two
+  // numbers rather than the whole mix.
   assert.match(bodyOf("TasteView"), /<GenreLabels genres=\{taste\.genres\}/, "genres are not labels");
-  assert.match(bodyOf("MixCard"), /<Card /, "a mix has stopped being a card");
+  assert.match(
+    bodyOf("TasteView"),
+    /<MixCards mixes=\{taste\.mixes\} movies=\{taste\.movies\}/,
+    "the page does not hand the mixes their films",
+  );
 
   const row = bodyOf("GenreLabels", labels);
   assert.match(row, /flex flex-wrap/, "the labels are not laid out to wrap");
   assert.match(row, /<button/, "a label is not a control");
   assert.match(row, /aria-haspopup="dialog"/, "a label does not say what it opens");
-
-  // Nothing left of the row it used to be, and — the point of the change —
-  // nothing that could grow: no disclosure in the line, and no class that
-  // behaves one way while something is open.
   assert.equal(
-    // `max-w-full` is a ceiling and not a width — a long name has to wrap inside
-    // its label rather than push the page sideways — so only a bare `w-full` is
-    // the label giving up being the size of its own name.
     /<Chevron|<details|<summary|open:|(?<!max-)\bw-full/.test(row),
     false,
     "a label can still expand in place, so opening one moves the others",
   );
-
-  // The minimum a long name needs: it wraps inside the label, the label stops at
-  // the width of the line, and the words stay left where a button would centre
-  // them.
   assert.match(row, /max-w-full/, "a long name can push the page sideways");
-  assert.match(row, /break-words/, "an unbroken name has nowhere to break");
-  assert.match(row, /text-left/, "a wrapped name is centred");
+  assert.match(row, /break-words/, "a name with no spaces in it has nowhere to break");
+  assert.match(row, /text-left/, "a name that wrapped onto two lines is centred");
+
+  const stack = bodyOf("MixCards", cards);
+  assert.match(stack, /border-beam-dim/, "a mix has lost the edge that says it is the user's");
+  assert.match(stack, /rounded-xl border/, "a mix has stopped being a card");
+});
+
+test("a closed mix card is a name and two numbers, and nothing else", () => {
+  const stack = bodyOf("MixCards", cards);
+
+  // The name, how many films are in it, and — only when there are any — how many
+  // of those are loved.
+  assert.match(stack, /\{mix\.name\}/, "the card does not show what the mix is called");
+  assert.match(stack, /\{films\.length\}/, "the card does not show how many films are in it");
+  assert.match(stack, /\{loved > 0 && \(/, "a mix with nothing loved still shows a heart");
+  assert.match(stack, /<Heart /, "the loved signal is not the mark's own heart");
+  assert.match(stack, /\{loved\}/, "the heart is not given a number");
+
+  // One heart with a number beside it, never one per film: a row of hearts is a
+  // rating, and this is a count.
+  assert.equal((stack.match(/<Heart /g) ?? []).length, 1, "the hearts are being repeated");
+  assert.equal(/\.map\([^)]*Heart|Array\.from/.test(stack), false, "a heart is drawn per film");
+
+  // And none of the mix is on the closed card: no instruction, no genre chip, no
+  // film row, no mark. All of it is in the dialog.
+  assert.equal(
+    /instruction|<Chip|<Films|MovieState/.test(stack),
+    false,
+    "the closed card still carries the mix's details",
+  );
+});
+
+test("a mix card opens its own dialog, in the order the mix was built", () => {
+  const stack = bodyOf("MixCards", cards);
+  assert.match(stack, /aria-haspopup="dialog"/, "the card does not say what it opens");
+  assert.match(stack, /setOpen\(mix\)/, "pressing a card opens something else");
+  assert.match(stack, /<Detail mix=\{open\}/, "the card opens no dialog");
+
+  const detail = bodyOf("Detail", cards);
+  assert.match(detail, /<dialog/, "the mix opens in something other than a dialog");
+  assert.match(cards, /element\.showModal\(\);/, "it is not opened as a modal");
+
+  // Name, then what it means, then what it is made of, then what is in it —
+  // which is the order the mix was built in. Keyed on the heading that shows the
+  // name rather than on the name itself: `aria-label={mix.name}` is on the
+  // element above and would answer for a title that had been moved or removed.
+  const title = detail.search(/<h2[^>]*>\{mix\.name\}<\/h2>/);
+  assert.notEqual(title, -1, "the dialog has no heading showing the mix's name");
+
+  const order = [title, ...["{mix.instruction}", "<Chip", "<Films"].map((mark) => detail.indexOf(mark))];
+  assert.equal(order.some((at) => at === -1), false, "the dialog is missing one of the four");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "the four are out of order");
+
+  // The films are the page's own rows, with their own marks, and the genres are
+  // chips rather than another set of controls: inside a dialog they are context.
+  assert.match(detail, /<Films movies=\{films\}/, "the dialog draws film rows of its own");
+  assert.equal(/<GenreLabels|aria-haspopup="dialog"/.test(detail), false, "a genre here opens a dialog");
+});
+
+test("a mix dialog is dismissed like the others, and hands focus back to the card", () => {
+  const detail = bodyOf("Detail", cards);
+
+  assert.match(detail, /onCancel=\{\(event\) => \{/, "Escape does not close it");
+  assert.match(detail, /event\.target === dialog\.current/, "a press outside the card does nothing");
+  assert.match(detail, />\s*Close\s*</, "there is no Close control");
+  assert.match(detail, /backdrop:bg-scrim/);
+  assert.equal(
+    /role="dialog"|aria-modal=|inert=|tabIndex=/.test(cards),
+    false,
+    "the dialog has grown a hand-written half",
+  );
+
+  // Escape inside here can arrive with a mark's menu open, and that menu takes
+  // it first — `movie-state.tsx` prevents the key's default so one press closes
+  // one thing. That contract is held in the mark's own test; what matters here is
+  // that this dialog uses the element's own `cancel` rather than a key handler
+  // of its own, which is what leaves room for it.
+  assert.equal(/onKeyDown|"Escape"/.test(cards), false, "the dialog handles keys itself");
+
+  const stack = bodyOf("MixCards", cards);
+  assert.match(stack, /invoker\.current = event\.currentTarget;/, "the card pressed is not kept");
+  assert.match(stack, /returnTo\(\s*pressed,\s*document\.contains\(pressed\)/);
+  assert.match(
+    stack,
+    /stack\.current\?\.querySelector<HTMLButtonElement>\("button"\)/,
+    "there is nowhere to put focus when the card pressed has gone",
+  );
+
+  // And what that choice answers is what is focused — deciding correctly and
+  // then not asking for focus would look the same in every other assertion here.
+  const chosen = stack.slice(stack.indexOf("const back = returnTo("));
+  assert.match(
+    chosen.slice(0, chosen.indexOf("\n  });")),
+    /back\?\.focus\(\);/,
+    "the element the rule chose is never asked to take focus",
+  );
+  assert.doesNotMatch(detail, /\.focus\(\)/, "the dialog restores focus on its way out again");
+});
+
+test("a long name stays inside the card, and inside the dialog", () => {
+  const stack = bodyOf("MixCards", cards);
+
+  // A name is valid up to two hundred characters and need not contain a space.
+  // `min-w-0` is what makes the breaking mean anything: a flex item is as wide
+  // as its longest unbreakable word until it is allowed to be narrower, which
+  // is how a 63-character name came to be 507px wide in a 350px card.
+  //
+  // It is needed at *both* levels, and each is checked against its own class
+  // list — the box that holds the name and its count, and the name inside it.
+  // A nested item that may shrink cannot save a parent that may not, and read
+  // over the whole file either one would answer for the other.
+  //
+  // The two are the last plain class lists before the name is rendered: the
+  // card itself builds its own from an array, so it is not one of them.
+  // Anchored on the name as an element's content rather than as text: `key=` and
+  // the spoken label both mention it, and both come first.
+  const rendered = stack.search(/>\s*\{mix\.name\}\s*</);
+  assert.notEqual(rendered, -1, "the card no longer renders the mix's name");
+  const upToTheName = stack.slice(0, rendered);
+  const lists = [...upToTheName.matchAll(/className="([^"]*)"/g)].map((match) => match[1]);
+  assert.ok(lists.length >= 2, "the name is no longer inside a box of its own");
+
+  const [box, name] = lists.slice(-2);
+  assert.match(box, /\bflex\b/, "the name and its count are no longer one line together");
+  assert.match(box, /min-w-0/, "the box holding the name cannot be narrower than the name");
+  assert.match(name, /font-display/, "the name is not the display type on the card");
+  assert.match(name, /min-w-0/, "a long name can widen the card");
+  assert.match(name, /break-words/, "a long name has nowhere to break");
+  assert.equal(
+    /truncate|text-ellipsis|line-clamp/.test(stack),
+    false,
+    "a name is being cut off to keep it on one line",
+  );
+
+  // The count stays beside the name — they are one phrase — and the loved signal
+  // stays on the right even when the name pushes it onto a line of its own,
+  // which `justify-between` alone does not do for a single item.
+  const signal = stack.match(/className="([^"]*shrink-0[^"]*tabular-nums[^"]*)"/);
+  assert.ok(signal, "the loved signal is not the compact one it was");
+  assert.match(signal[1], /ml-auto/, "the loved signal falls to the left when it wraps");
+
+  // And a genre's name in the dialog is a chip, which carries the same
+  // protection on the rule itself: every chip holds something somebody typed.
+  // Read off the class list the chip actually renders with, because the file
+  // explains `min-w-0` in prose and prose is not a safeguard.
+  const chipClasses = bodyOf("Chip", chip).match(/className=\{`([^`]*)`\}/);
+  assert.ok(chipClasses, "a chip no longer renders a class list of its own");
+  for (const [rule, why] of [
+    ["min-w-0", "a long genre name can widen the dialog"],
+    ["max-w-full", "a chip can be wider than what it sits in"],
+    ["break-words", "a genre name with no spaces has nowhere to break"],
+  ] as [string, string][]) {
+    assert.ok(chipClasses[1].includes(rule), why);
+  }
+});
+
+test("a mix card's numbers are read off the films, not held anywhere", () => {
+  const stack = bodyOf("MixCards", cards);
+
+  // Membership from the mix's own handles, loved from the same films — so a mark
+  // pressed in the dialog moves the heart by the next render and cannot move the
+  // count. The arithmetic itself is `mixes.test.ts`.
+  assert.match(stack, /filmsIn\(mix, movies\)/, "the card counts something other than its films");
+  assert.match(stack, /selected\("loved", films\)\.length/, "the heart counts something else");
+  assert.equal(
+    /useState[<(][^)]*Movie|useRef[<(][^)]*Movie\b/.test(cards),
+    false,
+    "the cards keep a copy of the films",
+  );
 });
 
 test("opening a genre cannot move the labels", () => {

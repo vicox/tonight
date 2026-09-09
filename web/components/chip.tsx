@@ -20,7 +20,19 @@
 export const CHIP =
   "rounded-md border border-rule px-2.5 py-1 text-[11px] tracking-[0.11em] text-ink-soft uppercase";
 
-/** The name as it appears inside a card: cut into the surface it sits on. */
+/**
+ * The name as it appears inside a card: cut into the surface it sits on.
+ *
+ * A chip holds a name the user chose, and a name is valid up to two hundred
+ * characters with no space required anywhere in it — so it breaks and stops at
+ * the width it is given rather than pushing what is around it sideways. On the
+ * rule rather than at a call site because that is true of every chip: whatever
+ * is inside one came from somebody typing it.
+ *
+ * `min-w-0` is what makes the other two mean anything. A chip is a flex item
+ * wherever it is used, and a flex item is as wide as its longest unbreakable
+ * word unless it is allowed to be narrower.
+ */
 export function Chip({ children }: { children: React.ReactNode }) {
-  return <span className={`${CHIP} bg-night`}>{children}</span>;
+  return <span className={`${CHIP} min-w-0 max-w-full bg-night break-words`}>{children}</span>;
 }
