@@ -20,33 +20,32 @@ import type { Movie, MovieState, Written } from "../taste/model.ts";
  * ## A selection is not a state
  *
  * This is the part worth reading. There are five `MovieState` values, and there
- * are seven things worth asking the collection — because the useful question
- * "how many have I seen" is not a state at all. It is `seen`, `liked`, `loved`
- * and `disliked` together: an opinion about a film is a statement that you
- * watched it, so counting only the bare `seen` under that word would tell
- * somebody with forty loved films that they had seen two.
+ * are six things worth asking the collection — because the sixth useful question
+ * is not a state at all. `null` is the absence of an answer, and asking for it
+ * asks for the films nobody has spoken about yet.
  *
- * So a `Selection` carries the *set* of states it stands for, and the earlier
- * shape — one selection, one state, matched by equality — is gone. It made every
- * displayed control pretend to be a persisted state, which was true of five of
- * them and is the reason the sixth could not exist.
+ * So a `Selection` carries the *set* of states it stands for rather than a
+ * single one. As the row stands each of them names exactly one state, which is
+ * what makes the counts add up; the set is what lets `null` be asked for beside
+ * the five, and what lets a selection be a thing the page displays rather than a
+ * thing the database stores.
  *
- * Nothing here adds to the domain. `Seen` is not stored, `Without opinion` is
- * not stored, and `null` is still the absence of an answer rather than a sixth
- * state — asking for it asks for the films nobody has spoken about. Silence is
- * not `not_seen` and nothing here infers one from the other.
+ * Nothing here adds to the domain. `Without status` is not stored, and `null` is
+ * still the absence of an answer rather than a sixth state. Silence is not
+ * `not_seen` and nothing here infers one from the other.
  *
  * ## What the numbers add up to
  *
- * Two invariants, held by `movie-summary.test.ts` rather than by arithmetic
+ * One invariant, held by `movie-summary.test.ts` rather than by arithmetic
  * anywhere in the page:
  *
- *     total          = not seen + seen + without status
- *     seen           = loved + liked + disliked + without opinion
+ *     total = not seen + seen + loved + liked + disliked + without status
  *
- * The second is the whole point of the layout: the three opinions and the films
- * watched without one are what `Seen` is made of, and the page is arranged so
- * that reads as a hierarchy instead of as five peers.
+ * Every film is counted once and every film is counted somewhere, which is what
+ * lets the six be read as one line. `Seen` is the bare `seen` state and not an
+ * aggregate: `liked`, `loved` and `disliked` each already say the film was
+ * watched, and they are named beside it, so folding them in would count three of
+ * the others a second time and make the row a sum rather than a list.
  *
  * The total is not a selection. It is `movies.length`, it belongs beside the
  * section's heading the way a genre count does, and it includes the films nobody
@@ -60,9 +59,11 @@ export type Selection = {
   /**
    * The states this selection stands for.
    *
-   * Several, for the one selection that is an aggregate. `null` in here means
-   * the films with no state at all, and it is the only member of its own
-   * selection — never mixed in with a real one.
+   * One each, as the row stands: every control is exactly its own state, so the
+   * counts add up to the collection with nothing counted twice. A list rather
+   * than a single state because `null` — the films with no state at all — is a
+   * member here too, and it is the only member of its own selection, never mixed
+   * in with a real one.
    */
   readonly states: readonly (MovieState | null)[];
   /** What the dialog is called, and how a listener is given the control. */
@@ -72,10 +73,11 @@ export type Selection = {
   /**
    * What the label leaves out, said to a listener.
    *
-   * Only where the words alone are genuinely ambiguous: "Seen" could be read as
-   * the bare state, and "without opinion" only means anything once you know it
-   * is a film that *was* watched. The other five say what they are, and giving
-   * them a second sentence would be reading the obvious out twice.
+   * Only where the words alone are genuinely ambiguous: read out beside `Loved`,
+   * `Liked` and `Disliked`, "Seen" sounds like it might cover them too, when in
+   * fact it is the films watched with nothing said. The others say what they
+   * are, and giving them a second sentence would be reading the obvious out
+   * twice.
    */
   readonly meaning?: string;
 };
@@ -88,40 +90,24 @@ export const NOT_SEEN: Selection = {
 };
 
 /**
- * Every film the user has watched, whatever they thought of it.
+ * Watched, and nothing said about it.
  *
- * The aggregate, and the parent of the three opinions and of the films watched
- * without one. `liked`, `loved` and `disliked` each already say the film was
- * seen, so a count under this word that left them out would be wrong rather
- * than merely narrow.
+ * Exactly the `seen` state, not every film that has been watched: `liked`,
+ * `loved` and `disliked` each already say the film was seen, and they are named
+ * beside this one. Read as a line, the row is six words that between them
+ * account for every film once — an aggregate in the middle of it would count
+ * three of the others a second time and make the row a sum rather than a list.
  */
 export const SEEN: Selection = {
   key: "seen",
-  states: ["seen", "liked", "loved", "disliked"],
+  states: ["seen"],
   label: "Seen",
-  meaning: "every film you have watched, opinion or not",
+  meaning: "watched, with nothing said about it",
 };
 
 export const LOVED: Selection = { key: "loved", states: ["loved"], label: "Loved" };
 export const LIKED: Selection = { key: "liked", states: ["liked"], label: "Liked" };
 export const DISLIKED: Selection = { key: "disliked", states: ["disliked"], label: "Disliked" };
-
-/**
- * Watched, and nothing said about it.
- *
- * The bare `seen` state, named for what it is rather than for the word stored in
- * the column: under a heading that already says "Seen", a second control called
- * "Seen" would be unreadable. It is the remainder of the aggregate once the
- * three opinions are taken out, and it is written as a sentence because that is
- * what it is.
- */
-export const WITHOUT_OPINION: Selection = {
-  key: "without_opinion",
-  states: ["seen"],
-  label: "Without opinion",
-  phrase: "without opinion",
-  meaning: "watched, with nothing said about it",
-};
 
 /**
  * The films Tonight was never told about.
@@ -139,18 +125,20 @@ export const WITHOUT_STATUS: Selection = {
 };
 
 /**
- * The two facts, read first: what has been watched and what has not.
+ * The two facts, read first: what has not been watched and what has.
  *
- * Not seen before Seen, which is the direction a film moves through them.
+ * Not seen before Seen, which is the direction a film moves through them, and
+ * the order the mark's own menu offers them in.
  */
 export const FACTS: readonly Selection[] = [NOT_SEEN, SEEN];
 
 /**
  * The three opinions, in the order the mark's own menu offers them.
  *
- * A reader meeting both should not have to learn two orders.
+ * A reader meeting both should not have to learn two orders, and the menu reads
+ * them warmest-last: liked, then loved, then the one nobody reaches for.
  */
-export const OPINIONS: readonly Selection[] = [LOVED, LIKED, DISLIKED];
+export const OPINIONS: readonly Selection[] = [LIKED, LOVED, DISLIKED];
 
 /**
  * The films one selection stands for.
@@ -164,7 +152,7 @@ export function selected(selection: Selection, movies: readonly Movie[]): Movie[
 }
 
 /**
- * How a selection reads when the number comes first: `30 without opinion`.
+ * How a selection reads when the number comes first: `30 without status`.
  *
  * One template for one and for many, because the phrase does not inflect — it is
  * the number of films and then the thing they are without, and "1 without
@@ -181,7 +169,7 @@ export function sentence(selection: Selection, count: number): string {
  *
  * The words then the number, which is the order the page now sets them in too —
  * so most of these are simply the control's own text and need no label at all.
- * The two that carry a `meaning` get it appended, because for those the visible
+ * The one that carries a `meaning` gets it appended, because there the visible
  * words are true but not sufficient.
  */
 export function spoken(selection: Selection, count: number): string | undefined {

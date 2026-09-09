@@ -55,15 +55,16 @@ import { pending } from "@/lib/web/pending";
 /**
  * The five states, in the order they are offered.
  *
- * The two facts first — an eye and the same eye struck through, which is the one
+ * The two facts first — the same eye, struck through and not, which is the one
  * pair on this list that is a single question with two answers — and then the
- * three ways of having an opinion. It is a menu's order and nothing else reads
- * it: `MOVIE_STATES` in the model is the domain's own order, and the store, the
+ * three ways of having an opinion. Not seen before seen, which is the direction
+ * a film moves through them and the order the summary reads them in, so nobody
+ * has to learn two. It is a menu's order and nothing else reads it: `MOVIE_STATES` in the model is the domain's own order, and the store, the
  * tools and the five values themselves are untouched by how they are listed here.
  */
 const CHOICES: { state: MovieState; label: string; icon: typeof Eye }[] = [
-  { state: "seen", label: "Seen", icon: Eye },
   { state: "not_seen", label: "Not seen", icon: EyeOff },
+  { state: "seen", label: "Seen", icon: Eye },
   { state: "liked", label: "Liked", icon: ThumbsUp },
   { state: "loved", label: "Loved", icon: Heart },
   { state: "disliked", label: "Disliked", icon: ThumbsDown },

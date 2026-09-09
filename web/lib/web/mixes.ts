@@ -1,4 +1,4 @@
-import type { Mix, Movie, MovieState, Written } from "../taste/model.ts";
+import type { Genre, Mix, Movie, MovieState, Written } from "../taste/model.ts";
 import { LIKED, LOVED, selected } from "./movie-summary.ts";
 
 /**
@@ -30,6 +30,31 @@ export function filmsIn<T extends Movie>(mix: Mix, movies: readonly T[]): T[] {
 }
 
 /**
+ * The films a genre reaches, through the mixes built from it.
+ *
+ * A genre has no films of its own — it is a name and what it means to this user,
+ * and the films are kept in mixes. So "what have I actually filed under this
+ * idea" is a question one hop away: the mixes that name this genre, and then the
+ * films in those.
+ *
+ * Membership comes through `filmsIn`, so a genre's dialog and a mix's card
+ * cannot disagree about what is in a mix. The order is the collection's own and
+ * the filter runs over it once, which both keeps the answer stable and settles
+ * the film that arrives through two mixes of the same genre: it is one film, so
+ * it appears once, where it always was.
+ */
+export function filmsUnder<T extends Movie>(
+  genre: Genre,
+  mixes: readonly Mix[],
+  movies: readonly T[],
+): T[] {
+  const reached = new Set(
+    mixes.filter((mix) => mix.genres.includes(genre.name)).flatMap((mix) => filmsIn(mix, movies)),
+  );
+  return movies.filter((movie) => reached.has(movie));
+}
+
+/**
  * The films that are in no mix at all.
  *
  * The mixes' own remainder. A film gets here by ordinary means — saying "I've
@@ -49,9 +74,11 @@ export function inNoMix<T extends Movie>(movies: readonly T[]): T[] {
 /**
  * A mix as a listener is given it: the name, how many films, how many loved.
  *
- * The card reads as `Quiet Dread 4 ♥3`, which is three facts in the order the
- * eye wants them and a heart nobody can hear. This is the same three said the
- * way somebody would say them, and it is the button's whole accessible name.
+ * The card reads as `Quiet Dread ♥3` — the name and a heart nobody can hear.
+ * This is the mix said the way somebody would say it, and it is the button's
+ * whole accessible name. It keeps the number of films, which the card leaves
+ * out: on the card that was a second number beside the loved one and read as
+ * half of a score, while spoken it is simply part of the phrase.
  *
  * The loved half is absent at nought rather than said as "0 loved": on the card
  * there is nothing there to describe, and a listener should meet the same mix a
@@ -65,9 +92,9 @@ export function spokenMix(name: string, films: number, loved: number): string {
 /**
  * The most a card can say about what is in a mix: up to three titles.
  *
- * A name and a count tell somebody which mix this is and how much is in it, and
- * then they have to open it to find out whether it is the one they meant. Three
- * titles usually settle that without a press — the films are what a mix is
+ * A name tells somebody which mix this is, and then they have to open it to find
+ * out whether it is the one they meant. Three titles usually settle that without
+ * a press — the films are what a mix is
  * *for*, and reading three of them is how anybody recognises their own shelf.
  *
  * Titles only. No year, no mark, no link: this is a line to glance at, and

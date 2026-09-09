@@ -22,6 +22,13 @@
   --color-beam: #e3a54a;
   --color-beam-dim: #6b4f24;
 
+  /* The one warning. Deleting a genre or a mix is the only thing on the website
+     that takes something away for good, and the confirmation for it must not
+     look like the amber that marks what the user made. Brick rather than a
+     signal red: it belongs in this room, and it appears nowhere else. */
+  --color-alarm: #cf5b45;
+  --color-alarm-dim: #5c2a20;
+
   --color-scrim: rgba(6, 6, 10, 0.72);
 }
 

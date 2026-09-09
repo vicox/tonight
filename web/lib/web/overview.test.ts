@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 /**
@@ -19,11 +19,11 @@ import test from "node:test";
  * that quietly grew a poster, a `false` that became indistinguishable from
  * "nothing said", a create control on a page that is supposed to be read.
  *
- * Nine sources, because the page is that many files: the board itself, the
+ * Ten sources, because the page is that many files: the board itself, the
  * section all three of its parts are drawn by, the genre labels, the mix cards,
  * the dialog they and the summary all open, the type a name is set in, a film's
- * row — shared by the board and the summary's dialog — the
- * summary tiles, and the mark on a row. What can be tested for real is kept out of here and tested
+ * row — shared by the board and the summary's dialog — the summary tiles, the
+ * mark on a row, and the delete a genre's and a mix's dialogs both carry. What can be tested for real is kept out of here and tested
  * that way: the arithmetic behind the tiles in `movie-summary.test.ts`, and where
  * focus goes when a row is removed in `refocus.test.ts`.
  *
@@ -49,6 +49,7 @@ const MIXES = new URL("../../components/mix-cards.tsx", import.meta.url);
 const ROW = new URL("../../components/movie-row.tsx", import.meta.url);
 const SUMMARY = new URL("../../components/movie-summary.tsx", import.meta.url);
 const MARKS = new URL("../../components/movie-state.tsx", import.meta.url);
+const MANAGE = new URL("../../components/manage.tsx", import.meta.url);
 
 const source = readFileSync(VIEW, "utf8");
 const section = readFileSync(SECTION, "utf8");
@@ -60,6 +61,7 @@ const cards = readFileSync(MIXES, "utf8");
 const row = readFileSync(ROW, "utf8");
 const summary = readFileSync(SUMMARY, "utf8");
 const marks = readFileSync(MARKS, "utf8");
+const manage = readFileSync(MANAGE, "utf8");
 
 test("the resting page shows names and counts, and no instruction", () => {
   // Neither kind of instruction is on the page at rest any more: a genre's is in
@@ -201,6 +203,16 @@ test("the menu offers the five real states, with an icon and words for each", ()
   assert.match(menu, /<Icon\n/, "an option has no icon");
   assert.match(menu, /\{label\}/, "an option has no words");
 
+  // In one order, and it is the order the summary reads them in: the two facts
+  // first — not seen before seen, the direction a film moves through them — and
+  // then the three ways of having an opinion. A reader meeting both should not
+  // have to learn two orders.
+  assert.deepEqual(
+    [...marks.matchAll(/\{ state: "([a-z_]+)"/g)].map((match) => match[1]),
+    ["not_seen", "seen", "liked", "loved", "disliked"],
+    "the menu no longer offers the five in the order the summary reads them",
+  );
+
   // And no way back to nothing said: a press is a statement, and unsaying one is
   // an operation this page deliberately does not have.
   assert.equal(menu.includes("NOTHING_SAID"), false, "the menu offers nothing-said");
@@ -318,29 +330,29 @@ test("the counts sit above every film they count", () => {
 test("the counts are one line of plain text, in one type", () => {
   const films = bodyOf("MovieSummary", summary);
 
-  // The seven, in the order they are read, laid end to end. Composed from the
+  // The six, in the order they are read, laid end to end. Composed from the
   // model's own lists so the order is the model's and not a second opinion about
   // it, with `without status` left out when there is none.
-  assert.match(films, /const row = \[\s*\.\.\.FACTS,\s*\.\.\.OPINIONS,\s*WITHOUT_OPINION/);
+  assert.match(films, /const row = \[\s*\.\.\.FACTS,\s*\.\.\.OPINIONS,/);
   assert.match(films, /quiet\.length > 0 \? \[WITHOUT_STATUS\] : \[\]/);
   assert.match(films, /row\.map\(\(selection, index\)/, "the row is not rendered as one list");
 
-  // One `Count` draws all seven, so the five answers cannot drift apart from one
+  // One `Count` draws all six, so the five answers cannot drift apart from one
   // another: they are given the row's own type and nothing of their own.
   const line = films.slice(films.indexOf("row.map"), films.indexOf("recent.length > 0"));
   assert.equal((line.match(/<Count\b/g) ?? []).length, 1, "an item is drawn differently");
   assert.match(line, /"hover:text-ink"/, "the five answers carry a type of their own");
 
-  // The two remainders step down from that type — smaller and quieter, because
-  // they are what is left over rather than something somebody said — and they
-  // are the only exception, taken from one list rather than named at the item.
+  // The remainder steps down from that type — smaller and quieter, because it is
+  // what is left over rather than something somebody said — and it is the only
+  // exception, taken from a list rather than named at the item.
   assert.match(line, /remainders\.includes\(selection\)/, "the exception is not one list");
   assert.match(
     line,
     /"text-\[12\.5px\] text-ink-faint hover:text-ink-soft"/,
-    "the remainders are not set quieter than the five",
+    "the remainder is not set quieter than the five",
   );
-  assert.match(films, /const remainders = \[WITHOUT_OPINION, WITHOUT_STATUS\];/);
+  assert.match(films, /const remainders = \[WITHOUT_STATUS\];/);
   assert.equal(
     /font-|tracking-|opacity-|leading-(snug|tight)/.test(line),
     false,
@@ -770,7 +782,8 @@ test("films, genres and mixes are three peers, drawn by one section", () => {
 
   // And the heading itself is written once, in that component. A second <h2> on
   // the page would be a section drawing its own.
-  assert.match(section, /<h2 className="font-display text-\[26px\] leading-none">\{title\}<\/h2>/);
+  assert.match(section, /<h2[\s\S]{0,400}?font-display text-\[26px\] leading-none/);
+  assert.match(section, /\{title\}\s*<\/h2>/, "the heading does not render the section's title");
   assert.equal(/<h2/.test(source), false, "the page draws a section heading of its own");
 });
 
@@ -822,7 +835,11 @@ test("a genre is a compact label, and a mix is a compact card", () => {
   // next to the others. A mix is a composition, so it keeps a card — with the
   // accent edge that says the user made it — and the card is now a name and two
   // numbers rather than the whole mix.
-  assert.match(bodyOf("TasteView"), /<GenreLabels genres=\{taste\.genres\}/, "genres are not labels");
+  assert.match(
+    bodyOf("TasteView"),
+    /<GenreLabels genres=\{taste\.genres\} mixes=\{taste\.mixes\} movies=\{taste\.movies\}/,
+    "genres are not labels, or are not given what they need to reach their films",
+  );
   assert.match(
     bodyOf("TasteView"),
     /<MixCards mixes=\{taste\.mixes\} movies=\{taste\.movies\}/,
@@ -847,13 +864,11 @@ test("a genre is a compact label, and a mix is a compact card", () => {
   assert.match(stack, /rounded-xl border/, "a mix has stopped being a card");
 });
 
-test("a closed mix card is a name and two numbers, and nothing else", () => {
+test("a closed mix card is a name and a loved count, and nothing else", () => {
   const stack = bodyOf("MixCards", cards);
 
-  // The name, how many films are in it, and — only when there are any — how many
-  // of those are loved.
+  // The name, and — only when there are any — how many of its films are loved.
   assert.match(stack, /\{mix\.name\}/, "the card does not show what the mix is called");
-  assert.match(stack, /\{films\.length\}/, "the card does not show how many films are in it");
   assert.match(stack, /\{loved > 0 && \(/, "a mix with nothing loved still shows a heart");
   assert.match(stack, /<Heart /, "the loved signal is not the mark's own heart");
   assert.match(stack, /\{loved\}/, "the heart is not given a number");
@@ -862,6 +877,20 @@ test("a closed mix card is a name and two numbers, and nothing else", () => {
   // rating, and this is a count.
   assert.equal((stack.match(/<Heart /g) ?? []).length, 1, "the hearts are being repeated");
   assert.equal(/\.map\([^)]*Heart|Array\.from/.test(stack), false, "a heart is drawn per film");
+
+  // How many films are in it is not on the card. It is a measurement rather than
+  // a recognition, and beside the loved count it read as half of a score. Read
+  // as what is rendered, since the spoken label is still given the number.
+  assert.equal(
+    /\{films\.length\}/.test(stack),
+    false,
+    "the card shows how many films are in the mix again",
+  );
+  assert.match(
+    stack,
+    /aria-label=\{spokenMix\(mix\.name, films\.length, loved\)\}/,
+    "a listener is no longer given the count the card leaves out",
+  );
 
   // And none of the mix is on the closed card: no instruction, no genre chip, no
   // film row, no mark. All of it is in the dialog.
@@ -908,7 +937,8 @@ test("a mix card opens its own dialog, in the order the mix was built", () => {
   const stack = bodyOf("MixCards", cards);
   assert.match(stack, /aria-haspopup="dialog"/, "the card does not say what it opens");
   assert.match(stack, /setOpen\(mix\)/, "pressing a card opens something else");
-  assert.match(stack, /<Detail mix=\{open\}/, "the card opens no dialog");
+  assert.match(stack, /<Detail\b/, "the card opens no dialog");
+  assert.match(stack, /mix=\{open\}/, "the dialog is not given the mix that was pressed");
 
   const detail = bodyOf("Detail", cards);
   assert.match(detail, /<dialog/, "the mix opens in something other than a dialog");
@@ -953,10 +983,10 @@ test("a mix dialog is dismissed like the others, and hands focus back to the car
 
   const stack = bodyOf("MixCards", cards);
   assert.match(stack, /invoker\.current = event\.currentTarget;/, "the card pressed is not kept");
-  assert.match(stack, /returnTo\(invoker\.current, document\.contains\(invoker\.current\)/);
+  assert.match(stack, /returnTo\([\s\S]{0,60}?document\.contains\(/);
   assert.match(
     stack,
-    /stack\.current\?\.querySelector<HTMLButtonElement>\("button"\)/,
+    /stack\.current\?\.querySelectorAll<HTMLElement>\("button"\)/,
     "there is nowhere to put focus when the card pressed has gone",
   );
 
@@ -979,24 +1009,22 @@ test("a long name stays inside the card, and inside the dialog", () => {
   // as its longest unbreakable word until it is allowed to be narrower, which
   // is how a 63-character name came to be 507px wide in a 350px card.
   //
-  // It is needed at *both* levels, and each is checked against its own class
-  // list — the box that holds the name and its count, and the name inside it.
-  // A nested item that may shrink cannot save a parent that may not, and read
-  // over the whole file either one would answer for the other.
+  // It is needed on the flex item the name is, which is the name's own element
+  // now that no count sits beside it — and it is checked against that element's
+  // own class list, because read over the whole file some other list would
+  // answer for it.
   //
-  // The two are the last plain class lists before the name is rendered: the
-  // card itself builds its own from an array, so it is not one of them.
-  // Anchored on the name as an element's content rather than as text: `key=` and
-  // the spoken label both mention it, and both come first.
+  // That is the last plain class list before the name is rendered: the card
+  // itself builds its own from an array, so it is not one of them. Anchored on
+  // the name as an element's content rather than as text: `key=` and the spoken
+  // label both mention it, and both come first.
   const rendered = stack.search(/>\s*\{mix\.name\}\s*</);
   assert.notEqual(rendered, -1, "the card no longer renders the mix's name");
   const upToTheName = stack.slice(0, rendered);
   const lists = [...upToTheName.matchAll(/className="([^"]*)"/g)].map((match) => match[1]);
-  assert.ok(lists.length >= 2, "the name is no longer inside a box of its own");
+  assert.ok(lists.length >= 1, "the name is no longer rendered with a class list of its own");
 
-  const [box, name] = lists.slice(-2);
-  assert.match(box, /\bflex\b/, "the name and its count are no longer one line together");
-  assert.match(box, /min-w-0/, "the box holding the name cannot be narrower than the name");
+  const name = lists[lists.length - 1];
   assert.match(name, /font-display/, "the name is not the display type on the card");
   assert.match(name, /min-w-0/, "a long name can widen the card");
   assert.match(name, /break-words/, "a long name has nowhere to break");
@@ -1006,9 +1034,8 @@ test("a long name stays inside the card, and inside the dialog", () => {
     "a name is being cut off to keep it on one line",
   );
 
-  // The count stays beside the name — they are one phrase — and the loved signal
-  // stays on the right even when the name pushes it onto a line of its own,
-  // which `justify-between` alone does not do for a single item.
+  // The loved signal stays on the right even when the name pushes it onto a line
+  // of its own, which `justify-between` alone does not do for a single item.
   const signal = stack.match(/className="([^"]*shrink-0[^"]*tabular-nums[^"]*)"/);
   assert.ok(signal, "the loved signal is not the compact one it was");
   assert.match(signal[1], /ml-auto/, "the loved signal falls to the left when it wraps");
@@ -1028,12 +1055,12 @@ test("a long name stays inside the card, and inside the dialog", () => {
   }
 });
 
-test("a mix card's numbers are read off the films, not held anywhere", () => {
+test("what a mix card shows is read off the films, not held anywhere", () => {
   const stack = bodyOf("MixCards", cards);
 
   // Membership from the mix's own handles, loved from the same films — so a mark
-  // pressed in the dialog moves the heart by the next render and cannot move the
-  // count. The arithmetic itself is `mixes.test.ts`.
+  // pressed in the dialog moves the heart by the next render. The arithmetic
+  // itself is `mixes.test.ts`.
   assert.match(stack, /filmsIn\(mix, movies\)/, "the card counts something other than its films");
 
   // The order of the cards is the same kind of answer, and the same rule holds
@@ -1094,6 +1121,40 @@ test("a name is set one way, on whichever surface it is read", () => {
   assert.doesNotMatch(inCard, /bg-screen/, "a chip in a mix is raised off the card");
 });
 
+test("a genre opens its films, in the rows the rest of the page uses", () => {
+  const dialog = bodyOf("Meaning", labels);
+
+  // The name, the meaning, then the films: the order a reader wants them, and
+  // the same `Films` a mix's dialog and the summary's open. No second way of
+  // showing a film anywhere on this page.
+  assert.match(dialog, /<Films movies=\{films\}/, "a genre's films are not the page's own rows");
+  assert.ok(
+    dialog.indexOf("{genre.instruction}") < dialog.indexOf("<Films"),
+    "the films are above the meaning",
+  );
+  assert.match(dialog, /<Films[^>]*\bfiled\b/, "a row does not say which mixes it is filed in");
+
+  // Derived by the labels on every render and handed in, like every other list
+  // on this page: nothing in here holds a copy of a film, so a mark pressed in a
+  // row shows by the next render.
+  const row = bodyOf("GenreLabels", labels);
+  assert.match(row, /films=\{filmsUnder\(open, mixes, movies\)\}/, "the films are not derived per render");
+  assert.equal(
+    /useState<(readonly )?Movie|useMemo|\.filter\(|\.map\(\(movie/.test(dialog),
+    false,
+    "the dialog works out or keeps its own films",
+  );
+
+  // No films is left as no films. A genre named and not yet combined into
+  // anything is an ordinary state, and a line describing the gap would read as
+  // something gone wrong.
+  assert.equal(
+    /films\.length === 0|Nothing here|No films/.test(dialog),
+    false,
+    "a genre with no films behind it says so instead of saying nothing",
+  );
+});
+
 test("a genre's meaning can be dismissed three ways, and hands focus back", () => {
   const dialog = bodyOf("Meaning", labels);
 
@@ -1134,10 +1195,10 @@ test("a genre's meaning can be dismissed three ways, and hands focus back", () =
   // Restored to that exact button when it is still there, and to a label that is
   // still there when it is not — renaming a genre re-keys its row — rather than
   // to `<body>`, which is a reader at the top of the page with no way back.
-  assert.match(row, /returnTo\(\s*pressed,\s*document\.contains\(pressed\)/);
+  assert.match(row, /returnTo\([\s\S]{0,60}?document\.contains\(/);
   assert.match(
     row,
-    /line\.current\?\.querySelector<HTMLButtonElement>\("button"\)/,
+    /line\.current\?\.querySelectorAll<HTMLElement>\("button"\)/,
     "there is nowhere to put focus when the label pressed has gone",
   );
   assert.match(row, /<div ref=\{line\}/, "the line of labels cannot be reached to fall back to");
@@ -1153,8 +1214,248 @@ test("a genre's meaning can be dismissed three ways, and hands focus back", () =
 
   // The card, the heading and the surface are the page's own.
   assert.match(dialog, /rounded-2xl border border-rule bg-screen/);
-  assert.match(dialog, /<h2 className="font-display/, "the name is not the dialog's heading");
+  assert.match(dialog, /<h2 className="[^"]*font-display/, "the name is not the dialog's heading");
   assert.match(dialog, /aria-label=\{genre\.name\}/, "the dialog is not named for its genre");
+});
+
+/**
+ * Deleting, which is the one thing the website can do to a genre or a mix.
+ *
+ * The page used to carry a management section at its foot — a list of names with
+ * Edit and Delete beside each — and that list read as the real interface. What
+ * replaces it is nothing for creating or renaming, which is conversation's work,
+ * and a delete that lives inside the dialog for the thing being deleted.
+ */
+
+test("the page has no management section and no way to edit anything", () => {
+  // The foot of the page is prose and nothing else now.
+  const everywhere = source + labels + cards + summary + dialog + row + marks + manage;
+  assert.equal(/Advanced/.test(everywhere), false, "the Advanced section is still here");
+  assert.equal(
+    /<details|<summary/.test(source),
+    false,
+    "the page still carries a collapsed section of its own",
+  );
+
+  // No editing, and nothing standing in for it: no form, no field, no rename.
+  assert.equal(
+    /<input|<textarea|<form|new_name|onSave|Draft\b/.test(everywhere),
+    false,
+    "the page can still edit a genre or a mix",
+  );
+
+  // The only thing the page asks of a genre or a mix endpoint is a delete. A
+  // film's mark still writes, and that is the other endpoint entirely.
+  for (const [file, body] of [
+    ["the board", source],
+    ["the genre labels", labels],
+    ["the mix cards", cards],
+    ["the summary", summary],
+    ["a film's row", row],
+  ] as [string, string][]) {
+    assert.equal(
+      /\/api\/(genres|mixes)/.test(body),
+      false,
+      `${file} writes to a genre or mix endpoint of its own`,
+    );
+  }
+  assert.equal(
+    /"(POST|PATCH|PUT)"/.test(manage),
+    false,
+    "the delete component can create or rename as well",
+  );
+
+  for (const control of ["Edit", "Rename", "Add genre", "Add mix", "New genre", "New mix"]) {
+    assert.equal(
+      new RegExp(`>\\s*${control}\\s*<|>${control}</`).test(everywhere),
+      false,
+      `the page offers "${control}"`,
+    );
+  }
+
+  // And the two files that held all of it are gone rather than orphaned.
+  for (const file of ["taste-advanced.tsx", "taste-editor.tsx"]) {
+    assert.equal(
+      existsSync(new URL(`../../components/${file}`, import.meta.url)),
+      false,
+      `${file} is still in the tree`,
+    );
+  }
+});
+
+test("both detail dialogs carry the same overflow menu, in the top right", () => {
+  // One component, used twice: a genre and a mix are deleted the same way, and
+  // two of these would be two places for the question to be worded differently.
+  for (const [what, body, kind] of [
+    ["a genre", bodyOf("Meaning", labels), "genre"],
+    ["a mix", bodyOf("Detail", cards), "mix"],
+  ] as [string, string, string][]) {
+    const at = body.indexOf("<Manage");
+    assert.notEqual(at, -1, `${what} cannot be deleted from its own dialog`);
+
+    // What it is given, in no particular order: props are not a sequence.
+    const given = body.slice(at, body.indexOf("/>", at));
+    assert.match(given, new RegExp(`kind="${kind}"`), `${what}'s menu does not know its kind`);
+    assert.match(given, new RegExp(`name=\\{${kind}\\.name\\}`), `${what}'s menu has no name`);
+    // Deleting is not dismissing, and whoever puts focus back afterwards needs
+    // to be told which of the two happened. See the focus test below.
+    assert.match(given, /onRemoved=\{onRemoved\}/, `${what}'s dialog reads a delete as a close`);
+
+    // Beside the heading and at the end of that row, which is the top right.
+    const header = body.slice(body.indexOf("<header"), body.indexOf("</header>"));
+    assert.match(header, /justify-between/, `${what}'s menu is not at the end of the heading row`);
+    assert.ok(header.indexOf("<h2") < header.indexOf("<Manage"), `${what}'s menu comes first`);
+    // A name can wrap to several lines and must not carry the menu down with it.
+    assert.match(header, /items-start/, `${what}'s menu is aligned to a wrapping name`);
+    assert.match(header, /<h2[^>]*\bmin-w-0\b/, `a long name can widen ${what}'s dialog`);
+  }
+
+  // The app's own menu, not a second pattern: the mark on a film's row is the
+  // one this follows.
+  assert.match(manage, /aria-haspopup="menu"/, "the trigger does not say what it opens");
+  assert.match(manage, /role="menu"/, "what opens is not a menu");
+  assert.match(manage, /role="menuitem"/, "the menu has no item in it");
+  assert.match(manage, /aria-expanded=\{open\}/, "the trigger does not say whether it is open");
+  assert.match(manage, /addEventListener\("pointerdown", elsewhere\)/, "a press elsewhere leaves it open");
+
+  // And it nests validly: a menu is a flow-content box, a `<span>` holds
+  // phrasing content, so the box around the trigger and its menu is a `<div>`.
+  const drawn = bodyOf("Manage", manage);
+  const box = drawn.slice(0, drawn.indexOf('role="menu"'));
+  assert.match(box, /<div\b/, "the trigger and its menu are not in a box of their own");
+  assert.equal(/<span\b/.test(box), false, "the menu is inside a span, which cannot hold one");
+
+  // Escape closes the menu and stops there, so one press does not also dismiss
+  // the dialog the menu is inside.
+  const steer = manage.slice(manage.indexOf('if (event.key === "Escape")'));
+  assert.match(steer, /event\.preventDefault\(\);\s*close\(true\);/, "Escape falls through to the dialog");
+});
+
+test("Delete asks before it deletes, and only the answer writes", () => {
+  const menu = bodyOf("Manage", manage);
+  const question = bodyOf("Confirm", manage);
+
+  // The menu item opens the question and does nothing else: no request leaves
+  // from the menu, so a mis-pressed `Delete` costs a second press to undo.
+  assert.match(menu, /setAsking\(true\)/, "the menu item does not open a question");
+  assert.match(menu, /asking && /, "there is no question to answer");
+  assert.match(menu, /<Confirm/, "the question is not the one written here");
+
+  // The question names what it is about to destroy, in its first line.
+  assert.match(question, /Delete \{name\}\?/, "the question does not name what it deletes");
+  assert.match(question, /aria-label=\{`Delete \$\{name\}\?`\}/, "a listener is not told what this asks");
+  assert.match(question, /element\.showModal\(\);/, "the question is not a modal dialog");
+
+  // Two answers. Cancel writes nothing and is where focus starts, so the
+  // destructive one is never what a stray Return reaches.
+  assert.match(question, />\s*Cancel\s*</, "there is no way to say no");
+  assert.match(question, /cancel\.current\?\.focus\(\);/, "focus does not start on Cancel");
+  assert.match(question, /onCancel=\{onCancel\}|onClick=\{onCancel\}/, "Cancel does nothing");
+
+  // And focus comes back to the `…` it was opened from, after the question has
+  // closed rather than inside the handler that closes it: `showModal` hands
+  // focus back to the menu item that opened this, which went with the menu, so
+  // the browser's own restoration lands on `<body>`. Skipped when the trigger
+  // has gone too — that is the successful delete, and the section that outlives
+  // this puts focus back instead.
+  assert.match(menu, /if \(asking \|\| !asked\.current\) return;/, "the question's closing is not noticed");
+  assert.match(
+    menu,
+    /document\.contains\(trigger\.current\)\) trigger\.current\.focus\(\)/,
+    "focus is not returned to the control the question was opened from",
+  );
+
+  // Escape and a press outside are Cancel too: every way out that is not the red
+  // button leaves the model as it was.
+  assert.match(question, /onCancel=\{\(event\) => \{[\s\S]*?onCancel\(\);/, "Escape is not a Cancel");
+
+  // And answered here only. This dialog is rendered inside the detail dialog's
+  // React tree, and React carries `cancel` up that tree — so one Escape would
+  // otherwise close the question and the dialog behind it together.
+  assert.match(
+    question,
+    /event\.preventDefault\(\);\s*event\.stopPropagation\(\);/,
+    "one Escape dismisses the dialog behind the question as well",
+  );
+  assert.match(
+    question,
+    /event\.target === dialog\.current && !busy\) onCancel\(\)/,
+    "a press outside is not a Cancel",
+  );
+
+  // The red button is wired to the one delete there is. What it sends, and what
+  // each kind of answer means, is `lib/web/manage.ts` — tested for real in
+  // `manage.test.ts` rather than read off this file.
+  assert.match(question, /onClick=\{remove\}/, "the red button is not what deletes");
+  assert.match(question, /await ask\(kind, name\)/, "the button does not go through that one path");
+  assert.equal(
+    /fetch\(|method: "DELETE"/.test(manage),
+    false,
+    "the dialog has a delete of its own beside the shared one",
+  );
+
+  // What lands is read back from the store rather than from the answer's copy of
+  // the model, and then the dialog describing the deleted thing goes — both of
+  // them only once the store has said it is gone.
+  assert.match(question, /if \(!answer\.removed\)/, "a refusal is treated as a deletion");
+  assert.match(question, /startRefresh\(\(\) => router\.refresh\(\)\)/, "the page is not re-read");
+  assert.match(question, /onRemoved\(\)/, "the dialog stays open over something that is gone");
+  assert.equal(
+    /useState<[^>]*Genre|useState<[^>]*Mix|answer\.taste/.test(manage),
+    false,
+    "it keeps its own copy of the model",
+  );
+
+  // A refusal is the store's own sentence, said where the question was asked —
+  // and a long one breaks rather than widening a dialog on a narrow screen.
+  assert.match(question, /role="alert"/, "a refusal is not announced");
+  assert.match(question, /setProblem\(answer\.problem\)/, "the store's own reason is thrown away");
+  const alert = question.slice(question.indexOf('role="alert"'), question.indexOf("{problem}"));
+  assert.match(alert, /break-words/, "a long refusal can push the dialog sideways");
+});
+
+test("a deleted genre or mix hands focus on rather than dropping it", () => {
+  // The rules themselves are `refocus.test.ts`, including which control each
+  // case should land on. What is pinned here is that both islands ask them, and
+  // ask them with everything their section has left.
+  const line = bodyOf("GenreLabels", labels);
+  const stack = bodyOf("MixCards", cards);
+
+  for (const [what, body, own] of [
+    ["the genres", line, /line\.current\?\.querySelectorAll/],
+    ["the mixes", stack, /stack\.current\?\.querySelectorAll/],
+  ] as [string, string, RegExp][]) {
+    assert.match(body, /fallbackTo\(/, `${what} still fall back to a single control`);
+    assert.match(body, own, `${what} do not offer what the section has left`);
+    // The heading, last: a section that has been emptied still has one, and the
+    // island that drew its controls is unmounted with them.
+    assert.match(body, /sectionFallback\(/, `${what} have nowhere to go when the section empties`);
+
+    // The deleted control is skipped even while the page still shows it — the
+    // deletion has landed, and this render is the last one it appears in.
+    const chain = body.slice(body.indexOf("fallbackTo("), body.indexOf("if (open === null"));
+    assert.match(chain, /invoker\.current/, `${what} can hand focus to what was just deleted`);
+    assert.match(body, /removed\.current/, `${what} read a delete as an ordinary dismissal`);
+    assert.match(body, /returnTo\(gone \? null : pressed/, `${what} return focus to a doomed control`);
+
+    // And again after the render, for the other order of the same race.
+    assert.match(body, /rescueTo\(/, `${what} do not look again once the page comes back`);
+  }
+
+  // The mixes prefer another card, then the films that are in no mix, then the
+  // heading — the order a reader would go looking in.
+  assert.match(
+    stack,
+    /\[\.\.\.cards, remainder\.current, sectionFallback\(stack\.current\)\]/,
+    "the mixes do not prefer a card, then the remainder, then the section",
+  );
+  assert.match(cards, /ref=\{remainder\}/, "the remainder's line cannot be focused");
+
+  // The last resort is real, and on every section: focusable, and out of the tab
+  // order so that nobody has to pass three headings to reach the page.
+  assert.match(section, /data-fallback/, "a section has no last resort for focus");
+  assert.match(section, /tabIndex=\{-1\}/, "the heading cannot be given focus");
+  assert.match(section, /export function sectionFallback/, "the anchor is found by two spellings");
 });
 
 test("a way in's underline is there in both states, and only its colour moves", () => {
@@ -1251,7 +1552,7 @@ test("the mixes' remainder is dismissed and hands focus back like the rest", () 
 
   // A real button that says what it opens, remembering its own press — and the
   // same architecture the cards already use, not a second one beside it.
-  assert.match(stack, /<button\n\s+type="button"\n\s+aria-haspopup="dialog"/);
+  assert.match(stack, /<button[\s\S]{0,120}?aria-haspopup="dialog"/);
   assert.equal(
     (stack.match(/invoker\.current = event\.currentTarget;/g) ?? []).length,
     2,
@@ -1260,8 +1561,11 @@ test("the mixes' remainder is dismissed and hands focus back like the rest", () 
 
   // Focus back to it while it is there, and to a surviving card when it has
   // gone — which is what happens when the last film in no mix is filed into one.
-  assert.match(stack, /returnTo\(invoker\.current, document\.contains\(invoker\.current\)/);
-  assert.match(stack, /stack\.current\?\.querySelector<HTMLButtonElement>\("button"\)/);
+  // The line itself is one of the places focus can fall back *to*, which is what
+  // catches the other way round: the last mix deleted, with films still in none.
+  assert.match(stack, /returnTo\([\s\S]{0,60}?document\.contains\(/);
+  assert.match(stack, /stack\.current\?\.querySelectorAll<HTMLElement>\("button"\)/);
+  assert.match(stack, /remainder\.current/, "the remainder is not somewhere focus can land");
   // One films dialog for the remainder — the one the summary opens — beside the
   // mix's own detail, which is a different thing and keeps its own.
   assert.equal((cards.match(/<Chosen/g) ?? []).length, 1, "there is a second films dialog");
@@ -1306,16 +1610,22 @@ test("the remainder's focus is handed back, and rescued if its line then goes", 
   // two rules the summary uses: the invoker at the moment of closing, and — for
   // the render that arrives after it — whatever focus was handed to, once it has
   // left the document with nothing else having taken it.
-  assert.match(stack, /returnTo\(invoker\.current, document\.contains\(invoker\.current\)/);
+  assert.match(stack, /returnTo\([\s\S]{0,60}?document\.contains\(/);
   assert.match(stack, /handedTo\.current = back;/, "what focus went to is not remembered");
   assert.match(stack, /rescueTo\(/, "the later half of the race is not handled");
   assert.match(stack, /document\.activeElement === document\.body/, "a moved focus would be stolen");
 
-  // The fallback is a card that is still there, in both halves.
+  // The fallback is worked out once and used by both halves, so the two cannot
+  // come to different answers about where focus belongs.
   assert.equal(
-    (stack.match(/stack\.current\?\.querySelector<HTMLButtonElement>\("button"\)/g) ?? []).length,
+    (stack.match(/const stable = fallbackTo\(/g) ?? []).length,
     1,
     "the fallback is worked out more than once, or not at all",
+  );
+  assert.equal(
+    (stack.match(/\bstable\b/g) ?? []).length,
+    3,
+    "one of the two halves works out its own fallback, or does not use it",
   );
 });
 

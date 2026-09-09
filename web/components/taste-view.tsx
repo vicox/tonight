@@ -3,7 +3,6 @@ import { GenreLabels } from "./genre-labels";
 import { MixCards } from "./mix-cards";
 import { MovieSummary } from "./movie-summary";
 import { Section } from "./section";
-import { TasteAdvanced } from "./taste-advanced";
 import type { Taste } from "@/lib/taste/model";
 import { recentlyAdded } from "@/lib/web/movie-summary";
 
@@ -15,7 +14,7 @@ import { recentlyAdded } from "@/lib/web/movie-summary";
  *     YOUR GENRES     the reusable components
  *          ↓
  *     YOUR MIXES      what they mean in combination, each with how many
- *                     films are in it and how many of those are loved,
+ *                     of its films are loved and three of their titles,
  *                     and one line for the films that are in none
  *
  * Vertical rather than side by side, because the relationship is a derivation and
@@ -45,15 +44,22 @@ import { recentlyAdded } from "@/lib/web/movie-summary";
  *
  * The page is a Server Component that has already opened the signed-in user's
  * store. What is client code is what can be pressed: the counts, the genre
- * labels and the mix cards, each with the dialog it opens; the copy button; the
- * management island at the foot where genres and mixes are created and renamed;
- * and the mark on a film's row. Nothing else here can change anything — what is
- * on show is a rendering of what the store holds, read on the server each time.
+ * labels and the mix cards, each with the dialog it opens; the copy button; and
+ * the mark on a film's row. Nothing else here can change anything — what is on
+ * show is a rendering of what the store holds, read on the server each time.
  *
- * Three of those dialogs are the same `<dialog>` used the same way, and the one
- * thing none of them re-implements is focus: a dialog is unmounted in the same
- * commit that closes it, so whatever opened it is what puts focus back. See
+ * Those dialogs are the same `<dialog>` used the same way, and the one thing
+ * none of them re-implements is focus: a dialog is unmounted in the same commit
+ * that closes it, so whatever opened it is what puts focus back. See
  * `lib/web/refocus.ts`.
+ *
+ * ## Nothing here is created or renamed
+ *
+ * A genre is named and a mix is composed in conversation, which is where a taste
+ * model comes from — so there is no form on this page and no way to reach one.
+ * The single exception is deleting, which lives inside the dialog for the thing
+ * being deleted: a model you cannot take something out of yourself is not quite
+ * yours. See `manage.tsx`.
  */
 export function TasteView({ taste }: { taste: Taste }) {
   return (
@@ -82,7 +88,7 @@ export function TasteView({ taste }: { taste: Taste }) {
             be saved here.
           </Empty>
         ) : (
-          <GenreLabels genres={taste.genres} />
+          <GenreLabels genres={taste.genres} mixes={taste.mixes} movies={taste.movies} />
         )}
       </Section>
 
@@ -111,13 +117,6 @@ export function TasteView({ taste }: { taste: Taste }) {
       </Section>
 
       <Prompt taste={taste} />
-
-      <p className="mt-10 text-[12.5px] leading-relaxed text-ink-faint">
-        This is what Tonight stores. Your assistant may also be drawing on its own memory of your
-        conversations, which Tonight cannot see and this page cannot show.
-      </p>
-
-      <TasteAdvanced taste={taste} />
     </>
   );
 }

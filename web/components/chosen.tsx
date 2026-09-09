@@ -40,10 +40,10 @@ const MARK = '[aria-haspopup="menu"]';
  * One count, pressable.
  *
  * The words then the number, which is both how it is set and how it is said — so
- * for five of the seven the control's own text is a perfectly good accessible
- * name and it is given no label at all. `Seen` and `without opinion` are the two
- * whose words are true but not sufficient, and `spoken` is what adds the rest
- * for them alone.
+ * for all but one of them the control's own text is a perfectly good accessible
+ * name and it is given no label at all. `Seen` is the one whose words are true
+ * but not sufficient — read out beside the three opinions it sounds like it
+ * might cover them too — and `spoken` is what adds the rest for it alone.
  *
  * Underline on hover and a real focus ring: it behaves like the way in that it
  * is. Nothing here draws a surface, a border or a radius around a number.

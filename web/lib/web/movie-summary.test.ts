@@ -11,7 +11,6 @@ import {
   OPINIONS,
   OTHER_MOVIES,
   SEEN,
-  WITHOUT_OPINION,
   WITHOUT_STATUS,
   filedUnder,
   recentlyAdded,
@@ -30,10 +29,10 @@ import {
  * a write and a re-render, and what this holds is that the same films always
  * produce the same answers. The rendering decisions are in `overview.test.ts`.
  *
- * The thing to protect is the hierarchy. `Seen` is an aggregate — the bare state
- * plus the three opinions — and the two invariants at the bottom of this file
- * are what stop it drifting back into being a sixth peer that happens to be
- * named after a column.
+ * The thing to protect is that the row is a list of parts and not a sum. Every
+ * control is exactly one state, so each film is counted once and somewhere; the
+ * invariant below is what stops `Seen` drifting back into an aggregate that
+ * counts the three opinions a second time.
  */
 
 /** A film, with only the parts a count or a row cares about spelled out. */
@@ -63,7 +62,7 @@ const count = (selection: Selection, movies: readonly Movie[] = COLLECTION) =>
   selected(selection, movies).length;
 
 /** Every control the summary renders, whatever the collection looks like. */
-const KNOWN: readonly Selection[] = [...FACTS, ...OPINIONS, WITHOUT_OPINION];
+const KNOWN: readonly Selection[] = [...FACTS, ...OPINIONS];
 
 test("the total is the collection, films nobody has spoken about included", () => {
   // Not a selection at all: it belongs beside the heading the way a genre count
@@ -87,20 +86,23 @@ test("Not seen is exactly what the user said they have not seen", () => {
   assert.equal(count(NOT_SEEN), 1);
 });
 
-test("Seen is every film watched, opinion or not", () => {
-  // The correction this layout exists for. Liking a film says you watched it, so
-  // a count under this word that matched only the bare state would tell somebody
-  // with forty loved films that they had seen two.
-  assert.deepEqual([...SEEN.states].sort(), ["disliked", "liked", "loved", "seen"]);
-  assert.deepEqual(titles(selected(SEEN, COLLECTION)), [
-    "Heat",
-    "Sunset",
-    "Arrival",
-    "Solaris",
-    "Stalker",
-    "Cats",
-  ]);
-  assert.equal(count(SEEN), 6);
+test("Seen is exactly the bare seen state", () => {
+  // Not an aggregate. `Loved`, `Liked` and `Disliked` are named beside it in the
+  // same row, so counting them here would count three of the others twice and
+  // make the row read as a sum of itself.
+  assert.deepEqual(SEEN.states, ["seen"]);
+  assert.deepEqual(titles(selected(SEEN, COLLECTION)), ["Heat", "Sunset"]);
+  assert.equal(count(SEEN), 2);
+
+  for (const opinion of OPINIONS) {
+    for (const state of opinion.states) {
+      assert.equal(
+        SEEN.states.includes(state),
+        false,
+        `Seen also counts ${String(state)}, which ${opinion.label} already counts`,
+      );
+    }
+  }
 
   // And it never claims a film nobody has spoken about.
   assert.equal(
@@ -125,14 +127,6 @@ test("each opinion is exactly its own state", () => {
   assert.deepEqual(titles(selected(DISLIKED, COLLECTION)), ["Cats"]);
 });
 
-test("without opinion is exactly the bare seen state", () => {
-  // Named for what it is rather than for the word in the column: under a line
-  // that already says "Seen", a second control called "Seen" is unreadable.
-  assert.deepEqual(WITHOUT_OPINION.states, ["seen"]);
-  assert.deepEqual(titles(selected(WITHOUT_OPINION, COLLECTION)), ["Heat", "Sunset"]);
-  assert.equal(count(WITHOUT_OPINION), 2);
-});
-
 test("without status is exactly the films with no state", () => {
   // `null` is the absence of an answer and `not_seen` is something the user
   // said. Counting silence there would put films nobody has mentioned into a
@@ -142,44 +136,35 @@ test("without status is exactly the films with no state", () => {
   assert.equal(count(WITHOUT_STATUS), 2);
 });
 
-test("the total is not seen, plus seen, plus without status", () => {
-  // The first invariant, over the collection above and over a handful of shapes
-  // that have caught this kind of thing before.
+test("the row accounts for every film exactly once", () => {
+  // The invariant the one-line summary rests on, over the collection above and
+  // over a handful of shapes that have caught this kind of thing before. If a
+  // control ever aggregates another, a film lands in two of these and the sum
+  // overshoots the number in the heading.
+  const ROW = [...FACTS, ...OPINIONS, WITHOUT_STATUS];
+
   for (const movies of [
     COLLECTION,
     [],
     [film("only", null)],
     [film("a", "seen"), film("b", "loved")],
     [film("a", "not_seen"), film("b", "not_seen")],
+    [film("a", "loved"), film("b", "loved"), film("c", "disliked")],
     COLLECTION.filter((one) => one.state !== null),
   ]) {
+    const shape = JSON.stringify(titles(movies));
     assert.equal(
-      count(NOT_SEEN, movies) + count(SEEN, movies) + count(WITHOUT_STATUS, movies),
+      ROW.reduce((sum, selection) => sum + count(selection, movies), 0),
       movies.length,
-      `the three do not account for ${JSON.stringify(titles(movies))}`,
+      `the row does not account for ${shape}`,
     );
-  }
-});
-
-test("seen is loved, plus liked, plus disliked, plus without opinion", () => {
-  // The second invariant, and the one the indent on the page is claiming. If
-  // these ever disagree, the layout is telling the reader something false about
-  // the collection.
-  for (const movies of [
-    COLLECTION,
-    [],
-    [film("only", "seen")],
-    [film("a", "loved"), film("b", "loved"), film("c", "disliked")],
-    [film("a", null), film("b", "not_seen")],
-  ]) {
-    assert.equal(
-      count(LOVED, movies) +
-        count(LIKED, movies) +
-        count(DISLIKED, movies) +
-        count(WITHOUT_OPINION, movies),
-      count(SEEN, movies),
-      `the parts do not make up Seen for ${JSON.stringify(titles(movies))}`,
-    );
+    for (const movie of movies) {
+      assert.equal(
+        ROW.filter((selection) => selection.states.includes(movie.state)).length,
+        1,
+        `${movie.title} is counted by more than one control in ${shape}`,
+      );
+    }
   }
 });
 
@@ -209,8 +194,8 @@ test("every known-state control still exists when its count is nought", () => {
   }
   assert.deepEqual(
     KNOWN.map((selection) => selection.key),
-    ["not_seen", "seen", "loved", "liked", "disliked", "without_opinion"],
-    "the six controls are not a fixed list in a fixed order",
+    ["not_seen", "seen", "liked", "loved", "disliked"],
+    "the five controls are not a fixed list in a fixed order",
   );
 
   // And without status is the one that comes and goes, so it has to be countable
@@ -222,35 +207,29 @@ test("a mark pressed in the dialog moves the film through the hierarchy", () => 
   // What a re-render does, as arithmetic. Nothing here adjusts a count: the page
   // is given new films and asks the same questions again.
   const before = [film("Heat", "seen"), film("Dune", "not_seen"), film("Sunrise", null)];
-  assert.deepEqual(
-    [count(SEEN, before), count(WITHOUT_OPINION, before), count(LOVED, before)],
-    [1, 1, 0],
-  );
+  assert.deepEqual([count(SEEN, before), count(LOVED, before)], [1, 0]);
 
-  // Watched, nothing said → loved. It stays inside Seen and moves between its
-  // children, which is exactly what the indent claims.
+  // Watched, nothing said → loved. It leaves Seen for Loved rather than staying
+  // in both: the row is a list of parts, so a film is only ever in one of them.
   const loved = before.map((one) => (one.title === "Heat" ? film("Heat", "loved") : one));
-  assert.deepEqual(
-    [count(SEEN, loved), count(WITHOUT_OPINION, loved), count(LOVED, loved)],
-    [1, 0, 1],
-  );
+  assert.deepEqual([count(SEEN, loved), count(LOVED, loved)], [0, 1]);
 
   // Never told → not seen. It leaves the quiet line and joins a fact, and the
   // total is unchanged because no film went anywhere.
   const stated = loved.map((one) => (one.title === "Sunrise" ? film("Sunrise", "not_seen") : one));
   assert.deepEqual(
     [count(NOT_SEEN, stated), count(WITHOUT_STATUS, stated), count(SEEN, stated)],
-    [2, 0, 1],
+    [2, 0, 0],
   );
   assert.equal(
-    count(NOT_SEEN, stated) + count(SEEN, stated) + count(WITHOUT_STATUS, stated),
+    count(NOT_SEEN, stated) + count(SEEN, stated) + count(LOVED, stated) + count(WITHOUT_STATUS, stated),
     stated.length,
   );
 });
 
-test("the two sentence-shaped controls read as sentences", () => {
+test("the sentence-shaped control reads as a sentence", () => {
   // One template for one and for many, because the phrase does not inflect.
-  assert.equal(sentence(WITHOUT_OPINION, 30), "30 without opinion");
+  assert.equal(sentence(WITHOUT_STATUS, 4), "4 without status");
   assert.equal(sentence(WITHOUT_STATUS, 1), "1 without status");
   assert.equal(sentence(WITHOUT_STATUS, 0), "0 without status");
 
@@ -260,7 +239,7 @@ test("the two sentence-shaped controls read as sentences", () => {
   }
 });
 
-test("only the two ambiguous words are given a second sentence to a listener", () => {
+test("only the one ambiguous word is given a second sentence to a listener", () => {
   // The visible text is words then number, which is also how it is said — so for
   // most of these the control's own text is the accessible name and a label would
   // be reading the obvious out twice.
@@ -269,12 +248,10 @@ test("only the two ambiguous words are given a second sentence to a listener", (
   assert.equal(spoken(LIKED, 5), undefined);
   assert.equal(spoken(DISLIKED, 0), undefined);
 
-  // These two are true but not sufficient on their own.
-  assert.equal(spoken(SEEN, 38), "Seen 38, every film you have watched, opinion or not");
-  assert.equal(
-    spoken(WITHOUT_OPINION, 30),
-    "Without opinion 30, watched, with nothing said about it",
-  );
+  // This one is true but not sufficient on its own: read out beside the three
+  // opinions, "Seen" sounds like it might cover them too.
+  assert.equal(spoken(SEEN, 38), "Seen 38, watched, with nothing said about it");
+  assert.equal(spoken(WITHOUT_STATUS, 4), undefined);
 });
 
 test("a film in no mix is filed under the words the page already uses", () => {

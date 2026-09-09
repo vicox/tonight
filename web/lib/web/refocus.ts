@@ -70,3 +70,32 @@ export function rescueTo<T>(
   if (handedTo === null || present) return null;
   return stranded ? fallback : null;
 }
+
+/**
+ * The first control focus can actually be given, out of a list in the order it
+ * should be tried.
+ *
+ * A section's own ways in, the most specific first, and last of them something
+ * the section keeps whether it holds anything or not. Deleting is what made this
+ * a list rather than a single fallback: until then the thing focus fell back to
+ * was always there — a summary tile, the first card in a stack that had at least
+ * one. A delete can empty the stack. "One stable control" was quietly assuming
+ * there was another of the same kind left, and when there was not, the browser
+ * dropped focus on `<body>`: a reader at the top of the page, with no way back
+ * to what they were doing.
+ *
+ * `leaving` is the control on its way out — the label or card belonging to the
+ * thing that was just deleted. It is skipped even while the page still shows it,
+ * because the page is a render behind: the deletion has landed in the store, and
+ * the render that takes that control away is the next one. Handing focus to it
+ * would be handing focus to something with one render left to live.
+ */
+export function fallbackTo<T>(
+  candidates: readonly (T | null)[],
+  leaving: T | null = null,
+): T | null {
+  for (const candidate of candidates) {
+    if (candidate !== null && candidate !== leaving) return candidate;
+  }
+  return null;
+}

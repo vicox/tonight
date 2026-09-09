@@ -22,8 +22,8 @@ import { authorized, given } from "../../../lib/web/api.ts";
  * ## The answer is the outcome, not the model
  *
  * A successful press answers `{}` with a 200. The genre and mix routes hand back
- * the whole taste model because `TasteAdvanced` reads it as its success signal;
- * nothing does that here. `MovieState` looks at the status and, when something
+ * the whole taste model, which their callers ignore in favour of re-rendering
+ * from the store; nothing here needs it either. `MovieState` looks at the status and, when something
  * went wrong, at the message — so reading the model back would be nine
  * statements per press whose result is thrown away, and the page re-renders from
  * the store a moment later anyway.

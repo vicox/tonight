@@ -8,7 +8,6 @@ import type { Movie } from "@/lib/taste/model";
 import {
   FACTS,
   OPINIONS,
-  WITHOUT_OPINION,
   WITHOUT_STATUS,
   selected,
   sentence,
@@ -32,26 +31,23 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  * one opens the films it counted, which is the only place on the website where a
  * film can be met outside the mix it happens to be in.
  *
- * ## Three levels, because the numbers are not five peers
+ * ## One row, because the numbers account for every film once
  *
- * This was a row of five equal tiles, one per state, and the row was quietly
- * lying about the collection. `Seen`, `Liked`, `Loved` and `Disliked` are not
- * siblings: liking a film says you watched it. Set side by side at the same size
- * they read as five slices of one pie, and the first thing anybody tried to do
- * with them — add them up — gave an answer that was not the number in the
- * heading.
+ * This was a row of five equal tiles, one per state, and `Seen` was an aggregate
+ * of four of them — so the first thing anybody tried to do with the tiles, add
+ * them up, gave an answer that was not the number in the heading.
  *
  * So the arrangement now says what is true:
  *
- *     Not seen 14 · Seen 38          the two facts, and they partition
- *     ♥ Loved 3 · Liked 5 · …          what Seen is made of
- *     30 without opinion               and the rest of it
+ *     Not seen 14 · Seen 38 · Liked 5 · ♥ Loved 3 · Disliked 2 · 4 without status
  *
- *     4 without status →               outside all of it
+ *     6 recently added →
  *
- * Indented and quieter as it goes down, so the relationship is visible in the
- * shape and not only in the words — and the two words that are ambiguous on
- * their own, `Seen` and `without opinion`, carry their meaning for a listener.
+ * Six words that between them account for every film exactly once, set as one
+ * wrapping line because that is what a list of parts is. `without status` is set
+ * quieter than the five answers: it is what is *left over* rather than something
+ * somebody said. And `Seen` — the one word that is ambiguous read out beside the
+ * three opinions — carries its meaning for a listener.
  *
  * ## Set as text, not as instruments
  *
@@ -68,7 +64,7 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  *
  * ## Zero is shown
  *
- * Every one of the six known-state controls is rendered at nought, because they
+ * Every one of the five known-state controls is rendered at nought, because they
  * are the navigation and a navigation that rearranges itself is one nobody can
  * learn. `without status` is the exception and always was: it is absent when
  * there are none, since there is nothing to say and a "0" there would read as a
@@ -76,8 +72,8 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  *
  * ## A dialog the browser opens
  *
- * `<dialog>` with `showModal()`, as `TasteEditor` uses: the top layer, the rest
- * of the page inert, and Escape, all from the element. See `taste-editor.tsx`
+ * `<dialog>` with `showModal()`, as every dialog here does: the top layer, the
+ * rest of the page inert, and Escape, all from the element. See `manage.tsx`
  * for the longer version of why none of that is written here.
  *
  * Focus on the way out is the exception, and it is `MovieSummary`'s rather than
@@ -91,8 +87,8 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  * derived from the `movies` prop on every render, so a mark pressed inside the
  * dialog needs no adjustment here at all: `MovieState` writes through the same
  * route boundary it always does and asks for the page to be re-rendered, the
- * server's answer arrives as a new `movies`, and every count, the aggregate above
- * them and the list under it are all recomputed from it. A film that no longer
+ * server's answer arrives as a new `movies`, and every count in the row and the
+ * list under it are all recomputed from it. A film that no longer
  * belongs to the open selection leaves the list, because the list was never a
  * snapshot to leave it in.
  */
@@ -204,29 +200,23 @@ export function MovieSummary({
   const quiet = selected(WITHOUT_STATUS, movies);
 
   /**
-   * The two that are set quieter than the five.
+   * The one that is set quieter than the five.
    *
-   * They are the same kind of control and they sit in the same line, but they
-   * are what is *left over* — the films watched with nothing said, and the films
-   * nothing has been said about at all — rather than something somebody
-   * answered. The five are the answers.
+   * It is the same kind of control and it sits in the same line, but it is what
+   * is *left over* — the films nothing has been said about at all — rather than
+   * something somebody answered. The five are the answers.
    */
-  const remainders = [WITHOUT_OPINION, WITHOUT_STATUS];
+  const remainders = [WITHOUT_STATUS];
 
   /**
    * The seven ways in, in the order they are read.
    *
-   * The two facts, the three opinions, then the two remainders — the same order
+   * The two facts, the three opinions, then what is left over — the same order
    * the model lists them in, laid end to end because they are one line now.
    * `without status` is left out when there is none: nothing to say, and a zero
    * there would read as a state that happens to be empty.
    */
-  const row = [
-    ...FACTS,
-    ...OPINIONS,
-    WITHOUT_OPINION,
-    ...(quiet.length > 0 ? [WITHOUT_STATUS] : []),
-  ];
+  const row = [...FACTS, ...OPINIONS, ...(quiet.length > 0 ? [WITHOUT_STATUS] : [])];
 
   return (
     <>
@@ -331,7 +321,7 @@ function Count({
   count: number;
   onOpen: (event: React.MouseEvent<HTMLElement>) => void;
   className: string;
-  /** Set as `30 without opinion` rather than as `Loved 3`. */
+  /** Set as `4 without status` rather than as `Loved 3`. */
   phrased?: boolean;
   after?: React.ReactNode;
 }) {

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { Mix, Movie, MovieState, Written } from "../taste/model.ts";
 import { LOVED, selected } from "./movie-summary.ts";
-import { filmsIn, inNoMix, inOrder, preview, spokenMix } from "./mixes.ts";
+import { filmsIn, filmsUnder, inNoMix, inOrder, preview, spokenMix } from "./mixes.ts";
 
 /**
  * What a mix card counts, and what its dialog opens.
@@ -56,6 +56,86 @@ test("the count is membership, whatever was said about the films", () => {
   );
 });
 
+/**
+ * The films a genre reaches.
+ *
+ * A genre holds none itself, so every one of these is the two-hop answer: the
+ * mixes built from the genre, and the films in those.
+ */
+
+const genre = (name: string) => ({ name, instruction: `Whatever ${name} means here.` });
+
+/** Two mixes that share a genre, and one film that is in both of them. */
+const BOTH: Mix = {
+  name: "Space Tension",
+  instruction: "Tension with nowhere to run to.",
+  genres: ["Slow Burn", "Off World"],
+  movies: [
+    { title: "Arrival", year: 2000 },
+    { title: "Solaris", year: 2000 },
+  ],
+};
+
+const SHARED: Movie[] = MOVIES.map((movie) =>
+  movie.title === "Solaris" ? { ...movie, mixes: ["Quiet Dread", "Space Tension"] } : movie,
+);
+
+test("a genre reaches the films in the mixes built from it", () => {
+  assert.deepEqual(
+    filmsUnder(genre("Mystery"), [MIX, BOTH], MOVIES).map((movie) => movie.title),
+    ["Solaris", "Stalker", "Dune", "Heat", "Nosferatu"],
+  );
+
+  // And nothing from a mix that does not name it: `Off World` is only in the
+  // second mix, so it reaches what that one holds and none of the rest.
+  assert.deepEqual(
+    filmsUnder(genre("Off World"), [MIX, BOTH], MOVIES).map((movie) => movie.title),
+    ["Solaris", "Arrival"],
+  );
+});
+
+test("a film reached through two mixes of one genre is listed once", () => {
+  // `Slow Burn` is in both mixes and `Solaris` is in both of them.
+  const reached = filmsUnder(genre("Slow Burn"), [MIX, BOTH], SHARED).map((movie) => movie.title);
+  assert.deepEqual(reached, ["Solaris", "Stalker", "Dune", "Heat", "Nosferatu", "Arrival"]);
+  assert.equal(new Set(reached).size, reached.length, "a film was reached twice and listed twice");
+});
+
+test("the films a genre reaches keep the collection's own order", () => {
+  // The store's order, not the mixes' — so the answer does not depend on which
+  // mix was written first, and no film moves because a mix was renamed.
+  const collection = [...SHARED].reverse();
+  assert.deepEqual(
+    filmsUnder(genre("Slow Burn"), [MIX, BOTH], collection).map((movie) => movie.title),
+    collection.map((movie) => movie.title),
+  );
+
+  // Membership and nothing about state: this reorders nothing and drops nothing
+  // for want of an opinion.
+  assert.deepEqual(
+    filmsUnder(genre("Mystery"), [MIX], MOVIES).map((movie) => movie.state),
+    ["loved", "loved", "not_seen", "seen", null],
+  );
+});
+
+test("a genre no mix is built from reaches no films at all", () => {
+  // An ordinary state of a taste somebody is still building: a genre named and
+  // not yet combined into anything.
+  assert.deepEqual(filmsUnder(genre("Noir"), [MIX, BOTH], MOVIES), []);
+  assert.deepEqual(filmsUnder(genre("Mystery"), [], MOVIES), []);
+
+  // As is a mix with nothing in it yet.
+  assert.deepEqual(filmsUnder(genre("Mystery"), [{ ...MIX, movies: [] }], MOVIES), []);
+});
+
+test("a genre reaches films through the same lookup a mix card counts with", () => {
+  // One handle behind which there is no film, so the two would disagree if this
+  // resolved membership its own way: the card drops it, and so does the genre.
+  const missing: Mix = { ...MIX, movies: [...MIX.movies, { title: "Ghost", year: 1922 }] };
+  assert.equal(filmsIn(missing, MOVIES).length, 5);
+  assert.equal(filmsUnder(genre("Mystery"), [missing], MOVIES).length, 5);
+});
+
 test("a film in another mix is not in this one", () => {
   assert.equal(
     filmsIn(MIX, MOVIES).some((movie) => movie.title === "Arrival"),
@@ -104,7 +184,9 @@ test("an empty mix counts nothing and says so in the singular's plural", () => {
   assert.equal(spokenMix("Quiet Dread", 0, 0), "Quiet Dread: 0 films");
 });
 
-test("what a listener is given is the card, said", () => {
+test("what a listener is given is the mix, said", () => {
+  // Including how many films are in it, which the card itself leaves out: spoken
+  // it is part of one phrase rather than a second number beside the loved one.
   assert.equal(spokenMix("Quiet Dread", 4, 3), "Quiet Dread: 4 films, 3 loved");
   assert.equal(spokenMix("Quiet Dread", 1, 1), "Quiet Dread: 1 film, 1 loved");
   assert.equal(spokenMix("Quiet Dread", 4, 0), "Quiet Dread: 4 films");

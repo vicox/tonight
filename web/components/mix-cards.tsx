@@ -5,41 +5,46 @@ import { useEffect, useRef, useState } from "react";
 
 import { Chip } from "./chip";
 import { Chosen, WAY_IN } from "./chosen";
+import { Manage } from "./manage";
 import { Films } from "./movie-row";
+import { sectionFallback } from "./section";
 import type { Mix, Movie, Written } from "@/lib/taste/model";
 import { filmsIn, inNoMix, inOrder, preview, spokenMix } from "@/lib/web/mixes";
 import { LOVED, selected } from "@/lib/web/movie-summary";
-import { rescueTo, returnTo } from "@/lib/web/refocus";
+import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
 
 /**
- * The user's mixes: a name and two numbers each, and everything else one press
- * in.
+ * The user's mixes: a name each, and everything else one press in.
  *
  * A card used to be the whole mix — its genres as chips, an arrow, its name, its
  * instruction behind a disclosure and its films underneath. Two mixes filled a
  * screen, which made the one thing this section is for, *seeing which mixes you
- * have*, the thing it was worst at. So a card is now the answer to "which mix
- * is this and how much is in it", and the rest is a dialog.
+ * have*, the thing it was worst at. So a card is now the answer to "which mix is
+ * this and is it the one I want tonight", and the rest is a dialog.
  *
  * ## What survives on the card, and why those three
  *
- * The name, because a mix *is* its name. The number of films in it, because
- * that is what tells a mix somebody uses from one they made once. And a heart
- * with a number when any of those films are loved, because that is the reason
- * to open this mix tonight rather than another one. Nothing else on a mix is a
- * fact you can scan.
+ * The name, because a mix *is* its name. A heart with a number when any of its
+ * films are loved, because that is the reason to open this mix tonight rather
+ * than another one. And three of the titles, because that is what somebody
+ * recognises their own shelf by.
+ *
+ * How many films are in it is not among them. It is a measurement rather than a
+ * recognition — it does not help anybody pick a mix, and set beside the loved
+ * count it read as the second half of a score. A listener is still given it,
+ * because "four films, three loved" is how somebody would say a mix out loud,
+ * and the dialog still counts what it opens.
  *
  * The heart is one heart and a number, never one heart per film: three hearts in
  * a row is a rating, and this is a count. It says that three films in this mix
  * are loved, and it is absent when none are, because there is nothing to say.
  *
- * ## Both numbers come from the films, every render
+ * ## What is on the card comes from the films, every render
  *
- * Neither is stored on a mix and neither is kept here. The membership count is
- * the films the mix's handles resolve to and the heart is how many of those are
- * loved — so a mark pressed inside the dialog moves the heart on the card by the
- * next render, and cannot move the count, because saying something about a film
- * does not take it out of a mix. See `lib/web/mixes.ts`.
+ * None of it is stored on a mix and none of it is kept here: the films the mix's
+ * handles resolve to are read again on every render, and the heart is how many
+ * of those are loved. So a mark pressed inside the dialog moves the heart on the
+ * card by the next render. See `lib/web/mixes.ts`.
  *
  * The order the cards come in is the same kind of answer: read off the films
  * every render, the liveliest mix first, and never written down. A mark pressed
@@ -85,6 +90,23 @@ export function MixCards({
    * `lib/web/refocus.ts` for both halves of the race as rules.
    */
   const handedTo = useRef<HTMLElement | null>(null);
+  /**
+   * The remainder's own control, when there is one.
+   *
+   * Held rather than looked for, because it is outside the stack: it belongs to
+   * the films that are in no mix, not to a mix. Deleting the last mix is what
+   * makes it matter — the stack empties, and the line under it is the nearest
+   * thing left of the same kind.
+   */
+  const remainder = useRef<HTMLButtonElement>(null);
+  /**
+   * Whether the mix whose dialog is closing was deleted rather than dismissed.
+   *
+   * The page is a render behind at that moment: the deletion has landed in the
+   * store and the card is still on screen, so "is the invoker still in the
+   * document" answers yes about a control with one render left to live.
+   */
+  const removed = useRef(false);
 
   /**
    * Focus, once there is no dialog to hold it.
@@ -94,16 +116,29 @@ export function MixCards({
    * document. This component is still mounted afterwards, which is what makes it
    * the place that can put focus back on the card that was pressed — and what
    * was pressed can be gone by then: renaming a mix re-keys its row, and filing
-   * the last film that is in no mix takes the remainder's line away. So the
-   * stack is the fallback, and it is checked twice: once when the dialog closes,
-   * and again if what took focus then disappears.
+   * the last film that is in no mix takes the remainder's line away, and
+   * deleting a mix takes its card. So the fallback is a list rather than one
+   * control — another card, then the remainder's line, then the section's own
+   * heading, which is there whether this section holds anything or not — and it
+   * is checked twice: once when the dialog closes, and again if what took focus
+   * then disappears.
    */
   useEffect(() => {
-    const stable = stack.current?.querySelector<HTMLButtonElement>("button") ?? null;
+    const cards = [...(stack.current?.querySelectorAll<HTMLElement>("button") ?? [])];
+    // The deleted card is skipped even though the page still shows it: the
+    // deletion has landed, and this render is the last one it appears in.
+    const stable = fallbackTo(
+      [...cards, remainder.current, sectionFallback(stack.current)],
+      invoker.current,
+    );
 
     if (open === null && invoker.current !== null) {
-      const back = returnTo(invoker.current, document.contains(invoker.current), stable);
+      const pressed = invoker.current;
+      const gone = removed.current;
       invoker.current = null;
+      removed.current = false;
+
+      const back = returnTo(gone ? null : pressed, document.contains(pressed), stable);
       handedTo.current = back;
       back?.focus();
       return;
@@ -149,9 +184,10 @@ export function MixCards({
               key={mix.name}
               type="button"
               aria-haspopup="dialog"
-              // The name and both numbers, said the way somebody would say them:
-              // the heart is a shape, and the order that reads best is not the
-              // order that sounds best.
+              // The name and both numbers, said the way somebody would say
+              // them. A listener is given the count the card leaves out: it is
+              // one phrase spoken, where on the card it was a second number
+              // beside the loved one.
               aria-label={spokenMix(mix.name, films.length, loved)}
               // The card pressed, from the press itself. See `invoker`.
               onClick={(event) => {
@@ -167,21 +203,20 @@ export function MixCards({
                 "focus-visible:outline-offset-2 focus-visible:outline-beam",
               ].join(" ")}
             >
-              <span aria-hidden="true" className="flex min-w-0 items-baseline gap-2.5">
-                {/*
-                  A name is valid up to two hundred characters, so it wraps rather
-                  than pushing the card sideways, and the count stays beside it
-                  either way: they are one phrase.
+              {/*
+                A name is valid up to two hundred characters, so it wraps rather
+                than pushing the card sideways.
 
-                  `min-w-0` is what makes `break-words` mean anything here. A flex
-                  item is as wide as its longest unbreakable word unless it is
-                  allowed to be narrower, and a name need not contain a space —
-                  without it a long one was 507px wide in a 350px card.
-                */}
-                <span className="min-w-0 font-display text-[22px] leading-tight break-words text-ink">
-                  {mix.name}
-                </span>
-                <span className="text-[12px] text-ink-faint tabular-nums">{films.length}</span>
+                `min-w-0` is what makes `break-words` mean anything here. A flex
+                item is as wide as its longest unbreakable word unless it is
+                allowed to be narrower, and a name need not contain a space —
+                without it a long one was 507px wide in a 350px card.
+              */}
+              <span
+                aria-hidden="true"
+                className="min-w-0 font-display text-[22px] leading-tight break-words text-ink"
+              >
+                {mix.name}
               </span>
 
               {loved > 0 && (
@@ -199,17 +234,17 @@ export function MixCards({
               )}
 
               {/*
-                Three of the films, to be glanced at. A name and a count say
-                which mix this is and how much is in it; the titles are what
-                somebody recognises their own shelf by, and reading them here is
-                usually the press they would otherwise have to make.
+                Three of the films, to be glanced at. The name says which mix
+                this is; the titles are what somebody recognises their own shelf
+                by, and reading them here is usually the press they would
+                otherwise have to make.
 
                 Last of the three, and that is the whole reason it is written
                 after the heart rather than before it: `w-full` gives it a line
                 of its own wherever it sits, and put first it took the line the
                 heart was on and pushed the heart down to a third. So the name
-                and both numbers stay on one line and this reads underneath
-                them. It breaks rather than pushing the card sideways.
+                and the heart stay on one line and this reads underneath them.
+                It breaks rather than pushing the card sideways.
 
                 Which three, and in which order, is `lib/web/mixes.ts` — a card
                 should not carry a rule.
@@ -236,6 +271,7 @@ export function MixCards({
       {other.length > 0 && (
         <p className="mt-3 text-[12.5px] leading-relaxed text-ink-faint">
           <button
+            ref={remainder}
             type="button"
             aria-haspopup="dialog"
             // The control pressed, from the press itself. See `invoker`.
@@ -257,7 +293,19 @@ export function MixCards({
       {open === OTHER ? (
         <Chosen title="Other movies" films={other} onClose={() => setOpen(null)} />
       ) : (
-        open && <Detail mix={open} films={filmsIn(open, movies)} onClose={() => setOpen(null)} />
+        open && (
+          <Detail
+            mix={open}
+            films={filmsIn(open, movies)}
+            onClose={() => setOpen(null)}
+            // Closed because the mix is gone, which is not the same as closed.
+            // See `removed`.
+            onRemoved={() => {
+              removed.current = true;
+              setOpen(null);
+            }}
+          />
+        )
       )}
     </>
   );
@@ -280,10 +328,13 @@ function Detail({
   mix,
   films,
   onClose,
+  onRemoved,
 }: {
   mix: Mix;
   films: readonly Movie[];
   onClose: () => void;
+  /** Closed because the mix was deleted, which the stack answers differently. */
+  onRemoved: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -314,7 +365,11 @@ function Detail({
       className="m-0 h-dvh max-h-none w-dvw max-w-none overflow-y-auto bg-transparent px-5 py-[8vh] backdrop:bg-scrim"
     >
       <div className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8">
-        <h2 className="font-display text-[24px] leading-tight break-words">{mix.name}</h2>
+        {/* The name, and the one thing that can be done to the mix from here. */}
+        <header className="flex items-start justify-between gap-4">
+          <h2 className="min-w-0 font-display text-[24px] leading-tight break-words">{mix.name}</h2>
+          <Manage kind="mix" name={mix.name} onRemoved={onRemoved} />
+        </header>
 
         <p className="mt-4 text-[13.5px] leading-relaxed whitespace-pre-line text-ink-soft">
           {mix.instruction}
