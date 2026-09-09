@@ -22,12 +22,18 @@ import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
  * have*, the thing it was worst at. So a card is now the answer to "which mix is
  * this and is it the one I want tonight", and the rest is a dialog.
  *
- * ## What survives on the card, and why those three
+ * ## What survives on the card, and why
  *
- * The name, because a mix *is* its name. A heart with a number when any of its
- * films are loved, because that is the reason to open this mix tonight rather
- * than another one. And three of the titles, because that is what somebody
- * recognises their own shelf by.
+ * The name, because a mix *is* its name. The genres it is built from, because
+ * that is what a mix *is* — a composition, and a card that showed none of it
+ * asked to be opened before it could be recognised. A heart with a number when
+ * any of its films are loved, because that is the reason to open this mix
+ * tonight rather than another one. And three of the titles, because that is
+ * what somebody recognises their own shelf by.
+ *
+ * Which is the dialog's order too, one level shorter: name, what it is made of,
+ * then what is in it. Opening a card should read as the same thing said at
+ * length, not as a second arrangement of it.
  *
  * How many films are in it is not among them. It is a measurement rather than a
  * recognition — it does not help anybody pick a mix, and set beside the loved
@@ -234,17 +240,35 @@ export function MixCards({
               )}
 
               {/*
+                What the mix is built from, in the same chips the dialog sets
+                them in — a mix is a composition, and this is the part of it
+                that says of what. Written after the heart for the same reason
+                the preview is: `w-full` takes a line wherever it sits, and put
+                before the heart it pushed the heart down to a line of its own.
+
+                Not a control. On the overview a genre's own label opens its
+                meaning; here a genre is what this mix is made of, and a button
+                inside a button is not a thing a browser will render.
+              */}
+              <span
+                aria-hidden="true"
+                className="mt-1.5 flex w-full flex-wrap items-center gap-1.5"
+              >
+                {mix.genres.map((genre) => (
+                  <Chip key={genre}>{genre}</Chip>
+                ))}
+              </span>
+
+              {/*
                 Three of the films, to be glanced at. The name says which mix
                 this is; the titles are what somebody recognises their own shelf
                 by, and reading them here is usually the press they would
                 otherwise have to make.
 
-                Last of the three, and that is the whole reason it is written
-                after the heart rather than before it: `w-full` gives it a line
-                of its own wherever it sits, and put first it took the line the
-                heart was on and pushed the heart down to a third. So the name
-                and the heart stay on one line and this reads underneath them.
-                It breaks rather than pushing the card sideways.
+                Last of all, under the chips: the name says which mix this is,
+                the chips say what it is made of, and these say what is actually
+                in it. Written after the heart for the reason above, and it
+                breaks rather than pushing the card sideways.
 
                 Which three, and in which order, is `lib/web/mixes.ts` — a card
                 should not carry a rule.
@@ -315,10 +339,12 @@ export function MixCards({
  * One mix, in full: what it is called, what it means, what it is made of, and
  * what is in it.
  *
- * That order, and it is the order the mix was built in — a name for an idea, the
- * idea in the user's own words, the genres it combines, and then the films they
- * have kept under it. The films are the only part that can be changed from here,
- * through the same rows and the same marks as everywhere else.
+ * A name for an idea, the genres it combines, the idea in the user's own words,
+ * and then the films they have kept under it — narrowing from what the mix is
+ * made of to what is actually in it, and the same order the card is read in, so
+ * that opening one is a card getting longer rather than a second arrangement of
+ * the same four things. The films are the only part that can be changed from
+ * here, through the same rows and the same marks as everywhere else.
  *
  * The genres are chips and nothing more. On the overview a genre's own label
  * opens its meaning; here a genre is context for the mix, and a control inside
@@ -371,15 +397,15 @@ function Detail({
           <Manage kind="mix" name={mix.name} onRemoved={onRemoved} />
         </header>
 
-        <p className="mt-4 text-[13.5px] leading-relaxed whitespace-pre-line text-ink-soft">
-          {mix.instruction}
-        </p>
-
-        <div className="mt-5 flex flex-wrap items-center gap-1.5">
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
           {mix.genres.map((genre) => (
             <Chip key={genre}>{genre}</Chip>
           ))}
         </div>
+
+        <p className="mt-4 text-[13.5px] leading-relaxed whitespace-pre-line text-ink-soft">
+          {mix.instruction}
+        </p>
 
         {films.length === 0 ? (
           <p className="py-6 text-center text-[13px] text-ink-faint">No films in this mix yet.</p>

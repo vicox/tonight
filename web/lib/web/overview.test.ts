@@ -864,11 +864,13 @@ test("a genre is a compact label, and a mix is a compact card", () => {
   assert.match(stack, /rounded-xl border/, "a mix has stopped being a card");
 });
 
-test("a closed mix card is a name and a loved count, and nothing else", () => {
+test("a closed mix card is a name, what it is made of, and a loved count", () => {
   const stack = bodyOf("MixCards", cards);
 
-  // The name, and — only when there are any — how many of its films are loved.
+  // The name, the genres it combines, and — only when there are any — how many
+  // of its films are loved.
   assert.match(stack, /\{mix\.name\}/, "the card does not show what the mix is called");
+  assert.match(stack, /\{mix\.genres\.map\(/, "the card does not show what the mix is made of");
   assert.match(stack, /\{loved > 0 && \(/, "a mix with nothing loved still shows a heart");
   assert.match(stack, /<Heart /, "the loved signal is not the mark's own heart");
   assert.match(stack, /\{loved\}/, "the heart is not given a number");
@@ -892,10 +894,55 @@ test("a closed mix card is a name and a loved count, and nothing else", () => {
     "a listener is no longer given the count the card leaves out",
   );
 
-  // And none of the mix is on the closed card: no instruction, no genre chip, no
-  // film row, no mark. All of it is in the dialog.
+  // The genres are the chip the dialog already sets them in, not a variant of
+  // one: what a name looks like is one decision, and the ground it sits on is
+  // chosen where it is used. Asked of the two places separately, because one of
+  // them losing its chip is not something the other should be able to hide.
+  const region = enclosing(stack, "{mix.genres.map(");
+  assert.match(region.contents, /<Chip\b/, "the card sets a genre some other way");
+  assert.match(bodyOf("Detail", cards), /<Chip\b/, "the dialog sets a genre some other way");
   assert.equal(
-    /instruction|<Chip|<Films|MovieState/.test(stack),
+    /tracking-\[0\.11em\]|\buppercase\b/.test(cards),
+    false,
+    "a mix draws chip typography of its own beside the shared rule",
+  );
+
+  // The row is a `<span>`, and that is not a preference: it sits inside the
+  // card's own `<button>`, which may hold phrasing content only, so a `<div>`
+  // here is markup the browser rewrites out from under React.
+  assert.equal(region.tag, "span", "the genre row is not phrasing content inside the button");
+
+  // Hidden from a listener, like every other part of the card: the button's own
+  // `aria-label` is what is read out, and these would repeat half of it.
+  assert.match(region.attributes, /aria-hidden="true"/, "the genre row is read out twice");
+
+  // A line of its own, and one that wraps: three long genre names on a narrow
+  // screen have to break rather than widen the card.
+  const laid = region.classes;
+  assert.ok(laid.length > 0, "the genre row is laid out by something other than a class list");
+  for (const rule of ["w-full", "flex", "flex-wrap"]) {
+    assert.ok(laid.includes(rule), `the genre row has no ${rule}, so it cannot take a line and wrap`);
+  }
+
+  // Informational, not interactive: a genre's own label opens its meaning on the
+  // page, and a control inside the card's own button is not a thing a browser
+  // will render.
+  assert.equal(
+    /<button|onClick|aria-haspopup/.test(region.contents),
+    false,
+    "a genre on the card can be pressed",
+  );
+
+  // Name, then what it is made of, then what is in it — the dialog's order, one
+  // level shorter, so that opening a card reads as the same thing at length.
+  const order = ["{mix.name}", "{mix.genres.map(", "{glance}"].map((mark) => stack.indexOf(mark));
+  assert.equal(order.some((at) => at === -1), false, "the card is missing one of the three");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "the three are out of order");
+
+  // And the rest of the mix is still not on the closed card: no instruction, no
+  // film row, no mark. All of that is in the dialog.
+  assert.equal(
+    /instruction|<Films|MovieState/.test(stack),
     false,
     "the closed card still carries the mix's details",
   );
@@ -944,14 +991,15 @@ test("a mix card opens its own dialog, in the order the mix was built", () => {
   assert.match(detail, /<dialog/, "the mix opens in something other than a dialog");
   assert.match(cards, /element\.showModal\(\);/, "it is not opened as a modal");
 
-  // Name, then what it means, then what it is made of, then what is in it —
-  // which is the order the mix was built in. Keyed on the heading that shows the
-  // name rather than on the name itself: `aria-label={mix.name}` is on the
-  // element above and would answer for a title that had been moved or removed.
+  // Name, then what it is made of, then what it means, then what is in it —
+  // narrowing from the composition to the films, and the same order the card is
+  // read in. Keyed on the heading that shows the name rather than on the name
+  // itself: `aria-label={mix.name}` is on the element above and would answer for
+  // a title that had been moved or removed.
   const title = detail.search(/<h2[^>]*>\{mix\.name\}<\/h2>/);
   assert.notEqual(title, -1, "the dialog has no heading showing the mix's name");
 
-  const order = [title, ...["{mix.instruction}", "<Chip", "<Films"].map((mark) => detail.indexOf(mark))];
+  const order = [title, ...["<Chip", "{mix.instruction}", "<Films"].map((mark) => detail.indexOf(mark))];
   assert.equal(order.some((at) => at === -1), false, "the dialog is missing one of the four");
   assert.deepEqual([...order].sort((a, b) => a - b), order, "the four are out of order");
 
@@ -1628,6 +1676,60 @@ test("the remainder's focus is handed back, and rescued if its line then goes", 
     "one of the two halves works out its own fallback, or does not use it",
   );
 });
+
+/**
+ * The element one piece of JSX is written inside, as the browser will build it.
+ *
+ * The nearest tag opened before the marker, with its attributes and what it
+ * holds — so an assertion can be about a wrapper's element and its attributes
+ * rather than about the shape of the source around them. Which line a prop is
+ * written on, and in what order, is then not something a test can fail on.
+ *
+ * `classes` is the class list as words, taken from a plain string or a template
+ * literal, because both are ways the components write one.
+ */
+function enclosing(
+  body: string,
+  marker: string,
+): { tag: string; attributes: string; contents: string; classes: string[] } {
+  const at = body.indexOf(marker);
+  assert.notEqual(at, -1, `no ${marker} in the component`);
+
+  // The last element opened before it. Matched only where a tag name really
+  // follows, so that a `<` in a comment or a comparison is not one.
+  const opens = [...body.slice(0, at).matchAll(/<([A-Za-z][\w.]*)(?=[\s/>])/g)];
+  const open = opens.at(-1);
+  assert.ok(open, `${marker} is not inside an element`);
+
+  // The end of the opening tag, skipping any `>` that belongs to a string or to
+  // an expression written in a prop.
+  let depth = 0;
+  let quote = "";
+  let end = -1;
+  for (let i = open.index + open[0].length; i < at; i += 1) {
+    const char = body[i];
+    if (quote) {
+      if (char === quote) quote = "";
+    } else if (char === '"' || char === "'" || char === "`") quote = char;
+    else if (char === "{") depth += 1;
+    else if (char === "}") depth -= 1;
+    else if (char === ">" && depth === 0) {
+      end = i;
+      break;
+    }
+  }
+  assert.notEqual(end, -1, `the element around ${marker} has no opening tag`);
+
+  const attributes = body.slice(open.index + open[0].length, end);
+  const closed = body.indexOf(`</${open[1]}>`, end);
+  const written = attributes.match(/className=(?:"([^"]*)"|\{`([^`]*)`\})/);
+  return {
+    tag: open[1],
+    attributes,
+    contents: body.slice(end + 1, closed === -1 ? body.length : closed),
+    classes: (written?.[1] ?? written?.[2] ?? "").split(/\s+/).filter(Boolean),
+  };
+}
 
 /**
  * One function out of the source, so a check cannot match the wrong one.
