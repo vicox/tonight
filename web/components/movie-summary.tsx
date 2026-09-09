@@ -1,15 +1,20 @@
 "use client";
 
+import { Heart } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Films } from "./movie-row";
 import { Section } from "./section";
 import type { Movie } from "@/lib/taste/model";
 import {
-  STATE_TILES,
+  FACTS,
+  LOVED,
+  OPINIONS,
+  WITHOUT_OPINION,
   WITHOUT_STATUS,
   selected,
-  withoutStatus,
+  sentence,
+  spoken,
   type Selection,
 } from "@/lib/web/movie-summary";
 import { refocus, rescueTo, returnTo } from "@/lib/web/refocus";
@@ -23,32 +28,53 @@ import { refocus, rescueTo, returnTo } from "@/lib/web/refocus";
  * anything about. The heading lives here rather than on the page because this is
  * what knows whether there is anything to count.
  *
- * Under it, one tile per state over a page that files films by mix. The page
+ * Under it, a few lines of text over a page that files films by mix. The page
  * answers "what is in this mix"; these answer "how many have I loved", which the
  * page cannot, because the loved ones are spread across every mix on it. Pressing
  * one opens the films it counted, which is the only place on the website where a
  * film can be met outside the mix it happens to be in.
  *
- * ## Five tiles, and one quiet line that is not a tile
+ * ## Three levels, because the numbers are not five peers
  *
- * The five are the five states. The films Tonight was never told about are the
- * line underneath, and the difference in weight is the point: `null` is the
- * absence of an answer, not a sixth answer, and a sixth tile would make silence
- * look like a verdict. There is no total tile either — a number for "all of
- * them" is what the heading is for, and having it twice invited reading the row
- * as a breakdown of the first tile.
+ * This was a row of five equal tiles, one per state, and the row was quietly
+ * lying about the collection. `Seen`, `Liked`, `Loved` and `Disliked` are not
+ * siblings: liking a film says you watched it. Set side by side at the same size
+ * they read as five slices of one pie, and the first thing anybody tried to do
+ * with them — add them up — gave an answer that was not the number in the
+ * heading.
  *
- * It is an overview of a collection and not a report about it: counts, no
- * proportion of anything, no arrow saying which way it went, and nothing about
- * when a film was saved. A tile that said "+3 this week" would be a claim about
- * the user's habits, and Tonight is not keeping score.
+ * So the arrangement now says what is true:
  *
- * ## The number is the point, the word is the caption
+ *     Not seen 14 · Seen 38          the two facts, and they partition
+ *     ♥ Loved 3 · Liked 5 · …          what Seen is made of
+ *     30 without opinion               and the rest of it
  *
- * The count is set in the display face and the label under it is small and quiet,
- * which is the reading order somebody scanning a row of tiles actually uses. A
- * listener is given the pair the other way round — "Loved, 3" — because that is
- * how the sentence is said.
+ *     4 without status →               outside all of it
+ *
+ * Indented and quieter as it goes down, so the relationship is visible in the
+ * shape and not only in the words — and the two words that are ambiguous on
+ * their own, `Seen` and `without opinion`, carry their meaning for a listener.
+ *
+ * ## Set as text, not as instruments
+ *
+ * No surfaces, no borders around a number, no grid. The counts are set in the
+ * page's own text sizes and the controls behave like the links they resemble,
+ * because the job here is navigation: read the shape of the collection, then
+ * press the part you want to look at. A tile made each number an exhibit; this
+ * makes it a way in.
+ *
+ * It is still an overview and not a report: counts, no proportion of anything,
+ * no arrow saying which way it went, and nothing about when a film was saved. A
+ * line reading "+3 this week" would be a claim about the user's habits, and
+ * Tonight is not keeping score.
+ *
+ * ## Zero is shown
+ *
+ * Every one of the six known-state controls is rendered at nought, because they
+ * are the navigation and a navigation that rearranges itself is one nobody can
+ * learn. `without status` is the exception and always was: it is absent when
+ * there are none, since there is nothing to say and a "0" there would read as a
+ * state that happens to be empty.
  *
  * ## A dialog the browser opens
  *
@@ -57,15 +83,9 @@ import { refocus, rescueTo, returnTo } from "@/lib/web/refocus";
  * for the longer version of why none of that is written here.
  *
  * Focus on the way out is the exception, and it is `MovieSummary`'s rather than
- * this component's: React unmounts a dialog in the same commit that closes it,
- * so the one place that can still be sure of putting focus somewhere is the one
- * that is still mounted afterwards.
- *
- * The element is the whole surface, and the card is its only child. That is what
- * makes a press outside the card a press on the dialog itself, which is the one
- * thing a dismissal can be told from a press on the films — a full-viewport box
- * *inside* the dialog would swallow every one of them, and the dialog would only
- * be dismissable by Escape.
+ * `Chosen`'s: React unmounts a dialog in the same commit that closes it, so the
+ * one place that can still be sure of putting focus somewhere is the one that is
+ * still mounted afterwards.
  *
  * ## Nothing here holds a copy of a film
  *
@@ -73,17 +93,22 @@ import { refocus, rescueTo, returnTo } from "@/lib/web/refocus";
  * derived from the `movies` prop on every render, so a mark pressed inside the
  * dialog needs no adjustment here at all: `MovieState` writes through the same
  * route boundary it always does and asks for the page to be re-rendered, the
- * server's answer arrives as a new `movies`, and the tile, its count and the list
- * under it are all recomputed from it. A film that no longer belongs to the open
- * tile leaves the list, because the list was never a snapshot to leave it in.
+ * server's answer arrives as a new `movies`, and every count, the aggregate above
+ * them and the list under it are all recomputed from it. A film that no longer
+ * belongs to the open selection leaves the list, because the list was never a
+ * snapshot to leave it in.
  */
 export function MovieSummary({ movies }: { movies: readonly Movie[] }) {
   const [open, setOpen] = useState<Selection | null>(null);
   /**
-   * The row of tiles, which is where focus goes when the control that opened a
-   * dialog is not there to take it back.
+   * The summary's own lines, which is where focus goes when the control that
+   * opened a dialog is not there to take it back.
+   *
+   * Its first button is `Not seen`, which is rendered whatever the collection
+   * looks like — so the fallback is a control that exists rather than whichever
+   * one happens to be first today.
    */
-  const tiles = useRef<HTMLDivElement>(null);
+  const lines = useRef<HTMLDivElement>(null);
   /**
    * The control somebody pressed, kept from the press itself rather than read
    * back off the document: a pointer press does not make a button the active
@@ -108,16 +133,16 @@ export function MovieSummary({ movies }: { movies: readonly Movie[] }) {
    * catches, in whichever order they happen:
    *
    * - the dialog has just closed, so focus is owed back to whatever opened it,
-   *   or to the tiles if that control has gone in the meantime;
+   *   or to the summary's first control if that one has gone in the meantime;
    * - what focus was handed back to has since been removed by a re-render, and
    *   nothing else has taken it, so it is on the document and belongs on the
-   *   tiles.
+   *   summary.
    *
    * No copy of a film anywhere in it: the two refs hold elements the user
    * pressed, and the decisions are two lines in `refocus.ts`.
    */
   useEffect(() => {
-    const stable = tiles.current?.querySelector<HTMLButtonElement>("button") ?? null;
+    const stable = lines.current?.querySelector<HTMLButtonElement>("button") ?? null;
 
     if (open === null && invoker.current !== null) {
       const back = returnTo(invoker.current, document.contains(invoker.current), stable);
@@ -137,62 +162,120 @@ export function MovieSummary({ movies }: { movies: readonly Movie[] }) {
     rescued?.focus();
   });
 
-  // Nothing to summarise yet, so no summary. A row of zeros over an empty taste
+  // Nothing to summarise yet, so no summary. Lines of zeros over an empty taste
   // model would read as a broken instrument rather than as an honest count — the
   // same reason the "Other movies" section is absent when there are none.
   if (!movies.length) return null;
 
-  const quiet = selected(WITHOUT_STATUS.name, movies);
+  const quiet = selected(WITHOUT_STATUS, movies);
 
   return (
     <>
       <Section title="Your movies" count={movies.length}>
-        {/*
-          Five tiles, in one row where a genre or a mix has a column of cards, and
-          two or three rows of them where there is not the width for five. No copy
-          under the heading: labelled numbers say what they are, and a sentence
-          explaining them would be the only section on the page that needed one.
-        */}
-        <div ref={tiles} className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-          {STATE_TILES.map((selection) => (
-            <Tile
-              key={selection.label}
-              selection={selection}
-              count={selected(selection.name, movies).length}
-              // What was pressed, from the press itself. See `invoker`.
-              onOpen={(event) => {
-                invoker.current = event.currentTarget;
-                setOpen(selection);
-              }}
-            />
-          ))}
-        </div>
+        <div ref={lines} className="flex flex-col gap-1.5">
+          {/*
+            The two facts. Every film with a state is in exactly one of them, and
+            together with the quiet line they are the whole collection.
+          */}
+          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[15px] leading-snug">
+            {FACTS.map((selection, index) => (
+              <span key={selection.key} className="flex items-baseline gap-x-2">
+                {index > 0 && <Separator />}
+                <Count
+                  selection={selection}
+                  count={selected(selection, movies).length}
+                  // What was pressed, from the press itself. See `invoker`.
+                  onOpen={(event) => {
+                    invoker.current = event.currentTarget;
+                    setOpen(selection);
+                  }}
+                  className="text-ink hover:text-ink"
+                />
+              </span>
+            ))}
+          </p>
 
-        {/*
-          The films nobody has said anything about, as a line rather than a tile:
-          quiet type, no surface, no border, and only as wide as its own words. It
-          is absent when there are none — there is nothing to say, and a "0" here
-          would invite reading it as a state that happens to be empty.
-        */}
-        {quiet.length > 0 && (
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            onClick={(event) => {
-              invoker.current = event.currentTarget;
-              setOpen(WITHOUT_STATUS);
-            }}
-            className="w-fit cursor-pointer text-left text-[12.5px] text-ink-faint transition-colors hover:text-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
-          >
-            {withoutStatus(quiet.length)}{" "}
-            {/* Punctuation standing in for "opens these"; the words already say it. */}
-            <span aria-hidden="true">→</span>
-          </button>
-        )}
+          {/*
+            What `Seen` is made of. Indented under the line above and set smaller,
+            so the hierarchy is in the shape of the block and not only in the
+            sizes — a left rule rather than a surface, which is the difference
+            between a quotation and a card.
+          */}
+          <div className="flex flex-col gap-1 border-l border-rule pl-3">
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px] leading-snug">
+              {OPINIONS.map((selection, index) => (
+                <span key={selection.key} className="flex items-baseline gap-x-2">
+                  {index > 0 && <Separator />}
+                  <Count
+                    selection={selection}
+                    count={selected(selection, movies).length}
+                    onOpen={(event) => {
+                      invoker.current = event.currentTarget;
+                      setOpen(selection);
+                    }}
+                    className="text-ink-soft hover:text-ink"
+                    icon={selection === LOVED ? Heart : undefined}
+                  />
+                </span>
+              ))}
+            </p>
+
+            {/*
+              The rest of the aggregate, written as a sentence because the number
+              is what it is about: these are films with nothing said about them,
+              not films in a state called "without opinion".
+            */}
+            <p className="text-[12.5px] leading-snug">
+              <Count
+                selection={WITHOUT_OPINION}
+                count={selected(WITHOUT_OPINION, movies).length}
+                onOpen={(event) => {
+                  invoker.current = event.currentTarget;
+                  setOpen(WITHOUT_OPINION);
+                }}
+                className="text-ink-faint hover:text-ink-soft"
+                phrased
+              />
+            </p>
+          </div>
+
+          {/*
+            The films nobody has said anything about. Outside the hierarchy and
+            outside its indent: it is not something the user said, so it is
+            neither a fact about a film nor part of what `Seen` is made of. Absent
+            when there are none.
+          */}
+          {quiet.length > 0 && (
+            <p className="mt-1.5 text-[12.5px] leading-snug">
+              <Count
+                selection={WITHOUT_STATUS}
+                count={quiet.length}
+                onOpen={(event) => {
+                  invoker.current = event.currentTarget;
+                  setOpen(WITHOUT_STATUS);
+                }}
+                className="text-ink-faint hover:text-ink-soft"
+                phrased
+                // Punctuation standing in for "opens these"; the words already
+                // say it, so a listener is not read a direction.
+                after={<span aria-hidden="true">→</span>}
+              />
+            </p>
+          )}
+        </div>
       </Section>
 
       {open && <Chosen selection={open} movies={movies} onClose={() => setOpen(null)} />}
     </>
+  );
+}
+
+/** Between two counts on one line, and only for the eye. */
+function Separator() {
+  return (
+    <span aria-hidden="true" className="text-ink-faint">
+      ·
+    </span>
   );
 }
 
@@ -205,49 +288,80 @@ export function MovieSummary({ movies }: { movies: readonly Movie[] }) {
  */
 const MARK = '[aria-haspopup="menu"]';
 
-/** One count, pressable. */
-function Tile({
+/**
+ * One count, pressable.
+ *
+ * The words then the number, which is both how it is set and how it is said — so
+ * for five of the seven the control's own text is a perfectly good accessible
+ * name and it is given no label at all. `Seen` and `without opinion` are the two
+ * whose words are true but not sufficient, and `spoken` is what adds the rest
+ * for them alone.
+ *
+ * Underline on hover and a real focus ring: it behaves like the way in that it
+ * is. Nothing here draws a surface, a border or a radius around a number.
+ */
+function Count({
   selection,
   count,
   onOpen,
+  className,
+  icon: Icon,
+  phrased = false,
+  after,
 }: {
   selection: Selection;
   count: number;
   onOpen: (event: React.MouseEvent<HTMLElement>) => void;
+  className: string;
+  icon?: typeof Heart;
+  /** Set as `30 without opinion` rather than as `Loved 3`. */
+  phrased?: boolean;
+  after?: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       aria-haspopup="dialog"
-      // The visible order is the count and then the word; said aloud it is the
-      // other way round, and `aria-label` is what lets both be right.
-      aria-label={`${selection.label}: ${count}`}
+      aria-label={spoken(selection, count)}
       onClick={onOpen}
       className={[
-        "cursor-pointer rounded-xl border border-rule bg-screen px-4 py-3 text-left",
-        "transition-colors hover:border-ink-faint",
+        "inline-flex cursor-pointer items-baseline gap-1.5 text-left transition-colors",
+        "hover:underline hover:decoration-rule hover:underline-offset-4",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam",
+        className,
       ].join(" ")}
     >
-      <span aria-hidden="true" className="block font-display text-[26px] leading-none tabular-nums">
-        {count}
-      </span>
-      <span
-        aria-hidden="true"
-        className="mt-2 block text-[11px] tracking-[0.11em] text-ink-faint uppercase"
-      >
-        {selection.label}
-      </span>
+      {Icon && (
+        <Icon
+          aria-hidden="true"
+          size={11}
+          strokeWidth={1.5}
+          fill="currentColor"
+          className="translate-y-[-0.5px] self-center"
+        />
+      )}
+      {phrased ? (
+        sentence(selection, count)
+      ) : (
+        <>
+          {selection.label} <span className="tabular-nums">{count}</span>
+        </>
+      )}
+      {after}
     </button>
   );
 }
 
 /**
- * The films behind one tile.
+ * The films behind one selection.
  *
  * The same heading treatment as a panel on the page and the same rows as a mix,
  * so what opens is the page's own list in front of it rather than a second way of
  * showing a film. Compact: the films, and a way out.
+ *
+ * One dialog for all seven selections, and it knows nothing about which one it
+ * is showing beyond the name and the films — the aggregate opens it exactly as a
+ * single state does.
  */
 function Chosen({
   selection,
@@ -302,7 +416,7 @@ function Chosen({
     refocus(marks, marked.current, exit.current)?.focus();
   });
 
-  const films = selected(selection.name, movies);
+  const films = selected(selection, movies);
 
   return (
     <dialog
@@ -345,9 +459,9 @@ function Chosen({
         </header>
 
         {films.length === 0 ? (
-          // Reachable from inside: the last film under this tile can be given
-          // another mark while the list is open, and then this is the truthful
-          // thing to show.
+          // Reachable two ways: a known state can be empty and is still shown, and
+          // the last film under this selection can be given another mark while the
+          // list is open.
           <p className="py-6 text-center text-[13px] text-ink-faint">Nothing here now.</p>
         ) : (
           <Films movies={films} filed className="mt-5" />

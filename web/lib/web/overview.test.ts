@@ -303,30 +303,100 @@ test("the counts sit above every film they count", () => {
   assert.ok(at < view.indexOf("<Loose movies="), "the counts are below the films in no mix");
 });
 
-test("five tiles, each a control, with the count as the thing you read first", () => {
-  assert.match(summary, /STATE_TILES\.map/, "the tiles are not the five states");
+test("the counts are three levels of text, not a row of tiles", () => {
+  const films = bodyOf("MovieSummary", summary);
 
-  const tile = bodyOf("Tile", summary);
-  assert.match(tile, /<button/, "a tile is not something you can press");
-  assert.match(tile, /aria-haspopup="dialog"/, "a tile does not say it opens a dialog");
-
-  // The count is the primary information and the label is its caption: the
-  // number in the display face, the word small and quiet under it.
-  assert.match(tile, /font-display text-\[26px\][\s\S]*?\{count\}/, "the count is not the tile");
-  assert.match(
-    tile,
-    /text-\[11px\][\s\S]*?text-ink-faint[\s\S]*?\{selection\.label\}/,
-    "the label is not secondary to the count",
+  // Nothing that made a tile a tile. No grid to lay five of them out in, and no
+  // surface, border or radius around a number — the numbers are set in the
+  // page's own text and behave like the ways in that they are.
+  assert.equal(
+    /grid-cols-|md:grid-cols-5/.test(films),
+    false,
+    "the counts are still laid out as a grid of tiles",
   );
-  const visible = tile.slice(tile.indexOf('aria-hidden="true"'));
+  const level = films.slice(films.indexOf('ref={lines}'), films.indexOf("</Section>"));
+  assert.equal(
+    /bg-screen|rounded-xl|rounded-2xl|border border-rule|font-display/.test(level),
+    false,
+    "a count has been given a tile's surface again",
+  );
+
+  // Three levels, in the order they are read, and the two facts first.
+  assert.match(films, /FACTS\.map/, "the first line is not the two facts");
+  assert.match(films, /OPINIONS\.map/, "the second line is not the three opinions");
   assert.ok(
-    visible.indexOf("{count}") < visible.indexOf("{selection.label}"),
-    "the label is set above the count",
+    films.indexOf("FACTS.map") < films.indexOf("OPINIONS.map"),
+    "the opinions are set above the facts they belong to",
+  );
+  assert.ok(
+    films.indexOf("OPINIONS.map") < films.indexOf("selection={WITHOUT_OPINION}"),
+    "without opinion is set above the opinions it sits beside",
   );
 
-  // Said aloud the pair is the other way round, which is what the label on the
-  // control is for.
-  assert.match(tile, /aria-label=\{`\$\{selection\.label\}: \$\{count\}`\}/);
+  // The hierarchy is in the shape as well as in the size: the opinions and the
+  // films watched without one are indented under the line above them, behind a
+  // rule rather than inside a box.
+  const under = films.slice(films.indexOf("OPINIONS.map") - 400, films.indexOf("OPINIONS.map"));
+  assert.match(under, /border-l border-rule pl-3/, "what Seen is made of is not set under it");
+
+  // Quieter as it goes down, and each level a step smaller.
+  assert.match(films, /text-\[15px\][\s\S]*?FACTS\.map/, "the facts are not the strongest line");
+  assert.match(films, /text-\[13px\][\s\S]*?OPINIONS\.map/, "the opinions are not set smaller");
+  const quietest = films.slice(films.indexOf("selection={WITHOUT_OPINION}"));
+  assert.match(
+    quietest.slice(0, 400),
+    /text-ink-faint/,
+    "without opinion is not set quieter than the opinions above it",
+  );
+
+  // Wrapping rather than overflowing: a narrow screen breaks a line between two
+  // counts, and nothing scrolls sideways.
+  assert.equal(
+    (films.match(/flex-wrap/g) ?? []).length >= 2,
+    true,
+    "a line of counts cannot wrap on a narrow screen",
+  );
+  assert.equal(/overflow-x|whitespace-nowrap|min-w-\[/.test(films), false, "a line can overflow");
+});
+
+test("a count is a control, with the words first and the number after", () => {
+  const count = bodyOf("Count", summary);
+
+  assert.match(count, /<button/, "a count is not something you can press");
+  assert.match(count, /aria-haspopup="dialog"/, "a count does not say it opens a dialog");
+
+  // The words then the number, which is how it is set and how it is said — so
+  // the control's own text is its accessible name, and only the two whose words
+  // are not sufficient get a label of their own.
+  assert.match(count, /\{selection\.label\} <span className="tabular-nums">\{count\}<\/span>/);
+  assert.match(count, /aria-label=\{spoken\(selection, count\)\}/);
+  // The number is part of the name, not decoration: the only thing hidden from a
+  // listener in here is the heart.
+  assert.equal(
+    (count.match(/aria-hidden="true"/g) ?? []).length,
+    1,
+    "something other than the heart is hidden from a listener",
+  );
+
+  // Hover and focus that read as navigation: an underline and a real focus ring,
+  // and nothing that turns it back into a pill.
+  assert.match(count, /hover:underline/, "a count gives no hover state");
+  assert.match(count, /focus-visible:outline-2/, "a count gives no focus ring");
+  assert.equal(/rounded-full|px-3 py-1|bg-/.test(count), false, "a count is a pill again");
+});
+
+test("the heart is on Loved, and only for the eye", () => {
+  const films = bodyOf("MovieSummary", summary);
+  const count = bodyOf("Count", summary);
+
+  // The same Lucide heart the mark on a row uses, filled, before the word.
+  assert.match(summary, /import \{ Heart \} from "lucide-react";/);
+  assert.match(films, /icon=\{selection === LOVED \? Heart : undefined\}/, "the heart is elsewhere");
+  assert.match(count, /<Icon\s+aria-hidden="true"/, "the heart is read out as well as drawn");
+  assert.ok(
+    count.indexOf("{Icon &&") < count.indexOf("{selection.label}"),
+    "the heart is set after the word",
+  );
 });
 
 test("the total is beside the heading, and is not a tile", () => {
@@ -345,38 +415,33 @@ test("the total is beside the heading, and is not a tile", () => {
   assert.equal(/"Total"/.test(summary + model), false, "Total is still a tile");
 });
 
-test("the films with no state are a quiet line, not a sixth tile", () => {
+test("the films with no state are outside the hierarchy, and absent when there are none", () => {
   const films = bodyOf("MovieSummary", summary);
 
   // Absent when there are none: nothing to say, and a zero here would read as a
-  // state that happens to be empty.
+  // state that happens to be empty. Every other control is shown at nought.
   assert.match(films, /\{quiet\.length > 0 && \(/, "the line is rendered even when there are none");
-  assert.match(films, /withoutStatus\(quiet\.length\)/, "the line does not say how many there are");
+  assert.match(films, /selection=\{WITHOUT_STATUS\}/, "the line stands for something else");
+  assert.match(films, /count=\{quiet\.length\}/, "the line does not say how many there are");
+  assert.match(films, /setOpen\(WITHOUT_STATUS\)/, "the line opens something else");
+
   // The arrow is punctuation standing in for "opens these", and the words
   // already say it, so a listener is not read a direction.
-  assert.match(films, /<span aria-hidden="true">→<\/span>/);
-  assert.match(films, /setOpen\(WITHOUT_STATUS\)/, "the line opens something else");
-  assert.match(films, /aria-haspopup="dialog"/);
+  assert.match(films, /after=\{<span aria-hidden="true">→<\/span>\}/);
 
-  // Quiet: the small faint type the page uses for an aside, and none of what
-  // makes a tile a tile.
-  const line = films.slice(films.indexOf("quiet.length > 0"));
-  assert.match(line, /text-\[12\.5px\][^"]*text-ink-faint/, "the line is not set as an aside");
-  assert.equal(
-    /bg-screen|rounded-xl|border-rule|font-display/.test(line),
-    false,
-    "the line has been given a tile's surface",
+  // Outside the indent, because it is not part of what Seen is made of: it is
+  // not something the user said at all.
+  const indented = films.slice(
+    films.indexOf("border-l border-rule pl-3"),
+    films.indexOf("quiet.length > 0"),
   );
+  assert.ok(indented.includes("</div>"), "the quiet line is inside the hierarchy's indent");
 
-  // It is below the tiles, and outside the grid they are laid out in.
-  assert.ok(films.indexOf("STATE_TILES.map") < films.indexOf("quiet.length > 0"));
-  assert.ok(
-    films.slice(films.indexOf("STATE_TILES.map"), films.indexOf("quiet.length > 0")).includes("</div>"),
-    "the line is inside the tile grid",
-  );
+  // And it is the last thing in the section, under everything it is not part of.
+  assert.ok(films.indexOf("WITHOUT_OPINION") < films.indexOf("quiet.length > 0"));
 });
 
-test("one dialog serves the tiles and the quiet line alike", () => {
+test("one dialog serves every one of the counts alike", () => {
   const films = bodyOf("MovieSummary", summary);
 
   // The same `Chosen`, opened with whichever selection was pressed. A second
@@ -414,14 +479,14 @@ test("the summary is an overview of a collection, not a report about it", () => 
   }
 });
 
-test("the tiles are absent when there is nothing to count", () => {
+test("the counts are absent when there is nothing to count", () => {
   // Four zeros over an empty taste model read as a broken instrument. Same
   // reasoning as the "Other movies" section, which is also absent when empty —
   // and the arithmetic still holds, see `movie-summary.test.ts`.
   assert.match(bodyOf("MovieSummary", summary), /if \(!movies\.length\) return null;/);
 });
 
-test("a tile opens the dialog the browser has, not one written here", () => {
+test("a count opens the dialog the browser has, not one written here", () => {
   const chosen = bodyOf("Chosen", summary);
 
   assert.match(chosen, /<dialog/, "the films open in something other than a dialog");
@@ -515,8 +580,8 @@ test("neither a count nor an open list is a copy of the films", () => {
     "the summary holds its own copy of the films",
   );
 
-  assert.match(summary, /count=\{selected\(selection\.name, movies\)\.length\}/);
-  assert.match(bodyOf("Chosen", summary), /const films = selected\(selection\.name, movies\);/);
+  assert.match(summary, /count=\{selected\(selection, movies\)\.length\}/);
+  assert.match(bodyOf("Chosen", summary), /const films = selected\(selection, movies\);/);
 });
 
 test("a press outside the card closes the dialog, and so do Escape and Close", () => {
@@ -553,11 +618,18 @@ test("closing the dialog puts focus back on the control that opened it", () => {
   // active element in every browser, so `document.activeElement` would answer a
   // question about the browser rather than about what somebody pressed.
   assert.match(films, /invoker\.current = event\.currentTarget;/, "the press is not remembered");
+  // Every control that opens the dialog, and there are four places one is
+  // written: the two facts, the three opinions, without opinion, without status.
   assert.equal(
     (films.match(/invoker\.current = event\.currentTarget;/g) ?? []).length,
-    2,
-    "one of the two controls does not remember what was pressed",
+    4,
+    "one of the controls does not remember what was pressed",
   );
+
+  // The fallback is a control that is always there. `Not seen` is the first
+  // button inside the summary's lines and is rendered at nought, so focus has
+  // somewhere intentional to land when the invoker has gone.
+  assert.match(films, /lines\.current\?\.querySelector<HTMLButtonElement>\("button"\)/);
 
   // And restoring it is this component's, not the dialog's: React unmounts a
   // dialog in the same commit that closes it, so the only thing that can be sure
@@ -911,7 +983,7 @@ test("a mix card's numbers are read off the films, not held anywhere", () => {
   // it: read off the films every render rather than kept anywhere. Which order,
   // and why, is `mixes.test.ts`.
   assert.match(stack, /inOrder\(mixes, movies\)\.map/, "the cards are not shown liveliest first");
-  assert.match(stack, /selected\("loved", films\)\.length/, "the heart counts something else");
+  assert.match(stack, /selected\(LOVED, films\)\.length/, "the heart counts something else");
   assert.equal(
     /useState[<(][^)]*Movie|useRef[<(][^)]*Movie\b/.test(cards),
     false,

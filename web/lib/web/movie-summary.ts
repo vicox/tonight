@@ -12,55 +12,145 @@ import type { Movie, MovieState } from "../taste/model.ts";
  *
  * ## One function behind every number and every list
  *
- * A tile shows `selected(…).length` and opens `selected(…)`. Counting and
+ * A control shows `selected(…).length` and opens `selected(…)`. Counting and
  * listing are therefore the same statement evaluated twice rather than two
  * pieces of arithmetic that could drift — there is no expression anywhere in
- * which a tile could say four and open three films.
+ * which a control could say four and open three films.
  *
- * ## Five states, and the absence of one
+ * ## A selection is not a state
  *
- * The five tiles are the five `MovieState` values, matched by equality with
- * `Movie.state`. `null` — Tonight was never told — is what the sixth selection
- * matches, and it is deliberately *not* a sixth state: nothing here adds to the
- * domain, `selected` takes the type `Movie.state` already has, and asking for
- * `null` asks for the films that have not been spoken about rather than for the
- * films in some state called "without status". Silence is not `not_seen` and
- * nothing here infers one from the other.
+ * This is the part worth reading. There are five `MovieState` values, and there
+ * are seven things worth asking the collection — because the useful question
+ * "how many have I seen" is not a state at all. It is `seen`, `liked`, `loved`
+ * and `disliked` together: an opinion about a film is a statement that you
+ * watched it, so counting only the bare `seen` under that word would tell
+ * somebody with forty loved films that they had seen two.
  *
- * The total is not a selection at all. It is `movies.length`, it belongs beside
- * the section's heading the way a genre count does, and it includes the films
- * nobody has said anything about — they are films the user saved.
+ * So a `Selection` carries the *set* of states it stands for, and the earlier
+ * shape — one selection, one state, matched by equality — is gone. It made every
+ * displayed control pretend to be a persisted state, which was true of five of
+ * them and is the reason the sixth could not exist.
+ *
+ * Nothing here adds to the domain. `Seen` is not stored, `Without opinion` is
+ * not stored, and `null` is still the absence of an answer rather than a sixth
+ * state — asking for it asks for the films nobody has spoken about. Silence is
+ * not `not_seen` and nothing here infers one from the other.
+ *
+ * ## What the numbers add up to
+ *
+ * Two invariants, held by `movie-summary.test.ts` rather than by arithmetic
+ * anywhere in the page:
+ *
+ *     total          = not seen + seen + without status
+ *     seen           = loved + liked + disliked + without opinion
+ *
+ * The second is the whole point of the layout: the three opinions and the films
+ * watched without one are what `Seen` is made of, and the page is arranged so
+ * that reads as a hierarchy instead of as five peers.
+ *
+ * The total is not a selection. It is `movies.length`, it belongs beside the
+ * section's heading the way a genre count does, and it includes the films nobody
+ * has said anything about — they are films the user saved.
  */
 
-/** A named part of the collection: what to match, and what to call it. */
+/** A named part of the collection: what it stands for, and what to call it. */
 export type Selection = {
-  /** The state to match, or `null` for the films with none. */
-  readonly name: MovieState | null;
+  /** Stable identity, so a control can be keyed and a test can name one. */
+  readonly key: string;
+  /**
+   * The states this selection stands for.
+   *
+   * Several, for the one selection that is an aggregate. `null` in here means
+   * the films with no state at all, and it is the only member of its own
+   * selection — never mixed in with a real one.
+   */
+  readonly states: readonly (MovieState | null)[];
+  /** What the dialog is called, and how a listener is given the control. */
   readonly label: string;
+  /** How it reads inline where the number comes first, if it is written that way. */
+  readonly phrase?: string;
+  /**
+   * What the label leaves out, said to a listener.
+   *
+   * Only where the words alone are genuinely ambiguous: "Seen" could be read as
+   * the bare state, and "without opinion" only means anything once you know it
+   * is a film that *was* watched. The other five say what they are, and giving
+   * them a second sentence would be reading the obvious out twice.
+   */
+  readonly meaning?: string;
+};
+
+/** Exactly the films the user said they have not seen. */
+export const NOT_SEEN: Selection = {
+  key: "not_seen",
+  states: ["not_seen"],
+  label: "Not seen",
 };
 
 /**
- * The five tiles, in the order they are read: the two facts, then the three
- * ways of having an opinion. The same order the mark's own menu offers, because
- * a reader meeting both should not have to learn two.
+ * Every film the user has watched, whatever they thought of it.
+ *
+ * The aggregate, and the parent of the three opinions and of the films watched
+ * without one. `liked`, `loved` and `disliked` each already say the film was
+ * seen, so a count under this word that left them out would be wrong rather
+ * than merely narrow.
  */
-export const STATE_TILES: readonly Selection[] = [
-  { name: "seen", label: "Seen" },
-  { name: "not_seen", label: "Not seen" },
-  { name: "liked", label: "Liked" },
-  { name: "loved", label: "Loved" },
-  { name: "disliked", label: "Disliked" },
-];
+export const SEEN: Selection = {
+  key: "seen",
+  states: ["seen", "liked", "loved", "disliked"],
+  label: "Seen",
+  meaning: "every film you have watched, opinion or not",
+};
+
+export const LOVED: Selection = { key: "loved", states: ["loved"], label: "Loved" };
+export const LIKED: Selection = { key: "liked", states: ["liked"], label: "Liked" };
+export const DISLIKED: Selection = { key: "disliked", states: ["disliked"], label: "Disliked" };
+
+/**
+ * Watched, and nothing said about it.
+ *
+ * The bare `seen` state, named for what it is rather than for the word stored in
+ * the column: under a heading that already says "Seen", a second control called
+ * "Seen" would be unreadable. It is the remainder of the aggregate once the
+ * three opinions are taken out, and it is written as a sentence because that is
+ * what it is.
+ */
+export const WITHOUT_OPINION: Selection = {
+  key: "without_opinion",
+  states: ["seen"],
+  label: "Without opinion",
+  phrase: "without opinion",
+  meaning: "watched, with nothing said about it",
+};
 
 /**
  * The films Tonight was never told about.
  *
- * Not a tile. It is one quiet line under the five, because it is not a sixth
- * thing the user said — it is the films they have not said anything about yet,
- * and giving it the same weight as `Loved` would make silence look like a
- * verdict.
+ * Outside the hierarchy above, deliberately: it is not one of the things the
+ * user said, so it belongs neither under `Seen` nor beside `Not seen`. It is the
+ * films they have not spoken about yet, and giving it the weight of an opinion
+ * would make silence look like a verdict.
  */
-export const WITHOUT_STATUS: Selection = { name: null, label: "Without status" };
+export const WITHOUT_STATUS: Selection = {
+  key: "without_status",
+  states: [null],
+  label: "Without status",
+  phrase: "without status",
+};
+
+/**
+ * The two facts, read first: what has been watched and what has not.
+ *
+ * Not seen before Seen, which is the direction a film moves through them.
+ */
+export const FACTS: readonly Selection[] = [NOT_SEEN, SEEN];
+
+/**
+ * The three opinions, in the order the mark's own menu offers them.
+ *
+ * A reader meeting both should not have to learn two orders.
+ */
+export const OPINIONS: readonly Selection[] = [LOVED, LIKED, DISLIKED];
 
 /**
  * The films one selection stands for.
@@ -69,21 +159,34 @@ export const WITHOUT_STATUS: Selection = { name: null, label: "Without status" }
  * films the page was rendered with — so a state written from either place is
  * reflected by the next render rather than by an adjustment made here.
  */
-export function selected(state: MovieState | null, movies: readonly Movie[]): Movie[] {
-  return movies.filter((movie) => movie.state === state);
+export function selected(selection: Selection, movies: readonly Movie[]): Movie[] {
+  return movies.filter((movie) => selection.states.includes(movie.state));
 }
 
 /**
- * How the quiet line reads: `2 without status`.
+ * How a selection reads when the number comes first: `30 without opinion`.
  *
- * One template for one and for many, because the phrase does not inflect — it
- * is the number of films and then the thing they are without, and "1 without
+ * One template for one and for many, because the phrase does not inflect — it is
+ * the number of films and then the thing they are without, and "1 without
  * status" is as English as "2 without status". Written here so that the wording
  * is one decision rather than a string in a component, and so that a test can
  * hold it.
  */
-export function withoutStatus(count: number): string {
-  return `${count} without status`;
+export function sentence(selection: Selection, count: number): string {
+  return `${count} ${selection.phrase ?? selection.label}`;
+}
+
+/**
+ * How a control is named to a listener.
+ *
+ * The words then the number, which is the order the page now sets them in too —
+ * so most of these are simply the control's own text and need no label at all.
+ * The two that carry a `meaning` get it appended, because for those the visible
+ * words are true but not sufficient.
+ */
+export function spoken(selection: Selection, count: number): string | undefined {
+  if (selection.meaning === undefined) return undefined;
+  return `${selection.label} ${count}, ${selection.meaning}`;
 }
 
 /**

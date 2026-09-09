@@ -1,5 +1,5 @@
 import type { Mix, Movie, MovieState, Written } from "../taste/model.ts";
-import { selected } from "./movie-summary.ts";
+import { LIKED, LOVED, selected } from "./movie-summary.ts";
 
 /**
  * What a mix is worth saying on a card, and the films behind it.
@@ -156,8 +156,8 @@ export function inOrder(
     const films = filmsIn(mix, movies);
     return {
       mix,
-      loved: selected("loved", films).length,
-      liked: selected("liked", films).length,
+      loved: selected(LOVED, films).length,
+      liked: selected(LIKED, films).length,
       newestFilm: films.reduce<string | null>(
         (newest, film) => (newestFirst(film.createdAt, newest) < 0 ? film.createdAt : newest),
         null,

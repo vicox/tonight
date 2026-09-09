@@ -7,7 +7,7 @@ import { Chip } from "./chip";
 import { Films } from "./movie-row";
 import type { Mix, Movie, Written } from "@/lib/taste/model";
 import { filmsIn, inOrder, preview, spokenMix } from "@/lib/web/mixes";
-import { selected } from "@/lib/web/movie-summary";
+import { LOVED, selected } from "@/lib/web/movie-summary";
 import { returnTo } from "@/lib/web/refocus";
 
 /**
@@ -100,7 +100,7 @@ export function MixCards({
         */}
         {inOrder(mixes, movies).map((mix) => {
           const films = filmsIn(mix, movies);
-          const loved = selected("loved", films).length;
+          const loved = selected(LOVED, films).length;
           const glance = preview(films);
 
           return (

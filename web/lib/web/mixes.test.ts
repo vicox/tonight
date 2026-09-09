@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { Mix, Movie, MovieState, Written } from "../taste/model.ts";
-import { selected } from "./movie-summary.ts";
+import { LOVED, selected } from "./movie-summary.ts";
 import { filmsIn, inOrder, preview, spokenMix } from "./mixes.ts";
 
 /**
@@ -44,7 +44,7 @@ const MIX: Mix = {
   ],
 };
 
-const loved = (mix: Mix, movies: readonly Movie[]) => selected("loved", filmsIn(mix, movies)).length;
+const loved = (mix: Mix, movies: readonly Movie[]) => selected(LOVED, filmsIn(mix, movies)).length;
 
 test("the count is membership, whatever was said about the films", () => {
   // Two loved, one not seen, one seen and one nobody has mentioned: five films
@@ -230,7 +230,7 @@ test("previewing a mix moves nothing that is counted", () => {
   preview(before);
 
   assert.equal(filmsIn(mix, films).length, 4, "membership changed");
-  assert.equal(selected("loved", filmsIn(mix, films)).length, 2, "the loved count changed");
+  assert.equal(selected(LOVED, filmsIn(mix, films)).length, 2, "the loved count changed");
   assert.deepEqual(
     before.map((film) => film.title),
     ["Solaris", "Stalker", "Dune", "Heat"],
@@ -399,13 +399,13 @@ test("ordering the mixes moves nothing inside them", () => {
   const mix = mixOf("Quiet Dread", JAN, films);
 
   const membership = filmsIn(mix, films).map((film) => film.title);
-  const lovedCount = selected("loved", filmsIn(mix, films)).length;
+  const lovedCount = selected(LOVED, filmsIn(mix, films)).length;
   const glance = preview(filmsIn(mix, films));
 
   inOrder([mix], films);
 
   assert.deepEqual(filmsIn(mix, films).map((film) => film.title), membership, "membership moved");
-  assert.equal(selected("loved", filmsIn(mix, films)).length, lovedCount, "the loved count moved");
+  assert.equal(selected(LOVED, filmsIn(mix, films)).length, lovedCount, "the loved count moved");
   assert.equal(preview(filmsIn(mix, films)), glance, "the preview changed");
   assert.deepEqual(
     membership,
