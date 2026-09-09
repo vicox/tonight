@@ -1,4 +1,5 @@
 import type { Mix, Movie, MovieState, Written } from "../taste/model.ts";
+import { selected } from "./movie-summary.ts";
 
 /**
  * What a mix is worth saying on a card, and the films behind it.
@@ -86,6 +87,22 @@ export function preview(films: readonly Written<Movie>[]): string | null {
   return films.length > titles.length ? `${titles.join(", ")}, and more` : titles.join(", ");
 }
 
+/**
+ * Newest first, and no date at all behind every real one.
+ *
+ * A row saved before Tonight recorded creation times has `null` there, and that
+ * is not "old": nobody wrote the moment down. Sorting it as the earliest would
+ * be inventing the answer, so it waits behind everything that can say when it
+ * arrived. Used for a film's date and for a mix's, which is why it is one
+ * function rather than the same three lines twice.
+ */
+function newestFirst(one: string | null, two: string | null): number {
+  if (one === two) return 0;
+  if (one === null) return 1;
+  if (two === null) return -1;
+  return one < two ? 1 : -1;
+}
+
 /** Loved, then liked, then whatever else somebody said or did not say. */
 function standing(state: MovieState | null): number {
   return state === "loved" ? 0 : state === "liked" ? 1 : 2;
@@ -99,12 +116,69 @@ function recognisable(one: Written<Movie>, two: Written<Movie>): number {
     return standing(one.state) - standing(two.state);
   }
 
-  // Newest first, and a film with no date after every film that has one.
-  if (one.createdAt !== two.createdAt) {
-    if (one.createdAt === null) return 1;
-    if (two.createdAt === null) return -1;
-    return one.createdAt < two.createdAt ? 1 : -1;
-  }
+  const byDate = newestFirst(one.createdAt, two.createdAt);
+  if (byDate !== 0) return byDate;
 
   return handle(one) < handle(two) ? -1 : handle(one) > handle(two) ? 1 : 0;
+}
+
+/**
+ * The mixes in the order the overview shows them: the liveliest first.
+ *
+ * A taste model accumulates mixes, and the section is a list somebody scans for
+ * the one they want tonight. Alphabetical says nothing, and the order the store
+ * happens to hold them in says only which was made first — so the ones with the
+ * most in them that the user actually loves come first, and a mix nobody has put
+ * anything in for months sinks.
+ *
+ * Five questions, asked in order and each one a tie-break of the last. No score:
+ * loved and liked are separate rungs rather than terms in a sum, because a
+ * weighting would be a claim about how many likes a love is worth, and there is
+ * no such number. And nothing about `updatedAt`, which moves when a name is
+ * corrected: a mix does not become livelier because its wording was fixed.
+ *
+ *   1. how many of its films are loved
+ *   2. how many are liked
+ *   3. how recently a film was added to it — any film, whatever was said about it
+ *   4. how recently the mix itself was made
+ *   5. its name, so that two identical mixes always come out the same way round
+ *
+ * Presentation only. It answers with a new array, the one it was given is left
+ * alone, and nothing here is written down: the store's own order is untouched,
+ * and so is the order of the films inside any card, preview or dialog.
+ */
+export function inOrder(
+  mixes: readonly Written<Mix>[],
+  movies: readonly Written<Movie>[],
+): Written<Mix>[] {
+  /** What the five questions are asked of, worked out once per mix. */
+  const standings = mixes.map((mix) => {
+    const films = filmsIn(mix, movies);
+    return {
+      mix,
+      loved: selected("loved", films).length,
+      liked: selected("liked", films).length,
+      newestFilm: films.reduce<string | null>(
+        (newest, film) => (newestFirst(film.createdAt, newest) < 0 ? film.createdAt : newest),
+        null,
+      ),
+    };
+  });
+
+  return standings.sort(liveliest).map((standing) => standing.mix);
+}
+
+type Standing = { mix: Written<Mix>; loved: number; liked: number; newestFilm: string | null };
+
+function liveliest(one: Standing, two: Standing): number {
+  if (one.loved !== two.loved) return two.loved - one.loved;
+  if (one.liked !== two.liked) return two.liked - one.liked;
+
+  const byFilm = newestFirst(one.newestFilm, two.newestFilm);
+  if (byFilm !== 0) return byFilm;
+
+  const byMix = newestFirst(one.mix.createdAt, two.mix.createdAt);
+  if (byMix !== 0) return byMix;
+
+  return one.mix.name < two.mix.name ? -1 : one.mix.name > two.mix.name ? 1 : 0;
 }

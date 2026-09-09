@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { Mix, Movie, MovieState, Written } from "../taste/model.ts";
 import { selected } from "./movie-summary.ts";
-import { filmsIn, preview, spokenMix } from "./mixes.ts";
+import { filmsIn, inOrder, preview, spokenMix } from "./mixes.ts";
 
 /**
  * What a mix card counts, and what its dialog opens.
@@ -235,5 +235,181 @@ test("previewing a mix moves nothing that is counted", () => {
     before.map((film) => film.title),
     ["Solaris", "Stalker", "Dune", "Heat"],
     "the films the dialog lists were reordered",
+  );
+});
+
+/**
+ * The order the overview shows mixes in.
+ *
+ * Five questions asked in turn, each a tie-break of the last, so each one is
+ * tested with the ones above it deliberately level and the ones below it
+ * deliberately against the answer — otherwise a comparator that ignored a rung
+ * would still look right.
+ */
+
+/** A mix with a date of its own, holding the films given. */
+function mixOf(
+  name: string,
+  createdAt: string | null,
+  films: readonly Written<Movie>[],
+): Written<Mix> {
+  return {
+    name,
+    instruction: `What ${name} means.`,
+    genres: ["Mystery"],
+    movies: films.map((film) => ({ title: film.title, year: film.year })),
+    createdAt,
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+/** A film in a named mix, with a state and a date. */
+function inMix(
+  mix: string,
+  title: string,
+  state: MovieState | null,
+  createdAt: string | null,
+): Written<Movie> {
+  return {
+    title,
+    year: 2000,
+    imdbId: null,
+    state,
+    mixes: [mix],
+    createdAt,
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+const JAN = "2026-01-01T00:00:00.000Z";
+const JUN = "2026-06-01T00:00:00.000Z";
+const names = (mixes: readonly Written<Mix>[]) => mixes.map((mix) => mix.name);
+
+test("more loved comes first, whatever else is true of the two", () => {
+  // The one with fewer loved films is newer, has more likes and a newer mix
+  // date. None of that reaches the first question.
+  const loved = [inMix("Loved", "Solaris", "loved", JAN), inMix("Loved", "Stalker", "loved", JAN)];
+  const liked = [
+    inMix("Liked", "Arrival", "loved", JUN),
+    inMix("Liked", "Heat", "liked", JUN),
+    inMix("Liked", "Dune", "liked", JUN),
+  ];
+  const mixes = [mixOf("Liked", JUN, liked), mixOf("Loved", JAN, loved)];
+
+  assert.deepEqual(names(inOrder(mixes, [...loved, ...liked])), ["Loved", "Liked"]);
+});
+
+test("level on loved, more liked comes first", () => {
+  // One loved film each, so the first question is level. "Two" has the second
+  // like and nothing else going for it: "One" has the newer film, the newer mix
+  // and the earlier name, so every question after this one would put "One"
+  // first. Only the liked count can produce this order.
+  const one = [inMix("One", "Solaris", "loved", JUN), inMix("One", "Arrival", "liked", JUN)];
+  const two = [
+    inMix("Two", "Stalker", "loved", JAN),
+    inMix("Two", "Heat", "liked", JAN),
+    inMix("Two", "Dune", "liked", JAN),
+  ];
+  assert.deepEqual(names(inOrder([mixOf("One", JUN, one), mixOf("Two", JAN, two)], [...one, ...two])), [
+    "Two",
+    "One",
+  ]);
+});
+
+test("level on both counts, the mix with the newer film comes first", () => {
+  const older = [inMix("Older", "Solaris", "loved", JAN)];
+  const newer = [inMix("Newer", "Stalker", "loved", JUN)];
+  // The mix dates are the other way round on purpose.
+  const mixes = [mixOf("Older", JUN, older), mixOf("Newer", JAN, newer)];
+  assert.deepEqual(names(inOrder(mixes, [...older, ...newer])), ["Newer", "Older"]);
+});
+
+test("the newest film is the newest of all of them, whatever was said about it", () => {
+  // Both have one loved film, dated the same. What separates them is a film
+  // nobody has an opinion on, which still counts as something added to the mix.
+  const quiet = [inMix("Quiet", "Solaris", "loved", JAN), inMix("Quiet", "Nosferatu", null, JUN)];
+  const still = [inMix("Still", "Stalker", "loved", JAN), inMix("Still", "Dune", "not_seen", JAN)];
+  const mixes = [mixOf("Still", JUN, still), mixOf("Quiet", JAN, quiet)];
+  assert.deepEqual(names(inOrder(mixes, [...quiet, ...still])), ["Quiet", "Still"]);
+});
+
+test("a mix whose films have no dates falls behind one whose films do", () => {
+  const dated = [inMix("Dated", "Solaris", "loved", JAN)];
+  const undated = [inMix("Undated", "Stalker", "loved", null)];
+  const mixes = [mixOf("Undated", JUN, undated), mixOf("Dated", JAN, dated)];
+  assert.deepEqual(names(inOrder(mixes, [...dated, ...undated])), ["Dated", "Undated"]);
+
+  // And so does a mix with no films at all, which has no date to offer either.
+  const empty = mixOf("Empty", JUN, []);
+  assert.deepEqual(names(inOrder([empty, mixOf("Dated", JAN, dated)], dated)), ["Dated", "Empty"]);
+});
+
+test("level through the films, the newer mix comes first", () => {
+  // Level on both counts and on the film dates, and both mixes have a real date
+  // of their own. The winner is named "Zulu" and the loser "Alpha", so the last
+  // question — the name — would put them the other way round: only the mix's own
+  // date can produce this order.
+  const alpha = [inMix("Alpha", "Solaris", "loved", JAN)];
+  const zulu = [inMix("Zulu", "Stalker", "loved", JAN)];
+  const mixes = [mixOf("Alpha", JAN, alpha), mixOf("Zulu", JUN, zulu)];
+  assert.deepEqual(names(inOrder(mixes, [...alpha, ...zulu])), ["Zulu", "Alpha"]);
+});
+
+test("a mix with no date of its own falls behind one that has one", () => {
+  const one = [inMix("Undated", "Solaris", "loved", JAN)];
+  const two = [inMix("Dated", "Stalker", "loved", JAN)];
+  // Alphabetically "Dated" would win anyway, so the pair is checked both ways
+  // round to be sure it is the date and not the name doing the work.
+  assert.deepEqual(
+    names(inOrder([mixOf("Undated", null, one), mixOf("Dated", JAN, two)], [...one, ...two])),
+    ["Dated", "Undated"],
+  );
+  const three = [inMix("Aaa", "Arrival", "loved", JAN)];
+  assert.deepEqual(
+    names(inOrder([mixOf("Zzz", JAN, two), mixOf("Aaa", null, three)], [...two, ...three])),
+    ["Zzz", "Aaa"],
+  );
+});
+
+test("mixes that are alike in every way come out by name", () => {
+  const films = [
+    inMix("Beta", "Solaris", "loved", JAN),
+    inMix("Alpha", "Stalker", "loved", JAN),
+    inMix("Gamma", "Arrival", "loved", JAN),
+  ];
+  const mixes = [mixOf("Beta", JAN, [films[0]]), mixOf("Gamma", JAN, [films[2]]), mixOf("Alpha", JAN, [films[1]])];
+  assert.deepEqual(names(inOrder(mixes, films)), ["Alpha", "Beta", "Gamma"]);
+});
+
+test("the mixes it was given are left as they were", () => {
+  const films = [inMix("Beta", "Solaris", "loved", JAN), inMix("Alpha", "Stalker", "liked", JAN)];
+  const mixes = [mixOf("Alpha", JAN, [films[1]]), mixOf("Beta", JAN, [films[0]])];
+  const given = [...mixes];
+
+  assert.deepEqual(names(inOrder(mixes, films)), ["Beta", "Alpha"], "the order is not the rule's");
+  assert.deepEqual(mixes, given, "the array it was given was sorted in place");
+});
+
+test("ordering the mixes moves nothing inside them", () => {
+  const films = [
+    inMix("Quiet Dread", "Solaris", "loved", JAN),
+    inMix("Quiet Dread", "Nosferatu", null, null),
+    inMix("Quiet Dread", "Stalker", "liked", JUN),
+  ];
+  const mix = mixOf("Quiet Dread", JAN, films);
+
+  const membership = filmsIn(mix, films).map((film) => film.title);
+  const lovedCount = selected("loved", filmsIn(mix, films)).length;
+  const glance = preview(filmsIn(mix, films));
+
+  inOrder([mix], films);
+
+  assert.deepEqual(filmsIn(mix, films).map((film) => film.title), membership, "membership moved");
+  assert.equal(selected("loved", filmsIn(mix, films)).length, lovedCount, "the loved count moved");
+  assert.equal(preview(filmsIn(mix, films)), glance, "the preview changed");
+  assert.deepEqual(
+    membership,
+    ["Solaris", "Nosferatu", "Stalker"],
+    "the order the dialog lists them in is not the store's",
   );
 });

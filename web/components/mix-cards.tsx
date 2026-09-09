@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Chip } from "./chip";
 import { Films } from "./movie-row";
 import type { Mix, Movie, Written } from "@/lib/taste/model";
-import { filmsIn, preview, spokenMix } from "@/lib/web/mixes";
+import { filmsIn, inOrder, preview, spokenMix } from "@/lib/web/mixes";
 import { selected } from "@/lib/web/movie-summary";
 import { returnTo } from "@/lib/web/refocus";
 
@@ -39,12 +39,18 @@ import { returnTo } from "@/lib/web/refocus";
  * loved — so a mark pressed inside the dialog moves the heart on the card by the
  * next render, and cannot move the count, because saying something about a film
  * does not take it out of a mix. See `lib/web/mixes.ts`.
+ *
+ * The order the cards come in is the same kind of answer: read off the films
+ * every render, the liveliest mix first, and never written down. A mark pressed
+ * in a dialog can therefore move a card up the list by the next render, which is
+ * the point — the list is for finding tonight's mix, not for remembering which
+ * was made first.
  */
 export function MixCards({
   mixes,
   movies,
 }: {
-  mixes: readonly Mix[];
+  mixes: readonly Written<Mix>[];
   movies: readonly Written<Movie>[];
 }) {
   const [open, setOpen] = useState<Mix | null>(null);
@@ -87,7 +93,12 @@ export function MixCards({
   return (
     <>
       <div ref={stack} className="flex flex-col gap-3">
-        {mixes.map((mix) => {
+        {/*
+          The liveliest first, which is a question about the films in each mix and
+          therefore not something a card can answer for itself. The rule is
+          `lib/web/mixes.ts`; nothing about the order is written down.
+        */}
+        {inOrder(mixes, movies).map((mix) => {
           const films = filmsIn(mix, movies);
           const loved = selected("loved", films).length;
           const glance = preview(films);

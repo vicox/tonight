@@ -906,6 +906,11 @@ test("a mix card's numbers are read off the films, not held anywhere", () => {
   // pressed in the dialog moves the heart by the next render and cannot move the
   // count. The arithmetic itself is `mixes.test.ts`.
   assert.match(stack, /filmsIn\(mix, movies\)/, "the card counts something other than its films");
+
+  // The order of the cards is the same kind of answer, and the same rule holds
+  // it: read off the films every render rather than kept anywhere. Which order,
+  // and why, is `mixes.test.ts`.
+  assert.match(stack, /inOrder\(mixes, movies\)\.map/, "the cards are not shown liveliest first");
   assert.match(stack, /selected\("loved", films\)\.length/, "the heart counts something else");
   assert.equal(
     /useState[<(][^)]*Movie|useRef[<(][^)]*Movie\b/.test(cards),
