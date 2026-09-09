@@ -104,6 +104,13 @@ export function spokenMix(name: string, films: number, loved: number): string {
  * `null` when the mix is empty, because there is nothing to glance at and a line
  * saying so would be an empty shelf described.
  *
+ * How many are left over is said rather than implied — `and 2 more` rather than
+ * `and more`. It is the same word count and it answers what "and more" only
+ * raised: a reader deciding whether to open this mix is deciding against what is
+ * behind the glance, and four films left is a different mix from forty. It is
+ * also the closest a card comes to the count it stopped showing, and it earns
+ * its place by being about *these* titles rather than a measurement of the mix.
+ *
  * ## Which three
  *
  * The ones most likely to be recognised: loved first, then liked, then
@@ -128,7 +135,8 @@ export function preview(films: readonly Written<Movie>[]): string | null {
     .slice(0, 3)
     .map((film) => film.title);
 
-  return films.length > titles.length ? `${titles.join(", ")}, and more` : titles.join(", ");
+  const rest = films.length - titles.length;
+  return rest > 0 ? `${titles.join(", ")}, and ${rest} more` : titles.join(", ");
 }
 
 /**

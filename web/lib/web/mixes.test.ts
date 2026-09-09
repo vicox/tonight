@@ -233,16 +233,37 @@ test("a preview is three titles at most, joined with commas", () => {
   assert.equal(lineFor(films), "Zodiac, Memories of Murder, Se7en");
 });
 
-test("a fourth film is said as `and more`, and only then", () => {
+test("what is left over is counted, and only when there is any", () => {
   const three = [
     dated("Zodiac", "seen", "2026-03-01T00:00:00.000Z"),
     dated("Memories of Murder", "seen", "2026-02-01T00:00:00.000Z"),
     dated("Se7en", "seen", "2026-01-01T00:00:00.000Z"),
   ];
-  assert.equal(lineFor(three).endsWith("and more"), false, "three films promise a fourth");
+  // A preview that is the whole mix promises nothing after it, and does not say
+  // "and 0 more" — there is nothing to open it for.
+  assert.equal(lineFor(three), "Zodiac, Memories of Murder, Se7en");
+  assert.equal(/\bmore\b/.test(lineFor(three)), false, "three films of three promise a fourth");
+  assert.equal(/\b0\b/.test(lineFor(three)), false, "nothing left over is counted out loud");
 
+  // One left over is one, said as one: the line is a sentence, not a template
+  // with a plural to keep in step with a number.
   const four = [...three, dated("Prisoners", "seen", "2025-12-01T00:00:00.000Z")];
-  assert.equal(lineFor(four), "Zodiac, Memories of Murder, Se7en, and more");
+  assert.equal(lineFor(four), "Zodiac, Memories of Murder, Se7en, and 1 more");
+
+  // And it counts the films the preview left out rather than the mix: what a
+  // reader is deciding against is what is behind the glance.
+  const seven = [
+    ...four,
+    dated("Prisoners II", "seen", "2025-11-01T00:00:00.000Z"),
+    dated("Prisoners III", "seen", "2025-10-01T00:00:00.000Z"),
+    dated("Prisoners IV", "seen", "2025-09-01T00:00:00.000Z"),
+  ];
+  assert.equal(lineFor(seven), "Zodiac, Memories of Murder, Se7en, and 4 more");
+
+  // The three shown are still three, whatever is behind them.
+  for (const films of [four, seven]) {
+    assert.equal(lineFor(films).split(", ").length - 1, 3, "the preview shows a different number");
+  }
 });
 
 test("an empty mix has no preview at all", () => {
@@ -258,7 +279,7 @@ test("loved comes before liked, and liked before everything else", () => {
   ];
   // The loved film is the oldest of the four and comes first anyway; the two
   // with no opinion on them come last however recently they were saved.
-  assert.equal(lineFor(films), "Solaris, Arrival, Heat, and more");
+  assert.equal(lineFor(films), "Solaris, Arrival, Heat, and 1 more");
 });
 
 test("within one standing, the most recently saved comes first", () => {
