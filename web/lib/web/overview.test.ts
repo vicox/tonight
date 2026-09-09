@@ -19,9 +19,10 @@ import test from "node:test";
  * that quietly grew a poster, a `false` that became indistinguishable from
  * "nothing said", a create control on a page that is supposed to be read.
  *
- * Eight sources, because the page is that many files: the board itself, the
+ * Nine sources, because the page is that many files: the board itself, the
  * section all three of its parts are drawn by, the genre labels, the mix cards,
- * the type a name is set in, a film's row — shared by the board and the summary's dialog — the
+ * the dialog they and the summary all open, the type a name is set in, a film's
+ * row — shared by the board and the summary's dialog — the
  * summary tiles, and the mark on a row. What can be tested for real is kept out of here and tested
  * that way: the arithmetic behind the tiles in `movie-summary.test.ts`, and where
  * focus goes when a row is removed in `refocus.test.ts`.
@@ -43,6 +44,7 @@ const VIEW = new URL("../../components/taste-view.tsx", import.meta.url);
 const SECTION = new URL("../../components/section.tsx", import.meta.url);
 const CHIP = new URL("../../components/chip.tsx", import.meta.url);
 const LABELS = new URL("../../components/genre-labels.tsx", import.meta.url);
+const DIALOG = new URL("../../components/chosen.tsx", import.meta.url);
 const MIXES = new URL("../../components/mix-cards.tsx", import.meta.url);
 const ROW = new URL("../../components/movie-row.tsx", import.meta.url);
 const SUMMARY = new URL("../../components/movie-summary.tsx", import.meta.url);
@@ -53,6 +55,7 @@ const section = readFileSync(SECTION, "utf8");
 const chip = readFileSync(CHIP, "utf8");
 const model = readFileSync(new URL("./movie-summary.ts", import.meta.url), "utf8");
 const labels = readFileSync(LABELS, "utf8");
+const dialog = readFileSync(DIALOG, "utf8");
 const cards = readFileSync(MIXES, "utf8");
 const row = readFileSync(ROW, "utf8");
 const summary = readFileSync(SUMMARY, "utf8");
@@ -84,32 +87,41 @@ test("the resting page shows names and counts, and no instruction", () => {
   }
 });
 
-test("films in no mix are listed, and the section is absent when there are none", () => {
-  // A film gets there by ordinary means — recording that somebody watched it, or
-  // deleting the last mix it was in — so the page has to show it rather than lose
-  // it. What it must not become is a queue: same rows, same marks, no controls of
-  // its own, and no empty heading standing there implying something is outstanding.
-  // The section being right is not the same as the page having it. Every other
-  // assertion here reads the helper, and all of them would go on passing if the
-  // one line that renders it were deleted — so the invocation is pinned first.
-  assert.match(
-    bodyOf("TasteView"),
-    /<Loose movies=\{taste\.movies\}/,
-    "the page does not render the section, so a film in no mix is nowhere",
-  );
+test("films in no mix are one line under the mixes, not a section", () => {
+  const stack = bodyOf("MixCards", cards);
 
-  const loose = bodyOf("Loose");
-
-  assert.match(loose, /movie\.mixes\.length === 0/, "the section is not selected on emptiness");
-  assert.match(loose, /if \(!loose\.length\) return null;/, "an empty section is still rendered");
-  assert.match(loose, /title="Other movies"/);
-  assert.match(loose, /<Films movies=\{loose\}/, "it does not draw its own rows");
-
-  // No second ontology: no sorting, no dating, no status of its own.
+  // A film gets there by ordinary means — saying "I've seen that" files nothing,
+  // and deleting a mix leaves its films behind — so it is the mixes' own
+  // remainder rather than a place of its own. It was a heading, a sentence and a
+  // list of rows; it is a line that opens the same dialog every other way in
+  // opens.
+  // Which films, and in which order, is `inNoMix` — held in `mixes.test.ts`
+  // against fixtures that fail on a dropped item, a reversal or a filed film.
+  // What is left to pin here is that the component asks it and nothing else.
+  const declaration = stack.slice(stack.indexOf("const other ="));
   assert.equal(
-    /sort\(|Date|recent|inbox|unsorted|archive|status/i.test(loose),
-    false,
-    "the section grew a concept of its own",
+    declaration.slice(0, declaration.indexOf(";") + 1),
+    "const other = inNoMix(movies);",
+    "the remainder is worked out here rather than by the rule, or changed after it",
+  );
+  assert.match(stack, /\{other\.length > 0 && \(/, "the line is shown when there are none");
+  assert.match(stack, /\{other\.length\} other movies/, "the line does not say how many there are");
+  assert.match(stack, /setOpen\(OTHER\)/, "the line opens something else");
+  assert.match(stack, /<Chosen title="Other movies" films=\{other\}/, "it opens a dialog of its own");
+
+  // Nothing of the section survives: no heading, no sentence under it, no rows
+  // on the page, and no ordering of its own.
+  assert.equal(/Other movies</.test(source), false, "the page still has the heading");
+  assert.equal(/<Loose|title="Other movies"/.test(source), false, "the section is still rendered");
+  assert.equal(/<Films/.test(stack), false, "the films are drawn on the page again");
+
+
+  // Set like the summary's own ways in, quiet and after the cards.
+  assert.match(stack, /\$\{WAY_IN\} hover:text-ink-soft/, "the line is set apart from the others");
+  assert.match(stack, /mt-3 text-\[12\.5px\] leading-relaxed text-ink-faint/);
+  assert.ok(
+    stack.indexOf("inOrder(mixes, movies)") < stack.indexOf("other.length > 0"),
+    "the line is set above the cards",
   );
 });
 
@@ -296,67 +308,74 @@ test("the counts sit above every film they count", () => {
 
   // Given the whole collection, not a mix's films: three of the four tiles count
   // a state, and a state is spread across every mix on the page.
-  assert.match(view, /<MovieSummary movies=\{taste\.movies\} \/>/, "the page has no counts on it");
+  assert.match(view, /<MovieSummary\s+movies=\{taste\.movies\}/, "the page has no counts on it");
 
   const at = view.indexOf("<MovieSummary");
+  assert.ok(at < view.indexOf('title="Your genres"'), "the counts are below the genres");
   assert.ok(at < view.indexOf('title="Your mixes"'), "the counts are below the mixes");
-  assert.ok(at < view.indexOf("<Loose movies="), "the counts are below the films in no mix");
 });
 
-test("the counts are three levels of text, not a row of tiles", () => {
+test("the counts are one line of plain text, in one type", () => {
   const films = bodyOf("MovieSummary", summary);
 
-  // Nothing that made a tile a tile. No grid to lay five of them out in, and no
-  // surface, border or radius around a number — the numbers are set in the
-  // page's own text and behave like the ways in that they are.
-  assert.equal(
-    /grid-cols-|md:grid-cols-5/.test(films),
-    false,
-    "the counts are still laid out as a grid of tiles",
+  // The seven, in the order they are read, laid end to end. Composed from the
+  // model's own lists so the order is the model's and not a second opinion about
+  // it, with `without status` left out when there is none.
+  assert.match(films, /const row = \[\s*\.\.\.FACTS,\s*\.\.\.OPINIONS,\s*WITHOUT_OPINION/);
+  assert.match(films, /quiet\.length > 0 \? \[WITHOUT_STATUS\] : \[\]/);
+  assert.match(films, /row\.map\(\(selection, index\)/, "the row is not rendered as one list");
+
+  // One `Count` draws all seven, so the five answers cannot drift apart from one
+  // another: they are given the row's own type and nothing of their own.
+  const line = films.slice(films.indexOf("row.map"), films.indexOf("recent.length > 0"));
+  assert.equal((line.match(/<Count\b/g) ?? []).length, 1, "an item is drawn differently");
+  assert.match(line, /"hover:text-ink"/, "the five answers carry a type of their own");
+
+  // The two remainders step down from that type — smaller and quieter, because
+  // they are what is left over rather than something somebody said — and they
+  // are the only exception, taken from one list rather than named at the item.
+  assert.match(line, /remainders\.includes\(selection\)/, "the exception is not one list");
+  assert.match(
+    line,
+    /"text-\[12\.5px\] text-ink-faint hover:text-ink-soft"/,
+    "the remainders are not set quieter than the five",
   );
-  const level = films.slice(films.indexOf('ref={lines}'), films.indexOf("</Section>"));
+  assert.match(films, /const remainders = \[WITHOUT_OPINION, WITHOUT_STATUS\];/);
   assert.equal(
-    /bg-screen|rounded-xl|rounded-2xl|border border-rule|font-display/.test(level),
+    /font-|tracking-|opacity-|leading-(snug|tight)/.test(line),
+    false,
+    "an item is set apart by its weight, tracking, opacity or leading",
+  );
+
+  // The type is on the row, once.
+  const row = films.match(/className="flex flex-wrap items-baseline[^"]*"/);
+  assert.ok(row, "the row is not a wrapping line");
+  // The type the two facts were set in before the row was flattened, now the
+  // type of every item in it.
+  assert.match(row[0], /text-\[15px\]/, "the row is not set in the type the facts had");
+  assert.match(row[0], /leading-relaxed/, "the row's lines are set tighter than the facts were");
+  assert.match(row[0], /\btext-ink\b/, "the row is not set in the colour the facts had");
+
+  // Nothing left of the hierarchy that used to be drawn around them, and nothing
+  // that made a tile a tile.
+  assert.equal(/grid-cols-|border-l|\bpl-[34]\b/.test(films), false, "the hierarchy is back");
+  const inside = films.slice(films.indexOf('ref={lines}'), films.indexOf("</Section>"));
+  assert.equal(
+    /bg-screen|rounded-xl|rounded-2xl|border border-rule|font-display/.test(inside),
     false,
     "a count has been given a tile's surface again",
   );
 
-  // Three levels, in the order they are read, and the two facts first.
-  assert.match(films, /FACTS\.map/, "the first line is not the two facts");
-  assert.match(films, /OPINIONS\.map/, "the second line is not the three opinions");
-  assert.ok(
-    films.indexOf("FACTS.map") < films.indexOf("OPINIONS.map"),
-    "the opinions are set above the facts they belong to",
-  );
-  assert.ok(
-    films.indexOf("OPINIONS.map") < films.indexOf("selection={WITHOUT_OPINION}"),
-    "without opinion is set above the opinions it sits beside",
-  );
-
-  // The hierarchy is in the shape as well as in the size: the opinions and the
-  // films watched without one are indented under the line above them, behind a
-  // rule rather than inside a box.
-  const under = films.slice(films.indexOf("OPINIONS.map") - 400, films.indexOf("OPINIONS.map"));
-  assert.match(under, /border-l border-rule pl-3/, "what Seen is made of is not set under it");
-
-  // Quieter as it goes down, and each level a step smaller.
-  assert.match(films, /text-\[15px\][\s\S]*?FACTS\.map/, "the facts are not the strongest line");
-  assert.match(films, /text-\[13px\][\s\S]*?OPINIONS\.map/, "the opinions are not set smaller");
-  const quietest = films.slice(films.indexOf("selection={WITHOUT_OPINION}"));
-  assert.match(
-    quietest.slice(0, 400),
-    /text-ink-faint/,
-    "without opinion is not set quieter than the opinions above it",
-  );
-
-  // Wrapping rather than overflowing: a narrow screen breaks a line between two
-  // counts, and nothing scrolls sideways.
-  assert.equal(
-    (films.match(/flex-wrap/g) ?? []).length >= 2,
-    true,
-    "a line of counts cannot wrap on a narrow screen",
-  );
+  // Wrapping rather than overflowing, and a separator is written before the
+  // control it precedes and inside the same box — so a line cannot break after
+  // a dot and leave it hanging.
+  assert.match(films, /flex-wrap/, "the line cannot wrap");
   assert.equal(/overflow-x|whitespace-nowrap|min-w-\[/.test(films), false, "a line can overflow");
+  assert.match(
+    line,
+    /<span key=\{selection\.key\} className="flex items-baseline[^"]*">\s*\{index > 0 && <Separator \/>\}/,
+    "a separator can be left dangling at the end of a line",
+  );
 });
 
 test("a count is a control, with the words first and the number after", () => {
@@ -370,33 +389,32 @@ test("a count is a control, with the words first and the number after", () => {
   // are not sufficient get a label of their own.
   assert.match(count, /\{selection\.label\} <span className="tabular-nums">\{count\}<\/span>/);
   assert.match(count, /aria-label=\{spoken\(selection, count\)\}/);
-  // The number is part of the name, not decoration: the only thing hidden from a
-  // listener in here is the heart.
+  // The number is part of the name, not decoration, and there is no glyph left
+  // in here to hide from a listener — the arrow on `recently added` is passed in
+  // from outside, already hidden.
   assert.equal(
     (count.match(/aria-hidden="true"/g) ?? []).length,
-    1,
-    "something other than the heart is hidden from a listener",
+    0,
+    "something in the control is hidden from a listener",
   );
 
   // Hover and focus that read as navigation: an underline and a real focus ring,
-  // and nothing that turns it back into a pill.
-  assert.match(count, /hover:underline/, "a count gives no hover state");
-  assert.match(count, /focus-visible:outline-2/, "a count gives no focus ring");
+  // and nothing that turns it back into a pill. The line is there in both states
+  // and only its colour moves — see the test below for why switching the line
+  // itself made these flicker.
+  assert.match(count, /WAY_IN/, "a count is not set like the other ways in");
+  // The focus ring is part of the shared rule, and it is checked against that
+  // rule rather than against this file — see the test below.
+  assert.match(count, /WAY_IN/, "a count does not take its focus ring from the shared rule");
   assert.equal(/rounded-full|px-3 py-1|bg-/.test(count), false, "a count is a pill again");
 });
 
-test("the heart is on Loved, and only for the eye", () => {
-  const films = bodyOf("MovieSummary", summary);
-  const count = bodyOf("Count", summary);
-
-  // The same Lucide heart the mark on a row uses, filled, before the word.
-  assert.match(summary, /import \{ Heart \} from "lucide-react";/);
-  assert.match(films, /icon=\{selection === LOVED \? Heart : undefined\}/, "the heart is elsewhere");
-  assert.match(count, /<Icon\s+aria-hidden="true"/, "the heart is read out as well as drawn");
-  assert.ok(
-    count.indexOf("{Icon &&") < count.indexOf("{selection.label}"),
-    "the heart is set after the word",
-  );
+test("no heart, and no icon at all, in the summary", () => {
+  // The heart belonged to the hierarchy it sat in: a mark on one of five rungs.
+  // In two lines of text it was one glyph pretending to be a heading, so it is
+  // gone, and the summary draws no icon of its own.
+  assert.equal(/lucide-react/.test(summary), false, "the summary still imports an icon");
+  assert.equal(/<Heart|icon=|typeof Heart/.test(summary), false, "a count still draws an icon");
 });
 
 test("the total is beside the heading, and is not a tile", () => {
@@ -406,7 +424,7 @@ test("the total is beside the heading, and is not a tile", () => {
   // counted — the ones nobody has said anything about included.
   assert.match(
     films,
-    /<Section title="Your movies" count=\{movies\.length\}>/,
+    /<Section[\s\S]{0,200}?title="Your movies"[\s\S]{0,200}?count=\{movies\.length\}/,
     "the films section does not carry the total beside its heading",
   );
 
@@ -415,46 +433,55 @@ test("the total is beside the heading, and is not a tile", () => {
   assert.equal(/"Total"/.test(summary + model), false, "Total is still a tile");
 });
 
-test("the films with no state are outside the hierarchy, and absent when there are none", () => {
+test("the films with no state are in the row, and absent when there are none", () => {
   const films = bodyOf("MovieSummary", summary);
 
-  // Absent when there are none: nothing to say, and a zero here would read as a
-  // state that happens to be empty. Every other control is shown at nought.
-  assert.match(films, /\{quiet\.length > 0 && \(/, "the line is rendered even when there are none");
-  assert.match(films, /selection=\{WITHOUT_STATUS\}/, "the line stands for something else");
-  assert.match(films, /count=\{quiet\.length\}/, "the line does not say how many there are");
-  assert.match(films, /setOpen\(WITHOUT_STATUS\)/, "the line opens something else");
+  // In the row with the rest, in the same type, and last — and out of it
+  // entirely when there is none: nothing to say, and a zero there would read as
+  // a state that happens to be empty.
+  assert.match(films, /quiet\.length > 0 \? \[WITHOUT_STATUS\] : \[\]/, "the count is always shown");
+  assert.match(films, /const quiet = selected\(WITHOUT_STATUS, movies\);/);
 
-  // The arrow is punctuation standing in for "opens these", and the words
-  // already say it, so a listener is not read a direction.
-  assert.match(films, /after=\{<span aria-hidden="true">→<\/span>\}/);
-
-  // Outside the indent, because it is not part of what Seen is made of: it is
-  // not something the user said at all.
-  const indented = films.slice(
-    films.indexOf("border-l border-rule pl-3"),
-    films.indexOf("quiet.length > 0"),
+  const line = films.slice(films.indexOf("row.map"), films.indexOf("recent.length > 0"));
+  assert.match(
+    line,
+    /phrased=\{remainders\.includes\(selection\)\}/,
+    "the two remainders are not written as sentences",
   );
-  assert.ok(indented.includes("</div>"), "the quiet line is inside the hierarchy's indent");
 
-  // And it is the last thing in the section, under everything it is not part of.
-  assert.ok(films.indexOf("WITHOUT_OPINION") < films.indexOf("quiet.length > 0"));
+  // Quieter than the five, and still in their row: the step down is a size and a
+  // colour, not a line of its own, an indent or a container.
+  assert.match(line, /text-\[12\.5px\] text-ink-faint/, "the remainders are not set quieter");
+  assert.equal(
+    /border|\bpl-\d|<div/.test(line),
+    false,
+    "the remainders have been given a hierarchy of their own again",
+  );
 });
 
-test("one dialog serves every one of the counts alike", () => {
+test("one dialog serves every one of the seven ways in", () => {
   const films = bodyOf("MovieSummary", summary);
 
-  // The same `Chosen`, opened with whichever selection was pressed. A second
-  // implementation for the films with no state would be a second set of rules
-  // about a film's row, its mark and its dialog.
+  // The same `Chosen`, whichever count was pressed — and now also for this
+  // week's arrivals, which is not a state at all. A second dialog for the odd
+  // one out would be two of everything a dialog does.
   assert.equal(
-    (summary.match(/element\.showModal\(\)/g) ?? []).length,
+    (dialog.match(/element\.showModal\(\)/g) ?? []).length,
     1,
-    "there is more than one dialog in here",
+    "there is more than one films dialog",
   );
-  assert.equal((bodyOf("Chosen", summary).match(/<dialog/g) ?? []).length, 1);
-  assert.equal((films.match(/<Chosen/g) ?? []).length, 1, "the two selections open different dialogs");
-  assert.match(films, /selection=\{open\}/, "the dialog is not given what was pressed");
+  assert.equal((films.match(/<Chosen/g) ?? []).length, 1, "the counts open different dialogs");
+  assert.match(films, /title=\{open\.label\}/, "the dialog is not named for what was pressed");
+
+  // Six of the seven are a set of states; the seventh is the week, and it is
+  // answered by `recentlyAdded` rather than by `selected`.
+  assert.match(
+    films,
+    /films=\{open === RECENT \? recent : selected\(open, movies\)\}/,
+    "the dialog is not given the films the pressed control stands for",
+  );
+  assert.match(summary, /const RECENT: Selection = \{/, "this week is not shaped like the others");
+  assert.match(summary, /states: \[\]/, "this week claims to be a state");
 });
 
 test("the summary is an overview of a collection, not a report about it", () => {
@@ -462,21 +489,34 @@ test("the summary is an overview of a collection, not a report about it", () => 
   // animate and no fifth metric — a tile reading "+3 this week" would be a claim
   // about the user's habits, and this is a page for finding a film.
   assert.equal(
-    /%|percent|chart|graph|trend|sparkline|average|Math\.round|animate-/i.test(summary),
+    // Word-bounded, so that an `HTMLParagraphElement` is not read as a graph.
+    /%|\bpercent|\bchart|\bgraph\b|\btrend|\bsparkline|\baverage|Math\.round|animate-/i.test(
+      summary,
+    ),
     false,
     "the summary grew a measurement of its own",
   );
 
-  // And it is not about when anything was saved. The tiles count films by what
-  // the user said, so a timestamp reaching them would be a second idea about the
-  // collection arriving through the back door.
+  // The counts are not about when anything was saved. `Recently added` is —
+  // that is the whole of what it says — so the line is drawn around the
+  // arithmetic rather than around the module: what a film was said to be, and
+  // when it arrived, stay two separate questions.
+  // Read as the property being taken rather than as the word, because the
+  // module's own prose explains which timestamp it uses and why — and prose is
+  // not a defect.
+  const takes = /\.(createdAt|updatedAt)\b/;
+  assert.equal(takes.test(bodyOf("selected", model)), false, "a count reads a timestamp");
   for (const [name, file] of [
-    ["the tiles", summary],
+    ["the summary", summary],
     ["a film's row", row],
-    ["the counts themselves", model],
   ] as [string, string][]) {
-    assert.equal(/createdAt|updatedAt/.test(file), false, `${name} reads a timestamp`);
+    assert.equal(takes.test(file), false, `${name} reads a timestamp`);
   }
+
+  // And `updatedAt` is taken nowhere. It moves when a mark is pressed, so a
+  // "recently added" built on it would answer "recently touched" and reorder
+  // itself under somebody's hand as they used it.
+  assert.equal(/\.updatedAt\b/.test(model), false, "the section reads the wrong timestamp");
 });
 
 test("the counts are absent when there is nothing to count", () => {
@@ -487,10 +527,10 @@ test("the counts are absent when there is nothing to count", () => {
 });
 
 test("a count opens the dialog the browser has, not one written here", () => {
-  const chosen = bodyOf("Chosen", summary);
+  const chosen = bodyOf("Chosen", dialog);
 
   assert.match(chosen, /<dialog/, "the films open in something other than a dialog");
-  assert.match(summary, /element\.showModal\(\);/, "it is not opened as a modal");
+  assert.match(dialog, /element\.showModal\(\);/, "it is not opened as a modal");
 
   // Escape through the element's own `cancel`, and the backdrop is the element
   // rather than a scrim of our own. `TasteEditor` does both the same way.
@@ -504,14 +544,14 @@ test("a count opens the dialog the browser has, not one written here", () => {
   // after a row has been removed under the reader is the one thing the element
   // does not do, and it is pinned as its own test below.
   assert.equal(
-    /role="dialog"|aria-modal=|inert=|tabIndex=/.test(summary),
+    /role="dialog"|aria-modal=|inert=|tabIndex=/.test(summary + dialog),
     false,
     "the dialog has grown a hand-written half",
   );
 });
 
 test("the dialog shows the page's own rows, and says where each film is filed", () => {
-  const chosen = bodyOf("Chosen", summary);
+  const chosen = bodyOf("Chosen", dialog);
 
   assert.match(chosen, /<Films movies=\{films\} filed/, "the dialog does not reuse the film list");
   assert.equal(
@@ -581,11 +621,20 @@ test("neither a count nor an open list is a copy of the films", () => {
   );
 
   assert.match(summary, /count=\{selected\(selection, movies\)\.length\}/);
-  assert.match(bodyOf("Chosen", summary), /const films = selected\(selection, movies\);/);
+  // The list the dialog shows is worked out by the summary on every render and
+  // handed over, rather than derived inside a component that is unmounted and
+  // remounted around it — and never stored, which is what keeps a mark pressed
+  // inside the dialog from leaving a stale list behind.
+  assert.match(bodyOf("MovieSummary", summary), /selected\(open, movies\)/);
+  assert.equal(
+    /useState[<(][^)]*Movie|useRef[<(][^)]*Movie\b/.test(summary),
+    false,
+    "the summary holds a copy of the films",
+  );
 });
 
 test("a press outside the card closes the dialog, and so do Escape and Close", () => {
-  const chosen = bodyOf("Chosen", summary);
+  const chosen = bodyOf("Chosen", dialog);
 
   // The press has to be able to land on the element: it is the surface the card
   // sits on, and the card is its only child. A box of the dialog's own filling
@@ -618,13 +667,16 @@ test("closing the dialog puts focus back on the control that opened it", () => {
   // active element in every browser, so `document.activeElement` would answer a
   // question about the browser rather than about what somebody pressed.
   assert.match(films, /invoker\.current = event\.currentTarget;/, "the press is not remembered");
-  // Every control that opens the dialog, and there are four places one is
-  // written: the two facts, the three opinions, without opinion, without status.
+  // Every way in remembers its own press. Counted as handlers rather than as
+  // controls, because the row is rendered from a list: what has to hold is that
+  // no `Count` is given an `onOpen` that forgets.
+  const handlers = (films.match(/onOpen=\{\(event\) => \{/g) ?? []).length;
   assert.equal(
     (films.match(/invoker\.current = event\.currentTarget;/g) ?? []).length,
-    4,
+    handlers,
     "one of the controls does not remember what was pressed",
   );
+  assert.equal((films.match(/<Count\b/g) ?? []).length, handlers, "a count opens nothing");
 
   // The fallback is a control that is always there. `Not seen` is the first
   // button inside the summary's lines and is rendered at nought, so focus has
@@ -635,7 +687,7 @@ test("closing the dialog puts focus back on the control that opened it", () => {
   // dialog in the same commit that closes it, so the only thing that can be sure
   // of putting focus anywhere is the thing still mounted afterwards.
   assert.match(films, /returnTo\(invoker\.current, document\.contains\(invoker\.current\)/);
-  const chosen = bodyOf("Chosen", summary);
+  const chosen = bodyOf("Chosen", dialog);
   const from = chosen.indexOf("const element = dialog.current;");
   const opening = chosen.slice(from, chosen.indexOf("useEffect", from));
   assert.match(opening, /showModal\(\)/, "the effect sliced is not the one that opens it");
@@ -651,14 +703,14 @@ test("closing the dialog puts focus back on the control that opened it", () => {
 });
 
 test("focus stays in the dialog when the film it was on leaves the list", () => {
-  const chosen = bodyOf("Chosen", summary);
+  const chosen = bodyOf("Chosen", dialog);
 
   // The rule is `lib/web/refocus.ts` and is tested there against every shape of
   // list. This is the wiring: the marks that are left, the position that was
   // remembered, and the way out when there is nothing else.
   assert.match(chosen, /refocus\(marks, marked\.current, exit\.current\)\?\.focus\(\)/);
   assert.match(chosen, /element\.querySelectorAll<HTMLButtonElement>\(MARK\)/);
-  assert.match(summary, /const MARK = '\[aria-haspopup="menu"\]';/);
+  assert.match(dialog, /const MARK = '\[aria-haspopup="menu"\]';/);
 
   // It does nothing while focus is still on something in the dialog, which is
   // every render but the one that removed the row it was on. Focus on the dialog
@@ -669,10 +721,8 @@ test("focus stays in the dialog when the film it was on leaves the list", () => 
   );
 
   // And the dialog stays open through it: recovering focus is not a dismissal.
-  const recovery = chosen.slice(
-    chosen.indexOf("const active = document.activeElement"),
-    chosen.indexOf("const films ="),
-  );
+  const from = chosen.indexOf("const active = document.activeElement");
+  const recovery = chosen.slice(from, chosen.indexOf("\n  return (", from));
   assert.equal(/onClose|\.close\(\)/.test(recovery), false, "losing focus closes the dialog");
 
   // What is remembered is a position among the marks. Remembering the film
@@ -711,10 +761,12 @@ test("films, genres and mixes are three peers, drawn by one section", () => {
   // The three parts of a taste model, each a section of the page and none of
   // them inside another. One component draws all three, which is what keeps
   // their headings from drifting apart.
-  assert.match(bodyOf("MovieSummary", summary), /<Section title="Your movies" count=/);
+  assert.match(
+    bodyOf("MovieSummary", summary),
+    /<Section[\s\S]{0,200}?title="Your movies"[\s\S]{0,200}?count=/,
+  );
   assert.match(view, /<Section\n\s+title="Your genres"/);
   assert.match(view, /<Section\n\s+title="Your mixes"/);
-  assert.match(bodyOf("Loose"), /<Section\n\s+title="Other movies"/);
 
   // And the heading itself is written once, in that component. A second <h2> on
   // the page would be a section drawing its own.
@@ -750,14 +802,19 @@ test("each section keeps its own copy, and the films section stays quiet", () =>
   // The descriptive lines under the two headings are the ones that were there.
   assert.match(view, /note="The pieces your taste is made of\./);
   assert.match(view, /note="Your genres, mixed into something of your own\."/);
-  assert.match(bodyOf("Loose"), /note="Films you have saved that are not in a mix\."/);
 
-  // The films section carries the total beside its heading, like the other two,
-  // and no note under it: labelled numbers say what they are, and a sentence
-  // explaining them would be the only copy of its kind on the page.
+  // The films section carries the total beside its heading and a line under it
+  // saying what these films are, exactly as the other two do — three sections of
+  // one page, described the same way.
   const movies = bodyOf("MovieSummary", summary);
   const opening = movies.slice(movies.indexOf("<Section"), movies.indexOf(">", movies.indexOf("<Section")) + 1);
-  assert.equal(opening, '<Section title="Your movies" count={movies.length}>');
+  assert.match(opening, /title="Your movies"/, "the films section lost its heading");
+  assert.match(opening, /count=\{movies\.length\}/, "the total is no longer beside the heading");
+  assert.match(
+    opening,
+    /note="Films you've saved, seen, or want to watch\."/,
+    "the films section has no line saying what these films are",
+  );
 });
 
 test("a genre is a compact label, and a mix is a compact card", () => {
@@ -896,7 +953,7 @@ test("a mix dialog is dismissed like the others, and hands focus back to the car
 
   const stack = bodyOf("MixCards", cards);
   assert.match(stack, /invoker\.current = event\.currentTarget;/, "the card pressed is not kept");
-  assert.match(stack, /returnTo\(\s*pressed,\s*document\.contains\(pressed\)/);
+  assert.match(stack, /returnTo\(invoker\.current, document\.contains\(invoker\.current\)/);
   assert.match(
     stack,
     /stack\.current\?\.querySelector<HTMLButtonElement>\("button"\)/,
@@ -1098,6 +1155,168 @@ test("a genre's meaning can be dismissed three ways, and hands focus back", () =
   assert.match(dialog, /rounded-2xl border border-rule bg-screen/);
   assert.match(dialog, /<h2 className="font-display/, "the name is not the dialog's heading");
   assert.match(dialog, /aria-label=\{genre\.name\}/, "the dialog is not named for its genre");
+});
+
+test("a way in's underline is there in both states, and only its colour moves", () => {
+  // One rule for every way into the collection — the summary's seven and the
+  // mixes' remainder — so a reader never has to work out whether two of them
+  // behave the same.
+  // Read as the value it declares, not as the way it is written: one string, an
+  // array joined, or anything else that comes out the same is the same rule.
+  // Everything below is asserted against that declaration alone — the file it
+  // sits in also holds a Close button with a focus ring of its own, and reading
+  // the file would let that button answer for this rule.
+  const at = dialog.indexOf("export const WAY_IN");
+  assert.notEqual(at, -1, "there is no one rule for a way in any more");
+  const rule = dialog.slice(at, dialog.indexOf(";", at) + 1);
+
+  // The line exists at rest and on hover; hover changes the colour. Switching
+  // the *line* on and off is what made these flicker: the controls are a few
+  // words tall with little between them, so a pointer crossing the block leaves
+  // and re-enters several of them, and each crossing flashed a line into
+  // existence. A colour is transitionable, and a line is not.
+  assert.match(rule, /\bunderline\b/, "the resting line is gone");
+  assert.match(rule, /decoration-transparent/, "the resting line is visible");
+  assert.match(rule, /hover:decoration-/, "hover does not change the line's colour");
+  // `no-underline` is rejected in any form, not only a hovered one: bare, it
+  // takes the resting line away — and `\bunderline\b` above would still match
+  // inside the word, so the rest of this test would go on passing.
+  assert.equal(
+    /hover:underline|\bno-underline\b|group-hover:underline/.test(rule),
+    false,
+    "the underline is switched on and off again",
+  );
+
+  // The keyboard's own signal, on the rule itself: a ring, offset off the text,
+  // in the page's one accent. Every way in gets it because every way in is set
+  // from here.
+  assert.match(rule, /focus-visible:outline-2/, "the rule gives no focus ring");
+  assert.match(rule, /focus-visible:outline-offset-2/, "the ring sits on the words");
+  assert.match(rule, /focus-visible:outline-beam/, "the ring is not the page's accent");
+
+  // And nothing about hover touches the box: no border, width or padding that
+  // only one state has.
+  assert.equal(
+    /hover:(border|p[xytblr]?-|w-|h-|text-\[)/.test(rule),
+    false,
+    "hover changes the control's geometry",
+  );
+
+  // Both places use it, and neither writes the treatment out again.
+  assert.match(bodyOf("Count", summary), /WAY_IN/, "a count is set some other way");
+  assert.match(bodyOf("MixCards", cards), /WAY_IN/, "the remainder is set some other way");
+  for (const [name, file] of [
+    ["the summary", summary],
+    ["the mix cards", cards],
+  ] as [string, string][]) {
+    assert.equal(
+      /decoration-transparent/.test(file),
+      false,
+      `${name} writes the underline treatment out again`,
+    );
+  }
+});
+
+test("recently added is one quiet control, not a list", () => {
+  const films = bodyOf("MovieSummary", summary);
+
+  // A count and an arrow, and the films themselves behind the same dialog every
+  // other count opens. No rows on the page: the summary says what there is, and
+  // opening something is how you see it.
+  assert.match(films, /\{recent\.length > 0 && \(/, "an empty week still gets a control");
+  assert.match(films, /selection=\{RECENT\}/, "the control stands for something else");
+  assert.match(films, /count=\{recent\.length\}/, "the control does not say how many there are");
+  assert.match(films, /setOpen\(RECENT\)/, "the control opens something else");
+  assert.equal(/<Films/.test(films), false, "the recent films are drawn on the page again");
+  assert.match(bodyOf("Chosen", dialog), /<Films movies=\{films\}/, "the dialog draws no rows");
+  assert.equal(/Recently added<\/h3>|<h3/.test(summary), false, "the subsection heading is back");
+
+  // Quieter than the row, which is the one place weight says something.
+  const control = films.slice(films.indexOf("recent.length > 0"));
+  assert.match(control, /text-ink-faint/, "the control is not quieter than the row");
+  // A step away from the row, not a paragraph break: it is a separate action and
+  // it belongs to the same compact summary.
+  assert.match(control, /mt-3/, "there is no room between the row and the control");
+
+  // The page settles the instant, once, where the render happens.
+  assert.match(
+    bodyOf("TasteView"),
+    /recent=\{recentlyAdded\(taste\.movies, new Date\(\)\)\}/,
+    "the page does not hand the summary its recent films",
+  );
+});
+
+test("the mixes' remainder is dismissed and hands focus back like the rest", () => {
+  const stack = bodyOf("MixCards", cards);
+
+  // A real button that says what it opens, remembering its own press — and the
+  // same architecture the cards already use, not a second one beside it.
+  assert.match(stack, /<button\n\s+type="button"\n\s+aria-haspopup="dialog"/);
+  assert.equal(
+    (stack.match(/invoker\.current = event\.currentTarget;/g) ?? []).length,
+    2,
+    "the remainder does not remember its own press, or the cards stopped doing so",
+  );
+
+  // Focus back to it while it is there, and to a surviving card when it has
+  // gone — which is what happens when the last film in no mix is filed into one.
+  assert.match(stack, /returnTo\(invoker\.current, document\.contains\(invoker\.current\)/);
+  assert.match(stack, /stack\.current\?\.querySelector<HTMLButtonElement>\("button"\)/);
+  // One films dialog for the remainder — the one the summary opens — beside the
+  // mix's own detail, which is a different thing and keeps its own.
+  assert.equal((cards.match(/<Chosen/g) ?? []).length, 1, "there is a second films dialog");
+  assert.match(cards, /<Films movies=\{films\}/, "a mix's own detail lost its rows");
+});
+
+test("with no mixes at all, the films in none of them are still reachable", () => {
+  const view = bodyOf("TasteView");
+
+  // The cards are rendered whatever the mixes look like, because the remainder
+  // lives under them: with no mixes every film is in none of them, which is
+  // exactly when the one way to those films must not be missing. The message
+  // that there are no mixes yet is beside it, not instead of it.
+  assert.match(
+    view,
+    /<MixCards mixes=\{taste\.mixes\} movies=\{taste\.movies\}/,
+    "the page does not render the mixes section",
+  );
+  assert.match(view, /\{taste\.mixes\.length === 0 && \(/, "the empty message is not shown beside it");
+  assert.equal(
+    /taste\.mixes\.length === 0 \? \(/.test(view),
+    false,
+    "the cards are still shown instead of the empty message, so the remainder goes with them",
+  );
+
+  // And the control itself asks only whether there are such films, never how
+  // many mixes there are.
+  const stack = bodyOf("MixCards", cards);
+  assert.match(stack, /\{other\.length > 0 && \(/, "the line asks about something else");
+  assert.equal(
+    /mixes\.length === 0|!mixes\.length/.test(stack),
+    false,
+    "the line is hidden when there are no mixes",
+  );
+});
+
+test("the remainder's focus is handed back, and rescued if its line then goes", () => {
+  const stack = bodyOf("MixCards", cards);
+
+  // Filing the last film that is in no mix takes the line off the page, and that
+  // can land either side of the dialog closing. Both halves are asked, the same
+  // two rules the summary uses: the invoker at the moment of closing, and — for
+  // the render that arrives after it — whatever focus was handed to, once it has
+  // left the document with nothing else having taken it.
+  assert.match(stack, /returnTo\(invoker\.current, document\.contains\(invoker\.current\)/);
+  assert.match(stack, /handedTo\.current = back;/, "what focus went to is not remembered");
+  assert.match(stack, /rescueTo\(/, "the later half of the race is not handled");
+  assert.match(stack, /document\.activeElement === document\.body/, "a moved focus would be stolen");
+
+  // The fallback is a card that is still there, in both halves.
+  assert.equal(
+    (stack.match(/stack\.current\?\.querySelector<HTMLButtonElement>\("button"\)/g) ?? []).length,
+    1,
+    "the fallback is worked out more than once, or not at all",
+  );
 });
 
 /**

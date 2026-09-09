@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { Movie, MovieState } from "../taste/model.ts";
+import type { Movie, MovieState, Written } from "../taste/model.ts";
 import {
   DISLIKED,
   FACTS,
@@ -14,6 +14,7 @@ import {
   WITHOUT_OPINION,
   WITHOUT_STATUS,
   filedUnder,
+  recentlyAdded,
   selected,
   sentence,
   spoken,
@@ -282,4 +283,141 @@ test("a film in no mix is filed under the words the page already uses", () => {
     "Quiet Dread",
     "Slow Cinema",
   ]);
+});
+
+/**
+ * The films saved in the last week.
+ *
+ * The instant is given rather than taken, so these are about the rule and not
+ * about when the suite happened to run.
+ */
+
+const NOW = new Date("2026-09-09T12:00:00.000Z");
+const daysAgo = (days: number) =>
+  new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+
+/** A film with a date, and a mark that must not matter. */
+const saved = (title: string, createdAt: string | null, state: MovieState | null = null): Written<Movie> => ({
+  title,
+  year: 2000,
+  imdbId: null,
+  state,
+  mixes: [],
+  createdAt,
+  // Deliberately today for every one of them: a list built on this would put
+  // them all in, in an order of its own.
+  updatedAt: NOW.toISOString(),
+});
+
+const titlesOf = (movies: readonly Written<Movie>[]) => movies.map((movie) => movie.title);
+
+test("recently added is the last seven days, newest first", () => {
+  const movies = [
+    saved("Older", daysAgo(3)),
+    saved("Newest", daysAgo(0.1)),
+    saved("Middle", daysAgo(1)),
+  ];
+  assert.deepEqual(titlesOf(recentlyAdded(movies, NOW)), ["Newest", "Middle", "Older"]);
+});
+
+test("the seven-day edge: just inside, exactly on it, just outside", () => {
+  const movies = [
+    saved("Just inside", daysAgo(6.999)),
+    saved("Exactly seven", daysAgo(7)),
+    saved("Just outside", daysAgo(7.001)),
+    saved("Long gone", daysAgo(30)),
+  ];
+  // The boundary itself is in: seven days ago is still within the last seven.
+  assert.deepEqual(titlesOf(recentlyAdded(movies, NOW)), ["Just inside", "Exactly seven"]);
+});
+
+test("a film with no creation date is not recent, it is undated", () => {
+  const movies = [saved("Dated", daysAgo(1)), saved("Undated", null)];
+  assert.deepEqual(titlesOf(recentlyAdded(movies, NOW)), ["Dated"]);
+});
+
+test("every film from the week, however many, and however they arrive", () => {
+  // Fourteen films, all inside the week, handed over scrambled — and the four
+  // oldest deliberately first, so an answer that took the input as it came, or
+  // cut it before sorting, would be visible. There is no cap: the week is the
+  // limit, and the number on the control has to be the list it opens.
+  const movies = [
+    saved("Aged 6.9", daysAgo(6.9)),
+    saved("Aged 6.5", daysAgo(6.5)),
+    saved("Aged 6", daysAgo(6)),
+    saved("Aged 5.5", daysAgo(5.5)),
+    saved("Aged 2.5", daysAgo(2.5)),
+    saved("Aged 5", daysAgo(5)),
+    saved("Aged 0.5", daysAgo(0.5)),
+    saved("Aged 4", daysAgo(4)),
+    saved("Aged 3", daysAgo(3)),
+    saved("Aged 1.5", daysAgo(1.5)),
+    saved("Aged 4.5", daysAgo(4.5)),
+    saved("Aged 2", daysAgo(2)),
+    saved("Aged 3.5", daysAgo(3.5)),
+    saved("Aged 1", daysAgo(1)),
+  ];
+
+  assert.deepEqual(titlesOf(recentlyAdded(movies, NOW)), [
+    "Aged 0.5",
+    "Aged 1",
+    "Aged 1.5",
+    "Aged 2",
+    "Aged 2.5",
+    "Aged 3",
+    "Aged 3.5",
+    "Aged 4",
+    "Aged 4.5",
+    "Aged 5",
+    "Aged 5.5",
+    "Aged 6",
+    "Aged 6.5",
+    "Aged 6.9",
+  ]);
+
+  // Said as the thing that used to be capped: more than ten is more than ten.
+  assert.equal(recentlyAdded(movies, NOW).length, 14, "something is still cutting the list");
+});
+
+test("what was said about a film decides neither whether it is recent nor where", () => {
+  // The states run against the dates on purpose: the newest film is disliked and
+  // the oldest is loved, with nothing-said, not-seen and liked in between. Any
+  // comparator that looked at the state first — loved before liked before the
+  // rest, as the mix preview quite reasonably does — would answer in very nearly
+  // the opposite order. And the input is scrambled, so input order cannot pass
+  // for date order either.
+  const movies = [
+    saved("Loved", daysAgo(4.5), "loved"),
+    saved("Not seen", daysAgo(2.5), "not_seen"),
+    saved("Disliked", daysAgo(0.5), "disliked"),
+    saved("Liked", daysAgo(3.5), "liked"),
+    saved("Nothing said", daysAgo(1.5), null),
+  ];
+
+  assert.deepEqual(titlesOf(recentlyAdded(movies, NOW)), [
+    "Disliked",
+    "Nothing said",
+    "Not seen",
+    "Liked",
+    "Loved",
+  ]);
+});
+
+test("a mark pressed today does not make an old film recent", () => {
+  // Every fixture here carries today's `updatedAt`, which is exactly what a
+  // list built on the wrong column would use.
+  const movies = [saved("Old", daysAgo(40)), saved("New", daysAgo(2))];
+  assert.deepEqual(titlesOf(recentlyAdded(movies, NOW)), ["New"]);
+});
+
+test("nothing recent is an empty answer, not an absent one", () => {
+  assert.deepEqual(recentlyAdded([saved("Old", daysAgo(40))], NOW), []);
+  assert.deepEqual(recentlyAdded([], NOW), []);
+});
+
+test("the collection it was given is left as it was", () => {
+  const movies = [saved("Older", daysAgo(3)), saved("Newest", daysAgo(0.1))];
+  const given = [...movies];
+  recentlyAdded(movies, NOW);
+  assert.deepEqual(movies, given, "the array it was given was sorted in place");
 });

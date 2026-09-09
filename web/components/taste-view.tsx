@@ -1,11 +1,11 @@
 import { CopyButton } from "./copy-button";
 import { GenreLabels } from "./genre-labels";
 import { MixCards } from "./mix-cards";
-import { Films } from "./movie-row";
 import { MovieSummary } from "./movie-summary";
 import { Section } from "./section";
 import { TasteAdvanced } from "./taste-advanced";
-import type { Movie, Taste } from "@/lib/taste/model";
+import type { Taste } from "@/lib/taste/model";
+import { recentlyAdded } from "@/lib/web/movie-summary";
 
 /**
  * One person's taste model: a page to read, and the few things on it to press.
@@ -15,8 +15,8 @@ import type { Movie, Taste } from "@/lib/taste/model";
  *     YOUR GENRES     the reusable components
  *          ↓
  *     YOUR MIXES      what they mean in combination, each with how many
- *                     films are in it and how many of those are loved
- *     OTHER MOVIES    the films that are in no Mix
+ *                     films are in it and how many of those are loved,
+ *                     and one line for the films that are in none
  *
  * Vertical rather than side by side, because the relationship is a derivation and
  * not a comparison: mixes come *from* genres, and an arrow between two stacked
@@ -64,7 +64,11 @@ export function TasteView({ taste }: { taste: Taste }) {
         between are next to each other. Every film on the page is under one of
         these counts, genres and mixes included.
       */}
-      <MovieSummary movies={taste.movies} />
+      {/*
+        The instant is settled here, once, where the render happens: `Recently
+        added` is a question about the data and not about the reader's clock.
+      */}
+      <MovieSummary movies={taste.movies} recent={recentlyAdded(taste.movies, new Date())} />
 
       <Section
         title="Your genres"
@@ -89,18 +93,22 @@ export function TasteView({ taste }: { taste: Taste }) {
         note="Your genres, mixed into something of your own."
         count={taste.mixes.length}
       >
-        {taste.mixes.length === 0 ? (
+        {taste.mixes.length === 0 && (
           <Empty>
             {taste.genres.length === 0
               ? "A mix combines genres, so those come first."
               : "Nothing here yet. Ask ChatGPT for something two of your genres would both fit."}
           </Empty>
-        ) : (
-          <MixCards mixes={taste.mixes} movies={taste.movies} />
         )}
-      </Section>
 
-      <Loose movies={taste.movies} />
+        {/*
+          Always, even with no mixes to draw: the films that are in none of them
+          are this section's remainder, and with no mixes that is every film
+          there is. Rendering the cards only when there are cards left the one
+          way to those films off the page exactly when it was needed most.
+        */}
+        <MixCards mixes={taste.mixes} movies={taste.movies} />
+      </Section>
 
       <Prompt taste={taste} />
 
@@ -111,35 +119,6 @@ export function TasteView({ taste }: { taste: Taste }) {
 
       <TasteAdvanced taste={taste} />
     </>
-  );
-}
-
-/**
- * The films that are in no Mix.
- *
- * A film gets here two ways, and neither is a mistake: saying *"I've seen that"*
- * about something records a Movie without filing it anywhere, and deleting a Mix
- * leaves its films behind. Both are ordinary, so this is a place they are visible
- * rather than a queue to work through — the same rows and the same marks as
- * anywhere else, under a plain heading, in the order every list here uses.
- *
- * It is absent when there are none. An empty section under this heading would
- * read as something waiting to be dealt with, which is the one thing these films
- * are not.
- */
-function Loose({ movies }: { movies: readonly Movie[] }) {
-  const loose = movies.filter((movie) => movie.mixes.length === 0);
-  if (!loose.length) return null;
-
-  return (
-    <Section
-      title="Other movies"
-      note="Films you have saved that are not in a mix."
-      count={loose.length}
-      className="mt-14"
-    >
-      <Films movies={loose} className="" />
-    </Section>
   );
 }
 

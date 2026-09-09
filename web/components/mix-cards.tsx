@@ -4,11 +4,12 @@ import { Heart } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Chip } from "./chip";
+import { Chosen, WAY_IN } from "./chosen";
 import { Films } from "./movie-row";
 import type { Mix, Movie, Written } from "@/lib/taste/model";
-import { filmsIn, inOrder, preview, spokenMix } from "@/lib/web/mixes";
+import { filmsIn, inNoMix, inOrder, preview, spokenMix } from "@/lib/web/mixes";
 import { LOVED, selected } from "@/lib/web/movie-summary";
-import { returnTo } from "@/lib/web/refocus";
+import { rescueTo, returnTo } from "@/lib/web/refocus";
 
 /**
  * The user's mixes: a name and two numbers each, and everything else one press
@@ -46,6 +47,14 @@ import { returnTo } from "@/lib/web/refocus";
  * the point — the list is for finding tonight's mix, not for remembering which
  * was made first.
  */
+/**
+ * What the section's one non-mix way in stands for.
+ *
+ * A marker rather than a mix, so that one piece of state says which of the two
+ * dialogs is open without either of them being pretended into the other's shape.
+ */
+const OTHER = "other" as const;
+
 export function MixCards({
   mixes,
   movies,
@@ -53,7 +62,8 @@ export function MixCards({
   mixes: readonly Written<Mix>[];
   movies: readonly Written<Movie>[];
 }) {
-  const [open, setOpen] = useState<Mix | null>(null);
+  /** A mix, or the films that are in none of them. */
+  const [open, setOpen] = useState<Mix | typeof OTHER | null>(null);
   /** The stack of cards, which is where focus goes if the one pressed has gone. */
   const stack = useRef<HTMLDivElement>(null);
   /**
@@ -65,6 +75,16 @@ export function MixCards({
    * about what was pressed.
    */
   const invoker = useRef<HTMLElement | null>(null);
+  /**
+   * What focus was last handed back to, until it is known to have survived.
+   *
+   * The remainder's own control is the case: filing the last film that is in no
+   * mix takes the line off the page, and that can land either side of the dialog
+   * closing. Handing focus back and forgetting immediately left a reader on
+   * `<body>` when the render arrived second — see the effect below, and
+   * `lib/web/refocus.ts` for both halves of the race as rules.
+   */
+  const handedTo = useRef<HTMLElement | null>(null);
 
   /**
    * Focus, once there is no dialog to hold it.
@@ -72,23 +92,44 @@ export function MixCards({
    * React unmounts a dialog in the same commit that closes it, so the browser's
    * own restoration has no dialog left to restore from and leaves focus on the
    * document. This component is still mounted afterwards, which is what makes it
-   * the place that can put focus back on the card that was pressed — and a card
-   * can be gone by then, since renaming a mix re-keys its row, so the stack it
-   * came from is the fallback.
+   * the place that can put focus back on the card that was pressed — and what
+   * was pressed can be gone by then: renaming a mix re-keys its row, and filing
+   * the last film that is in no mix takes the remainder's line away. So the
+   * stack is the fallback, and it is checked twice: once when the dialog closes,
+   * and again if what took focus then disappears.
    */
   useEffect(() => {
-    if (open !== null || invoker.current === null) return;
+    const stable = stack.current?.querySelector<HTMLButtonElement>("button") ?? null;
 
-    const pressed = invoker.current;
-    invoker.current = null;
+    if (open === null && invoker.current !== null) {
+      const back = returnTo(invoker.current, document.contains(invoker.current), stable);
+      invoker.current = null;
+      handedTo.current = back;
+      back?.focus();
+      return;
+    }
 
-    const back = returnTo(
-      pressed,
-      document.contains(pressed),
-      stack.current?.querySelector<HTMLButtonElement>("button") ?? null,
+    // The other half: what focus was handed back to has since been removed by a
+    // re-render and nothing else has taken it, so it is on the document and
+    // belongs on a card that is still there.
+    const rescued = rescueTo(
+      handedTo.current,
+      handedTo.current !== null && document.contains(handedTo.current),
+      document.activeElement === document.body || document.activeElement === null,
+      stable,
     );
-    back?.focus();
+    if (handedTo.current !== null && !document.contains(handedTo.current)) handedTo.current = null;
+    rescued?.focus();
   });
+
+  /**
+   * The films that are in no mix, in the order the store holds them.
+   *
+   * One quiet line, and the same dialog every other way in opens. Which films
+   * those are, and in which order, is `lib/web/mixes.ts` — a component should
+   * not carry a rule that a test cannot reach.
+   */
+  const other = inNoMix(movies);
 
   return (
     <>
@@ -187,9 +228,36 @@ export function MixCards({
         })}
       </div>
 
+      {/*
+        The remainder, under the cards and attached to them: quieter than a mix's
+        name, in the same type as the summary's own ways in, and absent when every
+        film is filed somewhere.
+      */}
+      {other.length > 0 && (
+        <p className="mt-3 text-[12.5px] leading-relaxed text-ink-faint">
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            // The control pressed, from the press itself. See `invoker`.
+            onClick={(event) => {
+              invoker.current = event.currentTarget;
+              setOpen(OTHER);
+            }}
+            className={`${WAY_IN} hover:text-ink-soft`}
+          >
+            {other.length} other movies{" "}
+            {/* Punctuation standing in for "opens these"; the words already say
+                it, so a listener is not read a direction. */}
+            <span aria-hidden="true">→</span>
+          </button>
+        </p>
+      )}
+
       {/* Outside the stack, so that opening one cannot move the others. */}
-      {open && (
-        <Detail mix={open} films={filmsIn(open, movies)} onClose={() => setOpen(null)} />
+      {open === OTHER ? (
+        <Chosen title="Other movies" films={other} onClose={() => setOpen(null)} />
+      ) : (
+        open && <Detail mix={open} films={filmsIn(open, movies)} onClose={() => setOpen(null)} />
       )}
     </>
   );

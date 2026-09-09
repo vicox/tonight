@@ -1,14 +1,12 @@
 "use client";
 
-import { Heart } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { Films } from "./movie-row";
+import { Chosen, WAY_IN } from "./chosen";
 import { Section } from "./section";
 import type { Movie } from "@/lib/taste/model";
 import {
   FACTS,
-  LOVED,
   OPINIONS,
   WITHOUT_OPINION,
   WITHOUT_STATUS,
@@ -17,7 +15,7 @@ import {
   spoken,
   type Selection,
 } from "@/lib/web/movie-summary";
-import { refocus, rescueTo, returnTo } from "@/lib/web/refocus";
+import { rescueTo, returnTo } from "@/lib/web/refocus";
 
 /**
  * How many films there are, and — one press in — which ones.
@@ -98,17 +96,53 @@ import { refocus, rescueTo, returnTo } from "@/lib/web/refocus";
  * belongs to the open selection leaves the list, because the list was never a
  * snapshot to leave it in.
  */
-export function MovieSummary({ movies }: { movies: readonly Movie[] }) {
+/**
+ * The films saved this week, as the summary's seventh way in.
+ *
+ * Shaped like a selection so that one control and one dialog serve all seven,
+ * and deliberately holding no states: what it stands for is not something
+ * somebody said about a film but when the film arrived, and `selected` is never
+ * asked about it — `recentlyAdded` answers instead. The empty `states` is what
+ * makes that a shape rather than a promise.
+ */
+const RECENT: Selection = {
+  key: "recent",
+  states: [],
+  label: "Recently added",
+  phrase: "recently added",
+};
+
+export function MovieSummary({
+  movies,
+  recent,
+}: {
+  movies: readonly Movie[];
+  /**
+   * The films saved in the last week, newest first, as `recentlyAdded` chose
+   * them. Handed in rather than worked out here: the page renders on the
+   * server, and a client component asking the browser what time it is would
+   * answer one thing during the render and another during hydration.
+   */
+  recent: readonly Movie[];
+}) {
   const [open, setOpen] = useState<Selection | null>(null);
   /**
-   * The summary's own lines, which is where focus goes when the control that
+   * The films the open dialog shows, worked out on every render.
+   *
+   * Six of the seven are a set of states and one is this week's arrivals, so the
+   * answer is derived here rather than in the dialog — and derived rather than
+   * remembered, which is what keeps a mark pressed inside it from leaving a
+   * stale list behind.
+   */
+  /**
+   * The summary's own row, which is where focus goes when the control that
    * opened a dialog is not there to take it back.
    *
    * Its first button is `Not seen`, which is rendered whatever the collection
    * looks like — so the fallback is a control that exists rather than whichever
    * one happens to be first today.
    */
-  const lines = useRef<HTMLDivElement>(null);
+  const lines = useRef<HTMLParagraphElement>(null);
   /**
    * The control somebody pressed, kept from the press itself rather than read
    * back off the document: a pointer press does not make a button the active
@@ -169,103 +203,109 @@ export function MovieSummary({ movies }: { movies: readonly Movie[] }) {
 
   const quiet = selected(WITHOUT_STATUS, movies);
 
+  /**
+   * The two that are set quieter than the five.
+   *
+   * They are the same kind of control and they sit in the same line, but they
+   * are what is *left over* — the films watched with nothing said, and the films
+   * nothing has been said about at all — rather than something somebody
+   * answered. The five are the answers.
+   */
+  const remainders = [WITHOUT_OPINION, WITHOUT_STATUS];
+
+  /**
+   * The seven ways in, in the order they are read.
+   *
+   * The two facts, the three opinions, then the two remainders — the same order
+   * the model lists them in, laid end to end because they are one line now.
+   * `without status` is left out when there is none: nothing to say, and a zero
+   * there would read as a state that happens to be empty.
+   */
+  const row = [
+    ...FACTS,
+    ...OPINIONS,
+    WITHOUT_OPINION,
+    ...(quiet.length > 0 ? [WITHOUT_STATUS] : []),
+  ];
+
   return (
     <>
-      <Section title="Your movies" count={movies.length}>
-        <div ref={lines} className="flex flex-col gap-1.5">
-          {/*
-            The two facts. Every film with a state is in exactly one of them, and
-            together with the quiet line they are the whole collection.
-          */}
-          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[15px] leading-snug">
-            {FACTS.map((selection, index) => (
-              <span key={selection.key} className="flex items-baseline gap-x-2">
-                {index > 0 && <Separator />}
-                <Count
-                  selection={selection}
-                  count={selected(selection, movies).length}
-                  // What was pressed, from the press itself. See `invoker`.
-                  onOpen={(event) => {
-                    invoker.current = event.currentTarget;
-                    setOpen(selection);
-                  }}
-                  className="text-ink hover:text-ink"
-                />
-              </span>
-            ))}
+      <Section
+        title="Your movies"
+        note="Films you've saved, seen, or want to watch."
+        count={movies.length}
+      >
+        {/*
+          One line. Every way into the collection is a word and a number in the
+          same type as the words beside it, because they are the same kind of
+          thing: press any of them and the same dialog opens on the films it
+          names. Setting one louder than another would be a claim about which
+          answer matters, and the reader is the one who knows that.
+
+          A separator is written before the control it precedes and inside the
+          same box, so a line never breaks after a dot and leaves it hanging.
+        */}
+        <p
+          ref={lines}
+          // The type the five answers are set in, on the row, so none of them
+          // carries one of its own — the two remainders step down from it, and
+          // nothing else in here does.
+          className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[15px] leading-relaxed text-ink"
+        >
+          {row.map((selection, index) => (
+            <span key={selection.key} className="flex items-baseline gap-x-3">
+              {index > 0 && <Separator />}
+              <Count
+                selection={selection}
+                count={selected(selection, movies).length}
+                // What was pressed, from the press itself. See `invoker`.
+                onOpen={(event) => {
+                  invoker.current = event.currentTarget;
+                  setOpen(selection);
+                }}
+                className={
+                  remainders.includes(selection)
+                    ? "text-[12.5px] text-ink-faint hover:text-ink-soft"
+                    : "hover:text-ink"
+                }
+                phrased={remainders.includes(selection)}
+              />
+            </span>
+          ))}
+        </p>
+
+        {/*
+          What just happened to the collection, as one line rather than a list of
+          it — and quieter than the row above, which is the only place a
+          difference in weight says anything: that row is the collection, this is
+          a corner of it. Absent when nothing was saved this week.
+        */}
+        {recent.length > 0 && (
+          <p className="mt-3 text-[12.5px] leading-relaxed text-ink-faint">
+            <Count
+              selection={RECENT}
+              count={recent.length}
+              onOpen={(event) => {
+                invoker.current = event.currentTarget;
+                setOpen(RECENT);
+              }}
+              className="hover:text-ink-soft"
+              phrased
+              // Punctuation standing in for "opens these"; the words already say
+              // it, so a listener is not read a direction.
+              after={<span aria-hidden="true">→</span>}
+            />
           </p>
-
-          {/*
-            What `Seen` is made of. Indented under the line above and set smaller,
-            so the hierarchy is in the shape of the block and not only in the
-            sizes — a left rule rather than a surface, which is the difference
-            between a quotation and a card.
-          */}
-          <div className="flex flex-col gap-1 border-l border-rule pl-3">
-            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px] leading-snug">
-              {OPINIONS.map((selection, index) => (
-                <span key={selection.key} className="flex items-baseline gap-x-2">
-                  {index > 0 && <Separator />}
-                  <Count
-                    selection={selection}
-                    count={selected(selection, movies).length}
-                    onOpen={(event) => {
-                      invoker.current = event.currentTarget;
-                      setOpen(selection);
-                    }}
-                    className="text-ink-soft hover:text-ink"
-                    icon={selection === LOVED ? Heart : undefined}
-                  />
-                </span>
-              ))}
-            </p>
-
-            {/*
-              The rest of the aggregate, written as a sentence because the number
-              is what it is about: these are films with nothing said about them,
-              not films in a state called "without opinion".
-            */}
-            <p className="text-[12.5px] leading-snug">
-              <Count
-                selection={WITHOUT_OPINION}
-                count={selected(WITHOUT_OPINION, movies).length}
-                onOpen={(event) => {
-                  invoker.current = event.currentTarget;
-                  setOpen(WITHOUT_OPINION);
-                }}
-                className="text-ink-faint hover:text-ink-soft"
-                phrased
-              />
-            </p>
-          </div>
-
-          {/*
-            The films nobody has said anything about. Outside the hierarchy and
-            outside its indent: it is not something the user said, so it is
-            neither a fact about a film nor part of what `Seen` is made of. Absent
-            when there are none.
-          */}
-          {quiet.length > 0 && (
-            <p className="mt-1.5 text-[12.5px] leading-snug">
-              <Count
-                selection={WITHOUT_STATUS}
-                count={quiet.length}
-                onOpen={(event) => {
-                  invoker.current = event.currentTarget;
-                  setOpen(WITHOUT_STATUS);
-                }}
-                className="text-ink-faint hover:text-ink-soft"
-                phrased
-                // Punctuation standing in for "opens these"; the words already
-                // say it, so a listener is not read a direction.
-                after={<span aria-hidden="true">→</span>}
-              />
-            </p>
-          )}
-        </div>
+        )}
       </Section>
 
-      {open && <Chosen selection={open} movies={movies} onClose={() => setOpen(null)} />}
+      {open && (
+        <Chosen
+          title={open.label}
+          films={open === RECENT ? recent : selected(open, movies)}
+          onClose={() => setOpen(null)}
+        />
+      )}
     </>
   );
 }
@@ -279,33 +319,11 @@ function Separator() {
   );
 }
 
-/**
- * A row's state control, as the menu button it is.
- *
- * The dialog has to be able to find the marks in it without being handed a list
- * of them through every row, and this is what they are: the only menu buttons in
- * here. `movie-state.tsx` is where that semantic is declared and held to.
- */
-const MARK = '[aria-haspopup="menu"]';
-
-/**
- * One count, pressable.
- *
- * The words then the number, which is both how it is set and how it is said — so
- * for five of the seven the control's own text is a perfectly good accessible
- * name and it is given no label at all. `Seen` and `without opinion` are the two
- * whose words are true but not sufficient, and `spoken` is what adds the rest
- * for them alone.
- *
- * Underline on hover and a real focus ring: it behaves like the way in that it
- * is. Nothing here draws a surface, a border or a radius around a number.
- */
 function Count({
   selection,
   count,
   onOpen,
   className,
-  icon: Icon,
   phrased = false,
   after,
 }: {
@@ -313,7 +331,6 @@ function Count({
   count: number;
   onOpen: (event: React.MouseEvent<HTMLElement>) => void;
   className: string;
-  icon?: typeof Heart;
   /** Set as `30 without opinion` rather than as `Loved 3`. */
   phrased?: boolean;
   after?: React.ReactNode;
@@ -325,21 +342,10 @@ function Count({
       aria-label={spoken(selection, count)}
       onClick={onOpen}
       className={[
-        "inline-flex cursor-pointer items-baseline gap-1.5 text-left transition-colors",
-        "hover:underline hover:decoration-rule hover:underline-offset-4",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam",
+        WAY_IN,
         className,
       ].join(" ")}
     >
-      {Icon && (
-        <Icon
-          aria-hidden="true"
-          size={11}
-          strokeWidth={1.5}
-          fill="currentColor"
-          className="translate-y-[-0.5px] self-center"
-        />
-      )}
       {phrased ? (
         sentence(selection, count)
       ) : (
@@ -349,135 +355,5 @@ function Count({
       )}
       {after}
     </button>
-  );
-}
-
-/**
- * The films behind one selection.
- *
- * The same heading treatment as a panel on the page and the same rows as a mix,
- * so what opens is the page's own list in front of it rather than a second way of
- * showing a film. Compact: the films, and a way out.
- *
- * One dialog for all seven selections, and it knows nothing about which one it
- * is showing beyond the name and the films — the aggregate opens it exactly as a
- * single state does.
- */
-function Chosen({
-  selection,
-  movies,
-  onClose,
-}: {
-  selection: Selection;
-  movies: readonly Movie[];
-  onClose: () => void;
-}) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const exit = useRef<HTMLButtonElement>(null);
-  /**
-   * Which row's mark last had focus, by position.
-   *
-   * A number rather than the element, because the element is what a state change
-   * takes away — and rather than a film, because remembering one of those here
-   * would be the copy of the collection this component deliberately does not
-   * keep. See `lib/web/refocus.ts`.
-   */
-  const marked = useRef(-1);
-
-  useEffect(() => {
-    const element = dialog.current;
-    if (!element || element.open) return;
-
-    element.showModal();
-    return () => element.close();
-  }, []);
-
-  /**
-   * Focus, after a mark pressed in here moved its film out of this list.
-   *
-   * Every render, and it does nothing on almost all of them: while focus is
-   * still on something inside the dialog there is nothing to put right. What it
-   * catches is the one case the element cannot — the focused row was removed by
-   * the re-render, and the browser has dropped focus out of the dialog and onto
-   * the document. The dialog stays open, so focus belongs back inside it.
-   *
-   * Focus on the dialog itself counts as lost: some browsers put it there when
-   * they take it off a removed child, and the point is to land on a control
-   * somebody can use rather than on the box around them.
-   */
-  useEffect(() => {
-    const element = dialog.current;
-    if (!element?.open) return;
-
-    const active = document.activeElement;
-    if (active !== element && active instanceof Node && element.contains(active)) return;
-
-    const marks = [...element.querySelectorAll<HTMLButtonElement>(MARK)];
-    refocus(marks, marked.current, exit.current)?.focus();
-  });
-
-  const films = selected(selection, movies);
-
-  return (
-    <dialog
-      ref={dialog}
-      aria-label={selection.label}
-      // Escape is the browser's: it fires `cancel`, and taking the default would
-      // let the element close itself while React still had it mounted. Refusing
-      // it and going through `onClose` keeps one path out of here.
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      // A press that lands on the dialog rather than on the card is a press
-      // outside it, and the element itself is the surface around the card — so
-      // this is the whole of "pressed away", with no scrim of our own to keep in
-      // step with it.
-      onClick={(event) => {
-        if (event.target === dialog.current) onClose();
-      }}
-      className="m-0 h-dvh max-h-none w-dvw max-w-none overflow-y-auto bg-transparent px-5 py-[8vh] backdrop:bg-scrim"
-    >
-      {/*
-        The card, and the dialog's only child. Where a mark taking focus is
-        noticed, too: capturing, because the control that takes it is several rows
-        down and this is the one node above all of them. Only the position is kept.
-      */}
-      <div
-        onFocusCapture={(event) => {
-          // As elements rather than as buttons: nothing here presses one, and it
-          // is the focused node that has to be found among them.
-          const marks: Element[] = [...(dialog.current?.querySelectorAll(MARK) ?? [])];
-          const at = marks.indexOf(event.target);
-          if (at >= 0) marked.current = at;
-        }}
-        className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8"
-      >
-        <header className="flex items-baseline gap-3">
-          <h2 className="font-display text-[24px] leading-none">{selection.label}</h2>
-          <span className="text-[12px] text-ink-faint tabular-nums">{films.length}</span>
-        </header>
-
-        {films.length === 0 ? (
-          // Reachable two ways: a known state can be empty and is still shown, and
-          // the last film under this selection can be given another mark while the
-          // list is open.
-          <p className="py-6 text-center text-[13px] text-ink-faint">Nothing here now.</p>
-        ) : (
-          <Films movies={films} filed className="mt-5" />
-        )}
-
-        <div className="mt-7">
-          <button
-            ref={exit}
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer rounded-md border border-rule px-4 py-2 text-[13px] text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </dialog>
   );
 }

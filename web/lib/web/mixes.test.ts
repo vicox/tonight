@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { Mix, Movie, MovieState, Written } from "../taste/model.ts";
 import { LOVED, selected } from "./movie-summary.ts";
-import { filmsIn, inOrder, preview, spokenMix } from "./mixes.ts";
+import { filmsIn, inNoMix, inOrder, preview, spokenMix } from "./mixes.ts";
 
 /**
  * What a mix card counts, and what its dialog opens.
@@ -412,4 +412,67 @@ test("ordering the mixes moves nothing inside them", () => {
     ["Solaris", "Nosferatu", "Stalker"],
     "the order the dialog lists them in is not the store's",
   );
+});
+
+/**
+ * The films that are in no mix.
+ *
+ * Exactly which films, and in exactly the order they came — the two things a
+ * filter is easy to get almost right about. The fixtures are ordered on purpose,
+ * so dropping one, reversing them or letting a filed film through all read as
+ * failures rather than as a different-looking pass.
+ */
+
+test("the remainder is every film in no mix, and nothing else", () => {
+  const movies: Written<Movie>[] = [
+    { ...dated("Loose one", "loved", JAN), mixes: [] },
+    { ...dated("Filed", "seen", JAN), mixes: ["Quiet Dread"] },
+    { ...dated("Loose two", null, null), mixes: [] },
+    { ...dated("Filed twice", "liked", JAN), mixes: ["Quiet Dread", "Slow Cinema"] },
+    { ...dated("Loose three", "disliked", JUN), mixes: [] },
+  ];
+
+  assert.deepEqual(
+    inNoMix(movies).map((movie) => movie.title),
+    ["Loose one", "Loose two", "Loose three"],
+    "the remainder is not exactly the films in no mix, in the order they came",
+  );
+});
+
+test("the remainder keeps the order it was given", () => {
+  // Deliberately not alphabetical and not by date, so any sort would show.
+  const movies: Written<Movie>[] = ["Zulu", "Alpha", "Mike"].map((title, index) => ({
+    ...dated(title, "seen", index === 1 ? JUN : JAN),
+    mixes: [],
+  }));
+
+  assert.deepEqual(inNoMix(movies).map((movie) => movie.title), ["Zulu", "Alpha", "Mike"]);
+});
+
+test("every film filed somewhere, and the remainder is empty", () => {
+  const movies = [{ ...dated("Filed", "seen", JAN), mixes: ["Quiet Dread"] }];
+  assert.deepEqual(inNoMix(movies), []);
+  assert.deepEqual(inNoMix([]), []);
+});
+
+test("no mixes at all, and every film is the remainder", () => {
+  // What the page looks like before anybody has made a mix: the films are all
+  // in none of them, and the one way to them has to be there.
+  const movies: Written<Movie>[] = ["One", "Two", "Three"].map((title) => ({
+    ...dated(title, null, JAN),
+    mixes: [],
+  }));
+
+  assert.equal(inNoMix(movies).length, 3);
+  assert.deepEqual(inOrder([], movies), [], "there are no mixes to order");
+});
+
+test("the films it was given are left as they were", () => {
+  const movies: Written<Movie>[] = [
+    { ...dated("Loose", "loved", JAN), mixes: [] },
+    { ...dated("Filed", "seen", JAN), mixes: ["Quiet Dread"] },
+  ];
+  const given = [...movies];
+  inNoMix(movies);
+  assert.deepEqual(movies, given, "the array it was given was changed");
 });

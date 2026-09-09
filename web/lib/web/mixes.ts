@@ -30,6 +30,23 @@ export function filmsIn<T extends Movie>(mix: Mix, movies: readonly T[]): T[] {
 }
 
 /**
+ * The films that are in no mix at all.
+ *
+ * The mixes' own remainder. A film gets here by ordinary means — saying "I've
+ * seen that" records a film without filing it anywhere, and deleting a mix
+ * leaves its films behind — so this is not a queue to work through but the rest
+ * of the collection, reached from under the cards.
+ *
+ * Membership and nothing else: the order is the one it was given, which is the
+ * store's, and no film is dropped, added or moved. Written here rather than in
+ * the component so that "exactly the films in no mix, in the order they came"
+ * is something a test can hold rather than something a reader has to trust.
+ */
+export function inNoMix<T extends Movie>(movies: readonly T[]): T[] {
+  return movies.filter((movie) => movie.mixes.length === 0);
+}
+
+/**
  * A mix as a listener is given it: the name, how many films, how many loved.
  *
  * The card reads as `Quiet Dread 4 ♥3`, which is three facts in the order the

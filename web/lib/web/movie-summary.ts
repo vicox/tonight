@@ -1,4 +1,4 @@
-import type { Movie, MovieState } from "../taste/model.ts";
+import type { Movie, MovieState, Written } from "../taste/model.ts";
 
 /**
  * The film collection at a glance: how many there are, what was said about
@@ -207,4 +207,50 @@ export const OTHER_MOVIES = "Other movies";
  */
 export function filedUnder(movie: Movie): string[] {
   return movie.mixes.length ? movie.mixes : [OTHER_MOVIES];
+}
+
+/** Seven days, which is what "recently" means here and nowhere else. */
+const RECENTLY = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * The films saved in the last week, newest first.
+ *
+ * The summary says what the collection *is*; this says what just happened to
+ * it. A film somebody added yesterday is the one they are most likely to have
+ * come back to mark, and finding it otherwise means remembering which mix they
+ * put it in.
+ *
+ * All of them, however many there are. The week is the limit: a cap on top of it
+ * would make the number on the control a different question from the list it
+ * opens — "ten of the fourteen you added" is not something a count can say.
+ *
+ * Nothing about state: a film counts as recently added whether it has been
+ * watched, loved or never mentioned, because the question is when it arrived.
+ * And nothing about `updatedAt` — that moves when a mark is pressed, so a list
+ * built on it would answer "recently touched", which is a different question and
+ * one that would reorder itself under somebody's hand as they used it.
+ *
+ * A film with no `createdAt` is left out rather than guessed at: those predate
+ * the column, so they are certainly not from this week.
+ *
+ * `now` is given rather than taken, so that the page decides once — on the
+ * server, where the rest of the render happens — and a test can name an instant
+ * instead of racing the clock.
+ */
+export function recentlyAdded(
+  movies: readonly Written<Movie>[],
+  now: Date,
+): Written<Movie>[] {
+  const since = now.getTime() - RECENTLY;
+
+  /** Only the dated ones get this far, which is what makes the sort total. */
+  const dated = movies.flatMap((movie) =>
+    movie.createdAt !== null && Date.parse(movie.createdAt) >= since
+      ? [{ movie, createdAt: movie.createdAt }]
+      : [],
+  );
+
+  return dated
+    .sort((one, two) => (one.createdAt < two.createdAt ? 1 : one.createdAt > two.createdAt ? -1 : 0))
+    .map((one) => one.movie);
 }
