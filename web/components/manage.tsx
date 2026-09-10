@@ -4,6 +4,7 @@ import { MoreHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
+import { HEADER_CONTROL } from "./way-out";
 import { remove as ask } from "@/lib/web/manage";
 
 /**
@@ -149,11 +150,8 @@ export function Manage({
             setOpen(true);
             event.preventDefault();
           }}
-          className={[
-            "flex size-8 cursor-pointer items-center justify-center rounded-md text-ink-faint",
-            "transition-colors hover:bg-ink/10 hover:text-ink",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam",
-          ].join(" ")}
+          // The same square as the `×` beside it. See `way-out.tsx`.
+          className={HEADER_CONTROL}
         >
           <MoreHorizontal aria-hidden="true" size={16} strokeWidth={1.5} />
         </button>

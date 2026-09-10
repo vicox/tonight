@@ -19,11 +19,12 @@ import test from "node:test";
  * that quietly grew a poster, a `false` that became indistinguishable from
  * "nothing said", a create control on a page that is supposed to be read.
  *
- * Ten sources, because the page is that many files: the board itself, the
+ * Eleven sources, because the page is that many files: the board itself, the
  * section all three of its parts are drawn by, the genre labels, the mix cards,
  * the dialog they and the summary all open, the type a name is set in, a film's
  * row — shared by the board and the summary's dialog — the summary tiles, the
- * mark on a row, and the delete a genre's and a mix's dialogs both carry. What can be tested for real is kept out of here and tested
+ * mark on a row, the delete a genre's and a mix's dialogs both carry, and the
+ * way out every dialog is left by. What can be tested for real is kept out of here and tested
  * that way: the arithmetic behind the tiles in `movie-summary.test.ts`, and where
  * focus goes when a row is removed in `refocus.test.ts`.
  *
@@ -50,6 +51,7 @@ const ROW = new URL("../../components/movie-row.tsx", import.meta.url);
 const SUMMARY = new URL("../../components/movie-summary.tsx", import.meta.url);
 const MARKS = new URL("../../components/movie-state.tsx", import.meta.url);
 const MANAGE = new URL("../../components/manage.tsx", import.meta.url);
+const EXIT = new URL("../../components/way-out.tsx", import.meta.url);
 
 const source = readFileSync(VIEW, "utf8");
 const section = readFileSync(SECTION, "utf8");
@@ -62,6 +64,7 @@ const row = readFileSync(ROW, "utf8");
 const summary = readFileSync(SUMMARY, "utf8");
 const marks = readFileSync(MARKS, "utf8");
 const manage = readFileSync(MANAGE, "utf8");
+const exit = readFileSync(EXIT, "utf8");
 
 test("the resting page shows names and counts, and no instruction", () => {
   // Neither kind of instruction is on the page at rest any more: a genre's is in
@@ -645,7 +648,7 @@ test("neither a count nor an open list is a copy of the films", () => {
   );
 });
 
-test("a press outside the card closes the dialog, and so do Escape and Close", () => {
+test("a press outside the card closes the dialog, and so do Escape and the way out", () => {
   const chosen = bodyOf("Chosen", dialog);
 
   // The press has to be able to land on the element: it is the surface the card
@@ -668,7 +671,7 @@ test("a press outside the card closes the dialog, and so do Escape and Close", (
 
   // The other two ways out are untouched by that.
   assert.match(chosen, /onCancel=\{\(event\) => \{/, "Escape no longer closes it");
-  assert.match(chosen, /ref=\{exit\}[\s\S]*?>\s*Close\s*</, "there is no Close button");
+  assert.match(chosen, /<WayOut\b[^/]*ref=\{exit\}/, "the way out is not what focus can fall back to");
 });
 
 test("closing the dialog puts focus back on the control that opened it", () => {
@@ -1014,7 +1017,7 @@ test("a mix dialog is dismissed like the others, and hands focus back to the car
 
   assert.match(detail, /onCancel=\{\(event\) => \{/, "Escape does not close it");
   assert.match(detail, /event\.target === dialog\.current/, "a press outside the card does nothing");
-  assert.match(detail, />\s*Close\s*</, "there is no Close control");
+  assert.match(detail, /<WayOut\b/, "there is no way out of the dialog");
   assert.match(detail, /backdrop:bg-scrim/);
   assert.equal(
     /role="dialog"|aria-modal=|inert=|tabIndex=/.test(cards),
@@ -1213,7 +1216,7 @@ test("a genre's meaning can be dismissed three ways, and hands focus back", () =
   assert.match(labels, /element\.showModal\(\);/, "it is not opened as a modal");
   assert.match(dialog, /onCancel=\{\(event\) => \{/, "Escape does not close it");
   assert.match(dialog, /event\.target === dialog\.current/, "a press outside the card does nothing");
-  assert.match(dialog, />\s*Close\s*</, "there is no Close control");
+  assert.match(dialog, /<WayOut\b/, "there is no way out of the dialog");
   assert.match(dialog, /backdrop:bg-scrim/);
 
   // Which means none of what the element brings is re-implemented beside it: no
@@ -1506,15 +1509,90 @@ test("a deleted genre or mix hands focus on rather than dropping it", () => {
   assert.match(section, /export function sectionFallback/, "the anchor is found by two spellings");
 });
 
+/**
+ * The way out of a dialog.
+ *
+ * One control, in the top right of every dialog on the page, and the same
+ * questions asked of all three of them: a reader who learns where it is in one
+ * should find it in the others. It used to be a button at the foot of the card,
+ * which put the way out below however much the dialog held.
+ */
+
+test("every dialog is left by a × in its header, and nothing at its foot", () => {
+  for (const [whose, body, file] of [
+    ["the films dialog's", bodyOf("Chosen", dialog), dialog],
+    ["a genre's", bodyOf("Meaning", labels), labels],
+    ["a mix's", bodyOf("Detail", cards), cards],
+  ] as [string, string, string][]) {
+    // In the header, once, and given both what it closes and the closing.
+    const header = body.slice(body.indexOf("<header"), body.indexOf("</header>"));
+    assert.match(header, /<WayOut\b/, `${whose} way out is not in its header`);
+    assert.equal((body.match(/<WayOut\b/g) ?? []).length, 1, `${whose} dialog has two ways out`);
+
+    const given = header.slice(header.indexOf("<WayOut"));
+    assert.match(given, /name=\{/, `${whose} way out is not named for what it closes`);
+    assert.match(given, /onClose=\{onClose\}/, `${whose} way out does not close the dialog`);
+
+    // Rightmost, which here means last: the header lays its controls out in the
+    // order they are written, so the `×` is written after the `…` where there is
+    // one and after everything else where there is not.
+    const controls = [...header.matchAll(/<(WayOut|Manage|button)\b/g)].map((match) => match[1]);
+    assert.equal(controls.at(-1), "WayOut", `${whose} way out is not the last control in the row`);
+    assert.equal(
+      controls.filter((control) => control === "Manage").every((_, i) => i === 0) &&
+        (!controls.includes("Manage") || controls.indexOf("Manage") < controls.indexOf("WayOut")),
+      true,
+      `${whose} management menu comes after its way out`,
+    );
+
+    // And nothing is left at the foot of the card.
+    assert.equal(
+      />\s*Close\s*</.test(file),
+      false,
+      `${whose} dialog still has a Close button at the foot`,
+    );
+  }
+
+  // One control, drawn once: an `×`, named for what it closes, in the same
+  // square as the `…` it sits beside — so a pair of controls in one corner
+  // cannot come to disagree about their size or their hover.
+  const drawn = bodyOf("WayOut", exit);
+  assert.match(exit, /from "lucide-react"/, "the × is drawn by hand");
+  assert.match(drawn, /<X\b/, "the way out is not an ×");
+  assert.match(drawn, /aria-label=\{`Close \$\{name\}`\}/, "a listener is not told what it closes");
+  assert.match(drawn, /\bHEADER_CONTROL\b/, "the way out sets its own styling");
+  assert.match(manage, /className=\{HEADER_CONTROL\}/, "the … and the × can drift apart");
+
+  const at = exit.indexOf("export const HEADER_CONTROL");
+  assert.notEqual(at, -1, "there is no one rule for a control in a header");
+  const rule = exit.slice(at, exit.indexOf(";", at) + 1);
+  for (const word of ["size-8", "rounded-md", "hover:bg-ink/10", "focus-visible:outline-beam"]) {
+    assert.ok(rule.includes(word), `a control in a header has no ${word}`);
+  }
+
+  // It closes and reaches for nothing else. Escape, a press outside the card and
+  // where focus goes afterwards are all unchanged and none of them is here: two
+  // of them are the dialog's own, and the third belongs to whatever opened it.
+  assert.match(drawn, /onClick=\{onClose\}/, "the way out does something other than close");
+  assert.equal(
+    /\.focus\(\)|useState|useEffect|preventDefault|showModal\(/.test(exit),
+    false,
+    "the way out has taken over something the dialog or the page was doing",
+  );
+
+  // The `×` is a shape, so it is hidden from a listener: the control's own name
+  // is what is read out.
+  assert.match(drawn, /<X aria-hidden="true"/, "the × is read out as a character");
+});
+
 test("a way in's underline is there in both states, and only its colour moves", () => {
   // One rule for every way into the collection — the summary's seven and the
   // mixes' remainder — so a reader never has to work out whether two of them
   // behave the same.
   // Read as the value it declares, not as the way it is written: one string, an
   // array joined, or anything else that comes out the same is the same rule.
-  // Everything below is asserted against that declaration alone — the file it
-  // sits in also holds a Close button with a focus ring of its own, and reading
-  // the file would let that button answer for this rule.
+  // Everything below is asserted against that declaration alone: read over the
+  // whole file, some other control's own styling could answer for this rule.
   const at = dialog.indexOf("export const WAY_IN");
   assert.notEqual(at, -1, "there is no one rule for a way in any more");
   const rule = dialog.slice(at, dialog.indexOf(";", at) + 1);

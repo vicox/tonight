@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 
 import { Films } from "./movie-row";
+import { WayOut } from "./way-out";
 import type { Movie } from "@/lib/taste/model";
 import { refocus } from "@/lib/web/refocus";
 
@@ -160,9 +161,17 @@ export function Chosen({
         }}
         className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8"
       >
-        <header className="flex items-baseline gap-3">
-          <h2 className="font-display text-[24px] leading-none">{title}</h2>
-          <span className="text-[12px] text-ink-faint tabular-nums">{films.length}</span>
+        {/*
+          What was opened, how many there are, and the way out on the right. The
+          name and its number stay one phrase inside a box of their own, which is
+          what keeps them together when the `×` takes the end of the row.
+        */}
+        <header className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-baseline gap-3">
+            <h2 className="font-display text-[24px] leading-none">{title}</h2>
+            <span className="text-[12px] text-ink-faint tabular-nums">{films.length}</span>
+          </div>
+          <WayOut name={title} onClose={onClose} ref={exit} />
         </header>
 
         {films.length === 0 ? (
@@ -173,17 +182,6 @@ export function Chosen({
         ) : (
           <Films movies={films} filed className="mt-5" />
         )}
-
-        <div className="mt-7">
-          <button
-            ref={exit}
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer rounded-md border border-rule px-4 py-2 text-[13px] text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
-          >
-            Close
-          </button>
-        </div>
       </div>
     </dialog>
   );

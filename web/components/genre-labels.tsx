@@ -6,6 +6,7 @@ import { CHIP } from "./chip";
 import { Manage } from "./manage";
 import { Films } from "./movie-row";
 import { sectionFallback } from "./section";
+import { WayOut } from "./way-out";
 import type { Genre, Mix, Movie } from "@/lib/taste/model";
 import { filmsUnder } from "@/lib/web/mixes";
 import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
@@ -235,15 +236,19 @@ function Meaning({
     >
       <div className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8">
         {/*
-          The name, and the one thing that can be done to the genre from here.
+          The name, what can be done to the genre, and the way out — in that
+          order, so the `×` is the last thing on the row and the rightmost.
           `items-start` rather than a baseline: a name that wraps to three lines
-          must not carry the menu down with it.
+          must not carry the controls down with it.
         */}
         <header className="flex items-start justify-between gap-4">
           <h2 className="min-w-0 font-display text-[24px] leading-tight break-words">
             {genre.name}
           </h2>
-          <Manage kind="genre" name={genre.name} onRemoved={onRemoved} />
+          <div className="flex shrink-0 items-center gap-1">
+            <Manage kind="genre" name={genre.name} onRemoved={onRemoved} />
+            <WayOut name={genre.name} onClose={onClose} />
+          </div>
         </header>
 
         <p className="mt-4 text-[13.5px] leading-relaxed whitespace-pre-line text-ink-soft">
@@ -251,16 +256,6 @@ function Meaning({
         </p>
 
         <Films movies={films} filed className="mt-5" />
-
-        <div className="mt-7">
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer rounded-md border border-rule px-4 py-2 text-[13px] text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
-          >
-            Close
-          </button>
-        </div>
       </div>
     </dialog>
   );

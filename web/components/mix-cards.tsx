@@ -8,6 +8,7 @@ import { Chosen, WAY_IN } from "./chosen";
 import { Manage } from "./manage";
 import { Films } from "./movie-row";
 import { sectionFallback } from "./section";
+import { WayOut } from "./way-out";
 import type { Mix, Movie, Written } from "@/lib/taste/model";
 import { filmsIn, inNoMix, inOrder, preview, spokenMix } from "@/lib/web/mixes";
 import { LOVED, selected } from "@/lib/web/movie-summary";
@@ -391,10 +392,16 @@ function Detail({
       className="m-0 h-dvh max-h-none w-dvw max-w-none overflow-y-auto bg-transparent px-5 py-[8vh] backdrop:bg-scrim"
     >
       <div className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8">
-        {/* The name, and the one thing that can be done to the mix from here. */}
+        {/*
+          The name, what can be done to the mix, and the way out — in that order,
+          so the `×` is the last thing on the row and the rightmost.
+        */}
         <header className="flex items-start justify-between gap-4">
           <h2 className="min-w-0 font-display text-[24px] leading-tight break-words">{mix.name}</h2>
-          <Manage kind="mix" name={mix.name} onRemoved={onRemoved} />
+          <div className="flex shrink-0 items-center gap-1">
+            <Manage kind="mix" name={mix.name} onRemoved={onRemoved} />
+            <WayOut name={mix.name} onClose={onClose} />
+          </div>
         </header>
 
         <div className="mt-4 flex flex-wrap items-center gap-1.5">
@@ -412,16 +419,6 @@ function Detail({
         ) : (
           <Films movies={films} className="mt-5" />
         )}
-
-        <div className="mt-7">
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer rounded-md border border-rule px-4 py-2 text-[13px] text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam"
-          >
-            Close
-          </button>
-        </div>
       </div>
     </dialog>
   );
