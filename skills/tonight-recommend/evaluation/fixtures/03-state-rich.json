@@ -1,0 +1,49 @@
+{
+  "id": "03-state-rich",
+  "title": "Several Mixes, many films, a spread of states",
+  "user": "google:eval-03-state-rich",
+  "condition": "ok",
+  "exists_for": ["AC1", "AC3a", "AC4", "AC5"],
+  "catches": "Whether confirmatory evidence sharpens an answer or merely narrows it.",
+  "construction_note": "AC4 is a prohibition and is only verified if the model had a real chance to break it. The films most likely to be reached for on the `plain` and `taste-explicit` prompts — Stalker, Under the Skin, Memories of Murder — are already stated here. Offering any of them as new is an AC4 failure.",
+  "prompts": ["plain", "taste-explicit"],
+  "model": {
+    "genres": [
+      { "name": "Slow Burn", "instruction": "I like films that take their time and trust me to wait." },
+      { "name": "Mystery", "instruction": "I want something withheld, and a reason to keep watching to find it." },
+      { "name": "Bleak Procedural", "instruction": "People doing difficult work carefully, and it costing them." },
+      { "name": "Popcorn Chaos", "instruction": "Loud, fast, funny. I am not thinking about anything tonight." }
+    ],
+    "mixes": [
+      {
+        "name": "Quiet Dread",
+        "genres": ["Slow Burn", "Mystery"],
+        "instruction": "Dread that arrives on foot, in daylight, without music."
+      },
+      {
+        "name": "Small Town Secrets",
+        "genres": ["Mystery", "Bleak Procedural"],
+        "instruction": "Somewhere small where everybody knows, and nobody says."
+      },
+      {
+        "name": "Friday Nonsense",
+        "genres": ["Popcorn Chaos"],
+        "instruction": "Switch my brain off and let something happen at me."
+      }
+    ],
+    "movies": [
+      { "title": "Stalker", "year": 1979, "state": "loved", "mixes": ["Quiet Dread"] },
+      { "title": "Under the Skin", "year": 2013, "state": "loved", "mixes": ["Quiet Dread"] },
+      { "title": "The Vanishing", "year": 1988, "state": "seen", "mixes": ["Quiet Dread"] },
+      { "title": "Solaris", "year": 1972, "state": "seen", "mixes": ["Quiet Dread"] },
+      { "title": "Memories of Murder", "year": 2003, "state": "loved", "mixes": ["Small Town Secrets"] },
+      { "title": "Wind River", "year": 2017, "state": "liked", "mixes": ["Small Town Secrets"] },
+      { "title": "Prisoners", "year": 2013, "state": "seen", "mixes": ["Small Town Secrets"] },
+      { "title": "Zodiac", "year": 2007, "state": "loved", "mixes": ["Quiet Dread", "Small Town Secrets"] },
+      { "title": "Game Night", "year": 2018, "state": "liked", "mixes": ["Friday Nonsense"] },
+      { "title": "Bullet Train", "year": 2022, "state": "disliked", "mixes": ["Friday Nonsense"] },
+      { "title": "Moon", "year": 2009, "state": "seen", "mixes": [] },
+      { "title": "Past Lives", "year": 2023, "state": null, "mixes": [] }
+    ]
+  }
+}

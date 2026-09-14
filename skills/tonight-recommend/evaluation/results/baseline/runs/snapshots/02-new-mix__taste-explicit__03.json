@@ -1,0 +1,30 @@
+{
+  "genres": [
+    {
+      "name": "Character Story",
+      "instruction": "I want to come out knowing a person, not a plot.",
+      "createdAt": "2026-09-13T11:14:33.198713Z",
+      "updatedAt": "2026-09-13T11:14:33.198713Z"
+    },
+    {
+      "name": "Slow Burn",
+      "instruction": "I like films that take their time and trust me to wait.",
+      "createdAt": "2026-09-13T11:14:33.194011Z",
+      "updatedAt": "2026-09-13T11:14:33.194011Z"
+    }
+  ],
+  "mixes": [
+    {
+      "name": "Reading Room",
+      "instruction": "Films that are patient with me, where nothing is chasing anyone.",
+      "genres": [
+        "Slow Burn",
+        "Character Story"
+      ],
+      "movies": [],
+      "createdAt": "2026-09-13T11:14:33.205800Z",
+      "updatedAt": "2026-09-13T11:14:33.205800Z"
+    }
+  ],
+  "movies": []
+}

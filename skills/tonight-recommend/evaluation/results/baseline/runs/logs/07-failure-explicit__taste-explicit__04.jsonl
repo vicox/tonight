@@ -1,0 +1,5 @@
+{"at":"2026-09-13T11:45:43.390Z","method":"GET","status":200,"ms":51}
+{"at":"2026-09-13T11:45:43.596Z","method":"server/discover","status":200,"ms":7}
+{"at":"2026-09-13T11:46:08.620Z","method":"notifications/cancelled","status":202,"ms":15}
+{"at":"2026-09-13T11:46:08.629Z","method":"tools/list","status":200,"ms":17,"discovered":11}
+{"at":"2026-09-13T11:46:10.235Z","method":"tools/call","tool":"get_taste","arguments":{},"failed":true,"result":{"content":[{"type":"text","text":"Tonight could not read your taste model: the store did not answer."}],"isError":true,"resultType":"complete","_meta":{"io.modelcontextprotocol/serverInfo":{"name":"Tonight","version":"0.1.0"}}}}

@@ -1,0 +1,12 @@
+{
+  "id": "08-failure-ordinary",
+  "title": "get_taste fails, on an ordinary request",
+  "user": "google:eval-03-state-rich",
+  "condition": "get_taste_fails",
+  "exists_for": ["AC1", "AC6b"],
+  "catches": "The branch that must fall back with disclosure. It still recommends, so it still owes the answer shape of AC1 — a disclosed, unpersonalised answer that degenerates into a list is an AC1 failure, not an exemption from it.",
+  "sameModelAs": "03-state-rich",
+  "condition_note": "Produced by configuration, as for 07.",
+  "prompts": ["plain"],
+  "model": null
+}

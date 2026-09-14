@@ -1,0 +1,240 @@
+{
+  "genres": [
+    {
+      "name": "Bleak Procedural",
+      "instruction": "People doing difficult work carefully, and it costing them.",
+      "createdAt": "2026-09-13T11:14:33.517019Z",
+      "updatedAt": "2026-09-13T11:14:33.517019Z"
+    },
+    {
+      "name": "Mystery",
+      "instruction": "I want something withheld, and a reason to keep watching to find it.",
+      "createdAt": "2026-09-13T11:14:33.512025Z",
+      "updatedAt": "2026-09-13T11:14:33.512025Z"
+    },
+    {
+      "name": "Popcorn Chaos",
+      "instruction": "Loud, fast, funny. I am not thinking about anything tonight.",
+      "createdAt": "2026-09-13T11:14:33.521403Z",
+      "updatedAt": "2026-09-13T11:14:33.521403Z"
+    },
+    {
+      "name": "Slow Burn",
+      "instruction": "I like films that take their time and trust me to wait.",
+      "createdAt": "2026-09-13T11:14:33.508601Z",
+      "updatedAt": "2026-09-13T11:14:33.508601Z"
+    }
+  ],
+  "mixes": [
+    {
+      "name": "Friday Nonsense",
+      "instruction": "Switch my brain off and let something happen at me.",
+      "genres": [
+        "Popcorn Chaos"
+      ],
+      "movies": [
+        {
+          "title": "Bullet Train",
+          "year": 2022
+        },
+        {
+          "title": "Game Night",
+          "year": 2018
+        }
+      ],
+      "createdAt": "2026-09-13T11:14:33.544021Z",
+      "updatedAt": "2026-09-13T11:14:33.544021Z"
+    },
+    {
+      "name": "Quiet Dread",
+      "instruction": "Dread that arrives on foot, in daylight, without music.",
+      "genres": [
+        "Slow Burn",
+        "Mystery"
+      ],
+      "movies": [
+        {
+          "title": "Solaris",
+          "year": 1972
+        },
+        {
+          "title": "Stalker",
+          "year": 1979
+        },
+        {
+          "title": "The Vanishing",
+          "year": 1988
+        },
+        {
+          "title": "Under the Skin",
+          "year": 2013
+        },
+        {
+          "title": "Zodiac",
+          "year": 2007
+        }
+      ],
+      "createdAt": "2026-09-13T11:14:33.529076Z",
+      "updatedAt": "2026-09-13T11:14:33.529076Z"
+    },
+    {
+      "name": "Small Town Secrets",
+      "instruction": "Somewhere small where everybody knows, and nobody says.",
+      "genres": [
+        "Mystery",
+        "Bleak Procedural"
+      ],
+      "movies": [
+        {
+          "title": "Memories of Murder",
+          "year": 2003
+        },
+        {
+          "title": "Prisoners",
+          "year": 2013
+        },
+        {
+          "title": "Wind River",
+          "year": 2017
+        },
+        {
+          "title": "Zodiac",
+          "year": 2007
+        }
+      ],
+      "createdAt": "2026-09-13T11:14:33.537590Z",
+      "updatedAt": "2026-09-13T11:14:33.537590Z"
+    }
+  ],
+  "movies": [
+    {
+      "title": "Bullet Train",
+      "year": 2022,
+      "imdbId": null,
+      "state": "disliked",
+      "mixes": [
+        "Friday Nonsense"
+      ],
+      "createdAt": "2026-09-13T11:14:33.619471Z",
+      "updatedAt": "2026-09-13T11:14:33.619471Z"
+    },
+    {
+      "title": "Game Night",
+      "year": 2018,
+      "imdbId": null,
+      "state": "liked",
+      "mixes": [
+        "Friday Nonsense"
+      ],
+      "createdAt": "2026-09-13T11:14:33.610695Z",
+      "updatedAt": "2026-09-13T11:14:33.610695Z"
+    },
+    {
+      "title": "Memories of Murder",
+      "year": 2003,
+      "imdbId": null,
+      "state": "loved",
+      "mixes": [
+        "Small Town Secrets"
+      ],
+      "createdAt": "2026-09-13T11:14:33.577671Z",
+      "updatedAt": "2026-09-13T11:14:33.577671Z"
+    },
+    {
+      "title": "Moon",
+      "year": 2009,
+      "imdbId": null,
+      "state": "seen",
+      "mixes": [],
+      "createdAt": "2026-09-13T11:14:33.627376Z",
+      "updatedAt": "2026-09-13T11:14:33.627376Z"
+    },
+    {
+      "title": "Past Lives",
+      "year": 2023,
+      "imdbId": null,
+      "state": null,
+      "mixes": [],
+      "createdAt": "2026-09-13T11:14:33.635265Z",
+      "updatedAt": "2026-09-13T11:14:33.635265Z"
+    },
+    {
+      "title": "Prisoners",
+      "year": 2013,
+      "imdbId": null,
+      "state": "seen",
+      "mixes": [
+        "Small Town Secrets"
+      ],
+      "createdAt": "2026-09-13T11:14:33.590938Z",
+      "updatedAt": "2026-09-13T11:14:33.590938Z"
+    },
+    {
+      "title": "Solaris",
+      "year": 1972,
+      "imdbId": null,
+      "state": "seen",
+      "mixes": [
+        "Quiet Dread"
+      ],
+      "createdAt": "2026-09-13T11:14:33.570918Z",
+      "updatedAt": "2026-09-13T11:14:33.570918Z"
+    },
+    {
+      "title": "Stalker",
+      "year": 1979,
+      "imdbId": null,
+      "state": "loved",
+      "mixes": [
+        "Quiet Dread"
+      ],
+      "createdAt": "2026-09-13T11:14:33.548793Z",
+      "updatedAt": "2026-09-13T11:14:33.548793Z"
+    },
+    {
+      "title": "The Vanishing",
+      "year": 1988,
+      "imdbId": null,
+      "state": "seen",
+      "mixes": [
+        "Quiet Dread"
+      ],
+      "createdAt": "2026-09-13T11:14:33.564349Z",
+      "updatedAt": "2026-09-13T11:14:33.564349Z"
+    },
+    {
+      "title": "Under the Skin",
+      "year": 2013,
+      "imdbId": null,
+      "state": "loved",
+      "mixes": [
+        "Quiet Dread"
+      ],
+      "createdAt": "2026-09-13T11:14:33.557953Z",
+      "updatedAt": "2026-09-13T11:14:33.557953Z"
+    },
+    {
+      "title": "Wind River",
+      "year": 2017,
+      "imdbId": null,
+      "state": "liked",
+      "mixes": [
+        "Small Town Secrets"
+      ],
+      "createdAt": "2026-09-13T11:14:33.584430Z",
+      "updatedAt": "2026-09-13T11:14:33.584430Z"
+    },
+    {
+      "title": "Zodiac",
+      "year": 2007,
+      "imdbId": null,
+      "state": "loved",
+      "mixes": [
+        "Quiet Dread",
+        "Small Town Secrets"
+      ],
+      "createdAt": "2026-09-13T11:14:33.601591Z",
+      "updatedAt": "2026-09-13T11:14:33.601591Z"
+    }
+  ]
+}

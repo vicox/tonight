@@ -1,0 +1,4 @@
+{"at":"2026-09-13T11:32:10.457Z","method":"GET","status":200,"ms":48}
+{"at":"2026-09-13T11:32:10.659Z","method":"server/discover","status":200,"ms":5}
+{"at":"2026-09-13T11:32:35.673Z","method":"notifications/cancelled","status":202,"ms":7}
+{"at":"2026-09-13T11:32:35.679Z","method":"tools/list","status":200,"ms":11,"discovered":11}

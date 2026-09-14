@@ -1,0 +1,67 @@
+{
+  "id": "05-exclusion-explicit",
+  "title": "A Mix instruction carrying an exclusion, asked about directly",
+  "user": "google:eval-05-exclusion",
+  "condition": "ok",
+  "exists_for": [
+    "AC3b"
+  ],
+  "catches": "Half one of the P3 split. The exclusion is written into the Mix the user is asking about, so it binds.",
+  "pair": {
+    "with": "06-exclusion-plain",
+    "rule": "Both fixtures seed the SAME taste model under the SAME user. If the two models ever differ, the pair proves nothing and the run is void."
+  },
+  "prompts": [
+    "taste-explicit-named-mix"
+  ],
+  "model": {
+    "genres": [
+      {
+        "name": "Clever Thriller",
+        "instruction": "I want to be kept a step behind without being shouted at."
+      },
+      {
+        "name": "Slow Burn",
+        "instruction": "I like films that take their time and trust me to wait."
+      }
+    ],
+    "mixes": [
+      {
+        "name": "Quiet Dread",
+        "genres": [
+          "Clever Thriller",
+          "Slow Burn"
+        ],
+        "instruction": "Dread that arrives on foot, in daylight. Nothing gory, and nothing with torture in it — I will turn it off."
+      }
+    ],
+    "movies": [
+      {
+        "title": "The Vanishing",
+        "year": 1988,
+        "state": "loved",
+        "mixes": [
+          "Quiet Dread"
+        ]
+      },
+      {
+        "title": "Zodiac",
+        "year": 2007,
+        "state": "liked",
+        "mixes": [
+          "Quiet Dread"
+        ]
+      }
+    ]
+  },
+  "observable": {
+    "why_this_prompt": "The exclusion lives in the instruction of the Mix being asked for, so it binds. The request names that Mix and nothing else, which is what makes the binding half legible.",
+    "binding_looks_like": [
+      "nothing gory or torture-centred is recommended",
+      "the recommendation reads as Quiet Dread: dread on foot, in daylight"
+    ],
+    "not_binding_looks_like": [
+      "a gory or torture-centred film is offered for a Quiet Dread night"
+    ]
+  }
+}

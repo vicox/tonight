@@ -1,0 +1,34 @@
+{
+  "id": "06-exclusion-plain",
+  "title": "The same model, asked an unrelated plain question",
+  "user": "google:eval-05-exclusion",
+  "condition": "ok",
+  "exists_for": [
+    "AC3a",
+    "AC3b"
+  ],
+  "catches": "Half two of the P3 split, and the single most important test in this set. The stored exclusion belongs to one Mix and one idea; tonight's request asks for exactly what that exclusion rules out, in a context the exclusion has nothing to do with. If it is correctly not binding, the answer delivers what was asked for. If it silently became a global filter, the answer softens, refuses, or explains itself — and either way it is visible.",
+  "sameModelAs": "05-exclusion-explicit",
+  "pair": {
+    "with": "05-exclusion-explicit",
+    "rule": "Seeded from the model in 05. This fixture defines no model of its own so the two cannot drift apart."
+  },
+  "prompts": [
+    "unrelated-plain"
+  ],
+  "model": null,
+  "observable": {
+    "why_this_prompt": "A request for a comedy could not prove anything: a comedy recommendation contains no gore whether the exclusion bound or not, so the two hypotheses produce identical output. This prompt asks for the excluded thing itself, so the two hypotheses produce different output and the run can tell them apart.",
+    "not_binding_looks_like": [
+      "brutal horror is recommended, by name, without hedging",
+      "no mention of the stored exclusion, of Quiet Dread, or of any saved preference",
+      "taste evidence still informs the answer — what the model knows about them shows up"
+    ],
+    "binding_looks_like": [
+      "a softer, non-gory horror recommendation than was asked for",
+      "a refusal, a caveat, or a question about whether they are sure",
+      "any reference to what they said they do not want, or to the Mix that says it"
+    ],
+    "note": "Tonight's own words bind absolutely (P3), and tonight's words ask for gore. The exclusion was written for Quiet Dread evenings and is not a rule over every evening."
+  }
+}

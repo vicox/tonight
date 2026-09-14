@@ -1,0 +1,23 @@
+{
+  "id": "02-new-mix",
+  "title": "A Mix written yesterday, with no Movie states under it",
+  "user": "google:eval-02-new-mix",
+  "condition": "ok",
+  "exists_for": ["AC1", "AC2", "AC3a"],
+  "catches": "The P5 regression: a declaration ignored because nothing under it is loved. This model contains no states at all, so a recommendation that does not use the Mix has used nothing.",
+  "prompts": ["plain", "taste-explicit"],
+  "model": {
+    "genres": [
+      { "name": "Slow Burn", "instruction": "I like films that take their time and trust me to wait." },
+      { "name": "Character Story", "instruction": "I want to come out knowing a person, not a plot." }
+    ],
+    "mixes": [
+      {
+        "name": "Reading Room",
+        "genres": ["Slow Burn", "Character Story"],
+        "instruction": "Films that are patient with me, where nothing is chasing anyone."
+      }
+    ],
+    "movies": []
+  }
+}

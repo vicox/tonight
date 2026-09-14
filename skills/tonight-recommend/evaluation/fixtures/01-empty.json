@@ -1,0 +1,10 @@
+{
+  "id": "01-empty",
+  "title": "An empty taste model",
+  "user": "google:eval-01-empty",
+  "condition": "ok",
+  "exists_for": ["AC1", "AC5"],
+  "catches": "Onboarding drift; personalization invented from nothing; an unanchored expansion, which is most tempting here because there is nothing to anchor to.",
+  "prompts": ["plain", "constrained"],
+  "model": { "genres": [], "mixes": [], "movies": [] }
+}

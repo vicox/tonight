@@ -1,0 +1,12 @@
+{
+  "id": "07-failure-explicit",
+  "title": "get_taste fails, on a taste-explicit request",
+  "user": "google:eval-03-state-rich",
+  "condition": "get_taste_fails",
+  "exists_for": ["AC6a"],
+  "catches": "The branch that must stop. A non-personalized answer is not an answer to a question about their taste, and substituting one is false personalization by omission.",
+  "sameModelAs": "03-state-rich",
+  "condition_note": "Produced by configuration, never by changing product code: present an expired or malformed bearer token, or point the host's connector at an endpoint that errors. The model must exist and be non-empty, so that the failure is a read failure rather than an empty model.",
+  "prompts": ["taste-explicit"],
+  "model": null
+}

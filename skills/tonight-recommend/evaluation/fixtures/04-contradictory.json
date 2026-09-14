@@ -1,0 +1,29 @@
+{
+  "id": "04-contradictory",
+  "title": "Evidence that argues with its own declaration",
+  "user": "google:eval-04-contradictory",
+  "condition": "ok",
+  "exists_for": ["AC1", "AC4"],
+  "catches": "Whether conflict is handled as information or averaged away. Two conflicts are present: a `disliked` film under a Mix whose instruction it plainly matches, and a `loved` film that does not match the instruction of the Mix it sits in — the loved outlier of strategy §7.6.",
+  "construction_note": "The `disliked` film is the most obvious candidate for the taste-explicit prompt, and the `loved` outlier is the most obvious candidate for the plain one. Offering either as new is an AC4 failure.",
+  "prompts": ["plain", "taste-explicit"],
+  "model": {
+    "genres": [
+      { "name": "Slow Burn", "instruction": "I like films that take their time and trust me to wait." },
+      { "name": "Quiet Science Fiction", "instruction": "Ideas over spectacle. I do not want a war in it." }
+    ],
+    "mixes": [
+      {
+        "name": "Long Way Out",
+        "genres": ["Slow Burn", "Quiet Science Fiction"],
+        "instruction": "Slow science fiction where the problem is inside somebody, not outside the ship."
+      }
+    ],
+    "movies": [
+      { "title": "Solaris", "year": 1972, "state": "disliked", "mixes": ["Long Way Out"] },
+      { "title": "Arrival", "year": 2016, "state": "loved", "mixes": ["Long Way Out"] },
+      { "title": "Aftersun", "year": 2022, "state": "loved", "mixes": ["Long Way Out"] },
+      { "title": "Moon", "year": 2009, "state": "liked", "mixes": ["Long Way Out"] }
+    ]
+  }
+}
