@@ -420,6 +420,14 @@ test("the write tools carry the rules that apply at the moment they are called",
       assert.equal(next, state, `${name}: ${phrase} does not read as ${state}`);
     }
 
+    // As one passage rather than six sentences that drifted apart: the readings
+    // have to arrive together to be read as a mapping at all. This assertion
+    // moved here from `lib/instructions.test.ts` with the rule it guards.
+    const from = described.indexOf("Take the state from what they said");
+    const to = described.indexOf(`"didn't like it"`);
+    assert.ok(from >= 0 && to > from, `${name}: the mapping is not one thought`);
+    assert.ok(to - from < 500, `${name}: the mapping has been spread out`);
+
     // And the two rules about this field that are not a reading.
     assert.match(described, /not the same as not_seen/, `${name}: silence is not a state`);
     assert.match(described, /never a score or star rating/, `${name}: a state is not a rating`);

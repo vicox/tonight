@@ -3,8 +3,6 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
-import { PROJECT_INSTRUCTIONS_VERSION } from "./generated/project-instructions.ts";
-
 /**
  * The evaluation set, held to the coverage it claims.
  *
@@ -272,19 +270,40 @@ test("what a run saw is recorded per run, and shared models still match", () => 
   }
 });
 
-test("the baseline names the instructions it was recorded under", () => {
-  // A baseline that cannot say which instructions produced it cannot be compared
-  // with anything. The version is the digest the sync script appends.
+test("the baseline names the instructions it was recorded under, and agrees with itself", () => {
+  /**
+   * A baseline that cannot say which instructions produced it cannot be compared
+   * with anything. The version is the digest the sync script appends.
+   *
+   * Against *its own* version rather than against whatever the instructions say
+   * today: the baseline is frozen and the live digest moves with every change to
+   * the skill. The first version of this test compared the two, which held only
+   * until the instructions were first edited — and then reported a frozen record
+   * as wrong for having stayed frozen. What has to be true is that the runbook,
+   * the results and every recorded run name one and the same version.
+   */
   const runbook = read("README.md");
   const results = read("results/baseline/README.md");
 
+  const runs = new URL("results/baseline/runs/", EVALUATION);
+  const recorded = readdirSync(runs).filter((name) => name.endsWith(".md"));
+  const named = new Set(
+    recorded.map(
+      (name) => readFileSync(new URL(name, runs), "utf8").match(/^instructions: (.+)$/m)?.[1] ?? "",
+    ),
+  );
+
+  assert.equal(named.size, 1, `the runs were recorded under ${named.size} different instruction versions`);
+  const [version] = [...named];
+  assert.match(version, /^[a-f0-9]{8}$/, "a run does not name an instruction digest");
+
   assert.ok(
-    runbook.includes(PROJECT_INSTRUCTIONS_VERSION),
-    "the runbook does not name the instruction version the baseline belongs to",
+    runbook.includes(version),
+    `the runbook does not name ${version}, the version the runs were recorded under`,
   );
   assert.ok(
-    results.includes(PROJECT_INSTRUCTIONS_VERSION),
-    "the recorded baseline does not name the instruction version it was produced under",
+    results.includes(version),
+    `the recorded baseline does not name ${version}, the version it was produced under`,
   );
 });
 

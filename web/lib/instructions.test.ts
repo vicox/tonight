@@ -83,60 +83,73 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   assert.match(flat, /no Tonight tool turns a taste into film recommendations/);
   assert.equal(flat.includes("No tool here returns films"), false);
 
-  // Instructions belong to Genres and Mixes; a Movie carries state.
+  // Instructions belong to Genres and Mixes; a Movie carries state. What each of
+  // those requires is now stated by the tool that writes it, so what the
+  // instructions carry is the shape and a pointer.
   assert.match(flat, /holds the taste model and nothing else\*\* — Genres, Mixes, Movies/);
-  assert.match(flat, /A Genre always needs an instruction/);
   assert.match(flat, /Read a Mix as \*\*its own instruction/);
-  assert.match(flat, /Take the state from what they said/);
+  assert.match(flat, /arrive with `create_genre` and `create_mix`/);
+  assert.match(flat, /Which sentence means which state is in `create_movie`/);
 
   // And the ratings wording was too broad twice over: liked and disliked are
   // real Movie state the user gave, and only a score is out of scope. Both of the
-  // earlier phrasings would have told the agent not to record them.
-  assert.match(flat, /or record a score or star rating/);
+  // earlier phrasings would have told the agent not to record them. The positive
+  // statement is now on the `state` field itself — see `lib/mcp/tools.test.ts`;
+  // what this still guards is that neither over-broad phrasing comes back.
   assert.doesNotMatch(flat, /no ratings\b/);
   assert.doesNotMatch(flat, /rating of any kind/);
 });
 
-test("reading a sentence into a Movie state is a rule the agent is given, not left", () => {
+test("what moved to the tools is no longer stated here as well", () => {
   /**
-   * The one rule in this document most likely to be lost by accident.
+   * Step 3 of `docs/work/phase-1-implementation.md`. A rule that is true whenever
+   * one call is made now lives in that call's description, and this is the half
+   * that makes it a *move*: two homes for one rule is how the two come to
+   * disagree, and nothing would fail when they did.
    *
-   * It lives one line away from the `full:start` block that holds the worked
-   * examples it grew out of — and it was behind that marker once, which is how
-   * the gap was found: the agent knew the five states existed and never learnt
-   * which sentence meant which. Nothing fails when a rule moves behind a marker.
-   * This does.
-   *
-   * Each clause is named separately so a failure says which half went, rather
-   * than that a long paragraph no longer matches.
+   * Their new home is `lib/mcp/tools.test.ts`, which holds the same contracts
+   * against the descriptions a client actually discovers.
    */
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
-  const contract: [string, string][] = [
-    ["the most specific reading wins", "Take the state from what they said, at its most specific"],
-    ["not having seen it", '*"haven\'t seen it"* / *"want to watch it"* → `not_seen`'],
-    ["having seen it", '*"seen it"* → `seen`'],
-    ["a mild yes", '*"it was good"* → `liked`'],
-    ["a strong yes", '*"loved it"* → `loved`'],
-    ["a no", '*"didn\'t like it"* → `disliked`'],
-    ["an opinion already means they saw it", "The last three already say they saw it"],
-    ["not asking what they just said", "never ask for a state their sentence gave you"],
-    ["silence is not a state", "Nothing said is `null`, never `not_seen`"],
-  ];
-
-  for (const [what, rule] of contract) {
-    assert.ok(
-      flat.includes(rule.replace(/\s+/g, " ")),
-      `the agent is never told about ${what}: ${JSON.stringify(rule)}`,
-    );
+  // Each pattern is deliberately broader than the sentence that moved. A rule
+  // that came back reworded is the same duplicate as one that came back verbatim,
+  // and the narrow form of this check could not see the difference.
+  for (const [what, gone] of [
+    ["the sentence-to-state readings", /at its most specific|→ `liked`|→ `loved`|→ `disliked`/i],
+    ["the instruction's voice", /first person/i],
+    ["the rewording prohibition", /reword/i],
+    [
+      "the write invariants",
+      /always needs an instruction|at least one existing Genre|built from Genres only|built from another Mix|no chaining/i,
+    ],
+    ["the score prohibition", /score/i],
+    ["the Mix naming test", /already tells you the name|what would I get wrong|the instruction test/i],
+    // `not_seen` itself stays: the instructions still say what a *stored* state
+    // means when recommending. What moved is what *saving* does to the field.
+    [
+      "what saving does to the state",
+      /never makes it `not_seen`|nothing said is `null`|absence is never not_seen|not the same as not_seen/i,
+    ],
+  ] as [string, RegExp][]) {
+    assert.equal(gone.test(flat), false, `${what} is still stated in the instructions as well`);
   }
 
-  // And as one passage rather than nine sentences that drifted apart: the five
-  // readings have to arrive together to be read as a mapping at all.
-  const from = flat.indexOf("Take the state from what they said");
-  const to = flat.indexOf("Nothing said is `null`, never `not_seen`");
-  assert.ok(to > from, "the mapping and its exception are no longer one thought");
-  assert.ok(to - from < 500, "the mapping has been spread out and is no longer readable as one");
+  // And a pointer is left where the skill still has to refer to the behaviour,
+  // so a reader is sent somewhere rather than left with a gap.
+  assert.match(flat, /arrive with `create_genre` and `create_mix`/, "no pointer for the write rules");
+  assert.match(flat, /Which sentence means which state is in `create_movie`/, "no pointer for the state");
+});
+
+test("what is conversation rather than a field stays here", () => {
+  // The two the Step 2 review sent back. Both are about what to do *before* a
+  // call rather than about what a call may contain, and a description cannot be
+  // read before the call it describes.
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  assert.match(flat, /never ask for a state their sentence gave you/, "asking before calling");
+  assert.match(flat, /Say so and let them decide/, "how a change is agreed to");
+  assert.match(flat, /already say they saw it/, "why an opinion needs no second question");
 });
 
 test("an ordinary request is Discovery, and the model does not bound it", () => {
@@ -219,16 +232,6 @@ test("saving a film classifies it, and may grow the model rather than bend it", 
   ] as [string, string][]) {
     assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
   }
-});
-
-test("a Genre or Mix instruction is written in the user's own voice", () => {
-  // Only those two. A name, a film title, a state, an IMDb id and a year are not
-  // sentences the user said, and a rule reaching that far would have the agent
-  // rewriting handles it is supposed to leave alone.
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
-
-  assert.match(flat, /Write every Genre and Mix instruction \*\*in the user's first person\*\*/);
-  assert.doesNotMatch(flat, /anything else written to the model/);
 });
 
 test("a proposed Mix is made tangible before it is agreed to", () => {
@@ -386,7 +389,6 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "writes **nothing** — what they want now, not what they are like",
     "watched and said nothing about writes **nothing**",
     "Never infer a preference from silence",
-    "or record a score or star rating",
     "Say so and let them decide",
     // genre against mix
     "A Genre is named for what it is; a Mix for what it feels like",
@@ -403,15 +405,13 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "A film in no Mix is legitimate",
     "Do not sort them, propose Mixes for them, or mention them unasked",
     "A recommendation is not a saved Movie",
-    "Take the state from what they said, at its most specific",
-    "The last three already say they saw it",
     "never ask for a state their sentence gave you",
-    "Nothing said is `null`, never `not_seen`",
+    "Which sentence means which state is in `create_movie`",
+    "arrive with `create_genre` and `create_mix`",
     "Settle title and year first",
     // what Tonight is and is not — the boundary, stated so neither half is lost
     "get_taste` returns their saved Movies",
     "no Tonight tool turns a taste into film recommendations",
-    "record a score or star rating",
     // the model is inspected and managed in conversation, in plain sentences
     "## Asked about the model directly",
     "**do those**",

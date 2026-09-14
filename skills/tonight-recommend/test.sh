@@ -165,9 +165,9 @@ check "evocative names are shown, not just asked for" \
     "$(order_check 'Space Tension' 'Popcorn Chaos' 'Quiet Dread')" "True"
 check "descriptive names are shown as the failure they are" \
     "$(order_check '`Funny action`' '**not Mix names**' 'it has been' 'labelled')" "True"
-check "the test for a name is stated as a test" \
-    "$(order_check 'If knowing only the Genres already tells you' \
-        'the name is doing no work')" "True"
+check "the test for a name is pointed at, not restated" \
+    "$(order_check '`create_mix` carries the test for that in its own description' \
+        'at the moment a name is being chosen')" "True"
 check "naming is the assistant's to do, and may not widen the idea" \
     "$(order_check 'Proposing the name is yours' \
         'Name the thing they said' 'Never name a bigger thing')" "True"
@@ -186,13 +186,9 @@ check "a Mix is reused when it fits and made new when it does not" \
     "$(order_check 'One genuinely fits' \
         'Never stretch a Mix to avoid making one' \
         'a different evening is a different Mix')" "True"
-check "a Mix has to say something its Genres do not" \
-    "$(order_check 'if I knew only its Genres, what would I get wrong' \
-        'it is not a Mix')" "True"
-check "the write constraints that would otherwise fail a call are stated" \
-    "$(order_check 'A Genre always needs an instruction' \
-        'a Mix needs at least one existing Genre' \
-        'a Mix is built from Genres only')" "True"
+check "the write constraints point at the tools that state them" \
+    "$(order_check "What a Mix's name has to earn" \
+        'arrive with `create_genre` and `create_mix`')" "True"
 
 echo
 echo "--- persistence: expressed, never inferred ---"
@@ -232,9 +228,8 @@ check "a recommendation with no feedback persists nothing" \
     "$(order_check 'You recommended a film. They said nothing' '**nothing**')" "True"
 check "silence, recommendations and patterns are all ruled out as evidence" \
     "$(order_check 'infer a preference from silence, from a film you recommended, or from a pattern')" "True"
-check "the user own words are never reworded, nor widened into a claim about them" \
-    "$(order_check 'reword their instruction' \
-        'widen something specific into a claim about the person')" "True"
+check "the user own words are never widened into a claim about them" \
+    "$(order_check 'widen something specific into a claim about the person')" "True"
 check "a suggested change is offered rather than made" \
     "$(order_check 'Say so and let them decide' 'Editing it yourself is not' \
         'The model is theirs')" "True"
@@ -270,8 +265,6 @@ check "no history of any kind is kept" \
     "$(order_check 'The taste model and nothing else' \
         'no watch history' \
         'never when')" "True"
-check "a rating is never invented, scored or starred" \
-    "$(order_check 'record a score or star rating')" "True"
 check "a recommended film may return; a saved one is read rather than offered again" \
     "$(order_check 'a film you recommended can come back' \
         'nothing is learned automatically' \
@@ -295,14 +288,11 @@ check "the three Movie tools are the way a direct request is done" \
 check "a recommendation is not persistence, for a film as for a Genre" \
     "$(order_check 'A recommendation is not a saved Movie' \
         'Naming three films writes nothing down')" "True"
-check "state is written only from what was expressed or confirmed" \
-    "$(order_check 'Take the state from what they said, at its most specific')" "True"
-check "nothing said is null and never false" \
-    "$(order_check 'Nothing said is `null`, never `not_seen`' \
-        'saving a film never makes it `not_seen`')" "True"
-check "the clearest thing they said wins, and an opinion already means they saw it" \
-    "$(order_check '*"loved it"* → `loved`' \
-        'The last three already say they saw it' \
+check "which sentence means which state points at the tool that states it" \
+    "$(order_check 'Which sentence means which state is in' \
+        '`create_movie`')" "True"
+check "an opinion is never asked for twice" \
+    "$(order_check 'already say they saw it' \
         'never ask for a state their sentence gave you')" "True"
 check "the handle is settled before a write, and asking which film is not ceremony" \
     "$(order_check 'Settle title and year first' \
@@ -372,6 +362,54 @@ check "no embedded model, no catalogue, no provider, no lookup tool" \
 check "no starter genres and no onboarding vocabulary" \
     "$(grep -ciE 'starter definition|starter set|onboarding|first-run setup|get_genre_defaults' "$SKILL")" \
     "0"
+
+# Relocated to the tool descriptions, where they are read at the moment of the
+# call. Two homes for one rule is how the two drift apart, so the skill has to
+# stop saying these — and `lib/mcp/tools.test.ts` is what holds their new home.
+#
+# Matched on the idea rather than on the sentence that was removed. The first
+# version of these checks named the exact wording, and the same rules were still
+# being stated a second way inside the full-skill blocks — which ship to a host
+# that loads the whole skill and are invisible to every assertion over the
+# generated text. A check that only knows one phrasing cannot see a paraphrase.
+check "the sentence-to-state readings live only on the tool" \
+    "$(grep -ciE '"seen it"\* → |"it was good"\* → |"loved it"\* → |at its most specific' "$SKILL")" \
+    "0"
+check "null against not_seen lives only on the tool" \
+    "$(grep -ciE 'never makes it `not_seen`|nothing said is `null`|absence is never not_seen' "$SKILL")" \
+    "0"
+check "the instruction's voice lives only on the tool" \
+    "$(grep -ciE 'first person' "$SKILL")" "0"
+check "the rewording prohibition lives only on the update tools" \
+    "$(grep -ciE 'reword' "$SKILL")" "0"
+check "the write invariants live only on the create tools" \
+    "$(grep -ciE 'always needs an instruction|at least one existing Genre|built from Genres only|built from another Mix|no chaining' "$SKILL")" \
+    "0"
+# The criterion has two halves, and each has a home on the tool: `create_mix` asks
+# whether they would ask for it by name in a month, `mixName` asks whether knowing the
+# Genres already gives you the name. The skill restated both in its own words, so the
+# pattern covers the idea rather than the sentence.
+#
+# What the skill may still say is deliberately outside it: that a Mix name is evocative
+# and a Genre name descriptive, the examples of each, and that a labelled Mix is "the
+# Genres said again in one line".
+mix_name_rule='what would I get wrong|already tells you the name|the instruction test'
+mix_name_rule="$mix_name_rule|ask for it by name|can ask for it|by name in a month"
+mix_name_rule="$mix_name_rule|a month later|ask for the Mix by|doing no work"
+mix_name_rule="$mix_name_rule|adds? (nothing|something|anything) to its Genres"
+mix_name_rule="$mix_name_rule|(beyond|more than) its Genres|pair of Genres"
+mix_name_rule="$mix_name_rule|earns? its( own)? name"
+check "the Mix naming test lives only on create_mix" \
+    "$(grep -ciE "$mix_name_rule" "$SKILL")" "0"
+check "the score prohibition lives only on the state field" \
+    "$(grep -ciE 'score or star rating|never a score' "$SKILL")" "0"
+
+# And the two the Step 2 review sent back: they are conversation, not a field
+# invariant, and the skill is their only home.
+check "asking before calling stays in the skill" \
+    "$(order_check 'never ask for a state their sentence gave you')" "True"
+check "how a rewording is agreed to stays in the skill" \
+    "$(order_check 'Say so and let them decide')" "True"
 
 echo
 printf '%s passed, %s failed\n' "$pass" "$fail"
