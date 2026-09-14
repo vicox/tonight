@@ -17,10 +17,26 @@
 set -u
 
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd -P)"
-SKILL="$SCRIPT_DIR/SKILL.md"
+CANONICAL="$SCRIPT_DIR/SKILL.md"
 SKILLS_DIR="$(cd -P "$SCRIPT_DIR/.." && pwd -P)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+
+# Every check below reads the *specification*. A `project:compact` block holds a
+# shorter wording of a rule for one delivery target; it sits in the same file, so a
+# plain grep would find a rule in either and a rule deleted from the canonical text
+# would still appear to be there. Stripped once, here.
+SKILL="$WORK/canonical.md"
+python3 - "$CANONICAL" "$SKILL" <<'PYEOF'
+import re, sys
+block = re.compile(
+    r"^[ \t]*<!--[ \t]*project:compact[ \t]*\r?\n.*?^[ \t]*project:compact[ \t]*-->[ \t]*\r?\n?",
+    re.S | re.M,
+)
+open(sys.argv[2], "w", encoding="utf-8").write(
+    block.sub("", open(sys.argv[1], encoding="utf-8").read())
+)
+PYEOF
 
 pass=0
 fail=0
@@ -49,6 +65,22 @@ print(True)
 PYEOF
 
 order_check() { SKILL="$SKILL" python3 "$WORK/order.py" "$@"; }
+
+# One bullet of the file, whitespace-collapsed: from its own marker up to the next.
+# A rule that belongs to one branch of a decision must be read inside that branch —
+# checked against the whole file, a rule moved from one branch to the other still
+# matches, which is the one failure the branches exist to prevent.
+cat > "$WORK/slice.py" <<'PYEOF'
+import os, re, sys
+flat = re.sub(r"\s+", " ", open(os.environ["SKILL"], encoding="utf-8").read())
+start = flat.find(re.sub(r"\s+", " ", sys.argv[1]))
+end = flat.find(re.sub(r"\s+", " ", sys.argv[2]), start + 1)
+print(flat[start:end] if start >= 0 and end > start else "")
+PYEOF
+
+slice_of() { SKILL="$SKILL" python3 "$WORK/slice.py" "$1" "$2"; }
+# Count of matches for an extended regex inside a slice.
+in_slice() { printf '%s' "$1" | grep -ciE "$2"; }
 
 echo "--- one skill, and the removed ones stay removed ---"
 
@@ -342,6 +374,62 @@ check "what a state means for recommending is stated once, under Recommending" \
     "$(grep -ciE 'anything but .not_seen. and .null.|do not offer it as new' "$SKILL")" "0"
 check "a failed write is reported rather than claimed as a save" \
     "$(order_check 'Never claim something was stored when the tool refused')" "True"
+
+echo
+echo "--- a taste read that fails costs what it actually costs ---"
+
+# Step 5 of `docs/work/phase-1-implementation.md`, implementing strategy 10.1.1. The
+# split is by what was asked, not by what broke: an outage removes personalisation, it
+# does not remove the ability to be useful about films.
+#
+# Each branch is read on its own. Checked against the whole section, a rule that moved
+# from one branch to the other still matches — so "stop" landing in the ordinary branch,
+# or both retry offers sitting in one of them, would pass. That is the failure these
+# slices exist to catch, and it is the reason neither branch is asserted globally.
+taste_branch="$(slice_of '`get_taste` fails on a taste question' \
+    '`get_taste` fails on an ordinary request')"
+ordinary_branch="$(slice_of '`get_taste` fails on an ordinary request' '**A write fails**')"
+
+check "the two branches exist and are told apart by what was asked" \
+    "$(order_check '`get_taste` fails on a taste question' \
+        '`get_taste` fails on an ordinary request')" "True"
+check "and each one is found as its own bullet" \
+    "$([ -n "$taste_branch" ] && [ -n "$ordinary_branch" ] && echo both || echo missing)" "both"
+
+# --- the taste-explicit branch, read alone ---
+check "the taste branch stops" \
+    "$(in_slice "$taste_branch" 'stop\.')" "1"
+check "the taste branch reports the failure in the tool's own words" \
+    "$(in_slice "$taste_branch" "report the failure in the tool's own words")" "1"
+check "the taste branch offers to retry" \
+    "$(in_slice "$taste_branch" 'offer to retry')" "1"
+# Stopping *is* the no-recommendation rule here. What must not appear is any instruction
+# to answer anyway, which would make the branch indistinguishable from the other one.
+check "the taste branch never recommends from taste it could not read" \
+    "$(in_slice "$taste_branch" 'recommend anyway|answer anyway|recommend well')" "0"
+
+# --- the ordinary-request branch, read alone ---
+check "the ordinary branch still recommends" \
+    "$(in_slice "$ordinary_branch" 'recommend anyway')" "1"
+check "the ordinary branch discloses in the first sentence" \
+    "$(in_slice "$ordinary_branch" 'first sentence')" "1"
+check "the ordinary branch says the model could not be read" \
+    "$(in_slice "$ordinary_branch" 'their model could not be read')" "1"
+check "the ordinary branch says the answer is not based on it" \
+    "$(in_slice "$ordinary_branch" 'what follows is not based on it')" "1"
+check "the ordinary branch forbids a personal claim rather than omitting one" \
+    "$(in_slice "$ordinary_branch" 'claim \*\*nothing\*\* about them')" "1"
+check "the ordinary branch offers to retry" \
+    "$(in_slice "$ordinary_branch" 'offer to retry')" "1"
+# And it does not stop: the whole point of the split is that this branch answers.
+check "the ordinary branch does not stop as well" \
+    "$(in_slice "$ordinary_branch" 'stop\.|stop instead|stop as well')" "0"
+check "and it does not carry the other branch's error-reporting rule" \
+    "$(in_slice "$ordinary_branch" "report the failure in the tool's own words")" "0"
+
+# The rule this supersedes stopped in both cases, so it must not survive beside them.
+check "the old stop-in-both-cases rule is gone" \
+    "$(grep -ciE 'report the error verbatim|Never recommend from a model you' "$SKILL")" "0"
 
 echo
 echo "--- a Movie is the user's own object ---"

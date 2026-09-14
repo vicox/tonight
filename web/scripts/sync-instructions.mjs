@@ -32,6 +32,29 @@
  * to *keep* instead would mean a new rule silently never shipping, which is the
  * failure this mechanism exists to end.
  *
+ * ## Saying the same rule in less room
+ *
+ * One target has a size limit, and a limit on one target is not a reason to change
+ * what Tonight does (strategy 9.5). Where the canonical wording of a rule will not
+ * fit, the skill may carry a shorter wording of *the same rule* for this projection,
+ * inside an HTML comment:
+ *
+ *     <!-- project:compact
+ *     - shorter wording of the rule
+ *     project:compact -->
+ *
+ * The comment is invisible to anybody reading the markdown, so a skill host still
+ * reads the canonical sentences; here the markers are dropped and the content kept.
+ * The canonical wording it stands in for is marked `full:` beside it, so exactly one
+ * of the two reaches this file.
+ *
+ * This is a wording mechanism, not a content one. A compact block may be terser than
+ * the canonical text and it may not mean anything different: `instructions.test.ts`
+ * asserts each rule's behaviour against the projection and against the skill
+ * separately, which is what stops a shorter sentence from quietly becoming a weaker
+ * one. Nothing is generated from a second source — the compact wording lives in the
+ * skill, next to the rule it restates.
+ *
  * ## The transform, in four steps
  *
  * 1. Strip the YAML frontmatter. It names the skill for a host that discovers
@@ -62,6 +85,11 @@ const FULL_ONLY = /^[ \t]*<!--[ \t]*full:start[ \t]*-->[\s\S]*?^[ \t]*<!--[ \t]*
 const OPENS = /<!--[ \t]*full:start[ \t]*-->/g;
 const CLOSES = /<!--[ \t]*full:end[ \t]*-->/g;
 
+/** A shorter wording of a rule, for this projection only. Kept, without its markers. */
+const COMPACT = /^[ \t]*<!--[ \t]*project:compact[ \t]*\r?\n([\s\S]*?)^[ \t]*project:compact[ \t]*-->[ \t]*\r?\n?/gm;
+
+const COMPACT_MARKERS = /project:compact/g;
+
 /** Steps 1 and 2: the skill without its frontmatter and without its rationale. */
 export function instructionsFrom(markdown) {
   const opens = (markdown.match(OPENS) ?? []).length;
@@ -72,7 +100,17 @@ export function instructionsFrom(markdown) {
     throw new Error(`unbalanced full:start/full:end in the skill: ${opens} open, ${closes} closed`);
   }
 
-  const body = markdown.replace(FRONTMATTER, "").replace(FULL_ONLY, "");
+  // Two markers per block, like full:start/full:end, so a half-written one is an
+  // error here rather than a rule that silently never ships.
+  const markers = (markdown.match(COMPACT_MARKERS) ?? []).length;
+  if (markers % 2 !== 0) {
+    throw new Error(`unbalanced project:compact in the skill: ${markers} markers`);
+  }
+
+  const body = markdown
+    .replace(FRONTMATTER, "")
+    .replace(FULL_ONLY, "")
+    .replace(COMPACT, "$1");
   return body.replace(/\n{3,}/g, "\n\n").trim() + "\n";
 }
 

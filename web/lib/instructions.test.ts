@@ -28,6 +28,18 @@ const SKILL = new URL("../../skills/tonight-recommend/SKILL.md", import.meta.url
 
 const skill = () => readFileSync(SKILL, "utf8");
 
+/**
+ * The skill without its compact projections.
+ *
+ * `project:compact` blocks hold a shorter wording of a rule *for one target*. They
+ * live in the same file as the canonical sentences, so a plain read finds a rule in
+ * either — and an assertion that the skill still states a rule would be satisfied by
+ * the projection's copy of it. That is exactly the drift these tests exist to catch,
+ * so anything checking the specification reads the specification alone.
+ */
+const COMPACT_BLOCK = /^[ \t]*<!--[ \t]*project:compact[ \t]*\r?\n[\s\S]*?^[ \t]*project:compact[ \t]*-->[ \t]*\r?\n?/gm;
+const canonicalSkill = () => skill().replace(COMPACT_BLOCK, "");
+
 test("the copied instructions are the transform of the skill, byte for byte", () => {
   assert.equal(
     PROJECT_INSTRUCTIONS,
@@ -252,6 +264,31 @@ test("the answer has one lead, and the rest are directions from it", () => {
   assert.doesNotMatch(flat, /three to six|six films|\b3 to 6\b/i);
 });
 
+test("how many Genres to create stays guidance, in both wordings", () => {
+  /**
+   * The canonical rule is *"two or three strong, complementary ones is often the
+   * shape, never filler to hit a number"*. Both halves matter and they pull against
+   * each other: the numbers say what usually works, the hedge says it is not a quota,
+   * and `never filler` stops the numbers being hit for their own sake.
+   *
+   * A compact projection that keeps the numbers and drops the hedge reads as
+   * "create two or three Genres", which is a rule the skill does not have — and the
+   * failure is invisible, because every word in it came from the canonical sentence.
+   */
+  const projected = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const at = projected.search(/two or three strong, complementary ones/);
+  assert.ok(at >= 0, "the guidance on how many Genres could not be found");
+
+  // The hedge sits with the numbers, not somewhere else in the document.
+  const clause = projected.slice(Math.max(0, at - 60), at + 80);
+  assert.match(clause, /\b(often|usually|commonly|typically|tend|can be|may be)\b/,
+    "the projection states two or three as a requirement rather than the usual shape");
+
+  // And padding to reach them is still forbidden.
+  assert.match(clause, /never filler to hit a number/,
+    "the projection names a count without forbidding padding to reach it");
+});
+
 test("a film they have seen or judged is not offered as a new one", () => {
   /**
    * P4 and P10. The target is what they have not seen or judged — which is not the
@@ -329,14 +366,16 @@ test("saving a film classifies it, and may grow the model rather than bend it", 
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
   for (const [what, rule] of [
-    ["to classify rather than fit", "Classify the film; do not fit it to what is there"],
-    ["to look before deciding", "Read the Genres and Mixes first"],
-    ["to reuse a Genre that fits", "Reuse the Genres that genuinely fit"],
-    ["to create one when none covers it", "create one for anything no Genre covers"],
-    ["how many, and not to pad", "never filler to hit a number"],
-    ["not to stretch a Mix", "Never stretch a Mix to avoid making one"],
-  ] as [string, string][]) {
-    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
+    ["to classify rather than fit", /Classify the film[,;] do not fit it to what is there/],
+    ["to look before deciding", /read the Genres and Mixes first/i],
+    ["to reuse a Genre that fits", /Reuse the Genres that (genuinely )?fit/],
+    ["to create one when none covers it", /create one for anything (no Genre covers|uncovered)/],
+    ["how many, as guidance rather than a quota",
+      /\b(often|usually|commonly|typically)\b[^.—]{0,30}two or three strong, complementary ones/],
+    ["and never to pad", /never filler to hit a number/],
+    ["not to stretch a Mix", /Never stretch a Mix to avoid making one/],
+  ] as [string, RegExp][]) {
+    assert.match(flat, rule, `the agent is never told ${what}`);
   }
 });
 
@@ -355,17 +394,17 @@ test("a proposed Mix is made tangible before it is agreed to", () => {
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
   for (const [what, rule] of [
-    ["to show the idea rather than only name it", "make the idea concrete"],
-    ["how many films to name", "three to five other films that would belong in it"],
-    ["to offer other names for it", "two or three names it could have instead"],
-    ["that the asking still comes last", "Then ask"],
-    ["that the films are illustration", "Those films are illustration only"],
-    ["that they are not written and not filed", "never written, never in the Mix"],
-    ["that they get no state and no classification", "never given a state, nothing to classify"],
-    ["what is actually being saved", "Only the film they asked to keep is being saved"],
-    ["that a fitting Mix skips all of it", "a Mix that genuinely fits needs none of this"],
-  ] as [string, string][]) {
-    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
+    ["to show the idea rather than only name it", /make (the idea|it) concrete/],
+    ["how many films to name", /three to five other films that would belong/],
+    ["to offer other names for it", /two or three (names it could have instead|alternative names)/],
+    ["that the asking still comes last", /Then ask/],
+    ["that the films are illustration", /Those films are illustration only/],
+    ["that they are not written and not filed", /never written, never in (the|a) Mix/],
+    ["that they get no state and no classification", /never given a state, nothing to classify/],
+    ["what is actually being saved", /only the film they asked to keep is (being )?saved/i],
+    ["that a fitting Mix skips all of it", /a Mix that genuinely fits needs none of this/],
+  ] as [string, RegExp][]) {
+    assert.match(flat, rule, `the agent is never told ${what}`);
   }
 
   // The illustration must not acquire the vocabulary of the persistence flow: no
@@ -386,6 +425,217 @@ test("the model can be inspected and changed in the conversation, in plain sente
   assert.match(flat, /\*\*do those\*\*, in the conversation/);
   assert.match(flat, /call `get_taste` and answer in ordinary sentences/);
   assert.match(flat, /is \*a\* management surface, not \*the\* one/);
+});
+
+test("a taste read that fails is split by what was asked, not by what broke", () => {
+  /**
+   * Step 5 of `docs/work/phase-1-implementation.md`, implementing strategy 10.1.1.
+   * The rule it supersedes stopped in both cases, which turned a store outage into a
+   * total product outage for requests that never needed the data.
+   *
+   * This projection says the rule in fewer words than the skill does — strategy 9.5,
+   * and the `project:compact` block in `## When something fails`. So the assertions
+   * below are about behaviour, never about the skill's sentences: what has to survive
+   * projection is the rule, in whichever wording this target can carry. The canonical
+   * wording is asserted separately, against `SKILL.md`, by the skill's own test.sh.
+   *
+   * Each branch is still read on its own. Against the whole section, a rule that moved
+   * from one branch to the other still matches: "stop" landing in the ordinary branch,
+   * or both retry offers sitting in one of them, would pass.
+   */
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  const sliceBetween = (from: string, to: string) => {
+    const at = flat.indexOf(from);
+    const until = flat.indexOf(to, at + 1);
+    assert.ok(at >= 0 && until > at, `the branch starting "${from}" could not be found`);
+    return flat.slice(at, until);
+  };
+
+  // The projection factors the shared prefix and the shared retry offer out in front
+  // of the two branches, so the branches start at their own labels.
+  const shared = sliceBetween("**`get_taste` fails**", "*Taste question*");
+  const taste = sliceBetween("*Taste question*", "*Ordinary*");
+  const ordinary = sliceBetween("*Ordinary*", "**A write fails**");
+
+  // Retry is offered once, for both branches, and must say so. Factored out, a bare
+  // mention would leave which branch it covers to the reader.
+  assert.match(shared, /retry/i, "the shared clause does not offer a retry");
+  assert.match(shared, /either way|both/i, "the retry offer does not cover both branches");
+
+  // --- the taste-explicit branch, read alone ---
+  assert.match(taste, /\bstop\b/i, "the taste branch does not stop");
+  assert.match(taste, /quote|verbatim|own words|what the tool said/i,
+    "the taste branch does not report the failure in the tool's own words");
+  // Stopping *is* the no-recommendation rule: an instruction to answer anyway would
+  // make this branch indistinguishable from the other one.
+  assert.doesNotMatch(taste, /answer anyway|recommend anyway|recommend well/i,
+    "the taste branch recommends from taste it could not read");
+
+  // --- the ordinary-request branch, read alone ---
+  assert.match(ordinary, /answer anyway|recommend anyway/i, "the ordinary branch does not answer");
+  assert.match(ordinary, /first sentence/i, "the ordinary branch does not pin the disclosure");
+  assert.match(ordinary, /model unread|model could not be read/i,
+    "the ordinary branch does not disclose that the read failed");
+  assert.match(ordinary, /not based on it/i,
+    "the ordinary branch does not say the answer is not based on the model");
+  assert.match(ordinary, /claim nothing about them|claim \*\*nothing\*\* about them/i,
+    "the ordinary branch does not forbid a personal claim");
+  // The disclosure must precede what it is disclosing about.
+  assert.ok(
+    ordinary.search(/first sentence/i) < ordinary.search(/model unread|model could not be read/i),
+    "the disclosure is not tied to where it must appear",
+  );
+  // And this branch must not stop, or carry the other branch's reporting rule.
+  assert.doesNotMatch(ordinary, /\bstop\b/i, "the ordinary branch stops too");
+  assert.doesNotMatch(ordinary, /quote the error|own words/i,
+    "the branches' error reporting has run together");
+
+  // Neither branch may take the shared retry back, which is the failure mode the
+  // per-branch count guarded against before the offer was factored out.
+  for (const [name, branch] of [["taste", taste], ["ordinary", ordinary]] as [string, string][]) {
+    assert.doesNotMatch(branch, /no retry|do not offer (a )?retry|without offering/i,
+      `the ${name} branch withdraws the shared retry offer`);
+  }
+
+  // The superseded rule must not survive beside its replacement.
+  assert.doesNotMatch(flat, /report the error verbatim|Never recommend from a model you could not read/i);
+
+  // Write-failure behaviour is projected verbatim and is unchanged by any of this.
+  assert.ok(flat.includes("**A write fails** — the recommendation stands; say what was not saved."));
+  assert.ok(flat.includes("Never claim something was stored when the tool refused"));
+});
+
+test("the compact projection of a failure says the same thing the skill does", () => {
+  /**
+   * Strategy 9.5: the skill is the specification, this file is one projection of
+   * it, and a projection may use shorter wording but may not mean anything else.
+   * `## When something fails` is the first place the two wordings differ.
+   *
+   * One list of behaviours, applied to both artifacts. Each behaviour is a pair of
+   * patterns — what the canonical sentence looks like, and what the compact one
+   * looks like — so this fails if a rule is present in one artifact and absent from
+   * the other, whichever side loses it. It is deliberately not a string comparison:
+   * equal strings would defeat the point of having a compact projection at all.
+   */
+  const canonical = canonicalSkill().replace(/\s+/g, " ");
+  const projected = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  const behaviours: [string, RegExp, RegExp][] = [
+    ["the taste branch stops", /stop\. Report the failure/, /\*Taste question\*: stop/],
+    ["it reports the tool's own words", /in the tool's own words/, /quote the error/],
+    ["a retry is offered for the taste branch",
+      /own words and offer to retry/, /either way, offer to retry/],
+    ["the ordinary branch answers", /recommend anyway/, /answer anyway/],
+    ["the disclosure is the first sentence", /\*\*first sentence\*\*/, /first sentence/],
+    ["it says the read failed", /their model could not be read/, /model unread/],
+    ["it says the answer is not based on it", /not based on it/, /not based on it/],
+    ["it forbids a personal claim", /Claim \*\*nothing\*\* about them/, /claim nothing about them/],
+    ["a retry is offered for the ordinary branch too",
+      /about them\. Offer to retry/, /either way, offer to retry/],
+    ["a failed write still reports", /Never claim something was stored when the tool refused/,
+      /Never claim something was stored when the tool refused/],
+  ];
+
+  for (const [what, inSkill, inProjection] of behaviours) {
+    assert.match(canonical, inSkill, `the skill lost: ${what}`);
+    assert.match(projected, inProjection, `the projection lost: ${what}`);
+  }
+
+  // The canonical wording is the specification and must not leak into this target,
+  // or the section would ship twice and the compact block would save nothing.
+  assert.doesNotMatch(projected, /fails on a taste question|fails on an ordinary request/,
+    "both wordings of the failure rule reached the projection");
+
+  // And the compact wording is owned by the skill: it is read out of `SKILL.md`,
+  // never written here. If it stops being there, this projection has a second source.
+  // The raw file, not the canonical-only view, because the block is what is sought.
+  assert.match(skill(), /<!-- project:compact/, "the compact wording is not in the skill");
+});
+
+test("the compact projection of the write flow says the same thing the skill does", () => {
+  /**
+   * Strategy 9.5, the same contract as `## When something fails` and for the same
+   * reason: this target cannot carry the canonical wording of everything, so it
+   * carries a shorter wording of the same rules.
+   *
+   * One list of behaviours, applied to both artifacts. Each is a pair of patterns —
+   * the canonical sentence and the compact one — so a rule lost on either side fails
+   * here, whichever side loses it. Deliberately not a string comparison: equal
+   * strings would defeat the point of a compact projection.
+   */
+  const canonical = canonicalSkill().replace(/\s+/g, " ");
+  const projected = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  const behaviours: [string, RegExp, RegExp][] = [
+    ["keeping a film needs a Mix",
+      /Never write a Movie this way without at least one Mix/,
+      /Never write a Movie this way without at least one Mix/],
+    ["recording a state never invents one",
+      /Never invent a Mix, or ask for one, to record a state/,
+      /Never invent a Mix, or ask for one, to record a state/],
+    ["a later keep still takes a Mix", /A later request to keep it takes a Mix/,
+      /A later request to keep it takes a Mix/],
+    ["the Mix question is classification, not permission",
+      /not \*"may I save this\?"\* but \*"what kind of night is this\?"\*/,
+      /is a classification, never a request for permission/],
+    ["classify rather than fit", /Classify the film/, /Classify the film/],
+    ["read first", /Read the Genres and Mixes first/i, /read the Genres and Mixes first/i],
+    ["one that fits is just saved", /save it there, say so in one sentence, ask nothing further/,
+      /save it there, say so in one sentence, ask nothing further/],
+    ["never stretch a Mix", /Never stretch a Mix to avoid making one/,
+      /Never stretch a Mix to avoid making one/],
+    ["none fitting means not yet", /do not save the film yet/, /do not save the film yet/],
+    ["reuse what fits", /Reuse the Genres that genuinely fit/, /Reuse the Genres that fit/],
+    ["create for what is uncovered", /create one for anything no Genre covers/,
+      /create one for anything uncovered/],
+    // "Two or three" is guidance, not a quota. Both wordings have to say so: a
+    // projection that names the numbers without the hedge reads as a requirement,
+    // which is a different rule from the one the skill states.
+    ["two or three is the usual shape, not a requirement",
+      /two or three strong, complementary ones is often the shape/,
+      /often two or three strong, complementary ones/],
+    ["and padding is still forbidden",
+      /never filler to hit a number/, /never filler to hit a number/],
+    ["the Mix choice is yours", /Never ask which Mix they want; that judgement is yours/,
+      /Never ask which Mix they want; that judgement is yours/],
+    ["a proposal is made concrete", /make the idea concrete/, /make it concrete/],
+    ["with three to five films", /three to five other films that would belong in it/,
+      /three to five other films that would belong/],
+    ["and two or three names", /two or three names it could have instead/,
+      /two or three alternative names/],
+    ["those films are illustration only", /Those films are illustration only/,
+      /Those films are illustration only/],
+    ["never written, never filed", /never written, never in the Mix/, /never written, never in a Mix/],
+    ["no state, no classification", /never given a state, nothing to classify/,
+      /never given a state, nothing to classify/],
+    ["only the asked-for film is saved", /Only the film they asked to keep is being saved/,
+      /only the film they asked to keep is saved/],
+    ["a yes covers the whole flow", /A yes is the whole of the permission/,
+      /A yes is the whole of the permission/],
+    ["and is never asked twice", /never ask a second time/, /never ask a second time/],
+    ["a no settles it", /A no settles it\*\*, never saving the film loose/,
+      /A no settles it\*\*, never saving the film loose/],
+    ["propose while saving", /Propose while saving, not while recommending/,
+      /Propose while saving, not while recommending/],
+    ["a fitting Mix skips it", /a Mix that genuinely fits needs none of this/,
+      /a Mix that genuinely fits needs none of this/],
+    ["a film in no Mix is fine", /A film in no Mix is legitimate/, /A film in no Mix is legitimate/],
+    ["and is left alone", /Do not sort them, propose Mixes for them, or mention them\s*unasked/,
+      /Do not sort them, propose Mixes for them, or mention them\s*unasked/],
+  ];
+
+  for (const [what, inSkill, inProjection] of behaviours) {
+    assert.match(canonical, inSkill, `the skill lost: ${what}`);
+    assert.match(projected, inProjection, `the projection lost: ${what}`);
+  }
+
+  // The canonical wording must not also reach this target, or the section would ship
+  // twice and the compact block would save nothing.
+  assert.doesNotMatch(projected, /Two requests write a Movie, and they differ/,
+    "both wordings of the write flow reached the projection");
+  assert.doesNotMatch(projected, /may I save this/,
+    "the canonical framing of the Mix question reached the projection");
 });
 
 test("the version marker is the last line, and is derived from the body without it", () => {
@@ -527,7 +777,10 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "**do those**",
     "call `get_taste` and answer in ordinary sentences",
     // failures
-    "report the error verbatim and stop",
+    "either way, offer to retry",
+    "*Taste question*: stop",
+    "*Ordinary*: answer anyway",
+    "claim nothing about them",
     "Never claim something was stored when the tool refused",
   ]) {
     // Compared with whitespace collapsed on both sides, because where a sentence

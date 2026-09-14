@@ -145,8 +145,10 @@ after Phase 1              ≈7,711
 
 Phase 1 is unaffected and does not change. The consequence is for what comes next:
 
-> **Unresolved decision §11.1 of the strategy document — the second delivery channel — must be
-> settled before Phase 2 is written, not before Phase 3.**
+> **The delivery mechanism for a capped host must be settled before Phase 2 is written, not
+> before Phase 3.** The architecture is no longer open — strategy §9.5: the skill is the
+> specification, every other format is a projection of it, and a host's limit binds that
+> projection rather than the product. What is open is how a capped target is served.
 
 Step 7 records the measured post-Phase-1 figure in the strategy document so that the decision is
 taken against a number rather than an estimate.
@@ -363,8 +365,8 @@ so that a refusal is informative?
 **Stop condition.** If the measured instruction length exceeds the 7,900 guard, tighten the
 wording — answer-shape prose first, then the states list — while keeping every approved rule in
 full. **If tightening cannot bring it under the guard without dropping a rule, stop here** and
-escalate to §11.1 of the strategy document. The guard is not raised, and Phase 1 does not
-continue with a rule removed.
+escalate as a delivery question under strategy §9.5. The guard is not raised, and Phase 1 does
+not continue with a rule removed: the projection adapts, the specification does not.
 
 ---
 
@@ -467,8 +469,9 @@ actually does? Does the Phase 2 finding of §2.4 appear where whoever writes Pha
 
 **Stop condition.** Hard stop at ≥7,900. The guard is not raised. Tightening the wording of rules
 that still ship in full is the only remedy; **if that is exhausted, Phase 1 stops and the blockage
-is escalated to §11.1 of the strategy document as a product decision.** Phase 1 does not ship with
-an approved rule removed, and no rule is recorded as a "known gap" to get past this gate.
+is escalated as a delivery question under strategy §9.5.** Phase 1 does not ship with an approved
+rule removed, and no rule is recorded as a "known gap" to get past this gate. A number produced by
+one host's limit is not a reason to change what Tonight does.
 
 ---
 

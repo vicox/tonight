@@ -595,10 +595,10 @@ the third is the honest one:
    7,900.
 2. **Spend the harvest on method, not prose.** Rationale continues to live in `full:` blocks and
    reaches skill-capable hosts only.
-3. **Decide the second channel early rather than as a fallback.** A separate, uncapped
-   "Recommending" block offered on `/setup` — or accepting that a ChatGPT project gets a
-   deliberately reduced method while skill hosts get all of it — is now a likely requirement
-   rather than a contingency. §11 lists it as the first unresolved decision.
+3. **Decide the second channel early rather than as a fallback.** Settled in principle by §9.5:
+   the skill is the specification and each host receives a projection of it, so a target that
+   cannot carry the whole method constrains its own projection and nothing else. Which projection
+   a capped host gets is still open.
 
 This also settles a live contradiction with `README.md` — *"none serves product guidance either"*.
 The correct restatement is narrower than the first draft's: **a tool description carries the rules
@@ -612,6 +612,35 @@ for using that tool, and nothing else.** That is true of the current code, consi
 3. **No `recommend` tool.** It would have to either return the user's own saved films, which is
    not a recommendation, or invent a catalogue.
 4. **No hidden record of what was recommended**, and no rule that depends on one. §8.4.
+
+### 9.5 One specification, several projections
+
+**`skills/tonight-recommend/SKILL.md` is the product specification.** It is the one artifact that
+says what Tonight does, and the only one written by hand. Every other instruction format is a
+projection of it, generated for a particular host.
+
+`web/lib/generated/project-instructions.ts` is one such projection, for one target: the
+instructions box of a ChatGPT project. It is not a second specification, a summary, or a
+simplification anybody is free to edit. A skill-capable host receives a different projection —
+today, the file itself.
+
+Different targets may legitimately receive different text. What they may not receive is a
+different product: **every projection must be semantically equivalent to the specification for
+the behaviour that target supports.** A projection may omit rationale, and it may say a rule more
+briefly. It may not drop a rule, soften one, or answer a question differently from the way the
+specification answers it. Where a projection cannot carry a rule at all, that is a gap in the
+delivery, to be stated as one — never a rule the product no longer has.
+
+**A host's limits are implementation constraints, not product constraints.** A ChatGPT project
+truncates its instructions at about 8,000 characters. That is a fact about one delivery target.
+It bounds what that projection can carry; it has no authority over what Tonight does. When the
+specification outgrows a target, the projection for that target adapts — the specification does
+not shrink to fit it, and an approved rule is never removed to make a number work.
+
+This settles the first unresolved decision of §11 at the level of principle: there is one
+specification and there are projections of it. *How* a projection is produced for a host that
+cannot take the whole thing is an implementation question, open and deliberately not answered
+here.
 
 ---
 
@@ -805,17 +834,17 @@ two criteria without spot checks — they are the ones a judge model is most lik
    for nothing else.
 4. **Expansion as quota, or expansion from gaps.** P9's sentence test and P10's anchor are the
    whole defence. Without them, "one surprise per set" degrades into one random film per set.
-5. **Budget overrun.** §9.3. Phase 3 is the likely casualty, and silently truncated instructions
-   fail invisibly.
+5. **Budget overrun.** §9.3. Silently truncated instructions fail invisibly, which is the real
+   damage: the casualty is a projection's completeness, never a rule, and §9.5 is why.
 6. **Rule drift across two homes.** Moving tool-local rules into descriptions creates two places
    a rule could be stated. Tests are repointed, not removed.
 
 **Unresolved decisions**
 
-1. **The second delivery channel** — now likely required rather than a fallback (§9.3). Either an
-   uncapped "Recommending" block offered on `/setup`, or an explicit decision that a ChatGPT
-   project receives a reduced method while skill hosts receive all of it. **This must be settled
-   before Phase 3 is written.**
+1. **The second delivery channel.** The architecture is decided — §9.5: one specification,
+   host-specific projections, semantic equivalence required, host limits binding on the
+   projection only. What remains open is the mechanism for a target that cannot carry the whole
+   specification, which is an implementation choice and not a product one.
 2. **May the lead be wrong?** Product identity, not engineering. If a confident lead that misses
    is acceptable — and the skill may say so out loud, *"if it does not land, tell me and I will
    know more"* — the leap may lead and §7.5 stands. If not, expansion is permanently second and
