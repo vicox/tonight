@@ -146,8 +146,75 @@ check "an exclusion outranks a preference" \
         'worse than none')" "True"
 check "the idea leads the answer, and the model is not printed at the user" \
     "$(order_check 'Never print the taste model while' \
-        'Presenting: the idea first' \
+        'One idea for the evening, in a line' \
         'No field names')" "True"
+
+echo
+echo "--- the answer has a lead, and the rest are directions ---"
+
+# Step 4 of `docs/work/phase-1-implementation.md`. The shape is the product: a list of
+# equal candidates hands the decision back to the person who could not make it. Pinned
+# as semantics rather than prose — what must survive is that there is exactly one lead,
+# that it is named as the lead, that the rest are directions ordered by distance, and
+# that the set is two or three of them rather than a menu.
+check "the answer is a thesis, then a lead, then directions, in that order" \
+    "$(order_check 'One idea for the evening, in a line' \
+        'one lead, named as such' \
+        'directions')" "True"
+check "the lead is committed to out loud, not merely placed first" \
+    "$(order_check 'one lead, named as such' "*\"I'd start with X\"*")" "True"
+check "and the worked example commits to one, rather than listing equals" \
+    "$(order_check "I'd start with *Knives Out*" 'If you want it colder' \
+        'If you want one room')" "True"
+check "there are two or three directions, and the count is stated" \
+    "$(order_check 'two or three' 'directions')" "True"
+check "a direction is defined against the runner-up it is not" \
+    "$(order_check 'another way out, never a' 'runner-up')" "True"
+check "the order is distance, and quality is ruled out by name" \
+    "$(order_check 'distance from the lead' 'not quality')" "True"
+check "each direction is opened by the condition under which it wins" \
+    "$(order_check 'opened by when it wins')" "True"
+check "the close is one or the other, never both" \
+    "$(order_check 'one question' 'one lever' 'never both')" "True"
+
+# The old form. "Three to six" is a menu, and a menu is what the shape exists to replace.
+check "no film count from the old form survives anywhere" \
+    "$(grep -ciE 'three to six|six films|3 to 6' "$SKILL")" "0"
+
+echo
+echo "--- unseen by default, and a stretch is anchored ---"
+
+# P4 and P10. `not_seen` is deliberately absent from the list: it means they told
+# Tonight they have not seen it, which is a reason to offer it, not a reason not to.
+check "the target is what they have not seen or judged" \
+    "$(order_check 'Lead with what they have not seen or judged' \
+        '`seen`, `liked`, `loved` and `disliked` each' \
+        'rule a Movie out as new')" "True"
+check "and never restated as whatever Tonight has not heard of" \
+    "$(grep -ciE 'told Tonight nothing about|Tonight (has )?(knows|heard) nothing about' "$SKILL")" "0"
+# The positive half. Absence from the list is not enough: `not_seen` has to be named and
+# said to stay available, or a reader may still treat a film Tonight knows of as spent.
+check "not_seen is named, and named as still eligible" \
+    "$(order_check 'rule a Movie out as new' '`not_seen` does not' \
+        'so it stays on the table')" "True"
+check "and nothing in that sentence rules a not_seen film out" \
+    "$(sed -n '/rule a Movie out as new/,/`loved` one is a/p' "$SKILL" \
+        | grep -ciE 'never (offer|present|suggest)|not (offered|presented|eligible)')" "0"
+check "a loved film is spent as a reason rather than suggested again" \
+    "$(order_check '`loved` one is a **reason**, not a suggestion')" "True"
+check "a stretch is anchored in something they like, and an absence is not a reason" \
+    "$(order_check 'Anchor a stretch in something they like' \
+        'an absence shows where to look, never why')" "True"
+check "a stretch is marked as one" \
+    "$(order_check 'an absence shows where to look, never why' 'say it is one')" "True"
+
+# The guard that must survive the rewrite verbatim: a film request is not a
+# configuration session, and nobody has to learn the data model to get a film.
+check "the recommendation-against-configuration guard survived the rewrite" \
+    "$(order_check 'ask **one question about films**' \
+        'never *"what genres do you like?"*' \
+        'never make somebody learn Genres and Mixes' \
+        'Never print the taste model while recommending')" "True"
 
 echo
 echo "--- a Mix is named, not labelled ---"
@@ -263,13 +330,16 @@ echo "--- nothing is remembered but the model ---"
 
 check "no history of any kind is kept" \
     "$(order_check 'The taste model and nothing else' \
-        'no watch history' \
+        'or of watch history' \
         'never when')" "True"
-check "a recommended film may return; a saved one is read rather than offered again" \
+check "a recommended film may return, and a saved one is the exception to the amnesia" \
     "$(order_check 'a film you recommended can come back' \
         'nothing is learned automatically' \
         'A film they saved is different' \
-        'read its state')" "True"
+        'its state is evidence')" "True"
+# And the targeting rule it used to restate is not duplicated back into this section.
+check "what a state means for recommending is stated once, under Recommending" \
+    "$(grep -ciE 'anything but .not_seen. and .null.|do not offer it as new' "$SKILL")" "0"
 check "a failed write is reported rather than claimed as a save" \
     "$(order_check 'Never claim something was stored when the tool refused')" "True"
 

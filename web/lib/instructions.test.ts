@@ -219,6 +219,112 @@ test("taste is read qualitatively — no score, no threshold, no count", () => {
   assert.doesNotMatch(taste, /\b(score|weight|threshold|points?|at least \d+|\d+ or more)\b/i);
 });
 
+test("the answer has one lead, and the rest are directions from it", () => {
+  /**
+   * Step 4 of `docs/work/phase-1-implementation.md`. Deciding is the work: a list of
+   * equal candidates hands it back to the person who asked precisely because they
+   * could not make it. Pinned as semantics, not prose — what has to survive is that
+   * there is one lead, that it is committed to out loud, that the rest are directions
+   * ordered by distance, and that the set is small enough not to be a menu.
+   */
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  for (const [what, rule] of [
+    ["to open with an idea", "One idea for the evening, in a line"],
+    ["that exactly one film leads", "one lead, named as such"],
+    ["the sentence that commits to it", `*"I'd start with X"*`],
+    ["to say why it, for them", "and why it, for them"],
+    ["how many directions follow", "two or three **directions**"],
+    ["when each direction is offered", "opened by when it wins"],
+    ["what a direction is not", "never a runner-up"],
+    ["what orders them", "distance from the lead"],
+    ["that the lead is what distance is measured from", "another way out"],
+    ["how to close", "Close with one question **or** one lever, never both"],
+  ] as [string, string][]) {
+    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
+  }
+
+  // A quality order says "this is the fourth best", which is useless and probably
+  // false. The prohibition has to be explicit: leaving it out reads as a free choice.
+  assert.match(flat, /distance from the lead\*\*, not\s+quality/);
+
+  // The old form was a menu, and the menu is what the shape replaces.
+  assert.doesNotMatch(flat, /three to six|six films|\b3 to 6\b/i);
+});
+
+test("a film they have seen or judged is not offered as a new one", () => {
+  /**
+   * P4 and P10. The target is what they have not seen or judged — which is not the
+   * same as what Tonight has never heard of. `not_seen` is a stored state, and it
+   * means they told Tonight they have *not* seen the film: that is a reason to offer
+   * it, so it is the one state that keeps a Movie eligible. A `loved` film is spent
+   * as evidence instead, which is worth more than suggesting it again.
+   */
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  for (const [what, rule] of [
+    ["what the target is", "Lead with what they have not seen or judged"],
+    ["which states rule a film out",
+     "`seen`, `liked`, `loved` and `disliked` each rule a Movie out as new"],
+    ["that not_seen does not", "`not_seen` does not"],
+    ["that a not_seen film stays eligible", "so it stays on the table"],
+    ["what a loved film is for", "`loved` one is a **reason**, not a suggestion"],
+    ["that a stretch needs a positive anchor", "Anchor a stretch in something they like"],
+    ["that an absence is not a reason", "an absence shows where to look, never why"],
+    ["to mark a stretch as one", "say it is one"],
+  ] as [string, string][]) {
+    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
+  }
+
+  // Negative half: the list that rules a Movie out is exactly the four judgements.
+  // `not_seen` joining it would silently turn "I have not seen this" into a reason to
+  // withhold the film — the precise inversion of the rule.
+  const ruledOut = flat.slice(flat.indexOf("`seen`, `liked`"), flat.indexOf("rule a Movie out as new"));
+  assert.ok(ruledOut.length > 0 && ruledOut.length < 60, "the list that rules a film out moved");
+  assert.doesNotMatch(ruledOut, /not_seen/);
+
+  // Positive half: absence from that list is not enough on its own — a reader could
+  // still conclude that a film Tonight has heard of is spent. Somewhere after the
+  // list, `not_seen` must be named and said to remain available, and the sentence
+  // saying so must not be a negation of eligibility.
+  const after = flat.slice(flat.indexOf("rule a Movie out as new"));
+  const eligibility = after.slice(after.indexOf("`not_seen`"), after.indexOf("`loved` one is"));
+  assert.ok(eligibility.includes("`not_seen`"), "`not_seen` is never mentioned as still eligible");
+  assert.match(
+    eligibility,
+    /does not|still|remains|stays/,
+    "`not_seen` is named but never said to remain available",
+  );
+  assert.doesNotMatch(
+    eligibility,
+    /\bnever (offer|present|suggest)|not (offered|presented|eligible)|rules? (it|a Movie) out/,
+    "the text treats a `not_seen` film as spent",
+  );
+
+  // And the target may not be restated as "what Tonight has heard nothing about",
+  // which reads on `not_seen` films as well and is how this rule was wrong before.
+  assert.doesNotMatch(
+    flat,
+    /told Tonight nothing about|Tonight (has )?(knows|heard) nothing about|no stored state/i,
+    "the target is stated as Tonight's ignorance rather than what they have not seen",
+  );
+});
+
+test("a request for a film is still not a configuration session", () => {
+  // The guard that had to survive the rewrite. It is the oldest rule in this section
+  // and the one the new answer form is most likely to quietly displace.
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  for (const rule of [
+    "ask **one question about films**",
+    `never *"what genres do you like?"*`,
+    "never make somebody learn Genres and Mixes to get a film",
+    "**Never print the taste model while recommending**",
+  ]) {
+    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the guard lost: ${rule}`);
+  }
+});
+
 test("saving a film classifies it, and may grow the model rather than bend it", () => {
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
@@ -381,7 +487,11 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Read it with `get_taste` and weigh it",
     "rules out",
     "Never print the taste model while",
-    "three to six films, for range as well as fit",
+    "one lead, named as such",
+    "distance from the lead",
+    "each rule a Movie out as new",
+    "`not_seen` does not",
+    "Anchor a stretch in something they like",
     // ownership and semantic confirmation
     "Persist durable taste they express or confirm. Never persist what you conclude alone.",
     "only the meaning they could agree to",
