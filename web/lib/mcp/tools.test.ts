@@ -357,6 +357,141 @@ test("the write tools say where persistence begins, because a host may read noth
   }
 });
 
+test("the write tools carry the rules that apply at the moment they are called", async () => {
+  /**
+   * Step 2 of `docs/work/phase-1-implementation.md`: the rules that are true
+   * whenever *this* call is made move to the description of the tool they govern,
+   * because a client can discover these tools and call them without ever loading
+   * the Tonight skill.
+   *
+   * Only tool-local rules. Anything that spans two calls — consent, the
+   * classification a kept film goes through, when to propose a Mix, whether this
+   * conversation should be writing at all — stays in the skill, and has to,
+   * because a description cannot be read before the call it describes.
+   */
+  const tools = await listTools(await tokenFor(someone()));
+  const describing = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+
+  /** One field's description on one tool, as a client reads it. */
+  const fieldOf = (all: typeof tools, tool: string, field: string) =>
+    ((all.find((one) => one.name === tool)?.inputSchema.properties?.[field] ?? {}) as {
+      description?: string;
+    }).description ?? "";
+
+  // A Genre's and a Mix's instruction is the user's own sentence, so it is
+  // written in their voice. True of the field, whichever tool is writing it.
+  for (const name of ["create_genre", "update_genre", "create_mix", "update_mix"]) {
+    assert.match(
+      fieldOf(tools, name, "instruction"),
+      /first person/i,
+      `${name}: the instruction's voice`,
+    );
+  }
+
+  // How a sentence becomes this field's value. Without it an agent knows the five
+  // states exist and not which sentence means which — the gap this rule was
+  // written for.
+  //
+  // Each reading is checked as a *pair*: the phrase, and the state named next
+  // after it. A missing reading fails because the phrase is not there; a reading
+  // pointed at the wrong state fails because the wrong state comes next. Written
+  // this way rather than as a search for the whole sentence, so that rewrapping
+  // or rewording around the mapping does not fail a test about its meaning.
+  for (const name of ["create_movie", "update_movie"]) {
+    const described = fieldOf(tools, name, "state");
+    assert.ok(described.length > 0, `${name} has no description for state`);
+
+    for (const [phrase, state] of [
+      [`"haven't seen it"`, "not_seen"],
+      [`"want to watch it"`, "not_seen"],
+      [`"seen it"`, "seen"],
+      [`"it was good"`, "liked"],
+      [`"loved it"`, "loved"],
+      [`"didn't like it"`, "disliked"],
+    ] as [string, string][]) {
+      const at = described.indexOf(phrase);
+      assert.notEqual(at, -1, `${name}: nothing reads ${phrase} into a state`);
+
+      // Longest first, so `not_seen` is not read as `seen` and `disliked` is not
+      // read as `liked`; word boundaries so neither is matched inside the other.
+      const next = described
+        .slice(at + phrase.length)
+        .match(/\b(not_seen|disliked|liked|loved|seen)\b/)?.[1];
+      assert.equal(next, state, `${name}: ${phrase} does not read as ${state}`);
+    }
+
+    // And the two rules about this field that are not a reading.
+    assert.match(described, /not the same as not_seen/, `${name}: silence is not a state`);
+    assert.match(described, /never a score or star rating/, `${name}: a state is not a rating`);
+  }
+
+  // The user's sentence is not the agent's to adjust. What Step 2 relocated is the
+  // prohibition itself — field-local, and nothing about how a change is agreed to,
+  // which is workflow and stays in the skill.
+  assert.match(describing("update_mix"), /never reword their instruction/i, "update_mix: rewording");
+  assert.doesNotMatch(
+    describing("update_mix"),
+    /propose the new wording|let the user agree/i,
+    "update_mix has been given the workflow half as well",
+  );
+
+  // The preconditions a call is refused for, where a client meets them.
+  assert.match(describing("create_genre"), /instruction is required/i, "a genre with no meaning");
+  assert.match(describing("create_mix"), /cannot be built from another mix/i, "no chaining");
+  assert.match(
+    JSON.stringify(tools.find((tool) => tool.name === "create_mix")?.inputSchema ?? {}),
+    /at least one/i,
+    "a mix built from nothing",
+  );
+
+  // And the naming test, which is a judgement made at the moment a name is chosen.
+  assert.match(
+    JSON.stringify(tools.find((tool) => tool.name === "create_mix")?.inputSchema ?? {}),
+    /the name is doing no work/i,
+    "the test for a mix's name",
+  );
+});
+
+test("no cross-tool rule has been copied into a tool description", async () => {
+  // The other half of Step 2's review, and the one a reviewer cannot check by
+  // reading a diff: orchestration, classification and the recommend-versus-
+  // configure boundary must stay in the skill. A description that carried them
+  // would be telling an agent what to do before the call it describes.
+  const tools = await listTools(await tokenFor(someone()));
+  const everything = JSON.stringify(tools);
+
+  for (const [what, leaked] of [
+    ["the classification ladder", /do not fit it to what is there/i],
+    ["stretching a Mix", /Never stretch a Mix/i],
+    ["proposing a Mix", /three to five other films/i],
+    ["when to propose one", /propose while saving, not while recommending/i],
+    ["the films in a proposal", /illustration only/i],
+    ["the recommend-versus-configure boundary", /configuration session/i],
+    ["how many films to recommend", /three to six films/i],
+    ["what the remainder is called", /Other movies/i],
+    ["whether to ask before calling", /never ask for a state/i],
+  ] as [string, RegExp][]) {
+    assert.equal(leaked.test(everything), false, `${what} has leaked into a tool description`);
+  }
+
+  /**
+   * One exception, named rather than left as a hole.
+   *
+   * `update_genre` has said "propose the new wording and let the user agree to it
+   * rather than editing on their behalf" since before this relocation began. That
+   * is workflow by the rule above, and taking it out would be a removal — Step 2
+   * is additive only, and a description losing guidance it already shipped is a
+   * behaviour change rather than a relocation. It is a question for a later step;
+   * what this pins is that the sentence did not *spread*.
+   */
+  const agreeing = tools.filter((tool) => /propose the new wording|let the user agree/i.test(tool.description));
+  assert.deepEqual(
+    agreeing.map((tool) => tool.name),
+    ["update_genre"],
+    "the workflow half of the rewording rule has spread beyond where it already was",
+  );
+});
+
 test("a movie is saved with what the user said, and appears once in the model", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });

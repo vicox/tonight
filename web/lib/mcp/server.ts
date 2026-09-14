@@ -79,7 +79,8 @@ const genreInstruction = z
   .describe(
     "What this genre means to THIS user, in their own words, written as their preference. Not a " +
       "dictionary definition of the genre: two users with an Action genre may mean opposite " +
-      "things, and this is where the difference lives. Include what they rule out.",
+      "things, and this is where the difference lives. Include what they rule out. Write it in " +
+      "the user's first person — it is their sentence about themselves, not a note about them.",
   );
 
 const mixInstruction = z
@@ -87,7 +88,8 @@ const mixInstruction = z
   .describe(
     "What the combination means to the user. A mix is not the intersection of its genres — the " +
       "genres are the ingredients and this is the meaning. Say something the genres do not " +
-      "already say on their own.",
+      "already say on their own. Write it in the user's first person — it is their sentence " +
+      "about themselves, not a note about them.",
   );
 
 const mixGenres = z
@@ -144,7 +146,10 @@ const movieState = z
   .describe(
     "What the user has said about this film, as one answer: not_seen (they said they have not " +
       "seen it), seen (they watched it and said nothing about it — not a neutral verdict), " +
-      "liked, loved (strongly liked), disliked — those three also mean they saw it. Omit the " +
+      "liked, loved (strongly liked), disliked — those three also mean they saw it. Take the " +
+      "state from what they said, at its most specific: \"haven't seen it\" / \"want to watch " +
+      "it\" -> not_seen, \"seen it\" -> seen, \"it was good\" -> liked, \"loved it\" -> loved, " +
+      "\"didn't like it\" -> disliked. Omit the " +
       "field when they have not said; that " +
       "records nothing, and it is not the same as not_seen. Pass null to go back to having " +
       "been told nothing. These are states the user expressed, never a score or star rating.",
@@ -296,7 +301,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
       title: "Update a mix",
       description:
         "Change a mix's name, its meaning, or which genres it is built from. Passing genres " +
-        "replaces the stored list rather than adding to it, and the list may never be empty.",
+        "replaces the stored list rather than adding to it, and the list may never be empty. " +
+        "Never reword their instruction: the sentence is theirs, and what it means is not " +
+        "yours to adjust.",
       inputSchema: z.object({
         name: mixName.describe("The mix to change, by its current name."),
         new_name: mixName.describe("Rename the mix to this.").optional(),
