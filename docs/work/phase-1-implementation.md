@@ -1,8 +1,9 @@
 # Phase 1 — implementation plan
 
-**Status:** approved and in progress. **Step 1 is complete and committed**: the evaluation
-infrastructure and frozen baseline are now part of the repository. Steps 2–8 have not started. No
-skill text, tool descriptions, or application code have been changed.
+**Status:** approved and in progress. **Steps 1 and 2 are complete and committed**: the evaluation
+infrastructure and frozen baseline are part of the repository, and the tool-local rules now sit in
+the tool descriptions as well as in the skill. Steps 3–8 have not started — no skill text has been
+removed, and no recommendation behaviour has changed.
 `recommendation-strategy.md` is the product specification and is not reopened here — where this
 document appears to disagree with it, the strategy document wins and this one is wrong.
 
