@@ -1,10 +1,10 @@
 # Phase 1 — implementation plan
 
-**Status:** approved and in progress. **Steps 1, 2 and 3 are complete and committed**: the
-evaluation infrastructure and frozen baseline are part of the repository, and the tool-local rules
-now sit only in the tool descriptions, with the skill left pointing at them. Steps 4–8 have not
-started — `## Recommending` has not changed, and no recommendation behaviour has intentionally
-changed.
+**Status:** approved and in progress. **Steps 1 to 4 are complete and committed**: the evaluation
+infrastructure and frozen baseline are part of the repository, the tool-local rules now sit only
+in the tool descriptions with the skill left pointing at them, and `## Recommending` carries the
+answer form — one lead, two or three directions, and unseen by default. Steps 5–8 have not
+started — `## When something fails` is unchanged, and no failure behaviour has been implemented.
 `recommendation-strategy.md` is the product specification and is not reopened here — where this
 document appears to disagree with it, the strategy document wins and this one is wrong.
 
