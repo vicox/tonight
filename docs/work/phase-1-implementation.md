@@ -1,10 +1,13 @@
 # Phase 1 — implementation plan
 
-**Status:** approved and in progress. **Steps 1 to 4 are complete and committed**: the evaluation
+**Status:** approved and in progress. **Steps 1 to 5 are complete and committed**: the evaluation
 infrastructure and frozen baseline are part of the repository, the tool-local rules now sit only
-in the tool descriptions with the skill left pointing at them, and `## Recommending` carries the
-answer form — one lead, two or three directions, and unseen by default. Steps 5–8 have not
-started — `## When something fails` is unchanged, and no failure behaviour has been implemented.
+in the tool descriptions with the skill left pointing at them, `## Recommending` carries the
+answer form — one lead, two or three directions, and unseen by default — and a failed taste read
+splits by what was asked. The `project:compact` mechanism of strategy §9.5 is in place, so this
+host can be given a shorter wording of a rule the skill states in full; the generated
+instructions are version `095ba53e` at 7,884 characters, under both the 7,900 guard and the
+8,000 cap. Steps 6–8 have not started — `## Recommending` has not had the P3/P5 rewrite.
 `recommendation-strategy.md` is the product specification and is not reopened here — where this
 document appears to disagree with it, the strategy document wins and this one is wrong.
 
