@@ -97,11 +97,32 @@ recommendation idea, that a good one is called `Popcorn Chaos` rather than `Acti
 user stated, or a meaning they confirmed when the agent asked — never what the agent concluded
 on its own, and never a request for tonight, which says what they want now.
 
+### One specification, several projections
+
+`SKILL.md` is the specification, and the only file anybody edits. A host that reads skills reads
+it. Other hosts get a **generated projection** of it — `web/lib/generated/project-instructions.ts`
+is the one for the instructions box of a ChatGPT project, produced by `npm run sync:instructions`.
+
+A projection is not a copy. It drops the rationale that sits between `full:` markers, and where a
+rule's canonical wording will not fit the target, a `project:compact` block in the skill supplies
+a shorter wording of **that same rule** — written beside the rule it restates, never in a second
+document. A ChatGPT project silently truncates at about 8,000 characters, so that projection is
+held under a 7,900 guard by `web/lib/instructions.test.ts`. **Those limits bound the projection,
+not the product**: when the specification outgrows a target, the projection for that target
+adapts, and no approved rule is dropped to make a number work.
+
+What keeps the two honest is a contract rather than a convention. For every section with a
+compact wording, the same list of behaviours is asserted against the skill and against the
+projection separately, so a rule lost or weakened on either side fails the suite. A projection
+may be terser; it may not mean anything else.
+
 ## The MCP tools
 
 Eleven, all deterministic, and all of them operations on persisted state. None interprets a
-sentence, invents a Genre or chooses a film — and none serves product guidance either: the
-semantics ship in the skill beside the server, not as a runtime tool.
+sentence, invents a Genre or chooses a film. A tool description carries the rules for using that
+tool and nothing else — what a Mix's name has to earn belongs to `create_mix`, which is where it
+is read at the moment a name is chosen. Everything true across more than one call is method, and
+method ships in the skill beside the server rather than as a runtime tool.
 
 | Tool | What it does |
 | --- | --- |

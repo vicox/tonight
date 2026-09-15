@@ -560,16 +560,24 @@ limitation and the reason §10.7 exists.
 
 ### 9.3 The delivery budget, recalculated
 
-A ChatGPT project truncates its instructions at about 8,000 characters without saying so. The
-generated text is ≈7,816 against a 7,900 guard: **roughly eighty characters of headroom.**
+A ChatGPT project truncates its instructions at about 8,000 characters without saying so. When
+this was written the generated text was ≈7,816 against a 7,900 guard: **roughly eighty characters
+of headroom.** Phase 1 is now built, and the figures below are measured rather than estimated —
+**7,876 characters, version `645a831f`**, twenty-four under the guard and a hundred and
+twenty-four under the cap.
 
-| Section | Characters | Share |
-| --- | ---: | ---: |
-| Preamble and boundaries | ≈1,040 | 13% |
-| **Recommending** | **≈1,730** | **22%** |
-| What may be persisted | ≈1,040 | 13% |
-| Films they tell you about | ≈2,880 | 37% |
-| Model questions, memory, failures | ≈1,170 | 15% |
+| Section | Before Phase 1 | Measured now | Share |
+| --- | ---: | ---: | ---: |
+| Preamble and boundaries | ≈1,040 | 1,030 | 13% |
+| **Recommending** | **≈1,730** | **2,303** | **29%** |
+| What may be persisted | ≈1,040 | 981 | 12% |
+| Films they tell you about | ≈2,880 | 2,363 | 30% |
+| Model questions and memory | ≈1,170 | 720 | 9% |
+| When something fails | — | 473 | 6% |
+| **Total** | **≈7,816** | **7,876** | |
+
+The section this document is about grew by a third and the document as a whole grew by sixty
+characters, which is the whole of what the rest of this section is for.
 
 The first draft proposed moving *the write rules* into the tool descriptions and estimated a
 harvest of 1,500–2,000 characters. Applying the split in §9.1 honestly, sentence by sentence,
@@ -597,8 +605,28 @@ the third is the honest one:
    reaches skill-capable hosts only.
 3. **Decide the second channel early rather than as a fallback.** Settled in principle by §9.5:
    the skill is the specification and each host receives a projection of it, so a target that
-   cannot carry the whole method constrains its own projection and nothing else. Which projection
-   a capped host gets is still open.
+   cannot carry the whole method constrains its own projection and nothing else.
+
+**What actually happened, measured.** The harvest came in at **453 characters**, against the
+≈700–800 estimated above — the estimate was honest about which rules were tool-local and
+optimistic about how much room each one occupied. That shortfall is the whole reason the third
+consequence stopped being a decision for later: Phase 1's own steps collided with the cap, not
+Phase 3's.
+
+The answer was not to cut a rule. §9.5 settled where a host's limit has authority, and
+`project:compact` is the mechanism that follows from it: the skill states a rule in full, and
+where this target cannot carry that wording it carries a shorter one of the same rule. Three
+sections use it — the write flow, the failure split, and the recommendation model — and the
+shorter wording lives in the skill beside the rule it restates, never in a second document.
+
+What holds the two together is a contract rather than a convention. For each of those sections,
+one list of behaviours is asserted against the specification and against the projection
+separately, so a rule lost or weakened on either side fails. A projection may be terser. It may
+not mean anything else.
+
+So the two artifacts now have different jobs. The skill says what Tonight does and is bounded by
+nothing but usefulness; the projection is what one host can carry, and the 7,900 guard and 8,000
+cap are facts about it alone.
 
 This also settles a live contradiction with `README.md` — *"none serves product guidance either"*.
 The correct restatement is narrower than the first draft's: **a tool description carries the rules
@@ -637,10 +665,10 @@ It bounds what that projection can carry; it has no authority over what Tonight 
 specification outgrows a target, the projection for that target adapts — the specification does
 not shrink to fit it, and an approved rule is never removed to make a number work.
 
-This settles the first unresolved decision of §11 at the level of principle: there is one
-specification and there are projections of it. *How* a projection is produced for a host that
-cannot take the whole thing is an implementation question, open and deliberately not answered
-here.
+This settles the first unresolved decision of §11: there is one specification and there are
+projections of it. The mechanism follows from the principle rather than being fixed by it —
+`project:compact`, built during Phase 1, lets the skill carry a shorter wording of a rule for a
+target that cannot take the canonical one.
 
 ---
 
@@ -708,6 +736,13 @@ rule of §6.2, and the volatile-claim standard of §6.3.
 about now when there is not.
 
 **Implementation.** A new subsection in the recommending instructions, ≈600 characters. No code.
+
+**Read the budget before writing it.** §9.3 originally put the cap collision at Phase 3. Against
+the measured figure it arrives here: 7,876 + ≈600 is ≈8,476, which is over the 8,000 cap and 576
+over the guard. That is not a reason to write less of Phase 2 — it is the point at which the
+`project:compact` mechanism stops being a remedy and becomes how this section is drafted.
+Whoever writes Phase 2 should write the canonical wording first and project it, rather than
+discovering the ceiling afterwards.
 
 **Risks.** Invented availability — the most damaging failure in the product. Invented calendar
 facts, which the first draft treated as free and §6.1 now bounds. Manufactured urgency in quiet
@@ -841,10 +876,10 @@ two criteria without spot checks — they are the ones a judge model is most lik
 
 **Unresolved decisions**
 
-1. **The second delivery channel.** The architecture is decided — §9.5: one specification,
+1. **The second delivery channel — settled.** §9.5 is the architecture: one specification,
    host-specific projections, semantic equivalence required, host limits binding on the
-   projection only. What remains open is the mechanism for a target that cannot carry the whole
-   specification, which is an implementation choice and not a product one.
+   projection only. The mechanism exists too — `project:compact`, built during Phase 1 and in
+   use in three sections. Kept here as the record of a decision, not an open question.
 2. **May the lead be wrong?** Product identity, not engineering. If a confident lead that misses
    is acceptable — and the skill may say so out loud, *"if it does not land, tell me and I will
    know more"* — the leap may lead and §7.5 stands. If not, expansion is permanently second and

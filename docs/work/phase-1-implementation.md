@@ -8,9 +8,12 @@ splits by what was asked. P3 and P5 are adopted: what they have written is evide
 of request and only an exclusion written into an instruction is mode-dependent, a matching Mix is
 declarative evidence from the moment it exists, and Movie states calibrate confidence rather than
 deciding whether a Mix counts. The `project:compact` mechanism of strategy §9.5 is in place, so
-this host can be given a shorter wording of a rule the skill states in full; the generated
-instructions are version `645a831f` at 7,876 characters, under both the 7,900 guard and the
-8,000 cap. Steps 7–8 have not started.
+this host can be given a shorter wording of a rule the skill states in full. **Step 7 has been
+carried out**: the measured figure — version `645a831f` at **7,876 characters**, twenty-four
+under the 7,900 guard and a hundred and twenty-four under the 8,000 cap — is recorded in strategy
+§9.3 in place of the estimate, and `README.md` now describes the specification and its
+projections rather than a verbatim copy. Step 8, the paired blind evaluation, has not started and
+no evaluation results exist for the new instructions.
 `recommendation-strategy.md` is the product specification and is not reopened here — where this
 document appears to disagree with it, the strategy document wins and this one is wrong.
 
@@ -81,9 +84,13 @@ is out of this document's authority.
 
 ## 2. The instruction budget
 
-### 2.1 Measured, today
+### 2.1 Measured before Phase 1 began
 
-The generated project instructions are **7,816 characters** against a **7,900** guard and a
+> **Historical.** The figures in §2.1 to §2.4 are the planning estimates this document was
+> written against, kept as written. What Phase 1 actually produced is in §2.5, and strategy §9.3
+> carries the same measurement.
+
+The generated project instructions were **7,816 characters** against a **7,900** guard and an
 **8,000** measured truncation point (`web/lib/instructions.test.ts`, `CAP` and `GUARD`). Roughly
 eighty characters of headroom. By section:
 
@@ -97,19 +104,20 @@ eighty characters of headroom. By section:
 
 Tool descriptions, which are **not** capped, total ≈5,187 characters across the eleven tools.
 
-### 2.2 Expected after Phase 1
+### 2.2 Expected after Phase 1 — the estimate made beforehand
 
 | Movement | Characters |
 | --- | ---: |
-| Today | **7,816** |
+| Before Phase 1 | **7,816** |
 | − the old `## Recommending` section, replaced wholesale | −1,730 |
 | − net harvest relocated to tool descriptions (§2.3) | −675 |
 | + the new `## Recommending` section (estimate) | +2,040 |
 | + the failure split in `## When something fails` (estimate) | +260 |
 | **Expected** | **≈7,711** |
 
-**Phase 1 fits, with ≈190 characters of headroom.** The estimate is deliberately generous: the
-skill is written telegraphically and the estimate is not. Step 7 measures rather than assumes.
+**The estimate said Phase 1 would fit, with ≈190 characters of headroom.** It was deliberately
+generous: the skill is written telegraphically and the estimate was not. Step 7 measured rather
+than assumed, and §2.5 records what it found.
 
 Tool descriptions grow from ≈5,187 to ≈6,000. There is no length assertion anywhere in the
 repository and no cap on this channel.
@@ -143,21 +151,51 @@ recommending"*, *"A recommendation is not a saved Movie"*, *"A film in no Mix is
 against the real numbers during this planning exercise shows that it runs out at Phase 2.**
 
 ```
-after Phase 1              ≈7,711
+after Phase 1 (estimated)  ≈7,711
 + Phase 2, "Why now"       ≈  600
                            ───────
                            ≈8,311      over the 8,000 cap, and 411 over the guard
 ```
 
+The finding held. Recomputed against the measured 7,876 of §2.5 the collision is slightly larger
+— ≈8,476, over the cap by 476 — and it still arrives at Phase 2.
+
 Phase 1 is unaffected and does not change. The consequence is for what comes next:
 
-> **The delivery mechanism for a capped host must be settled before Phase 2 is written, not
-> before Phase 3.** The architecture is no longer open — strategy §9.5: the skill is the
+> **The delivery mechanism for a capped host had to be settled before Phase 2 was written, not
+> before Phase 3.** It was, during Phase 1. Strategy §9.5 is the architecture — the skill is the
 > specification, every other format is a projection of it, and a host's limit binds that
-> projection rather than the product. What is open is how a capped target is served.
+> projection rather than the product — and `project:compact` is the mechanism that follows from
+> it: a shorter wording of the same rule, written in the skill beside the rule it restates.
 
 Step 7 records the measured post-Phase-1 figure in the strategy document so that the decision is
-taken against a number rather than an estimate.
+taken against a number rather than an estimate. **Done**: §9.3 carries the measured 7,876, and
+the collision this section predicted is restated against that number in the strategy's own
+Phase 2 entry, which is where whoever writes Phase 2 will be reading. It arrives at Phase 2 as
+predicted, and `project:compact` is what answers it.
+
+### 2.5 Measured after Phase 1
+
+Step 7's measurement, taken from the repository rather than estimated:
+
+| | Estimate (§2.2) | Measured |
+| --- | ---: | ---: |
+| Generated instructions | ≈7,711 | **7,876** |
+| Relocation harvest (§2.3) | ≈675 | **453** |
+| Headroom under the 7,900 guard | ≈190 | **24** |
+| Headroom under the 8,000 cap | ≈290 | **124** |
+
+Version `645a831f`. The guard and the cap are both satisfied.
+
+Two things the estimate got wrong, and one it did not. The harvest was two thirds of what §2.3
+projected — the rules were tool-local as claimed, and each occupied less room than assumed. The
+new `## Recommending` came in larger than +2,040 once P3 and P5 were written out in full. What
+held is the conclusion: Phase 1 fits, and it fits without an approved rule being dropped.
+
+It fits because the shortfall was answered by `project:compact` rather than by cutting. Three
+sections are delivered to this host in a shorter wording of the same rules — the write flow, the
+failure split, and the recommendation model — with the canonical wording kept in the skill and
+equivalence asserted against both artifacts. Strategy §9.3 and §9.5 carry the same account.
 
 ---
 

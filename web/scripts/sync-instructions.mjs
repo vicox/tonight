@@ -55,18 +55,24 @@
  * one. Nothing is generated from a second source — the compact wording lives in the
  * skill, next to the rule it restates.
  *
- * ## The transform, in four steps
+ * ## The transform, in five steps
  *
  * 1. Strip the YAML frontmatter. It names the skill for a host that discovers
  *    skills, and inside a ChatGPT project it is noise.
  * 2. Remove every `full:start` … `full:end` block, then collapse the blank lines
  *    they leave behind. Unbalanced markers are an error rather than a guess.
- * 3. Hash what remains, over the body after step 2 and over nothing else — so the
+ * 3. Unwrap every `project:compact` comment: drop the two markers, keep what is
+ *    between them. An odd number of markers is an error rather than a guess.
+ * 4. Hash what remains, over the body after step 3 and over nothing else — so the
  *    version changes exactly when what the agent sees changes.
- * 4. Append one line carrying that digest, after a blank line, at the end.
+ * 5. Append one line carrying that digest, after a blank line, at the end.
  *
- * Nothing is summarised, reworded or reflowed. Every sentence in the output is a
- * sentence in the skill, and `projectInstructionsFrom` is the whole of it.
+ * Every step selects or drops text. **Nothing is summarised, reworded, reflowed or
+ * invented here**: where the output says a rule in fewer words than the canonical
+ * passage does, those words were read out of `SKILL.md` — a `project:compact` block
+ * written by hand beside the rule it restates. This file chooses between two wordings
+ * the skill already contains; it never writes a third. `projectInstructionsFrom` is
+ * the whole of it.
  */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
