@@ -164,71 +164,157 @@ test("what is conversation rather than a field stays here", () => {
   assert.match(flat, /already say they saw it/, "why an opinion needs no second question");
 });
 
-test("an ordinary request is Discovery, and the model does not bound it", () => {
+test("both kinds of request read the model; only an exclusion is mode-dependent", () => {
   /**
-   * The distinction this document exists to teach twice over: what to recommend,
-   * and what the saved model has to do with it. Before it, every request read as
-   * "find the matching Mix" — a new user with two Genres got recommendations
-   * filtered through two Genres. Nothing failed; the answers were just narrow.
+   * Step 6, adopting P3. Rewritten rather than deleted: the distinction it pinned
+   * still exists, but what turns on it has changed.
+   *
+   * It used to be that nothing persisted bound a plain request — the model was not
+   * read at all unless somebody asked for it. That protected a new user from having
+   * two Genres narrowed into a filter, and it also meant the Mix written last night
+   * had no effect on tonight's answer, which makes the product's own loop false.
+   *
+   * What replaces it is narrower and stronger: the model is evidence on any night,
+   * and the single thing that depends on what was asked is whether an exclusion
+   * *written into an instruction* binds. Tonight's own words bind absolutely either
+   * way, which is what stops evidence-always from becoming a filter-always.
    */
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
   for (const [what, rule] of [
-    ["that there are two kinds of request", "Two kinds of request, told apart from what they said"],
-    ["that it is never asked about", "never by asking"],
-    ["which one is the default", "**Discovery is the default**"],
-    ["what an ordinary request asks for", "a good film, not their model"],
-    ["what does bind in Discovery", "What **they** asked for binds"],
-    ["that this includes tonight's exclusions", "including what they ruled out just now"],
-    ["that availability binds too", "what they can watch"],
-    ["that nothing persisted binds", "**Nothing persisted binds**"],
-    ["that this covers every kind of persisted thing",
-     "not a Genre, not a Mix, not a saved film or its state"],
-    ["that a persisted exclusion is not a rule over every evening",
-     "not what a Genre's or Mix's instruction rules out"],
-    ["that an exclusion was written for one idea",
-     "an exclusion they wrote for one idea is not a rule over every evening"],
-    ["that nothing in it is a criterion unasked", "nothing in it is a criterion unless they asked"],
-    ["that a small model is not a filter", "a small or new one must never become a filter"],
-    ["when taste leads instead", "**Taste-aware is what they ask for**"],
-    ["reading the model for it", "Read it with `get_taste` and weigh it"],
-    ["that exclusions are evidence once they ask",
-     "Now the model is evidence, including what its instructions rule out"],
-  ] as [string, string][]) {
-    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
+    ["that there are two kinds of request", /Two kinds of request, told apart from what they said/],
+    ["that it is never asked about", /never by asking/],
+    ["to read the model either way", /Read `get_taste` either\s*way/],
+    ["that what is written is evidence on any night", /what they wrote is evidence on any night/],
+    ["that tonight's words bind", /What they said tonight binds/],
+    ["that this includes tonight's exclusions", /ruled out just now/],
+    ["that availability binds too", /can watch/],
+    ["which one is the default", /\*\*Discovery is the default\*\*/],
+    ["that discovery is exploring", /you are exploring/i],
+    ["and explores from what they wrote", /from what they wrote/],
+    ["when taste leads instead", /\*\*Taste-aware is what they ask for\*\*/],
+    ["that the model is then the brief", /the model is the brief/],
+    ["that its exclusions then hold", /exclusions hold/],
+  ] as [string, RegExp][]) {
+    assert.match(flat, rule, `the agent is never told ${what}`);
   }
+
+  // The one mode-dependent thing, stated as the exception it is.
+  const exclusion = flat.slice(flat.indexOf("An exclusion inside"), flat.indexOf("Discovery is the default"));
+  assert.ok(exclusion.length > 80, "the exclusion rule could not be found");
+  assert.match(exclusion, /binds only when they asked for their taste/,
+    "the exclusion is not scoped to a taste request");
+  assert.match(exclusion, /not a rule over every evening/,
+    "the reason an exclusion does not travel is missing");
+  assert.match(exclusion, /Everything else is evidence either way/,
+    "the exception is not bounded, so it reads as the rule");
+
+  // The superseded rule must not survive beside its replacement: it says the exact
+  // opposite of P3 and would win, being the more absolute of the two.
+  assert.doesNotMatch(flat, /Nothing\s+persisted binds/i, "the pre-P3 rule is still here");
+  assert.doesNotMatch(flat, /nothing in it is a criterion unless they asked/i);
+  assert.doesNotMatch(flat, /a small or new one must never become a filter/i);
+  assert.doesNotMatch(flat, /Read it with `get_taste` and weigh it/i);
 });
 
-test("what counts as taste evidence, and what does not", () => {
+test("a Mix is evidence, and the states under it calibrate rather than gate", () => {
+  /**
+   * Step 6, adopting P5 — the highest-risk change in Phase 1.
+   *
+   * The rule this replaces said a Genre or Mix existing is not evidence they like
+   * it, and that what makes one trustworthy is the film states under it. That reads
+   * as a gate: no states, no weight. It is also the product's own loop denied — the
+   * Mix written in last night's conversation is exactly the one tonight's answer
+   * should be using, and it is the most current thing the user has said.
+   *
+   * So: a Mix is declarative evidence from the moment it exists, and states are
+   * confirmatory — they move confidence, never eligibility. A Mix with nothing
+   * under it is less certain about specifics and no less weighty about intent.
+   */
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
   for (const [what, rule] of [
-    ["that liked is positive", "`liked` is a positive sign"],
-    ["that loved is stronger", "`loved` a stronger one"],
-    ["that disliked is negative but not a ban", "`disliked` is a negative sign, not a ban"],
-    ["that the other three carry no preference",
-     "`seen`, `not_seen` and `null` are no preference evidence at all"],
-    ["that existing is not liking", "A Genre or Mix existing is not evidence they like it"],
-    ["what does make one trustworthy", "What makes one trustworthy is the film states under it"],
-    ["that evidence accumulates", "and they accumulate"],
-    ["that one film settles nothing", "one `loved` film is a hint"],
-    ["that consistency is what earns confidence", "several consistent ones something to lean on"],
-    ["that conflicting evidence weakens it", "conflicting ones weaken it again"],
-    ["to say how sure it is", "Say how sure you are"],
-  ] as [string, string][]) {
-    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
+    ["that a matching Mix is a reason, not a filter",
+      /A matching Mix is a reason the recommendation fits/],
+    ["that it counts immediately", /counts from the moment it exists/],
+    ["that an empty Mix says as much as a full one",
+      /nothing under it, says as much as one with ten films/],
+    ["that a Genre is thinner", /A Genre is an ingredient/],
+    ["that a Genre name alone justifies nothing", /a Genre name alone is a label/],
+    ["that states calibrate", /States calibrate it, never decide whether it counts/],
+    ["that loved strengthens", /`loved` strengthens/],
+    ["that liked strengthens less", /`liked` more\s*weakly/],
+    ["that disliked weakens the similar", /`disliked` weakens something similar/],
+    ["that disliked is not a ban", /a sign, not a ban/],
+    ["that not_seen and null are not negative evidence",
+      /`not_seen` and `null` are\s*absence of experience, not evidence against/],
+    ["what seen does and does not say", /`seen` says only that they watched it/],
+    ["how an empty Mix is read",
+      /less confidence about specifics, just as much about\s*intent/],
+    ["that this changes phrasing, not eligibility",
+      /changes phrasing and reach, never whether you use it/],
+    ["to say how sure it is", /Say how sure you are/],
+  ] as [string, RegExp][]) {
+    assert.match(flat, rule, `the agent is never told ${what}`);
   }
+
+  // The gate, in every form the strategy names. A Mix is never classified as
+  // counting or not counting, and no word grades one as provisional.
+  assert.doesNotMatch(flat, /A Genre or Mix existing is not evidence they like it/i,
+    "the pre-P5 rule is still here");
+  assert.doesNotMatch(flat, /What makes one trustworthy is the film states under it/i);
+  assert.doesNotMatch(flat, /\b(aspirational|untested|unproven|provisional)\b/i,
+    "a Mix is graded by a label the strategy rejects");
+  assert.doesNotMatch(flat, /(Mix|Genre)[^.]{0,40}\b(does not count|doesn't count|no weight)\b/i,
+    "something in the text classifies a Mix as not counting");
 });
 
 test("taste is read qualitatively — no score, no threshold, no count", () => {
-  // The rules above describe evidence getting stronger or weaker. They must not
-  // turn into arithmetic: a weight or a minimum number of films would be a second
-  // taste model, kept in the agent's head, that nobody can read or correct.
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
-  const taste = flat.slice(flat.indexOf("**Taste-aware is what they ask for**"), flat.indexOf("Either way:"));
+  /**
+   * The rules in this passage describe evidence getting stronger or weaker. They
+   * must not turn into arithmetic: a weight, a points scheme or a minimum number of
+   * films would be a second taste model, kept in the agent's head, that nobody can
+   * read or correct — and a count of states deciding whether a Mix counts is the
+   * exact P5 regression Step 6 exists to remove.
+   *
+   * Checked on **both** artifacts, independently. The specification and the
+   * projection are written separately, so arithmetic can be introduced into either
+   * one alone; a guard on the shipped text only would miss it in the skill, which
+   * is the copy a skill-capable host actually reads.
+   *
+   * Scoped to this passage rather than the file. Numbers are legitimate elsewhere —
+   * "three to five other films", "two or three directions" — and this is the one
+   * place where a number would be a rule about how much taste is worth.
+   */
+  const between = (text: string) => {
+    const flat = text.replace(/\s+/g, " ");
+    const from = flat.indexOf("Two kinds of request");
+    const to = flat.indexOf("Either way:", from + 1);
+    assert.ok(from >= 0 && to > from, "the recommendation-model passage could not be found");
+    return flat.slice(from, to);
+  };
 
-  assert.ok(taste.length > 200, "the taste-aware passage could not be found");
-  assert.doesNotMatch(taste, /\b(score|weight|threshold|points?|at least \d+|\d+ or more)\b/i);
+  const arithmetic: [string, RegExp][] = [
+    ["points or scoring", /\b(points?|scores?|scoring|scored)\b/i],
+    ["a threshold", /\bthresholds?\b/i],
+    ["weighting", /\bweigh(t|ts|ted|ting)\b/i],
+    ["a minimum count", /\bat least \d+|\b\d+ or more\b/i],
+    ["a numeric state count", /\b\d+\s+(loved|liked|disliked|seen|films?|states?)\b/i],
+    ["a spelled state count", /\b(one|two|three|four|five|several)\s+(loved|liked|disliked)\b/i],
+    ["a gate on counting", /\bbefore it counts\b|\bbefore trusting\b/i],
+    ["counting states", /\bcount(s|ing)?\s+(the\s+)?(loved|liked|films|states)\b/i],
+  ];
+
+  for (const [where, text] of [
+    ["the skill", canonicalSkill()],
+    ["the projection", PROJECT_INSTRUCTIONS],
+  ] as [string, string][]) {
+    const passage = between(text);
+    assert.ok(passage.length > 200, `${where}: the passage is too short to be the right one`);
+    for (const [what, pattern] of arithmetic) {
+      assert.doesNotMatch(passage, pattern, `${where} reads taste as arithmetic: ${what}`);
+    }
+  }
 });
 
 test("the answer has one lead, and the rest are directions from it", () => {
@@ -638,6 +724,60 @@ test("the compact projection of the write flow says the same thing the skill doe
     "the canonical framing of the Mix question reached the projection");
 });
 
+test("the compact projection of the taste model says the same thing the skill does", () => {
+  /**
+   * Strategy 9.5, third use of the mechanism. P3 and P5 are the semantics most
+   * likely to be lost in a shorter wording, because the losses are quiet: a Mix
+   * described in fewer words easily reads as a filter again, and states described
+   * in fewer words easily read as a gate.
+   */
+  const canonical = canonicalSkill().replace(/\s+/g, " ");
+  const projected = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  const behaviours: [string, RegExp, RegExp][] = [
+    ["the model is read either way", /Read `get_taste`\s*either way/, /Read `get_taste` either\s*way/],
+    ["tonight's words bind", /What they said tonight binds/, /What they said tonight binds/],
+    ["an exclusion is mode-dependent",
+      /binds only when they asked for their taste/, /binds only when they asked for their taste/],
+    ["and is the only thing that is",
+      /Everything else in the model is evidence either way/, /Everything else is evidence either way/],
+    ["discovery explores from what they wrote",
+      /what they have written is where you explore from/, /you are exploring, from what they wrote/],
+    ["taste-aware makes the model the brief",
+      /Now the model is the brief, and its exclusions hold/, /the model is the brief, and its\s*exclusions hold/],
+    ["a matching Mix is a reason",
+      /a Mix that matches is a reason\s*the recommendation fits/,
+      /A matching Mix is a reason the recommendation fits/],
+    ["it counts immediately", /counts from\s*the moment it exists/, /counts from the moment it exists/],
+    ["an empty Mix says as much as a full one",
+      /nothing under it yet says as much about what\s*they like as one with ten films under it/,
+      /nothing under it, says as much as one with ten films/],
+    ["a Genre is thinner", /A Genre is an ingredient/, /A Genre is an ingredient/],
+    ["states calibrate rather than gate",
+      /Movie states calibrate that evidence. They never decide whether it counts/,
+      /States calibrate it, never decide whether it counts/],
+    ["loved strengthens", /`loved`\s*strengthens it/, /`loved` strengthens/],
+    ["liked less so", /`liked` strengthens it more weakly/, /`liked` more\s*weakly/],
+    ["disliked is a sign, not a ban", /negative sign, not a ban/, /a sign, not a ban/],
+    ["absence is not negative evidence",
+      /`not_seen` and `null` are absence of experience, never evidence\s*against/,
+      /`not_seen` and `null` are\s*absence of experience, not evidence against/],
+    ["an empty Mix changes phrasing, not eligibility",
+      /never whether you use it/, /never whether you use it/],
+    ["to say how sure it is", /Say how sure you are/, /Say how sure you are/],
+  ];
+
+  for (const [what, inSkill, inProjection] of behaviours) {
+    assert.match(canonical, inSkill, `the skill lost: ${what}`);
+    assert.match(projected, inProjection, `the projection lost: ${what}`);
+  }
+
+  // Both wordings must not ship: the canonical passage is the longer one, and its
+  // presence here would mean the compact block saved nothing.
+  assert.doesNotMatch(projected, /not a\s*setting that one kind of request switches on/,
+    "both wordings of the taste model reached the projection");
+});
+
 test("the version marker is the last line, and is derived from the body without it", () => {
   const lines = PROJECT_INSTRUCTIONS.split("\n");
 
@@ -734,8 +874,11 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Never write a Genre, a Mix or a Movie anywhere but Tonight",
     "Never ask for or pass an account id",
     // reading and recommending
-    "Read it with `get_taste` and weigh it",
-    "rules out",
+    "Read `get_taste` either",
+    "binds only when they asked for their taste",
+    "A matching Mix is a reason the recommendation fits",
+    "States calibrate it, never decide whether it counts",
+    "exclusions hold",
     "Never print the taste model while",
     "one lead, named as such",
     "distance from the lead",

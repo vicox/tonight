@@ -127,7 +127,7 @@ check "the loop is stated: want to watch, recommend, the model grows" \
 check "an empty model is context missing, not a reason to stop" \
     "$(order_check 'never a reason to stop' \
         'Discovery is the default' \
-        'Read it for context if you like')" "True"
+        'what they have written is where you explore from')" "True"
 
 echo
 echo "--- ask a film question, or none at all ---"
@@ -173,9 +173,57 @@ check "a mix is read as its own instruction plus its genres" \
     "$(order_check '**its own instruction plus the instructions of its Genres**' \
         'plus the instructions of its Genres' \
         'in that order')" "True"
-check "an exclusion outranks a preference" \
-    "$(order_check 'rules out' 'an exclusion they wrote for one idea is not a rule over every evening' \
-        'worse than none')" "True"
+check "only an exclusion is mode-dependent; everything else is evidence either way" \
+    "$(order_check '**An exclusion written into a Genre' \
+        'binds only when they asked for their taste' \
+        'an exclusion they wrote for one idea is not a rule over every evening' \
+        'Everything else in the model is evidence either way')" "True"
+check "and an instruction is still a constraint, not a preference to trade off" \
+    "$(order_check 'worse than none')" "True"
+
+echo
+echo "--- a Mix is evidence; its films calibrate ---"
+
+# Step 6, adopting P5. The rule replaced here said a Genre or Mix existing is not
+# evidence they like it, and that film states are what make one trustworthy. That is a
+# gate: no states, no weight — and it denies the product's own loop, since the Mix
+# written in last night's conversation is exactly the one tonight's answer should use.
+check "a matching Mix is a reason the recommendation fits" \
+    "$(order_check 'a Mix that matches is a reason' 'the recommendation fits')" "True"
+check "and it counts from the moment it exists, with nothing under it" \
+    "$(order_check 'counts from' 'the moment it exists' \
+        'nothing under it yet says as much about what' \
+        'they like as one with ten films under it')" "True"
+check "a Genre is thinner than a Mix, and a Genre name alone justifies nothing" \
+    "$(order_check 'A Genre is an ingredient and' \
+        'thinner on its own' \
+        'justified only by a Genre name is justified by a label')" "True"
+check "states calibrate the evidence rather than deciding whether it counts" \
+    "$(order_check 'Movie states calibrate that evidence. They never decide whether it counts')" "True"
+check "the four states keep their meanings" \
+    "$(order_check '`loved`' 'strengthens it' '`liked` strengthens it more weakly' \
+        '`disliked` weakens something similar' 'negative sign, not a ban')" "True"
+check "absence of experience is never evidence against" \
+    "$(order_check '`not_seen` and `null` are absence of experience, never evidence' \
+        'against' '`seen` says they have watched it and nothing more')" "True"
+check "an empty Mix changes how you speak, not whether you use it" \
+    "$(order_check 'less confidence about specifics and just as' \
+        'much about intent' \
+        'never whether you use it' \
+        'Say how sure you are')" "True"
+
+# The gate, in every form the strategy rejects.
+check "the pre-P5 gate is gone" \
+    "$(grep -ciE 'A Genre or Mix existing is not evidence|What makes one trustworthy is the film' "$SKILL")" "0"
+check "and no word grades a Mix as provisional" \
+    "$(grep -ciE 'aspirational|untested|unproven|provisional' "$SKILL")" "0"
+
+# P3's replaced half: nothing persisted used to bind, which meant the model was not
+# read at all unless somebody asked for it.
+check "the model is read on every recommendation" \
+    "$(order_check 'Read `get_taste`' 'either way')" "True"
+check "the pre-P3 rule is gone" \
+    "$(grep -ciE 'Nothing.{0,3}persisted binds|nothing in it is a criterion unless they asked|must never become a filter' "$SKILL")" "0"
 check "the idea leads the answer, and the model is not printed at the user" \
     "$(order_check 'Never print the taste model while' \
         'One idea for the evening, in a line' \
