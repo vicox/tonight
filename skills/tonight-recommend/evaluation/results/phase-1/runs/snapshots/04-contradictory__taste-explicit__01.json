@@ -1,0 +1,92 @@
+{
+  "genres": [
+    {
+      "name": "Quiet Science Fiction",
+      "instruction": "Ideas over spectacle. I do not want a war in it.",
+      "createdAt": "2026-09-15T11:05:18.037853Z",
+      "updatedAt": "2026-09-15T11:05:18.037853Z"
+    },
+    {
+      "name": "Slow Burn",
+      "instruction": "I like films that take their time and trust me to wait.",
+      "createdAt": "2026-09-15T11:05:18.033256Z",
+      "updatedAt": "2026-09-15T11:05:18.033256Z"
+    }
+  ],
+  "mixes": [
+    {
+      "name": "Long Way Out",
+      "instruction": "Slow science fiction where the problem is inside somebody, not outside the ship.",
+      "genres": [
+        "Slow Burn",
+        "Quiet Science Fiction"
+      ],
+      "movies": [
+        {
+          "title": "Aftersun",
+          "year": 2022
+        },
+        {
+          "title": "Arrival",
+          "year": 2016
+        },
+        {
+          "title": "Moon",
+          "year": 2009
+        },
+        {
+          "title": "Solaris",
+          "year": 1972
+        }
+      ],
+      "createdAt": "2026-09-15T11:05:18.045640Z",
+      "updatedAt": "2026-09-15T11:05:18.045640Z"
+    }
+  ],
+  "movies": [
+    {
+      "title": "Aftersun",
+      "year": 2022,
+      "imdbId": null,
+      "state": "loved",
+      "mixes": [
+        "Long Way Out"
+      ],
+      "createdAt": "2026-09-15T11:05:18.070624Z",
+      "updatedAt": "2026-09-15T11:05:18.070624Z"
+    },
+    {
+      "title": "Arrival",
+      "year": 2016,
+      "imdbId": null,
+      "state": "loved",
+      "mixes": [
+        "Long Way Out"
+      ],
+      "createdAt": "2026-09-15T11:05:18.062425Z",
+      "updatedAt": "2026-09-15T11:05:18.062425Z"
+    },
+    {
+      "title": "Moon",
+      "year": 2009,
+      "imdbId": null,
+      "state": "liked",
+      "mixes": [
+        "Long Way Out"
+      ],
+      "createdAt": "2026-09-15T11:05:18.081354Z",
+      "updatedAt": "2026-09-15T11:05:18.081354Z"
+    },
+    {
+      "title": "Solaris",
+      "year": 1972,
+      "imdbId": null,
+      "state": "disliked",
+      "mixes": [
+        "Long Way Out"
+      ],
+      "createdAt": "2026-09-15T11:05:18.053315Z",
+      "updatedAt": "2026-09-15T11:05:18.053315Z"
+    }
+  ]
+}

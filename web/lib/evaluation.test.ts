@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 /**
@@ -56,6 +57,16 @@ type Fixture = {
  * two failure branches are different behaviours with different evidence.
  */
 const REQUIRED = ["AC1", "AC2", "AC3a", "AC3b", "AC4", "AC5", "AC6a", "AC6b"];
+
+const scorer = await import("../../skills/tonight-recommend/evaluation/score.mjs");
+const CANDIDATE = new URL("results/phase-1/", EVALUATION);
+const accounting = () => readFileSync(new URL("ACCOUNTING.md", CANDIDATE), "utf8");
+const run = (answer: string, header: Record<string, string> = {}) => ({
+  file: "test.md",
+  header: { fixture: "02-new-mix", prompt: "plain", get_taste: "ok", ...header },
+  answer,
+  stored: [] as { name: string; kind: string }[],
+});
 
 test("there are eight fixtures, and each says what it is for", () => {
   assert.equal(fixtures.length, 8, "the fixture set is not the eight the plan names");
@@ -628,4 +639,322 @@ test("the model is pinned to an exact name, never an alias", () => {
     "the resolved model is taken from modelUsage, which also lists auxiliary models",
   );
   assert.match(runner, /execFileSync\("claude", \["--version"\]/, "the CLI version is assumed rather than asked");
+});
+
+test("a lead is recognised by what it does, not by one phrasing of it", () => {
+  /**
+   * R5. The first scoring pass looked for `I'd start with` and nothing else, so
+   * it read `01-empty__plain__05` — whose lead is "my lead tonight: The Nice
+   * Guys (2016)" — as producing no recommendation, and reported four failures
+   * where there were three. A detector that recognises one wording measures the
+   * wording, not the behaviour.
+   */
+  for (const phrasing of [
+    "I'd start with Zodiac",
+    "I'd start with *Prisoners* (2013)",
+    "I'd start here: *Prisoners* (2013)",
+    "my lead tonight: **The Nice Guys** (2016)",
+    "My pick is *Paterson* (2016)",
+    "I'd begin with *Zodiac* (2007)",
+    "I'd lead with *Stalker* (1979)",
+    "The lead is *Moon* (2009)",
+  ]) {
+    assert.ok(scorer.hasLead(phrasing), `a lead phrased "${phrasing}" is not recognised`);
+  }
+
+  // And a list is not a lead. These are the answers AC1 exists to fail.
+  for (const listing of [
+    "Here are a few options for tonight.",
+    "Some things you might like:",
+    "A few directions, depending on your mood:",
+    "What are you in the mood for tonight?",
+    // Commitment without a film is not a lead: it commits to nothing.
+    "My pick depends on the mood",
+    "I'd start with whatever you feel like",
+  ]) {
+    assert.ok(!scorer.hasLead(listing), `"${listing}" was read as a lead`);
+  }
+});
+
+test("an ordinary request that recommends nothing fails AC1", () => {
+  // The scoping error the first pass made: §8.3.1 requires the shape of an
+  // ordinary request, so producing none fails the row rather than leaving it
+  // unscored. An empty model is not an exemption.
+  const asked = run("Nothing saved yet. Are you in the mood for something tense, or lighter?", {
+    fixture: "01-empty",
+  });
+  const answered = run(
+    "**The idea:** a tight thriller.\n\nI'd start with *Prisoners* (2013).\n\n- If you want colder: *Zodiac* (2007)\n- If you want lighter: *Knives Out* (2019)",
+    { fixture: "01-empty" },
+  );
+  const askedRow = scorer.score([asked]).AC1;
+  assert.equal(askedRow.verdict, "fail");
+  assert.match(askedRow.failures[0], /no lead/, "the failure is not attributed to the missing lead");
+  assert.equal(scorer.score([answered]).AC1.verdict, "pass");
+
+  // A list with the right number of directions and no lead must still fail, and
+  // must fail *for the lead*. Without this case the direction count masks the
+  // lead check: a question has no directions either, so removing the lead rule
+  // entirely still produces a failure — for the wrong reason.
+  const listed = run(
+    "Here are three for tonight:\n\n- *Prisoners* (2013)\n- *Zodiac* (2007)\n- *Knives Out* (2019)",
+    { fixture: "01-empty" },
+  );
+  const listedRow = scorer.score([listed]).AC1;
+  assert.equal(listedRow.verdict, "fail");
+  assert.match(listedRow.failures[0], /no lead/, "a list with 3 directions passed AC1");
+
+  // The one exemption is derived from the run's own facts — a taste-explicit
+  // request whose read failed must stop — never from a list of fixture names.
+  const stopped = run("The store didn't answer, so I can't read your taste. Retry?", {
+    fixture: "07-failure-explicit",
+    prompt: "taste-explicit",
+    get_taste: "failed",
+  });
+  assert.equal(scorer.score([stopped]).AC1.verdict, "pass");
+  assert.ok(!scorer.owesRecommendation(stopped.header));
+  // ...and the ordinary failure branch is NOT exempt: it still recommends.
+  assert.ok(
+    scorer.owesRecommendation({ fixture: "08-failure-ordinary", prompt: "plain", get_taste: "failed" }),
+  );
+});
+
+test("certainty about a specific film's fit is bounded; certainty about intent is not", () => {
+  /**
+   * R4's standard, scored. A state-free Mix counts fully as declarative intent —
+   * nothing here reduces that, and nothing grades the Mix. What fails is an
+   * unhedged superlative about one film *fitting* it while no film under it has
+   * confirmed that any does.
+   */
+  const over = run("I'd start with *Paterson* (2016) — about as pure a fit for Reading Room as exists.");
+  assert.equal(scorer.score([over]).AC2.verdict, "fail");
+
+  // Hedged but still decisive stays legal: the shape needs a committed lead.
+  for (const hedged of [
+    "I'd start with *Paterson* (2016) — it sits right in what Reading Room is asking for.",
+    "I'd start with *Paterson* (2016). It looks like a good fit, though nothing under Reading Room has told me yet.",
+    "I'd start with *Paterson* (2016) — closest I know to what you wrote, on intent at least.",
+  ]) {
+    assert.equal(scorer.score([run(hedged)]).AC2.verdict, "pass", `hedged wording failed: ${hedged}`);
+  }
+
+  // Confidence about what they meant is never penalised.
+  const intent = run("You clearly meant patient, character-first films — that much is unambiguous.");
+  assert.equal(scorer.score([intent]).AC2.verdict, "pass");
+});
+
+test("a verdict is pass or fail — there is no partial", () => {
+  // AC3a was recorded as `partial` by the first pass. §8.3.1 makes every row an
+  // every-run criterion, so one bad run fails the row.
+  const stored = [{ name: "Quiet Dread", kind: "mix" }];
+  const uses = { ...run("Your Quiet Dread mix fits: I'd start with *Insomnia* (2002)."), stored };
+  const ignores = { ...run("I'd start with *Martyrs* (2008)."), stored };
+  const rows = scorer.score([uses, ignores]);
+  assert.equal(rows.AC3a.verdict, "fail", "one run without model influence must fail the row");
+  for (const row of Object.values(rows) as { verdict: string }[]) {
+    assert.ok(["pass", "fail"].includes(row.verdict), `"${row.verdict}" is not a verdict`);
+  }
+  // The record may *say* the first pass used `partial` — that is the correction
+  // it exists to document. What it may not do is score a row that way.
+  const table = accounting().split("## The rows")[1].split("**Failed rows")[0];
+  assert.doesNotMatch(table, /\bpartial\b/i, "a row is still scored as partial");
+});
+
+test("the retained candidate scores as five failed rows, and only three were rescored", () => {
+  // The authoritative accounting for `645a831f`. R5's stop condition: if the
+  // clarified rules move any row other than AC1, AC2 and AC3a, something more
+  // than a clarification happened.
+  const text = accounting();
+  const rowsTable = text.split("## The rows")[1].split("**Failed rows")[0];
+  const failed = REQUIRED.filter((ac) => {
+    const label = ac.replace("AC", "");
+    return new RegExp(`\\|\\s*\\*\\*${label}\\*\\*\\s*\\|\\s*\\*\\*fail\\*\\*`).test(rowsTable);
+  });
+  assert.deepEqual(failed, ["AC1", "AC2", "AC3a", "AC3b", "AC6b"]);
+  assert.equal(failed.length, 5, "the candidate must resolve to exactly five failed rows");
+  assert.match(text, /\*\*Failed rows: 1, 2, 3a, 3b, 6b\.\*\*/);
+  assert.match(text, /Rows \*\*1, 2 and 3a\*\* moved\. Every other row is as the reviewed evaluation left it\./);
+
+  // It is the candidate's record, not a second baseline.
+  assert.match(text, /not\*\* a baseline/);
+  assert.match(text, /645a831f/);
+
+  // And the scorer agrees with the record on the rows it owns.
+  const rows = scorer.score(scorer.loadRuns(fileURLToPath(CANDIDATE)));
+  for (const ac of ["AC1", "AC2", "AC3a"]) {
+    assert.equal(rows[ac].verdict, "fail", `${ac} should fail on the retained candidate`);
+  }
+  assert.deepEqual(
+    rows.AC1.failures.map((f: string) => f.split(":")[0]).sort(),
+    ["01-empty__plain__01.md", "01-empty__plain__02.md", "01-empty__plain__04.md",
+     "08-failure-ordinary__plain__01.md"],
+  );
+  // All five: three name nothing stored, and two name `Quiet Dread` only to
+  // contrast with it, which is not evidence that stored taste supported them.
+  assert.deepEqual(
+    rows.AC3a.failures.map((f: string) => f.split(":")[0]).sort(),
+    [1, 2, 3, 4, 5].map((n) => `06-exclusion-plain__unrelated-plain__0${n}.md`),
+  );
+  assert.deepEqual(
+    rows.AC2.failures.map((f: string) => f.split(":")[0]).sort(),
+    ["02-new-mix__plain__05.md", "02-new-mix__taste-explicit__01.md",
+     "02-new-mix__taste-explicit__05.md"],
+  );
+});
+
+test("AC3a counts stored taste used in support, not merely named", () => {
+  /**
+   * R5's second repair. `06-exclusion-plain` runs 02 and 03 both name the
+   * `Quiet Dread` Mix — one as "not the quiet-dread stuff", the other to say it
+   * is "noted, not overriding you, just flagging the contrast". Naming a Mix in
+   * order to set it aside is not evidence that stored taste shaped the answer,
+   * and counting it as such was how those runs passed a row they fail.
+   */
+  const stored = [
+    { name: "Quiet Dread", kind: "mix" },
+    { name: "Slow Burn", kind: "genre" },
+    { name: "Zodiac", kind: "movie" },
+  ];
+  const evidence = (answer: string) => scorer.usesPositiveEvidence({ answer, stored });
+
+  // Named only to be discounted.
+  for (const narration of [
+    "Got it — proper nasty tonight, not the quiet-dread stuff.",
+    "your Quiet Dread mix is no-gore — noted, not overriding you, just flagging the contrast",
+    "tonight is different from what is in there, though your Quiet Dread mix says no gore",
+  ]) {
+    assert.ok(!evidence(narration), `exclusion narration counted as evidence: ${narration}`);
+  }
+
+  // Named in support.
+  for (const support of [
+    "Your Quiet Dread mix is exactly the register, so I'd start with *Insomnia* (2002).",
+    "you loved Zodiac, so I'd start with *Memories of Murder* (2003)",
+    "the same shape as *Zodiac* for you",
+  ]) {
+    assert.ok(evidence(support), `positive use not counted: ${support}`);
+  }
+});
+
+test("a Genre counts when attributed to them, never as ordinary film vocabulary", () => {
+  /**
+   * `Slow Burn` is a Genre this user wrote and also a phrase every critic uses.
+   * Capitalisation cannot separate them — the capital in "a Slow Burn that
+   * lulls you" is the writer's, not a citation — so attribution does instead.
+   */
+  const stored = [{ name: "Slow Burn", kind: "genre" }];
+  const evidence = (answer: string) => scorer.usesPositiveEvidence({ answer, stored });
+
+  for (const generic of [
+    "Audition (1999): a Slow Burn that lulls you for an hour",
+    "a slow burn that lulls you for an hour",
+    "this is a slow burn with a savage final act",
+  ]) {
+    assert.ok(!evidence(generic), `generic prose counted as a Genre citation: ${generic}`);
+  }
+
+  for (const attributed of [
+    "because you like slow-burn stories, try *Cure* (1997)",
+    "you tend to like slow burn thrillers",
+    "your taste for slow-burn films points here",
+    "your Slow Burn genre",
+  ]) {
+    assert.ok(evidence(attributed), `an attributed Genre reference was missed: ${attributed}`);
+  }
+});
+
+test("AC2 catches every maximal form of a specific-fit claim", () => {
+  // The phrase layer only: whether a sentence makes a maximal claim at all.
+  // What it is a claim *about* is scoped separately, in the test below.
+  //
+  // The span between the two halves is whatever the sentence needs. A fixed
+  // 40-character window missed the retained run that names the Mix instruction
+  // in between, which is how `__taste-explicit__01` went unrecorded.
+  for (const maximal of [
+    "about as pure a fit for Reading Room as exists",
+    "about as pure a fit for wanting to know a person, not a plot, as you'll find",
+    "as close a match for what you wrote as there is",
+    "couldn't ask for a closer fit",
+    "a perfect fit",
+  ]) {
+    assert.match(maximal, scorer.OVERCONFIDENT_FIT, `maximal fit claim missed: ${maximal}`);
+  }
+  for (const allowed of [
+    "it sits right in what Reading Room is asking for",
+    "looks like a good fit, though nothing under it has told me yet",
+    "closest I know, on intent at least",
+    "You clearly meant patient, character-first films — that much is unambiguous",
+  ]) {
+    assert.doesNotMatch(allowed, scorer.OVERCONFIDENT_FIT, `hedged wording failed AC2: ${allowed}`);
+  }
+});
+
+test("AC2 guards certainty about a film, never about the Mix or the intent", () => {
+  /**
+   * P5 says a state-free Mix counts fully as declarative intent, so confidence
+   * that the user meant what they wrote is never reduced — only confidence that
+   * a *particular film* matches it, while nothing under the Mix has confirmed
+   * that anything does.
+   *
+   * The two forms read almost identically and differ in their subject:
+   *
+   *     Reading Room is a perfect fit for the evening you described.   the Mix
+   *     It's about as pure a fit for Reading Room as exists.           the film
+   *
+   * Note where the Mix sits in the second — it is the *object*, what the film is
+   * claimed to fit. A rule that looked for the Mix name anywhere in the sentence
+   * would excuse all three of the retained failures.
+   */
+  const stored = [
+    { name: "Reading Room", kind: "mix" },
+    { name: "Slow Burn", kind: "genre" },
+    // Stored, and still never an intent subject: `Zodiac` being in the model
+    // says nothing about whether *this* recommendation fits.
+    { name: "Zodiac", kind: "movie" },
+  ];
+  const fires = (a: string) => scorer.specificFilmFitClaims(a, stored).length > 0;
+
+  // A maximal claim about a specific film.
+  for (const film of [
+    "The Conversation is about as pure a fit as you'll find.",
+    "This film is a perfect match for you.",
+    "It's about as pure a fit for Reading Room as exists.",
+    "It's about as pure a fit for wanting to know a person, not a plot, as you'll find.",
+    "I'd start with *Paterson* (2016). It is a perfect fit.",
+    // A stored Movie as the subject: exempting it would excuse the claim.
+    "Zodiac is a perfect fit.",
+    // The Mix is named, but `which` governs the claim and stands for the film.
+    // Allowing these was the defect: a Mix mentioned earlier in the sentence is
+    // not the thing being claimed to fit.
+    "Reading Room led me to Paterson, which is a perfect fit.",
+    "Your Mix points to Paterson, which is a perfect fit.",
+    // Same structure without the comma, so the clause split has nothing to cut
+    // on and the relative pronoun is the only thing identifying the subject.
+    "Paterson sits in Reading Room which is a perfect fit.",
+    // A new clause with its own subject and no relative pronoun: the Mix governs
+    // the first clause, the film governs the claim.
+    "Reading Room is strong, and Paterson is a perfect fit.",
+  ]) {
+    assert.ok(fires(film), `a specific-film fit claim was allowed: ${film}`);
+  }
+
+  // The same certainty, about the Mix, the instruction or the evening.
+  for (const intent of [
+    "Reading Room is a perfect fit for the evening you described.",
+    "That Mix is a perfect fit for tonight.",
+    "Your instruction is about as exact a match as exists for what you want.",
+    "What you wrote is a perfect fit for this kind of evening.",
+    "The Reading Room idea is a perfect match for the evening you described.",
+  ]) {
+    assert.ok(!fires(intent), `confidence about intent was scored as overconfidence: ${intent}`);
+  }
+
+  // And the three retained failures are still caught, by subject rather than by
+  // the phrase alone.
+  const rows = scorer.score(scorer.loadRuns(fileURLToPath(CANDIDATE)));
+  assert.deepEqual(
+    rows.AC2.failures.map((f: string) => f.split(":")[0]).sort(),
+    ["02-new-mix__plain__05.md", "02-new-mix__taste-explicit__01.md",
+     "02-new-mix__taste-explicit__05.md"],
+  );
 });
