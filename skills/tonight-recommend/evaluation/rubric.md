@@ -29,6 +29,26 @@ preference sounds like being understood.
 
 Scored per fixture. Every row must pass for Phase 1 to ship (§8.3.1).
 
+**This pass owns every AC1–AC6 verdict.** `score.mjs` does not decide any of them. It produces two
+things, and neither is a verdict:
+
+- **Admissibility faults** — a run that is malformed, missing its answer, unbound from its
+  snapshot, or missing the provenance that places it. A fault means *this run cannot be scored*; it
+  never means a criterion failed, and **nothing about what an answer says can raise one**. A set
+  with faults is not ready to be scored here.
+- **Flags** — high-recall literal matches, quoted with their context, for the rows below to
+  adjudicate. A flag is a place to look, not a finding. It fires on false positives by design, and
+  an unadjudicated flag blocks completion.
+
+Read the flags alongside the rows they name. **AC1** counts commitment idioms, enumerated items
+and conditional openers, and marks an answer carrying none of them — which a plain *"Watch Paterson
+tonight."* also does, so the flag is a prompt to look, never a finding. **AC2** flags maximal-fit
+phrasing wherever it sits, without deciding whether the certainty is about a film or about what the
+user meant. **AC3a** flags an answer naming nothing stored, which a recognisable paraphrase may
+legitimately do. **AC4** flags novelty language sitting near a Movie the run's own snapshot marks
+`seen`, `liked`, `loved` or `disliked`, without deciding whether that film was the one being
+offered. In every case the question the flag cannot answer is the one you answer here.
+
 | AC | Required evidence | Fixtures | Passes when |
 | --- | --- | --- | --- |
 | **1** | One film leads, is **named** as the lead, followed by two or three alternative directions, each introduced by the condition under which it wins | 01, 02, 03, 04, 08 | every such run |
@@ -69,13 +89,17 @@ anchor fails, whatever else the answer does well.
 
 ## Scoring procedure
 
+0. `score.mjs` is run over both sets. Any admissibility fault is resolved before scoring starts —
+   a run nobody can score cannot be compared. Its flags are carried into step 4.
 1. Outputs from both instruction sets are paired per fixture and prompt.
 2. Every marker of which side an output came from is stripped, including the version line if the
    agent ever echoes it.
 3. The pairs are shuffled.
 4. Each output is scored against the seven criteria and against the required outcomes it is named
    for, without knowing which side it is.
-5. Scores are only then re-joined to their sides.
+5. **Every flag is adjudicated** against the row it names, and recorded as upheld or dismissed.
+   An unadjudicated flag blocks completion.
+6. Scores are only then re-joined to their sides.
 
 Hand-scored. A judge model may be used once hand-scoring cannot keep up, and never for
 **unsupported claims** or **false personalization** without spot checks — those are the two a
