@@ -278,10 +278,10 @@ test("a Mix is evidence, and the states under it calibrate rather than gate", ()
     ["that not_seen and null are not negative evidence",
       /`not_seen` and `null` are\s*absence of experience, not evidence against/],
     ["what seen does and does not say", /`seen` says only that they watched it/],
-    ["how an empty Mix is read",
-      /less confidence about specifics, just as much about\s*intent/],
+    ["how an empty Mix is read", /intent certain, fit unconfirmed/],
+    ["what to say instead of a perfect fit", /the best you know of, said\s+as that/],
     ["that this changes phrasing, not eligibility",
-      /changes phrasing and reach, never whether you use it/],
+      /[Cc]hanges phrasing and reach, never whether you use it/],
     ["to say how sure it is", /Say how sure you are/],
   ] as [string, RegExp][]) {
     assert.match(flat, rule, `the agent is never told ${what}`);
@@ -296,6 +296,40 @@ test("a Mix is evidence, and the states under it calibrate rather than gate", ()
     "a Mix is graded by a label the strategy rejects");
   assert.doesNotMatch(flat, /(Mix|Genre)[^.]{0,40}\b(does not count|doesn't count|no weight)\b/i,
     "something in the text classifies a Mix as not counting");
+});
+
+test("an unconfirmed Mix bounds the claim about a film, never the Mix itself", () => {
+  /**
+   * R4 of `docs/work/phase-1-repairs.md`. The candidate produced *"about as pure
+   * a fit for Reading Room as exists"* for a Mix with nothing under it — maximal
+   * certainty that a **particular film** matched, while nothing had yet confirmed
+   * that anything did.
+   *
+   * The repair is to the language of the recommendation, not to the standing of
+   * the Mix. P5 is untouched: the Mix counts fully and immediately, states
+   * calibrate rather than gate, and confidence about what the user *meant* is
+   * never reduced — only confidence that this film is the thing they meant.
+   */
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const bullet = flat.slice(
+    flat.indexOf("A Mix with nothing under it"),
+    flat.indexOf("Either way"),
+  );
+  assert.ok(bullet.length > 60, "the unconfirmed-Mix rule could not be found");
+
+  // Intent is certain; the fit is what is not.
+  assert.match(bullet, /intent certain/i, "confidence about intent was reduced");
+  assert.match(bullet, /fit unconfirmed/i, "the claim about a specific film is not bounded");
+  // And what to say instead, so the lead stays committed rather than hedged away.
+  assert.match(bullet, /the best you know of/i, "the lead is left with nothing to say");
+  // The Mix still counts: this changes how you speak, not whether you use it.
+  assert.match(bullet, /never whether you use it/i, "an unconfirmed Mix stopped counting");
+
+  // None of the rejected mechanisms came back with it.
+  assert.doesNotMatch(flat, /\b(aspirational|untested|unproven|provisional|tentative Mix)\b/i,
+    "a Mix is graded by a label the strategy rejects");
+  assert.doesNotMatch(bullet, /\b(score|weight|threshold|points?|at least \d+|\d+ or more)\b/i,
+    "the rule acquired arithmetic");
 });
 
 test("taste is read qualitatively — no score, no threshold, no count", () => {
@@ -930,6 +964,12 @@ test("the compact projection of the taste model says the same thing the skill do
       /`not_seen` and `null` are\s*absence of experience, not evidence against/],
     ["an empty Mix changes phrasing, not eligibility",
       /never whether you use it/, /never whether you use it/],
+    ["intent stays certain while the fit does not",
+      /what\s+they meant is not in question/, /intent certain/],
+    ["no film is confirmed to fit it yet",
+      /no particular film has been confirmed to fit it yet/, /fit unconfirmed/],
+    ["and the lead is said as the best you know",
+      /it is\s+the best you know of, said as that/, /the best you know of, said\s+as that/],
     ["to say how sure it is", /Say how sure you are/, /Say how sure you are/],
   ];
 

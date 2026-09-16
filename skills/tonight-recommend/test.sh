@@ -252,6 +252,22 @@ check "an empty Mix changes how you speak, not whether you use it" \
         'never whether you use it' \
         'Say how sure you are')" "True"
 
+# R4. The candidate produced "about as pure a fit for Reading Room as exists" for a
+# Mix with nothing under it: maximal certainty that one film matched, while nothing
+# had confirmed that anything did. The doubt belongs on the film, never on the Mix.
+check "the doubt lands on the film's fit, not on what they meant" \
+    "$(order_check 'put the doubt where it belongs' \
+        '**what' \
+        'they meant is not in question, and no particular film has been confirmed to fit it yet**')" "True"
+check "so no film is called a perfect fit for a Mix nothing has been watched under" \
+    "$(order_check 'no film is *"about as pure a fit as exists"*' \
+        'for a Mix nothing has been watched under')" "True"
+check "and the lead still has something to say" \
+    "$(order_check 'it is' 'the best you know of, said as that')" "True"
+# None of the rejected mechanisms may come back with it.
+check "no Mix is graded as provisional" \
+    "$(grep -ciE 'aspirational|untested|unproven|provisional' "$SKILL")" "0"
+
 # The gate, in every form the strategy rejects.
 check "the pre-P5 gate is gone" \
     "$(grep -ciE 'A Genre or Mix existing is not evidence|What makes one trustworthy is the film' "$SKILL")" "0"

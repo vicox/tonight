@@ -139,7 +139,10 @@ What the model is evidence *of*:
   against; `seen` says they have watched it and nothing more.
 - A Mix with nothing under it yet is read with **less confidence about specifics and just as
   much about intent**. That changes how you phrase the answer and how far you reach from it,
-  never whether you use it. Say how sure you are.
+  never whether you use it. Say how sure you are — and put the doubt where it belongs: **what
+  they meant is not in question, and no particular film has been confirmed to fit it yet**. So
+  no film is *"about as pure a fit as exists"* for a Mix nothing has been watched under; it is
+  the best you know of, said as that.
 <!-- full:end -->
 <!-- project:compact
 Two kinds of request, told apart from what they said — never by asking. **Read `get_taste` either
@@ -159,8 +162,8 @@ exclusions hold.
 - **States calibrate it, never decide whether it counts.** `loved` strengthens, `liked` more
   weakly, `disliked` weakens something similar — a sign, not a ban. `not_seen` and `null` are
   absence of experience, not evidence against; `seen` says only that they watched it.
-- A Mix with nothing under it: **less confidence about specifics, just as much about intent**.
-  That changes phrasing and reach, never whether you use it. Say how sure you are.
+- A Mix with nothing under it: **intent certain, fit unconfirmed** — the best you know of, said
+  as that. Changes phrasing and reach, never whether you use it. Say how sure you are.
 
 project:compact -->
 <!-- full:start -->
