@@ -47,9 +47,9 @@ exclusions hold.
 - A Mix with nothing under it: **less confidence about specifics, just as much about intent**.
   That changes phrasing and reach, never whether you use it. Say how sure you are.
 
-Either way: ask **one question about films** if something important is missing, never *"what
-genres do you like?"*; never make somebody learn Genres and Mixes to get a film. **Never print
-the taste model while recommending**; one short sentence if something was saved.
+Either way, answer with a film, **even with an empty model**. Ask **one film question** in the
+answer if needed, **never instead**; never *"what genres do you like?"*, or require learning
+Genres and Mixes. **Never print the taste model while recommending**; one short sentence if saved.
 
 **The shape:** One idea for the evening, in a line. Then **one lead, named as such** — *"I'd start with X"* — and why it, for them. Then two or three **directions**, each
 opened by when it wins, ordered by **distance from the lead**, not quality — another way out, never a
@@ -141,8 +141,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
 - **A write fails** — the recommendation stands; say what was not saved. Never claim something
   was stored when the tool refused.
 
-Tonight project instructions · version 645a831f · replace these when tonight.movie shows a different version.
+Tonight project instructions · version 17168458 · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "645a831f";
+export const PROJECT_INSTRUCTIONS_VERSION = "17168458";

@@ -289,7 +289,7 @@ test("taste is read qualitatively — no score, no threshold, no count", () => {
   const between = (text: string) => {
     const flat = text.replace(/\s+/g, " ");
     const from = flat.indexOf("Two kinds of request");
-    const to = flat.indexOf("Either way:", from + 1);
+    const to = flat.indexOf("Either way", from + 1);
     assert.ok(from >= 0 && to > from, "the recommendation-model passage could not be found");
     return flat.slice(from, to);
   };
@@ -433,19 +433,102 @@ test("a film they have seen or judged is not offered as a new one", () => {
   );
 });
 
+/**
+ * Does this text forbid making somebody learn the data model?
+ *
+ * Bound to the action rather than to the sentence. A negation governs the
+ * action when it precedes it in the same clause-run with nothing contrastive in
+ * between: "never ask X, or require learning Genres and Mixes" forbids both,
+ * because `or` continues the negation; "never ask X, but require learning
+ * Genres and Mixes" forbids only the first, because `but` turns against it.
+ *
+ * No spelling of the negation is privileged — "never", "do not" and "don't" are
+ * the same rule, and pinning one of them would fail valid wording.
+ */
+const LEARN_THE_MODEL =
+  /\b(?:mak(?:e|es|ing)\s+\S+\s+learn|requir(?:e|es|ing)\s+learning|teach(?:ing)?)\s+Genres and Mixes/i;
+const NEGATION = /\b(?:never|not|no|cannot|can'?t|don'?t|doesn'?t|won'?t)\b/gi;
+const CONTRASTIVE = /\b(?:but|however|yet|though|although|except|whereas|instead)\b/i;
+
+function forbidsLearningTheModel(text: string) {
+  for (const segment of text.split(/(?<=[.!?;])\s+/)) {
+    const action = LEARN_THE_MODEL.exec(segment);
+    if (!action) continue;
+    const before = segment.slice(0, action.index);
+    const negations = [...before.matchAll(NEGATION)];
+    const last = negations[negations.length - 1];
+    // No negation before the action in its own segment, or something contrastive
+    // between the two: the action is stated affirmatively.
+    if (!last) return false;
+    if (CONTRASTIVE.test(before.slice(last.index + last[0].length))) return false;
+    return true;
+  }
+  return false;
+}
+
+test("the data-model prohibition is read as a prohibition, in any wording", () => {
+  // The predicate above, checked against the forms it must separate. This is
+  // what stops the guard being satisfied by a sentence that merely contains the
+  // word "never", and what stops it rejecting a valid "do not".
+  for (const negative of [
+    "never make somebody learn Genres and Mixes",
+    "never require learning Genres and Mixes",
+    "do not require learning Genres and Mixes",
+    "don't make somebody learn Genres and Mixes",
+    'never *"what genres do you like?"*, or require learning Genres and Mixes.',
+    "never ask about genres, and never require learning Genres and Mixes",
+  ]) {
+    assert.ok(forbidsLearningTheModel(negative), `a valid prohibition was rejected: ${negative}`);
+  }
+
+  for (const affirmative of [
+    "require learning Genres and Mixes",
+    "make somebody learn Genres and Mixes",
+    "never ask what genres they like, but require learning Genres and Mixes",
+    "never print the taste model. Require learning Genres and Mixes.",
+    "never print the taste model; require learning Genres and Mixes.",
+    "ask one question about films",
+  ]) {
+    assert.ok(!forbidsLearningTheModel(affirmative), `an affirmative form passed: ${affirmative}`);
+  }
+});
+
 test("a request for a film is still not a configuration session", () => {
   // The guard that had to survive the rewrite. It is the oldest rule in this section
   // and the one the new answer form is most likely to quietly displace.
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
-  for (const rule of [
-    "ask **one question about films**",
-    `never *"what genres do you like?"*`,
-    "never make somebody learn Genres and Mixes to get a film",
-    "**Never print the taste model while recommending**",
-  ]) {
-    assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the guard lost: ${rule}`);
+  // Matched by what each prohibition forbids, not by its wording: the projection
+  // says the same two in fewer words than the skill does.
+  for (const [what, rule] of [
+    ["that the one question is about films", /ask \*\*one (question about films|film question)\*\*/i],
+    ["not to ask about genres", /never \*"what genres do you like\?"\*/],
+    ["never to print the model", /\*\*Never print the taste model while recommending\*\*/],
+  ] as [string, RegExp][]) {
+    assert.match(flat, rule, `the guard lost: ${what}`);
   }
+
+  // The data-model prohibition, proved as a prohibition.
+  //
+  // Matching the phrase alone would be satisfied by an instruction that
+  // *required* learning the model, and requiring the word "never" somewhere in
+  // the sentence is barely better: "never ask X, but require learning Genres
+  // and Mixes" contains it and forbids nothing. What has to hold is that the
+  // action is governed by a negation — which survives a coordinator that
+  // continues the negation ("never X, or Y") and does not survive one that
+  // contrasts with it ("never X, but Y").
+  const passage = flat.slice(flat.indexOf("Either way"), flat.indexOf("**The shape"));
+  assert.ok(passage.length > 100, "the R1 passage could not be found");
+  assert.ok(forbidsLearningTheModel(passage), "the data-model prohibition is not stated as one");
+
+  // The same rule holds of the skill, which says it in its own words.
+  const canonicalPassage = canonicalSkill()
+    .replace(/\s+/g, " ")
+    .slice(canonicalSkill().replace(/\s+/g, " ").indexOf("Either way"));
+  assert.ok(
+    forbidsLearningTheModel(canonicalPassage.slice(0, canonicalPassage.indexOf("**The shape"))),
+    "the skill's data-model prohibition is not stated as one",
+  );
 });
 
 test("saving a film classifies it, and may grow the model rather than bend it", () => {
@@ -776,6 +859,100 @@ test("the compact projection of the taste model says the same thing the skill do
   // presence here would mean the compact block saved nothing.
   assert.doesNotMatch(projected, /not a\s*setting that one kind of request switches on/,
     "both wordings of the taste model reached the projection");
+});
+
+test("an ordinary request is answered, never only interviewed", () => {
+  /**
+   * R1 of `docs/work/phase-1-repairs.md`, repairing the AC1 failures in the
+   * `645a831f` candidate: three of five empty-model runs and one ordinary
+   * failure-fallback run asked a clarifying question **instead of**
+   * recommending.
+   *
+   * The licence was here rather than in either branch — *"ask one question
+   * about films if something important is missing"*, stated in the section that
+   * governs every recommendation, read as permission to ask in place of
+   * answering. It outranked `answer anyway` three sections later, which is why
+   * the same defect appeared with an empty model and after a failed read.
+   *
+   * The question survives; what it may no longer do is replace the answer.
+   */
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  for (const [what, rule] of [
+    ["that the request is answered with a film",
+      /(the answer is a film, not a question|answer with a film)/i],
+    ["that a question goes in the answer, never in place of it",
+      /in the answer[^.]{0,30}never instead/i],
+    ["that an empty model is no exception",
+      /(an empty model is no exception|even with an empty model)/i],
+  ] as [string, RegExp][]) {
+    assert.match(flat, rule, `the agent is never told ${what}`);
+  }
+
+  // The question is still permitted — R1 removes the substitution, not the ask.
+  assert.match(flat, /ask \*\*one (question about films|film question)\*\*/i);
+
+  // The skill says the same rule at greater length; the projection carries a
+  // shorter wording of it. Both must say it, or the two have drifted.
+  const canonical = canonicalSkill().replace(/\s+/g, " ");
+  for (const [what, inSkill, inProjection] of [
+    ["the answer is a film",
+      /they asked for a film and the answer is one/, /answer with a film/],
+    ["a question does not replace it",
+      /in the answer, never instead of it/, /in the answer[^.]{0,30}never instead/],
+    ["an empty model is no exception",
+      /An empty model is not\s+an exception/, /even with an empty model/],
+  ] as [string, RegExp, RegExp][]) {
+    assert.match(canonical, inSkill, `the skill lost: ${what}`);
+    assert.match(flat, inProjection, `the projection lost: ${what}`);
+  }
+
+  // And the Step 4 obligations it defers to are untouched.
+  for (const shape of [
+    "One idea for the evening, in a line",
+    "one lead, named as such",
+    "two or three **directions**",
+    "Close with one question **or** one lever, never both",
+  ]) {
+    assert.ok(flat.includes(shape.replace(/\s+/g, " ")), `the answer shape lost: ${shape}`);
+  }
+});
+
+test("R1 does not force the branch that is required to stop", () => {
+  /**
+   * The one request that owes no recommendation is a taste question whose taste
+   * read failed: §10.1.1 says it stops. R1 makes the ordinary request always
+   * produce an answer, and must not reach across into that branch — the two
+   * live in different sections and the failure branch is the more specific.
+   */
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  // The two branches read separately. Spanning both would let a recommendation
+  // obligation injected into the taste branch pass on the ordinary branch's
+  // "answer anyway" — the branches are adjacent and share a bullet, so the slice
+  // has to stop where the other begins.
+  const taste = flat.slice(flat.indexOf("*Taste question*"), flat.indexOf("*Ordinary*"));
+  const ordinary = flat.slice(flat.indexOf("*Ordinary*"), flat.indexOf("**A write fails**"));
+  assert.ok(taste.length > 20 && ordinary.length > 40, "the failure branches could not be found");
+
+  assert.match(taste, /\bstop\b/, "the taste branch no longer stops");
+
+  // R1's obligation lives in `## Recommending`, and must not be restated here in
+  // any of its wordings. A branch told to stop and also told to recommend is a
+  // contradiction the more specific rule would be expected to lose.
+  for (const [what, leak] of [
+    ["the current projection wording", /answer with a film/i],
+    ["an earlier wording of the same rule", /the answer is a film/i],
+    ["the ordinary branch's instruction", /answer anyway|recommend anyway/i],
+    ["the answer shape itself", /one lead|two or three (directions|\*\*directions)/i],
+    ["any other instruction to recommend", /\b(recommend|suggest|offer)\s+(a film|one|something)\b/i],
+  ] as [string, RegExp][]) {
+    assert.doesNotMatch(taste, leak, `the taste branch was given ${what}`);
+  }
+
+  // And the ordinary branch keeps its opposite obligation, which is R1 reaching
+  // it through the shared section rather than through a copy of the rule.
+  assert.match(ordinary, /answer anyway/, "the ordinary branch no longer answers");
 });
 
 test("the version marker is the last line, and is derived from the body without it", () => {

@@ -290,6 +290,22 @@ check "a stretch is marked as one" \
 
 # The guard that must survive the rewrite verbatim: a film request is not a
 # configuration session, and nobody has to learn the data model to get a film.
+# R1 of `docs/work/phase-1-repairs.md`. Three of five empty-model runs and one
+# ordinary failure fallback asked a clarifying question instead of recommending.
+# The licence was the shared one in this section, which outranked `answer anyway`
+# in the failure branch — so the repair belongs here, not in either branch.
+check "an ordinary request is answered with a film, not only a question" \
+    "$(order_check 'they asked for a film and the answer is one' \
+        'ask **one question about films**' \
+        'in the answer, never instead of it')" "True"
+check "and an empty model is not an exemption from it" \
+    "$(order_check '**An empty model is not' \
+        'an exception**' \
+        'not a reason to interview them' \
+        'always a film worth leading with')" "True"
+check "the question survives; only its power to replace the answer is gone" \
+    "$(grep -c 'ask \*\*one question about films\*\*' "$SKILL")" "1"
+
 check "the recommendation-against-configuration guard survived the rewrite" \
     "$(order_check 'ask **one question about films**' \
         'never *"what genres do you like?"*' \
