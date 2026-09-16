@@ -44,8 +44,8 @@ exclusions hold.
 - **States calibrate it, never decide whether it counts.** \`loved\` strengthens, \`liked\` more
   weakly, \`disliked\` weakens something similar — a sign, not a ban. \`not_seen\` and \`null\` are
   absence of experience, not evidence against; \`seen\` says only that they watched it.
-- A Mix with nothing under it: **intent certain, fit unconfirmed** — the best you know of, said
-  as that. Changes phrasing and reach, never whether you use it. Say how sure you are.
+- A Mix with nothing under it: **intent certain, film fit unconfirmed** — use it, varying
+  reach and certainty; call a film **the best you know of, never a pure or perfect fit**.
 
 Either way, answer with a film, **even with an empty model**. Ask **one film question** in the
 answer if needed, **never instead**; never *"what genres do you like?"*, or require learning
@@ -140,8 +140,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version f5b757ed · replace these when tonight.movie shows a different version.
+Tonight project instructions · version b7471669 · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "f5b757ed";
+export const PROJECT_INSTRUCTIONS_VERSION = "b7471669";

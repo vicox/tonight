@@ -162,8 +162,8 @@ exclusions hold.
 - **States calibrate it, never decide whether it counts.** `loved` strengthens, `liked` more
   weakly, `disliked` weakens something similar — a sign, not a ban. `not_seen` and `null` are
   absence of experience, not evidence against; `seen` says only that they watched it.
-- A Mix with nothing under it: **intent certain, fit unconfirmed** — the best you know of, said
-  as that. Changes phrasing and reach, never whether you use it. Say how sure you are.
+- A Mix with nothing under it: **intent certain, film fit unconfirmed** — use it, varying
+  reach and certainty; call a film **the best you know of, never a pure or perfect fit**.
 
 project:compact -->
 <!-- full:start -->

@@ -278,11 +278,10 @@ test("a Mix is evidence, and the states under it calibrate rather than gate", ()
     ["that not_seen and null are not negative evidence",
       /`not_seen` and `null` are\s*absence of experience, not evidence against/],
     ["what seen does and does not say", /`seen` says only that they watched it/],
-    ["how an empty Mix is read", /intent certain, fit unconfirmed/],
-    ["what to say instead of a perfect fit", /the best you know of, said\s+as that/],
-    ["that this changes phrasing, not eligibility",
-      /[Cc]hanges phrasing and reach, never whether you use it/],
-    ["to say how sure it is", /Say how sure you are/],
+    ["how an empty Mix is read", /intent certain, film fit unconfirmed/],
+    ["what to say instead of a perfect fit", /the best you know of/],
+    ["that a maximal fit is refused outright", /never a pure or perfect fit/],
+    ["that this changes reach, not eligibility", /use it, varying\s+reach and certainty/],
   ] as [string, RegExp][]) {
     assert.match(flat, rule, `the agent is never told ${what}`);
   }
@@ -323,7 +322,10 @@ test("an unconfirmed Mix bounds the claim about a film, never the Mix itself", (
   // And what to say instead, so the lead stays committed rather than hedged away.
   assert.match(bullet, /the best you know of/i, "the lead is left with nothing to say");
   // The Mix still counts: this changes how you speak, not whether you use it.
-  assert.match(bullet, /never whether you use it/i, "an unconfirmed Mix stopped counting");
+  assert.match(bullet, /use it, varying/i, "an unconfirmed Mix stopped counting");
+  // R4 failed in the final sweep on "about as pure a fit … as exists", which the compact only
+  // implied. The projection now refuses the form by name.
+  assert.match(bullet, /never a pure or perfect fit/i, "maximal fit is not refused outright");
 
   // None of the rejected mechanisms came back with it.
   assert.doesNotMatch(flat, /\b(aspirational|untested|unproven|provisional|tentative Mix)\b/i,
@@ -963,15 +965,17 @@ test("the compact projection of the taste model says the same thing the skill do
     ["absence is not negative evidence",
       /`not_seen` and `null` are absence of experience, never evidence\s*against/,
       /`not_seen` and `null` are\s*absence of experience, not evidence against/],
-    ["an empty Mix changes phrasing, not eligibility",
-      /never whether you use it/, /never whether you use it/],
+    ["an empty Mix changes reach, not eligibility",
+      /never whether you use it/, /use it, varying\s+reach and certainty/],
     ["intent stays certain while the fit does not",
       /what\s+they meant is not in question/, /intent certain/],
     ["no film is confirmed to fit it yet",
       /no particular film has been confirmed to fit it yet/, /fit unconfirmed/],
     ["and the lead is said as the best you know",
-      /it is\s+the best you know of, said as that/, /the best you know of, said\s+as that/],
-    ["to say how sure it is", /Say how sure you are/, /Say how sure you are/],
+      /it is\s+the best you know of, said as that/, /the best you know of/],
+    ["to say how sure it is", /Say how sure you are/, /varying\s+reach and certainty/],
+    ["that no film is a pure fit",
+      /no film is \*"about as pure a fit as exists"\*/, /never a pure or perfect fit/],
   ];
 
   for (const [what, inSkill, inProjection] of behaviours) {
