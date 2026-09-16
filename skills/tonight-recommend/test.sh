@@ -19,6 +19,7 @@ set -u
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd -P)"
 CANONICAL="$SCRIPT_DIR/SKILL.md"
 SKILLS_DIR="$(cd -P "$SCRIPT_DIR/.." && pwd -P)"
+export CONTRACTS="file://$SCRIPT_DIR/contracts.mjs"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -81,6 +82,20 @@ PYEOF
 slice_of() { SKILL="$SKILL" python3 "$WORK/slice.py" "$1" "$2"; }
 # Count of matches for an extended regex inside a slice.
 in_slice() { printf '%s' "$1" | grep -ciE "$2"; }
+
+# Is the retry written as one obligation covering both failure branches?
+#
+# The definition is `contracts.mjs`, which `web/lib/instructions.test.ts` imports
+# too. Stated twice — once here in grep and once there in a regex literal — this
+# rule diverged immediately: one side covered `whichever` and only one word order.
+shared_retry_in() {
+    node --input-type=module -e '
+import { readFileSync } from "node:fs";
+const { sharedRetry } = await import(process.env.CONTRACTS);
+const found = sharedRetry(readFileSync(process.argv[1], "utf8"));
+console.log(found ? `shared: ${found}` : "none");
+' "$1"
+}
 
 echo "--- one skill, and the removed ones stay removed ---"
 
@@ -467,12 +482,26 @@ check "the taste branch reports the failure in the tool's own words" \
     "$(in_slice "$taste_branch" "report the failure in the tool's own words")" "1"
 check "the taste branch offers to retry" \
     "$(in_slice "$taste_branch" 'offer to retry')" "1"
+# R2 moved the retry out of a clause covering both branches and into each of them.
+# Two local retries *plus* a shared one would reinstate the factoring the retained
+# candidate showed to be less reliable, and every positive check above would still
+# pass — so the shared form is asserted gone, in the section and in both wordings.
+check "no retry sits above the branches" \
+    "$(in_slice "$(slice_of '## When something fails' '`get_taste` fails on a taste question')" 'retry')" "0"
+check "and the retry is never stated as one shared obligation" \
+    "$(shared_retry_in "$SKILL")" "none"
 # Stopping *is* the no-recommendation rule here. What must not appear is any instruction
 # to answer anyway, which would make the branch indistinguishable from the other one.
 check "the taste branch never recommends from taste it could not read" \
     "$(in_slice "$taste_branch" 'recommend anyway|answer anyway|recommend well')" "0"
 
 # --- the ordinary-request branch, read alone ---
+# R2. The branch names the shape obligation itself, so it cannot degrade into a
+# disclosure, a question, or a bare list. R1 stays the source of the rule.
+check "the ordinary branch owes the approved answer shape, and says so" \
+    "$(in_slice "$ordinary_branch" 'in the shape above')" "1"
+check "and spells out what that means here" \
+    "$(in_slice "$ordinary_branch" 'then lead and give directions as usual')" "1"
 check "the ordinary branch still recommends" \
     "$(in_slice "$ordinary_branch" 'recommend anyway')" "1"
 check "the ordinary branch discloses in the first sentence" \

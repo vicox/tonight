@@ -135,14 +135,13 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
 
 ## When something fails
 
-- **\`get_taste\` fails** — either way, offer to retry. *Taste question*: stop, quote the error.
-  *Ordinary*: answer anyway; first sentence: model unread, answer not based on it; claim nothing
-  about them.
-- **A write fails** — the recommendation stands; say what was not saved. Never claim something
-  was stored when the tool refused.
+- **\`get_taste\` fails** — *Taste question*: stop, quote the error, offer to retry. *Ordinary*:
+  answer anyway **in the usual shape**; first sentence: model unread, answer not based on it;
+  claim nothing about them; offer to retry.
+- **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version 17168458 · replace these when tonight.movie shows a different version.
+Tonight project instructions · version 0e4f1cde · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "17168458";
+export const PROJECT_INSTRUCTIONS_VERSION = "0e4f1cde";

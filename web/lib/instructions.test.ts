@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  SHARED_QUALIFIERS,
+  sharedRetry,
+} from "../../skills/tonight-recommend/contracts.mjs";
+import {
   instructionsFrom,
   markerFor,
   projectInstructionsFrom,
@@ -466,6 +470,29 @@ function forbidsLearningTheModel(text: string) {
   return false;
 }
 
+test("a retry covering both branches is rejected, in either word order", () => {
+  // The shared definition, checked directly. `test.sh` calls the same function
+  // over the canonical text, so canonical and projection cannot diverge on which
+  // qualifiers count or on which direction is checked.
+  for (const qualifier of SHARED_QUALIFIERS) {
+    for (const phrasing of [
+      `${qualifier}, offer to retry.`,
+      `offer to retry, ${qualifier} it was.`,
+    ]) {
+      assert.ok(sharedRetry(phrasing), `a shared retry was allowed: ${phrasing}`);
+    }
+  }
+
+  // A branch-local retry is not a shared one.
+  for (const local of [
+    "*Taste question*: stop, quote the error, offer to retry.",
+    "claim nothing about them; offer to retry.",
+    "- **A write fails** — the recommendation stands.",
+  ]) {
+    assert.equal(sharedRetry(local), null, `a branch-local retry was rejected: ${local}`);
+  }
+});
+
 test("the data-model prohibition is read as a prohibition, in any wording", () => {
   // The predicate above, checked against the forms it must separate. This is
   // what stops the guard being satisfied by a sentence that merely contains the
@@ -621,16 +648,11 @@ test("a taste read that fails is split by what was asked, not by what broke", ()
     return flat.slice(at, until);
   };
 
-  // The projection factors the shared prefix and the shared retry offer out in front
-  // of the two branches, so the branches start at their own labels.
-  const shared = sliceBetween("**`get_taste` fails**", "*Taste question*");
+  // R2 put the retry back inside each branch. Factored out in front of both it was
+  // semantically equivalent and behaviourally weaker — furthest from the branch
+  // that had to perform it — and one recorded run dropped it.
   const taste = sliceBetween("*Taste question*", "*Ordinary*");
   const ordinary = sliceBetween("*Ordinary*", "**A write fails**");
-
-  // Retry is offered once, for both branches, and must say so. Factored out, a bare
-  // mention would leave which branch it covers to the reader.
-  assert.match(shared, /retry/i, "the shared clause does not offer a retry");
-  assert.match(shared, /either way|both/i, "the retry offer does not cover both branches");
 
   // --- the taste-explicit branch, read alone ---
   assert.match(taste, /\bstop\b/i, "the taste branch does not stop");
@@ -660,19 +682,45 @@ test("a taste read that fails is split by what was asked, not by what broke", ()
   assert.doesNotMatch(ordinary, /quote the error|own words/i,
     "the branches' error reporting has run together");
 
-  // Neither branch may take the shared retry back, which is the failure mode the
-  // per-branch count guarded against before the offer was factored out.
+  // Exactly one retry offer inside each branch. A count over the whole section is
+  // satisfied by both sitting in one of them, which is what R2 repaired.
   for (const [name, branch] of [["taste", taste], ["ordinary", ordinary]] as [string, string][]) {
-    assert.doesNotMatch(branch, /no retry|do not offer (a )?retry|without offering/i,
-      `the ${name} branch withdraws the shared retry offer`);
+    assert.equal((branch.match(/retry/gi) ?? []).length, 1,
+      `the ${name} branch does not offer exactly one retry of its own`);
   }
+
+  // R2's other half: the ordinary branch names the shape obligation itself, so it
+  // cannot degrade into a disclosure, a question, or a bare list. R1 remains the
+  // source of the rule; this is the branch saying it still applies here.
+  assert.match(ordinary, /in the usual shape|in the shape above/i,
+    "the ordinary branch no longer reinforces the answer shape");
+
+  // And no retry sits *above* the branches. Two local retries plus a shared
+  // clause in front of them is the arrangement R2 removed: it is the factoring
+  // the retained candidate showed to be less reliable, and having both would
+  // reinstate it while every positive assertion above still passed.
+  const aboveBranches = flat.slice(
+    flat.indexOf("**`get_taste` fails**"),
+    flat.indexOf("*Taste question*"),
+  );
+  assert.ok(aboveBranches.length > 0, "the failure bullet could not be found");
+  assert.doesNotMatch(aboveBranches, /retry/i,
+    "a retry instruction sits above the branches rather than inside them");
+
+  // And not as one obligation covering both, in either word order. The predicate
+  // lives in `skills/tonight-recommend/contracts.mjs` and `test.sh` uses the same
+  // one: written twice, this rule diverged immediately — `whichever` was covered
+  // on one side, and in one direction only.
+  const section = flat.slice(flat.indexOf("## When something fails"));
+  assert.equal(sharedRetry(section), null, "the retry is expressed as one shared obligation");
 
   // The superseded rule must not survive beside its replacement.
   assert.doesNotMatch(flat, /report the error verbatim|Never recommend from a model you could not read/i);
 
   // Write-failure behaviour is projected verbatim and is unchanged by any of this.
-  assert.ok(flat.includes("**A write fails** — the recommendation stands; say what was not saved."));
-  assert.ok(flat.includes("Never claim something was stored when the tool refused"));
+  // Write-failure behaviour is unchanged by R2 and is projected in fewer words.
+  assert.match(flat, /\*\*A write fails\*\* — the recommendation stands; say what was not saved/);
+  assert.match(flat, /(Never claim something was stored when the tool refused|never that it was stored)/);
 });
 
 test("the compact projection of a failure says the same thing the skill does", () => {
@@ -693,17 +741,19 @@ test("the compact projection of a failure says the same thing the skill does", (
   const behaviours: [string, RegExp, RegExp][] = [
     ["the taste branch stops", /stop\. Report the failure/, /\*Taste question\*: stop/],
     ["it reports the tool's own words", /in the tool's own words/, /quote the error/],
-    ["a retry is offered for the taste branch",
-      /own words and offer to retry/, /either way, offer to retry/],
+    ["the taste branch offers its own retry",
+      /own words\s+and offer to retry/, /stop, quote the error, offer to retry/],
     ["the ordinary branch answers", /recommend anyway/, /answer anyway/],
     ["the disclosure is the first sentence", /\*\*first sentence\*\*/, /first sentence/],
     ["it says the read failed", /their model could not be read/, /model unread/],
     ["it says the answer is not based on it", /not based on it/, /not based on it/],
     ["it forbids a personal claim", /Claim \*\*nothing\*\* about them/, /claim nothing about them/],
-    ["a retry is offered for the ordinary branch too",
-      /about them\. Offer to retry/, /either way, offer to retry/],
+    ["the ordinary branch offers its own retry",
+      /about them\. Offer to retry/, /claim nothing about them; offer to retry/],
+    ["the ordinary branch owes the answer shape",
+      /recommend anyway, \*\*in the shape above\*\*/, /answer anyway \*\*in the usual shape\*\*/],
     ["a failed write still reports", /Never claim something was stored when the tool refused/,
-      /Never claim something was stored when the tool refused/],
+      /say what was not saved, never that it was stored/],
   ];
 
   for (const [what, inSkill, inProjection] of behaviours) {
@@ -1097,11 +1147,11 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "**do those**",
     "call `get_taste` and answer in ordinary sentences",
     // failures
-    "either way, offer to retry",
+    "offer to retry",
     "*Taste question*: stop",
     "*Ordinary*: answer anyway",
     "claim nothing about them",
-    "Never claim something was stored when the tool refused",
+    "never that it was stored",
   ]) {
     // Compared with whitespace collapsed on both sides, because where a sentence
     // wraps is a detail of the source file and not of the contract.
