@@ -451,9 +451,10 @@ test("a film they have seen or judged is not offered as a new one", () => {
   for (const [what, rule] of [
     ["what the target is", "Lead with what they have not seen or judged"],
     ["which states rule a film out",
-     "`seen`, `liked`, `loved` and `disliked` each rule a Movie out as new"],
+     "`seen`, `liked`, `loved` and `disliked` rule a Movie out as new"],
     ["that not_seen does not", "`not_seen` does not"],
-    ["that a not_seen film stays eligible", "so it stays on the table"],
+    ["that a not_seen film stays eligible", "so it stays"],
+    ["that being ruled out covers being called new", "out of being called new or unseen"],
     ["what a loved film is for", "`loved` one is a **reason**, not a suggestion"],
     ["that a stretch needs a positive anchor", "Anchor a stretch in something they like"],
     ["that an absence is not a reason", "an absence shows where to look, never why"],
@@ -1182,7 +1183,8 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Never print the taste model while",
     "one lead, named as such",
     "distance from the lead",
-    "each rule a Movie out as new",
+    "rule a Movie out as new",
+    "out of being called new or unseen",
     "`not_seen` does not",
     "Anchor a stretch in something they like",
     // ownership and semantic confirmation

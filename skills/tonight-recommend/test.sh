@@ -338,6 +338,20 @@ check "and nothing in that sentence rules a not_seen film out" \
         | grep -ciE 'never (offer|present|suggest)|not (offered|presented|eligible)')" "0"
 check "a loved film is spent as a reason rather than suggested again" \
     "$(order_check '`loved` one is a **reason**, not a suggestion')" "True"
+# AC4. A run offered `The Vanishing` — stored `seen` — as a direction while saying in the
+# same clause that it was on the list and unseen. Being in the model reads as novelty
+# unless the rule says which of the two answers "have they seen it", so it says so.
+check "membership in the model is not evidence they have not seen it" \
+    "$(order_check 'rule a Movie out as new' \
+        'Being in the model is never evidence they have not seen it' \
+        'the state is')" "True"
+check "a stateful film is ruled out of being called new, not only of being offered" \
+    "$(order_check 'Being in the model is never evidence' \
+        'never called new, unseen or not yet watched' \
+        'never offered as one')" "True"
+check "and the contradiction that was observed is named as one" \
+    "$(order_check \
+        "it's on your list and you haven't seen it" 'is a contradiction')" "True"
 check "a stretch is anchored in something they like, and an absence is not a reason" \
     "$(order_check 'Anchor a stretch in something they like' \
         'an absence shows where to look, never why')" "True"

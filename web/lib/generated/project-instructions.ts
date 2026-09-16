@@ -55,8 +55,8 @@ Genres and Mixes. **Never print the taste model while recommending**; one short 
 opened by when it wins, ordered by **distance from the lead**, not quality — another way out, never a
 runner-up. Close with one question **or** one lever, never both.
 
-**Lead with what they have not seen or judged.** \`seen\`, \`liked\`, \`loved\` and \`disliked\` each
-rule a Movie out as new. \`not_seen\` does not: they have not seen it, so it stays on the table. A
+**Lead with what they have not seen or judged.** \`seen\`, \`liked\`, \`loved\` and \`disliked\` rule a
+Movie out as new, **and out of being called new or unseen**. \`not_seen\` does not, so it stays. A
 \`loved\` one is a **reason**, not a suggestion. Anchor a stretch in something they like — an
 absence shows where to look, never why — and say it is one.
 
@@ -140,8 +140,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version a3357c1c · replace these when tonight.movie shows a different version.
+Tonight project instructions · version f5b757ed · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "a3357c1c";
+export const PROJECT_INSTRUCTIONS_VERSION = "f5b757ed";
