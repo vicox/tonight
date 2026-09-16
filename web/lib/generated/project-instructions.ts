@@ -30,9 +30,9 @@ Read a Mix as **its own instruction plus the instructions of its Genres**, in th
 Two kinds of request, told apart from what they said — never by asking. **Read \`get_taste\` either
 way**: what they wrote is evidence on any night.
 
-**What they said tonight binds** — what they asked for, ruled out just now, and can watch. **An
-exclusion inside a Genre's or Mix's instruction binds only when they asked for their taste**: one
-written for one idea is not a rule over every evening. Everything else is evidence either way.
+**What they said tonight binds** — what they asked for, ruled out just now, and can watch. **A
+stored exclusion binds only when they asked for their taste**, and when it does not bind it is
+**never mentioned**. Everything else is evidence either way — **show the positive evidence you used**.
 
 **Discovery is the default** — *"recommend me a film"*: you are exploring, from what they wrote.
 **Taste-aware is what they ask for** — *"what would I like?"*: the model is the brief, and its
@@ -140,8 +140,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version 0e4f1cde · replace these when tonight.movie shows a different version.
+Tonight project instructions · version e6158581 · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "0e4f1cde";
+export const PROJECT_INSTRUCTIONS_VERSION = "e6158581";

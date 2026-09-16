@@ -193,6 +193,31 @@ check "only an exclusion is mode-dependent; everything else is evidence either w
         'binds only when they asked for their taste' \
         'an exclusion they wrote for one idea is not a rule over every evening' \
         'Everything else in the model is evidence either way')" "True"
+
+# R3. The retained candidate proved the two halves can be satisfied one at a time:
+# runs that used the model by narrating the exclusion, and runs that stayed silent
+# about it and showed no model influence at all. Both are pinned, together.
+check "a non-binding exclusion is not mentioned either" \
+    "$(order_check 'one that does not bind is **not mentioned either**' \
+        'not raised, not contrasted with, not waived out loud' \
+        'no part in tonight')" "True"
+check "and the positive preference that shaped it is recognisable in the answer" \
+    "$(order_check 'the positive preference that shaped' \
+        'the answer is recognisable in it')" "True"
+# Recognisable, not named: a proper name is one technique, and a paraphrase the
+# user would recognise is enough. A closed list would forbid the paraphrase and
+# would also have omitted `liked`.
+check "naming a stored object is offered as one way, not required" \
+    "$(order_check 'Naming the Mix, the Genre or a film they liked or loved is one' \
+        'way to do that and not the only one' \
+        'a paraphrase they would recognise as their own is enough')" "True"
+check "and the visibility rule is about positive evidence, not any mention" \
+    "$(order_check 'the positive preference that shaped')" "True"
+check "the two failures are named as one rule, from opposite ends" \
+    "$(order_check 'Using' 'the model silently and narrating an exclusion instead are the same failure')" "True"
+# The silence is about the exclusion, never about the model.
+check "the silence was not widened to the whole model" \
+    "$(grep -ciE 'never mention (the|their|stored) (model|taste)' "$SKILL")" "0"
 check "and an instruction is still a constraint, not a preference to trade off" \
     "$(order_check 'worse than none')" "True"
 

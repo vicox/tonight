@@ -203,15 +203,40 @@ test("both kinds of request read the model; only an exclusion is mode-dependent"
     assert.match(flat, rule, `the agent is never told ${what}`);
   }
 
-  // The one mode-dependent thing, stated as the exception it is.
-  const exclusion = flat.slice(flat.indexOf("An exclusion inside"), flat.indexOf("Discovery is the default"));
+  // The one mode-dependent thing, stated as the exception it is. The projection
+  // says it more briefly than the skill — the *reason* an exclusion does not
+  // travel is rationale and stays canonical-only — so this reads the rule.
+  const exclusion = flat.slice(
+    flat.indexOf("stored exclusion"),
+    flat.indexOf("Discovery is the default"),
+  );
   assert.ok(exclusion.length > 80, "the exclusion rule could not be found");
   assert.match(exclusion, /binds only when they asked for their taste/,
     "the exclusion is not scoped to a taste request");
-  assert.match(exclusion, /not a rule over every evening/,
-    "the reason an exclusion does not travel is missing");
   assert.match(exclusion, /Everything else is evidence either way/,
     "the exception is not bounded, so it reads as the rule");
+
+  // R3, both halves in one breath. Either alone is a way to pass while failing:
+  // the retained candidate had runs that used the model by narrating the
+  // exclusion, and runs that stayed silent about it and showed no model at all.
+  assert.match(exclusion, /when it does not bind it is \*\*never\s+mentioned\*\*/i,
+    "a non-binding exclusion may still be surfaced");
+  assert.match(exclusion, /show the positive evidence you used/i,
+    "positive evidence need not be visible in the answer");
+
+  // The visibility rule is about a *positive* preference, and about it being
+  // recognisable rather than named. Dropping "positive" would let an exclusion
+  // narrated in passing satisfy it — the very run the candidate recorded — and
+  // mandating a name would rule out a paraphrase the user would recognise as
+  // their own, which the approved behaviour allows.
+  assert.match(exclusion, /positive/i, "the visibility rule does not require positive evidence");
+  assert.doesNotMatch(exclusion, /\b(must|always) name\b|\bname (the|a) (Mix|Genre)\b/i,
+    "the projection makes literal naming mandatory");
+
+  // And the silence rule is about the exclusion, never about the model: an
+  // instruction not to mention stored taste at all would destroy the other half.
+  assert.doesNotMatch(flat, /never mention (the|their|stored) (model|taste)/i,
+    "the silence was widened from the exclusion to the whole model");
 
   // The superseded rule must not survive beside its replacement: it says the exact
   // opposite of P3 and would win, being the more absolute of the two.
@@ -872,6 +897,14 @@ test("the compact projection of the taste model says the same thing the skill do
     ["tonight's words bind", /What they said tonight binds/, /What they said tonight binds/],
     ["an exclusion is mode-dependent",
       /binds only when they asked for their taste/, /binds only when they asked for their taste/],
+    ["a non-binding exclusion is not mentioned",
+      /one that does not bind is \*\*not mentioned either\*\*/,
+      /when it does not bind it is \*\*never\s+mentioned\*\*/],
+    ["the positive preference used is recognisable in the answer",
+      /the positive preference that shaped\s+the answer is recognisable in it/,
+      /show the positive evidence you used/],
+    ["and naming it is one way rather than the only one",
+      /is one\s+way to do that and not the only one/, /show the positive evidence/],
     ["and is the only thing that is",
       /Everything else in the model is evidence either way/, /Everything else is evidence either way/],
     ["discovery explores from what they wrote",
