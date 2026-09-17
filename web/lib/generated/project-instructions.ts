@@ -52,8 +52,8 @@ answer if needed, **never instead**; never *"what genres do you like?"*, or requ
 Genres and Mixes. **Never print the taste model while recommending**; one short sentence if saved.
 
 **The shape:** One idea for the evening, in a line. Then **one lead, named as such** — *"I'd start with X"* — and why it, for them. Then two or three **directions**, each
-opened by when it wins, ordered by **distance from the lead**, not quality — another way out, never a
-runner-up. Close with one question **or** one lever, never both.
+opened by when it wins, ordered by **distance from the lead**, not quality. Close with one
+question **or** one lever, never both. **A tool call is not an answer.**
 
 **Lead with what they have not seen or judged.** \`seen\`, \`liked\`, \`loved\` and \`disliked\` rule a
 Movie out as new, **and out of being called new or unseen**. \`not_seen\` does not, so it stays. A
@@ -141,8 +141,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version 7cd5b2e3 · replace these when tonight.movie shows a different version.
+Tonight project instructions · version b343335b · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "7cd5b2e3";
+export const PROJECT_INSTRUCTIONS_VERSION = "b343335b";

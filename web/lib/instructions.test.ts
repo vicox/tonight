@@ -399,13 +399,22 @@ test("the answer has one lead, and the rest are directions from it", () => {
     ["to say why it, for them", "and why it, for them"],
     ["how many directions follow", "two or three **directions**"],
     ["when each direction is offered", "opened by when it wins"],
-    ["what a direction is not", "never a runner-up"],
     ["what orders them", "distance from the lead"],
-    ["that the lead is what distance is measured from", "another way out"],
     ["how to close", "Close with one question **or** one lever, never both"],
+    // The shape is only worth stating if it is the thing the user receives. A run
+    // of the 7cd5b2e3 sweep put its whole recommendation into a record_episode
+    // call and replied with one follow-up sentence, which satisfied every rule
+    // above and left the user with no film.
+    ["that the answer is what reaches them", "A tool call is not an answer"],
   ] as [string, string][]) {
     assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
   }
+
+  // "never a runner-up" and "another way out" said this in the projection and were
+  // the local budget that paid for the rule above. What they guarded survives: a
+  // direction is an alternative rather than a ranking, which is what "not quality"
+  // says, and the canonical keeps the fuller wording.
+  assert.match(flat, /not\s+quality/);
 
   // A quality order says "this is the fourth best", which is useless and probably
   // false. The prohibition has to be explicit: leaving it out reads as a free choice.

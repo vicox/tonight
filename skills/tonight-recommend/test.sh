@@ -357,6 +357,24 @@ check "a stateful film is ruled out of being called new, not only of being offer
 check "and the contradiction that was observed is named as one" \
     "$(order_check \
         "it's on your list and you haven't seen it" 'is a contradiction')" "True"
+# The 7cd5b2e3 sweep failed AC1 on a run that put its whole recommendation into a
+# record_episode call and replied with one follow-up sentence. Every shape rule
+# above was satisfied and the user was left with no film, because none of them
+# said where the answer has to appear.
+check "the shape is what reaches them, and a tool call is not one" \
+    "$(order_check 'That shape is what reaches them, and a tool call is not an answer' \
+        'Tools serve the reply and' \
+        'never stand in for it')" "True"
+check "writing something down is additive, never a substitute" \
+    "$(order_check 'happens **as' \
+        'well as** the answer and never in place of it or of part of it')" "True"
+check "a film named only in a tool call was not recommended" \
+    "$(order_check 'A film named only inside a tool' \
+        'call was never recommended' \
+        'they cannot see it')" "True"
+check "an owed answer arrives whole, and nothing is dropped because it was recorded" \
+    "$(order_check 'Where an answer is owed, it arrives whole and in the shape above' \
+        'nothing is left out of the reply because it was written down')" "True"
 check "a stretch is anchored in something they like, and an absence is not a reason" \
     "$(order_check 'Anchor a stretch in something they like' \
         'an absence shows where to look, never why')" "True"
