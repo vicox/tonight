@@ -136,23 +136,31 @@ test("every tool is discoverable, and only the intended ones", async () => {
   const tools = json.result?.tools;
   assert.ok(tools);
   assert.deepEqual(tools.map((tool) => tool.name).sort(), [
+    "correct_episode",
     "create_genre",
     "create_mix",
     "create_movie",
     "delete_genre",
     "delete_mix",
     "delete_movie",
+    "forget_episode",
+    "get_episodes",
     "get_server_info",
     "get_taste",
+    "record_episode",
     "update_genre",
     "update_mix",
     "update_movie",
   ]);
 
-  // Eleven, and every one of them a state operation. Product guidance ships in
+  // Fifteen, and every one of them a state operation. Product guidance ships in
   // skills/ beside the server rather than as a runtime tool: an exhaustive list
   // is what keeps one from creeping back.
-  assert.equal(tools.length, 11);
+  //
+  // Eleven of them are the taste model's and four are M1's episodes, which write
+  // what happened rather than what somebody likes. The two sets never mix: no
+  // episode tool reads or writes a genre, a mix or a movie state.
+  assert.equal(tools.length, 15);
 
   const info = tools.find((tool) => tool.name === "get_server_info");
   assert.equal(info?.title, "Server information");

@@ -10,6 +10,14 @@ import {
   MOVIE_STATES,
   TasteError,
 } from "../taste/model.ts";
+import {
+  beginEpisode,
+  EpisodeError,
+  MAX_OFFERED,
+  MAX_REQUEST_LENGTH,
+  type OutcomeStatement,
+} from "../episodes/model.ts";
+import type { EpisodeStore } from "../episodes/store.ts";
 import type { TasteStore } from "../taste/store.ts";
 import { SERVER_NAME, SERVER_VERSION } from "./identity.ts";
 
@@ -47,9 +55,55 @@ export type McpSession = {
   user: AuthenticatedUser;
   reference: string;
   store: TasteStore;
+  /**
+   * Opened for the same user, and separate from the taste store on purpose.
+   * Episodes are what happened; taste is what they told us. Nothing here reads
+   * one to write the other.
+   */
+  episodes: EpisodeStore;
 };
 
 // --- shared field schemas --------------------------------------------------
+//
+// The episode fields sit here with the taste fields for the same reason: a
+// description is what a model reads to decide how to call a tool, so each is
+// written once.
+
+const episodeId = z.string().uuid().describe("The evening, by the id a read returned.");
+
+const episodeRequest = z
+  .string()
+  .min(1)
+  .max(MAX_REQUEST_LENGTH)
+  .describe("What they asked for, in their own words. Not a paraphrase and not a summary.");
+
+const episodeOffers = z
+  .array(
+    z.object({
+      title: z.string().min(1).describe("The film's title, as you named it."),
+      year: z.number().int().describe("Its release year."),
+      lead: z.boolean().describe("Whether this was the one you led with, or one of the others."),
+    }),
+  )
+  .max(MAX_OFFERED)
+  .describe(
+    "The films you put forward, in the order you put them. Empty if you named none. The same " +
+      "film is not offered twice, and only one of them leads.",
+  );
+
+const episodeChosen = z
+  .object({
+    title: z.string().min(1).describe("The film's title."),
+    year: z.number().int().describe("Its release year."),
+  })
+  .nullable()
+  .optional()
+  .describe(
+    "The film they said they went with, which has to be one that evening offered. Null takes " +
+      "the choice back to not known. Leave out to keep what is recorded.",
+  );
+
+const episodeFlag = z.boolean().nullable().optional();
 //
 // Described once, because the description is what a model reads to decide how to
 // call a tool, and two tools disagreeing about what `name` means would be worse
@@ -173,7 +227,7 @@ const movieMixes = z
  */
 export function tonightMcpServer(session: McpSession): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  const { store } = session;
+  const { store, episodes } = session;
 
   server.registerTool(
     "get_server_info",
@@ -416,6 +470,100 @@ export function tonightMcpServer(session: McpSession): McpServer {
       attempt(async () => ({ deleted: await store.deleteMovie(title, year) })),
   );
 
+  // --- episodes ------------------------------------------------------------
+  //
+  // What happened on an evening, which is not what the user likes. These tools
+  // write history and never taste: nothing below reads a genre, a mix or a movie
+  // state, and nothing below writes one. A film recorded as offered is a film
+  // Tonight mentioned once, not a film the user has told Tonight about.
+
+  server.registerTool(
+    "record_episode",
+    {
+      title: "Record an evening",
+      description:
+        "Write down an evening Tonight was part of: what they asked for, in their own words, " +
+        "and the films that were put forward. Record only what you actually observed — the " +
+        "request as they phrased it and the films you named. What they went on to do is not " +
+        "something you saw, so leave it out here and record it later if they say. Offering a " +
+        "film is not the same as them choosing it.",
+      inputSchema: z.object({ request: episodeRequest, offered: episodeOffers }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ request, offered }) =>
+      attempt(async () => ({ episode: await episodes.record(beginEpisode(request, offered)) })),
+  );
+
+  server.registerTool(
+    "get_episodes",
+    {
+      title: "Read the evenings",
+      description:
+        "Every evening recorded for this user, oldest first, with what was asked, what was " +
+        "offered, and whatever they said happened. Each of chosen, watched and finished is " +
+        "either known — with the value they stated — or not known at all. Not known means " +
+        "nobody ever said, and it is a complete answer rather than a gap: do not read it as no, " +
+        "and do not fill it in from what seems likely.",
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    async () => attempt(async () => ({ episodes: await episodes.episodes() })),
+  );
+
+  server.registerTool(
+    "correct_episode",
+    {
+      title: "Record or correct what happened",
+      description:
+        "Say what the user told you about an evening: which film they went with, whether they " +
+        "watched it, whether they finished it. Only ever from what they said. Choosing is not " +
+        "watching, watching is not finishing, and finishing is not liking — a later one is never " +
+        "implied by an earlier one, so pass only the ones they actually told you about. Pass " +
+        "null to take something back to not known, which is what a correction to silence is. " +
+        "Leave a field out to keep it as it is. The film they chose has to be one of the films " +
+        "that evening offered.",
+      inputSchema: z.object({
+        episode: episodeId,
+        chosen: episodeChosen,
+        watched: episodeFlag.describe(
+          "True or false as they said it, or null to take it back to not known. Leave out to " +
+            "keep what is recorded.",
+        ),
+        finished: episodeFlag.describe(
+          "True or false as they said it, or null to take it back to not known. Leave out to " +
+            "keep what is recorded. Never inferred from watching.",
+        ),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    async ({ episode, chosen, watched, finished }) =>
+      attempt(async () => {
+        // Each key is forwarded only when the caller sent it, because an absent
+        // field means "leave it alone" and a present null means "take it back".
+        // Collapsing the two here would make retraction unsayable.
+        const statement: OutcomeStatement = {};
+        if (chosen !== undefined) {
+          statement.chosen = chosen === null ? null : { ...chosen, lead: false };
+        }
+        if (watched !== undefined) statement.watched = watched;
+        if (finished !== undefined) statement.finished = finished;
+        return { episode: await episodes.correct(episode, statement) };
+      }),
+  );
+
+  server.registerTool(
+    "forget_episode",
+    {
+      title: "Forget an evening",
+      description:
+        "Remove an evening and the films it offered. It is gone: not hidden, not archived, and " +
+        "it will not come back in a later read. Use it when the user asks you to forget one.",
+      inputSchema: z.object({ episode: episodeId }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
+    },
+    async ({ episode }) => attempt(async () => ({ forgotten: await episodes.forget(episode) })),
+  );
+
   return server;
 }
 
@@ -449,7 +597,7 @@ async function attempt(work: () => Promise<unknown>) {
   try {
     return answer(await work());
   } catch (error) {
-    if (!(error instanceof TasteError)) throw error;
+    if (!(error instanceof TasteError) && !(error instanceof EpisodeError)) throw error;
     return {
       isError: true as const,
       content: [{ type: "text" as const, text: error.message }],

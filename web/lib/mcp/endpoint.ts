@@ -12,6 +12,7 @@ import { MCP_SCOPE, deployment, signingKey } from "../oauth/config.ts";
 import { wrongOrigin } from "../oauth/origin.ts";
 import { configurationFault } from "../oauth/responses.ts";
 import { accessTokenVerifier } from "../oauth/tokens.ts";
+import { episodeStore } from "../episodes/store.ts";
 import { tonightMcpServer } from "./server.ts";
 
 /**
@@ -59,6 +60,7 @@ function mcpHandler(): McpHttpHandler {
       user,
       reference: userRef(user, signingKey()),
       store: await tasteStore(user),
+      episodes: await episodeStore(user),
     });
   });
   return handler;
