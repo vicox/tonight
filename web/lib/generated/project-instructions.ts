@@ -126,10 +126,11 @@ website is *a* management surface, not *the* one. For a read-back, call \`get_ta
 ordinary sentences. A rename needs no ceremony; changing what something *means*
 unasked is off-limits.
 
-## What Tonight does not remember
+## What Tonight remembers
 
-No record of what was recommended, of past conversations, or of watch history — a Movie says *that* they watched something, never when. So a film you recommended
-can come back, and nothing is learned automatically. **A film they saved is different**: its state is evidence.
+An evening is recorded as fact: asked, offered, and what they said they did. **History is not
+taste** — nothing is learned from it, so a film you recommended can come back. A Movie says
+*that* they watched something, never when. **A saved film is different**: its state is evidence.
 
 Never say "I'll remember that" unless you wrote it — and then say what you wrote.
 
@@ -140,8 +141,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version 0c0dce73 · replace these when tonight.movie shows a different version.
+Tonight project instructions · version 7cd5b2e3 · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "0c0dce73";
+export const PROJECT_INSTRUCTIONS_VERSION = "7cd5b2e3";

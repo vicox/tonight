@@ -499,13 +499,22 @@ check "an asked-for rename needs no ceremony, but a meaning change is still not 
 echo
 echo "--- nothing is remembered but the model ---"
 
-check "no history of any kind is kept" \
-    "$(order_check 'The taste model and nothing else' \
-        'or of watch history' \
-        'never when')" "True"
-check "a recommended film may return, and a saved one is the exception to the amnesia" \
+# M1 records evenings as fact, so the old claim that no history is kept became
+# untrue. What had to survive is the part that was never about storage: an
+# evening is history and not taste, and nothing is concluded from it.
+check "an evening is recorded as fact, and unknown stays unknown" \
+    "$(order_check 'An evening is recorded as fact' \
+        'Everything else stays **unknown**' \
+        'unknown is an answer rather than a gap')" "True"
+check "no link of the chain implies the next" \
+    "$(order_check 'offering a film is not choosing it, choosing is not watching, watching is' \
+        'not finishing, and finishing is not liking' \
+        'None of those follows from the one before')" "True"
+check "the record is history and not taste" \
+    "$(order_check 'That record is history, not taste' \
+        'Nothing is learned from it automatically')" "True"
+check "a recommended film may return, and a saved one is the exception" \
     "$(order_check 'a film you recommended can come back' \
-        'nothing is learned automatically' \
         'A film they saved is different' \
         'its state is evidence')" "True"
 # And the targeting rule it used to restate is not duplicated back into this section.

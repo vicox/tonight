@@ -139,20 +139,37 @@ export default function Privacy() {
           and said nothing about it — it is not a verdict. A film may also have no state at all,
           which means you have said nothing, and that is what a film starts as. It is different
           from <em>not seen</em>, which is something you said. Neither is guessed from anything:
-          being recommended a film records nothing, and neither does saving one.
+          being recommended a film never gives it a state, and
+          neither does saving one.
         </p>
         <p>
-          <strong>What is deliberately not stored.</strong> Tonight keeps no record of what was
-          recommended to you, no list of films you were shown, no scored or star ratings, and no
-          behavioural profile of any kind. Nor does it keep a film catalogue: no film exists here
+          <strong>What is stored about an evening.</strong> Tonight records the evenings it took
+          part in: what you asked for in your own words, the films it put forward, and — only if
+          you say so — which one you went with, whether you watched it, and whether you finished
+          it. Anything you do not say stays <em>unknown</em>, permanently and on purpose: unknown
+          is not a quiet no, and Tonight will not fill it in from what seemed likely. Being
+          offered a film is not choosing it, choosing is not watching, watching is not finishing,
+          and finishing is not liking — none of those is ever concluded from the one before.
+        </p>
+        <p>
+          <strong>That record is not a taste profile.</strong> Nothing about what you like is
+          learned from it. An evening never changes a film&rsquo;s state, never creates a genre or
+          a mix, and never becomes a preference: those only change when you say so. You can
+          correct any part of an evening, and you can delete one outright — deleting removes it
+          and the films it listed, rather than hiding it from view.
+        </p>
+        <p>
+          <strong>What is still deliberately not stored.</strong> Tonight keeps no scored or star ratings,
+          and no behavioural profile of any kind. Nor does it keep a film catalogue: no film exists here
           until you name one, and nothing about it — not a poster, not a runtime, not a cast — is
           ever looked up from a movie database. The IMDb id you may give a film is stored as a
           pointer and never followed.
         </p>
         <p>
           <strong>A state, never a history.</strong> A film in Tonight says whether you have
-          watched it, not when, how often, or in what order. There are no timestamps on it and no
-          event log behind it, so no viewing timeline exists to be reconstructed. Liked, loved and
+          watched it, not when, how often, or in what order. An evening Tonight recorded carries the
+          moment Tonight wrote it down, which is not the moment you watched anything — nobody
+          asked you that, so it is not recorded. Liked, loved and
           disliked are things you said about a film, not a rating scale: there is no score, no
           stars and no average of anything.
         </p>

@@ -103,10 +103,13 @@ export default function Terms() {
         <p>
           What is processed, and for how long, is described in the{" "}
           <a href="/privacy">Privacy Policy</a>. In short: Tonight stores your genres, your mixes,
-          and the films you told it about — including the one state you gave each. What it does
-          not store is a history: no record of what was recommended, no
-          viewing timeline, and no profile built from how you use it. Everything you create —
-          genres, mixes, and the films you saved with the state you gave each — is intended
+          and the films you told it about — including the one state you gave each. It also records the
+          evenings it took part in: what you asked for, what it offered, and whatever you said you
+          did with it. Anything you do not say stays unknown, and that record is history rather
+          than taste — nothing about what you like is learned from it, and you can correct or
+          delete any of it. What Tonight still does not build is a profile from how you use it.
+          Everything you create — genres, mixes, the films you saved with the state you gave each,
+          and the evenings it recorded — is intended
           to be kept until the closed beta ends and deleted by the operator then, or earlier on
           request.
         </p>

@@ -38,7 +38,7 @@ test("no page still claims that no film is stored", () => {
   // the sentences they were, because the point is that these exact assurances
   // were given and have to have been withdrawn.
   const withdrawn: [keyof typeof PAGES, string][] = [
-    ["privacy", "no watch history, no ratings"],
+    ["privacy", "an evening is history, not taste"],
     ["privacy", "There is no table for any of this"],
     ["privacy", "stores no film records"],
     ["terms", "nothing about what you watch"],
@@ -99,12 +99,12 @@ test("what is still true is still claimed", () => {
   // drop one along the way.
   const surviving: [keyof typeof PAGES, RegExp][] = [
     ["privacy", /no scored or star ratings/],
-    ["privacy", /no record of what was recommended/],
+    ["privacy", /Anything you do not say stays <em>unknown<\/em>/],
     ["privacy", /Nor does it keep a film catalogue/],
     ["privacy", /is ever looked up from a movie database/],
     ["privacy", /stored as a pointer and never followed/],
     ["privacy", /queries no film catalogue or search service/],
-    ["terms", /no record of what was recommended/],
+    ["terms", /that record is history rather\s+than taste/],
     ["terms", /nothing about them is looked up/],
     ["readme", /no film exists here until somebody names one/],
   ];
@@ -165,12 +165,15 @@ test("the website is disclosed as a view of the model, arranged its own way", ()
   assert.match(readme, /the website is a view of it, not the definition of it/);
 });
 
-test("retention covers the films and their state, not only genres and mixes", () => {
+test("retention covers the films, their state, and the evenings recorded", () => {
   assert.match(
     text("privacy"),
     /your genres, your mixes, and the films you saved along with the state you gave each/,
   );
-  assert.match(text("terms"), /genres, mixes, and the films you saved with the state you gave each/);
+  // M1 added episodes, so what is kept until deletion grew. A retention promise
+  // that named less than is stored would be the wrong half of the truth.
+  assert.match(text("terms"), /genres, mixes, the films you saved with the state you gave each/);
+  assert.match(text("terms"), /and the evenings it recorded/);
 });
 
 test("the README no longer describes names as relational identity", () => {
