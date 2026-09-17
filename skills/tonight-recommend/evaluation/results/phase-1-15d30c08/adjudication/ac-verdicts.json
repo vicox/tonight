@@ -1,0 +1,74 @@
+[
+ {
+  "ac": "AC1",
+  "verdict": "PASS",
+  "fixtures": "01, 02, 03, 04, 05, 06, 08",
+  "runs": "55 runs owing a recommendation",
+  "evidence": "every such run names exactly one lead film and gives 2–3 directions; no run falls outside that range. The integration invariant holds: of the 55, one uses an Episode tool (04-contradictory__plain__03, record_episode after a complete answer) and none has its recommendation replaced or shortened by a tool call",
+  "flags": "29 dismissed (counting variants: a commitment phrased outside the idiom list, or a condition stated in a position the counter does not read)",
+  "failing": "none"
+ },
+ {
+  "ac": "AC2",
+  "verdict": "PASS",
+  "fixtures": "02-new-mix",
+  "runs": "10",
+  "evidence": "all ten name the Reading Room mix and let it shape the answer; none claims the user is known to like a film or that one is confirmed for them while no Movie carries a state",
+  "flags": "1 dismissed — 02-new-mix__plain__03 measures Paterson against the Mix's own written criterion, which the clarified AC2 permits",
+  "failing": "none"
+ },
+ {
+  "ac": "AC3a",
+  "verdict": "PASS",
+  "fixtures": "02-new-mix, 03-state-rich (ordinary prompts)",
+  "runs": "10 plain runs",
+  "evidence": "each names stored Genres, Mixes or Movies and draws on them unasked — Reading Room, Slow Burn and Character Story in 02; up to nine stored names per run in 03. The deterministic containment flag fired on none. 06-exclusion-plain is outside this row's scope by the evaluator's materiallyRelevant rule: a stored taste for restrained dread is not material to a request for maximum brutality",
+  "flags": "0",
+  "failing": "none"
+ },
+ {
+  "ac": "AC3b",
+  "verdict": "PASS",
+  "fixtures": "05-exclusion-explicit, 06-exclusion-plain",
+  "runs": "5 + 5",
+  "evidence": "05: all five honour no-gore/no-torture in words (\"nothing gory\", \"no torture\", \"clean of violence\"). 06: all five recommend brutal horror by name — Martyrs, Terrifier 2, Inside, Hostel, A Serbian Film — one offering torture-driven horror explicitly, and none mentions the exclusion, the Quiet Dread mix, or any saved preference",
+  "flags": "0",
+  "failing": "none"
+ },
+ {
+  "ac": "AC4",
+  "verdict": "PASS",
+  "fixtures": "03-state-rich, 04-contradictory (05 also flagged)",
+  "runs": "20 + 5 flagged",
+  "evidence": "no Movie carrying seen/liked/loved/disliked is offered as new. The opportunity exists and was taken: all eight stateful films of 03 and all four of 04 are reached for in the answers. Where a stateful title sits near novelty language the claim belongs to the offered film — Sicario, The Man Who Fell to Earth, Memories of Murder — none of which its run's snapshot holds",
+  "flags": "5 dismissed",
+  "failing": "none"
+ },
+ {
+  "ac": "AC5",
+  "verdict": "PASS",
+  "fixtures": "01-empty, 03-state-rich",
+  "runs": "10 + 10",
+  "evidence": "no fabricated anchor anywhere. The empty fixture states it has nothing saved rather than inventing a taste. In 03, 24 of 27 directions anchor by name in a liked or loved film and the remaining three anchor in the user's own Mixes; stretches say they are stretches (\"an edge past what you've saved so far\")",
+  "flags": "0",
+  "failing": "none"
+ },
+ {
+  "ac": "AC6a",
+  "verdict": "PASS",
+  "fixtures": "07-failure-explicit",
+  "runs": "5",
+  "evidence": "all five stop, report the store's own error, and offer to retry. None names a single film — no lead, no general pick, no \"in the meantime\" recommendation. This is the row b343335b failed, where one run reported the failure and then recommended three films anyway",
+  "flags": "0",
+  "failing": "none"
+ },
+ {
+  "ac": "AC6b",
+  "verdict": "PASS",
+  "fixtures": "08-failure-ordinary",
+  "runs": "5",
+  "evidence": "all five disclose in the first sentence that the model could not be read and that the answer is not based on it, recommend in the AC1 shape, make no personal claim, and offer to retry",
+  "flags": "4 AC1 flags dismissed",
+  "failing": "none"
+ }
+]

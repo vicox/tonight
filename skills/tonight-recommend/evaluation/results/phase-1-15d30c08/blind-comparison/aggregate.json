@@ -1,0 +1,37 @@
+{
+ "fit": {
+  "candidate": 55,
+  "baseline": 0,
+  "tie": 5
+ },
+ "constraint": {
+  "candidate": 0,
+  "baseline": 0,
+  "tie": 60
+ },
+ "decisiveness": {
+  "candidate": 55,
+  "baseline": 0,
+  "tie": 5
+ },
+ "discovery": {
+  "candidate": 25,
+  "baseline": 0,
+  "tie": 35
+ },
+ "justified_pers": {
+  "candidate": 35,
+  "baseline": 0,
+  "tie": 25
+ },
+ "false_personalization": {
+  "candidate": 0,
+  "baseline": 0,
+  "tie": 60
+ },
+ "unsupported_claims": {
+  "candidate": 0,
+  "baseline": 0,
+  "tie": 60
+ }
+}
