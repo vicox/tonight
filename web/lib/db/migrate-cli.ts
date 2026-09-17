@@ -16,12 +16,13 @@
  */
 import { migrate, type SchemaModule } from "./migrate.ts";
 import { TASTE_SCHEMA } from "../taste/store/sql.ts";
+import { EPISODES_SCHEMA } from "../episodes/store/sql.ts";
 import { OAUTH_SCHEMA } from "../oauth/store/sql.ts";
 import { WEB_SCHEMA } from "../web/store/sql.ts";
 import type { SqlDriver } from "./driver.ts";
 
 /** Every schema, in no particular order: they share no version sequence. */
-const SCHEMAS: readonly SchemaModule[] = [OAUTH_SCHEMA, TASTE_SCHEMA, WEB_SCHEMA];
+const SCHEMAS: readonly SchemaModule[] = [OAUTH_SCHEMA, TASTE_SCHEMA, WEB_SCHEMA, EPISODES_SCHEMA];
 
 const url = process.env.DATABASE_URL?.trim();
 

@@ -98,6 +98,17 @@ export type Episode = {
   finished: Established<boolean>;
 };
 
+/**
+ * An episode that has been written down, and can be found again.
+ *
+ * Identity exists so a later statement can reach the evening it is about. It is
+ * the store's, generated there, and stable: correcting what happened does not
+ * make it a different evening. `recordedAt` is when Tonight wrote the episode,
+ * which is not when the evening happened and is never presented as though it
+ * were — only the user could say that, and nobody asked.
+ */
+export type Recorded<T> = T & { id: string; recordedAt: string };
+
 export const MAX_REQUEST_LENGTH = 2_000;
 export const MAX_OFFERED = 10;
 
