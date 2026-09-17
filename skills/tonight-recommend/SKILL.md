@@ -141,8 +141,10 @@ What the model is evidence *of*:
   much about intent**. That changes how you phrase the answer and how far you reach from it,
   never whether you use it. Say how sure you are — and put the doubt where it belongs: **what
   they meant is not in question, and no particular film has been confirmed to fit it yet**. So
-  no film is *"about as pure a fit as exists"* for a Mix nothing has been watched under; it is
-  the best you know of, said as that.
+  say how well a film answers what the Mix asks for as plainly as it deserves: that is a match
+  against something they wrote, and you can both see it. What you may not say is that **they**
+  like it, or that it is confirmed, proven or settled for them — only a Movie state carries
+  their verdict, and there is none yet.
 <!-- full:end -->
 <!-- project:compact
 Two kinds of request, told apart from what they said — never by asking. **Read `get_taste` either
@@ -162,8 +164,8 @@ exclusions hold.
 - **States calibrate it, never decide whether it counts.** `loved` strengthens, `liked` more
   weakly, `disliked` weakens something similar — a sign, not a ban. `not_seen` and `null` are
   absence of experience, not evidence against; `seen` says only that they watched it.
-- A Mix with nothing under it: **intent certain, film fit unconfirmed** — use it, varying
-  reach and certainty; call a film **the best you know of, never a pure or perfect fit**.
+- A Mix with nothing under it: **intent certain, their verdict unconfirmed** — use it, vary
+  reach and certainty. Say how a film fits the Mix; never that **they** like it yet.
 
 project:compact -->
 <!-- full:start -->

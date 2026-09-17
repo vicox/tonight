@@ -278,10 +278,10 @@ test("a Mix is evidence, and the states under it calibrate rather than gate", ()
     ["that not_seen and null are not negative evidence",
       /`not_seen` and `null` are\s*absence of experience, not evidence against/],
     ["what seen does and does not say", /`seen` says only that they watched it/],
-    ["how an empty Mix is read", /intent certain, film fit unconfirmed/],
-    ["what to say instead of a perfect fit", /the best you know of/],
-    ["that a maximal fit is refused outright", /never a pure or perfect fit/],
-    ["that this changes reach, not eligibility", /use it, varying\s+reach and certainty/],
+    ["how an empty Mix is read", /intent certain, their verdict unconfirmed/],
+    ["that describing the match stays allowed", /Say how a film fits the Mix/],
+    ["that their verdict may not be claimed", /never that \*\*they\*\* like it yet/],
+    ["that this changes reach, not eligibility", /use it, vary\s+reach and certainty/],
   ] as [string, RegExp][]) {
     assert.match(flat, rule, `the agent is never told ${what}`);
   }
@@ -316,16 +316,16 @@ test("an unconfirmed Mix bounds the claim about a film, never the Mix itself", (
   );
   assert.ok(bullet.length > 60, "the unconfirmed-Mix rule could not be found");
 
-  // Intent is certain; the fit is what is not.
+  // Intent is certain; what they made of any film is what is not.
   assert.match(bullet, /intent certain/i, "confidence about intent was reduced");
-  assert.match(bullet, /fit unconfirmed/i, "the claim about a specific film is not bounded");
-  // And what to say instead, so the lead stays committed rather than hedged away.
-  assert.match(bullet, /the best you know of/i, "the lead is left with nothing to say");
+  assert.match(bullet, /verdict unconfirmed/i, "the missing verdict is not named");
+  // Describing the match is the thing a written Mix makes checkable, so it stays allowed.
+  assert.match(bullet, /Say how a film fits the Mix/i, "describing the match was forbidden");
+  // What is refused is a verdict they never gave. Two sweeps failed while the rule chased
+  // phrasing instead; the projection now names the claim rather than the words.
+  assert.match(bullet, /never that \*\*they\*\* like it yet/i, "their verdict may still be claimed");
   // The Mix still counts: this changes how you speak, not whether you use it.
-  assert.match(bullet, /use it, varying/i, "an unconfirmed Mix stopped counting");
-  // R4 failed in the final sweep on "about as pure a fit … as exists", which the compact only
-  // implied. The projection now refuses the form by name.
-  assert.match(bullet, /never a pure or perfect fit/i, "maximal fit is not refused outright");
+  assert.match(bullet, /use it, vary/i, "an unconfirmed Mix stopped counting");
 
   // None of the rejected mechanisms came back with it.
   assert.doesNotMatch(flat, /\b(aspirational|untested|unproven|provisional|tentative Mix)\b/i,
@@ -966,16 +966,16 @@ test("the compact projection of the taste model says the same thing the skill do
       /`not_seen` and `null` are absence of experience, never evidence\s*against/,
       /`not_seen` and `null` are\s*absence of experience, not evidence against/],
     ["an empty Mix changes reach, not eligibility",
-      /never whether you use it/, /use it, varying\s+reach and certainty/],
+      /never whether you use it/, /use it, vary\s+reach and certainty/],
     ["intent stays certain while the fit does not",
       /what\s+they meant is not in question/, /intent certain/],
     ["no film is confirmed to fit it yet",
-      /no particular film has been confirmed to fit it yet/, /fit unconfirmed/],
-    ["and the lead is said as the best you know",
-      /it is\s+the best you know of, said as that/, /the best you know of/],
-    ["to say how sure it is", /Say how sure you are/, /varying\s+reach and certainty/],
-    ["that no film is a pure fit",
-      /no film is \*"about as pure a fit as exists"\*/, /never a pure or perfect fit/],
+      /no particular film has been confirmed to fit it yet/, /verdict unconfirmed/],
+    ["that describing the match stays allowed",
+      /say how well a film answers what the Mix asks for/, /Say how a film fits the Mix/],
+    ["to say how sure it is", /Say how sure you are/, /vary\s+reach and certainty/],
+    ["that their verdict may not be claimed",
+      /it is confirmed, proven or settled for them/, /never that \*\*they\*\* like it yet/],
   ];
 
   for (const [what, inSkill, inProjection] of behaviours) {

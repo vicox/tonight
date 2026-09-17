@@ -252,18 +252,23 @@ check "an empty Mix changes how you speak, not whether you use it" \
         'never whether you use it' \
         'Say how sure you are')" "True"
 
-# R4. The candidate produced "about as pure a fit for Reading Room as exists" for a
-# Mix with nothing under it: maximal certainty that one film matched, while nothing
-# had confirmed that anything did. The doubt belongs on the film, never on the Mix.
+# R4. A Mix with nothing under it says what they meant, and nothing about what they
+# made of any film. The rule is about that missing verdict, not about how warmly a
+# match may be described: two sweeps failed on the wording while the behaviour —
+# claiming a film was settled for somebody who had never rated one — was what mattered.
 check "the doubt lands on the film's fit, not on what they meant" \
     "$(order_check 'put the doubt where it belongs' \
         '**what' \
         'they meant is not in question, and no particular film has been confirmed to fit it yet**')" "True"
-check "so no film is called a perfect fit for a Mix nothing has been watched under" \
-    "$(order_check 'no film is *"about as pure a fit as exists"*' \
-        'for a Mix nothing has been watched under')" "True"
-check "and the lead still has something to say" \
-    "$(order_check 'it is' 'the best you know of, said as that')" "True"
+check "describing how well a film answers the Mix stays allowed" \
+    "$(order_check 'say how well a film answers what the Mix asks for as plainly as it deserves' \
+        'you can both see it')" "True"
+check "what is refused is a verdict they have not given" \
+    "$(order_check 'What you may not say is that' \
+        'like it, or that it is confirmed, proven or settled for them')" "True"
+check "and only a Movie state carries that verdict" \
+    "$(order_check 'only a Movie state carries' \
+        'their verdict, and there is none yet')" "True"
 # None of the rejected mechanisms may come back with it.
 check "no Mix is graded as provisional" \
     "$(grep -ciE 'aspirational|untested|unproven|provisional' "$SKILL")" "0"
