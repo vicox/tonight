@@ -213,6 +213,14 @@ function checkOffered(value: unknown): readonly Offer[] {
   if (leads.length > 1) {
     throw new EpisodeError("An answer has one lead, not several.");
   }
+  // The same film twice is not an answer anybody gives, and allowing it would
+  // make "which one did they choose" a question with two right answers — the
+  // choice is recorded against the film, so two identical offers are two rows
+  // nothing could tell apart afterwards.
+  const seen = new Set(offered.map((offer) => `${offer.title}\u0000${String(offer.year)}`));
+  if (seen.size !== offered.length) {
+    throw new EpisodeError("The same film was offered twice.");
+  }
   return offered;
 }
 

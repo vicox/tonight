@@ -2,7 +2,7 @@ import { database } from "../db.ts";
 import type { SqlDriver } from "../db/driver.ts";
 import { prepareSchema } from "../db/migrate.ts";
 import type { AuthenticatedUser } from "../identity.ts";
-import type { Episode, Recorded } from "./model.ts";
+import type { Episode, OutcomeStatement, Recorded } from "./model.ts";
 
 /**
  * What Slice 2 of M1 needs from persistence, and nothing beyond it.
@@ -33,6 +33,32 @@ export type EpisodeStore = {
 
   /** This user's episodes, oldest first. Empty for somebody who has none. */
   episodes(): Promise<Recorded<Episode>[]>;
+
+  /**
+   * Corrects what the user said happened.
+   *
+   * Takes the same statement shape as `stateOutcome`, and for the same reason:
+   * each outcome is independent, `null` takes one back to unknown, and a field
+   * left out is untouched. There is no general `update` here on purpose — a
+   * method that took arbitrary fields could express corrections this milestone
+   * has no meaning for, and would put the "chosen was offered" check somewhere a
+   * caller could route around.
+   *
+   * What it cannot change is what was asked and what was offered. Those are what
+   * Tonight observed, they were true when they happened, and an evening whose
+   * offer could be rewritten afterwards would be a record of nothing.
+   */
+  correct(id: string, statement: OutcomeStatement): Promise<Recorded<Episode>>;
+
+  /**
+   * Forgets an episode: it and its offers, gone.
+   *
+   * A hard delete rather than a flag, because the promise made to the user is
+   * forgetting and not hiding. A row that still exists but is filtered from one
+   * read is a thing that can be forgotten to filter somewhere else, and the
+   * difference is invisible until it matters.
+   */
+  forget(id: string): Promise<Recorded<Episode>>;
 };
 
 /**

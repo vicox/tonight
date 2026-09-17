@@ -2,11 +2,13 @@ import type { SqlDriver } from "../../db/driver.ts";
 import type { AuthenticatedUser } from "../../identity.ts";
 import {
   EpisodeError,
+  stateOutcome,
   stated,
   UNKNOWN,
   type Episode,
   type Established,
   type Offer,
+  type OutcomeStatement,
   type Recorded,
 } from "../model.ts";
 import type { EpisodeStore } from "../store.ts";
@@ -105,6 +107,86 @@ export function sqlEpisodeStore(driver: SqlDriver, user: AuthenticatedUser): Epi
           rows.map((row) => row.id),
         );
         return rows.map((row) => assemble(row, offers));
+      });
+    },
+
+    async correct(id: string, statement: OutcomeStatement): Promise<Recorded<Episode>> {
+      return driver.transaction(async (tx) => {
+        // Locked before it is read, because this is a read-then-write and two
+        // corrections arriving together would otherwise each apply to the state
+        // the other found. The taste store locks the same way for the same
+        // reason; the row is this user's or there is no row.
+        const [row] = await tx.query<EpisodeRow>(
+          `SELECT id, request, watched, finished, recorded_at
+             FROM tonight_episodes
+            WHERE user_id = $1 AND id = $2
+              FOR UPDATE`,
+          [owner, id],
+        );
+        if (!row) throw episodeNotFound(id);
+
+        // The correction is applied by the model, against the offers this
+        // episode actually holds. That is what keeps a corrected `chosen` inside
+        // the films Tonight put forward, and it is one code path rather than a
+        // second copy of the rule living in SQL.
+        const current = assemble(row, await offersOf(tx, owner, [row.id]));
+        const corrected = stateOutcome(current, statement);
+
+        await tx.query(
+          `UPDATE tonight_episodes SET watched = $3, finished = $4
+            WHERE user_id = $1 AND id = $2`,
+          [owner, row.id, flag(corrected.watched), flag(corrected.finished)],
+        );
+
+        // Chosen lives on the offer rows, so correcting it is clearing the mark
+        // and setting it again. Both statements are scoped to this episode and
+        // this user, and the clear runs first so the partial unique index is
+        // never asked to hold two.
+        if ("chosen" in statement) {
+          await tx.query(
+            `UPDATE tonight_episode_offers SET chosen = false
+              WHERE user_id = $1 AND episode = $2 AND chosen`,
+            [owner, row.id],
+          );
+          if (corrected.chosen.known) {
+            const { title, year } = corrected.chosen.value;
+            await tx.query(
+              `UPDATE tonight_episode_offers SET chosen = true
+                WHERE user_id = $1 AND episode = $2 AND title = $3 AND year = $4`,
+              [owner, row.id, title, year],
+            );
+          }
+        }
+
+        return { ...corrected, id: row.id, recordedAt: moment(row.recorded_at) };
+      });
+    },
+
+    async forget(id: string): Promise<Recorded<Episode>> {
+      return driver.transaction(async (tx) => {
+        const [row] = await tx.query<EpisodeRow>(
+          `SELECT id, request, watched, finished, recorded_at
+             FROM tonight_episodes
+            WHERE user_id = $1 AND id = $2
+              FOR UPDATE`,
+          [owner, id],
+        );
+        if (!row) throw episodeNotFound(id);
+
+        // Read before the rows go, so the answer describes the evening that
+        // existed a moment ago rather than an empty shell of it.
+        const going = assemble(row, await offersOf(tx, owner, [row.id]));
+
+        // The offers go with it by cascade — an offer belonging to no episode is
+        // nothing. Nothing is flagged and nothing is kept: the contract is
+        // forgetting, and a filtered row is not forgotten.
+        const [removed] = await tx.query<{ id: string }>(
+          `DELETE FROM tonight_episodes WHERE user_id = $1 AND id = $2 RETURNING id`,
+          [owner, row.id],
+        );
+        if (!removed) throw episodeNotFound(id);
+
+        return going;
       });
     },
   };

@@ -175,12 +175,135 @@ describe("episode store", () => {
     assert.equal((await ana.episode(written.id)).recordedAt, written.recordedAt);
   });
 
-  test("the store offers no way to change or forget an episode yet", () => {
-    // Slice 3 owns correction and deletion. If these appear before it, the
-    // milestone's own ordering rule has been broken.
-    for (const absent of ["update", "correct", "delete", "forget", "upsert"]) {
-      assert.equal(absent in ana, false, `${absent} arrived before Slice 3`);
+  test("the store corrects and forgets, and offers no generic mutation", () => {
+    // Slice 3 adds exactly two. A broad update or upsert could express
+    // corrections this milestone has no meaning for, and would put the
+    // offered-film rule somewhere a caller could route around.
+    assert.equal(typeof ana.correct, "function");
+    assert.equal(typeof ana.forget, "function");
+    for (const absent of ["update", "upsert", "merge", "patch", "setState"]) {
+      assert.equal(absent in ana, false, `a generic ${absent} appeared`);
     }
+  });
+
+  test("correcting watched changes what a later read says", async () => {
+    const written = await ana.record(evening());
+    await ana.correct(written.id, { watched: true });
+    const read = await ana.episode(written.id);
+    assert.equal(read.watched.known && read.watched.value, true);
+
+    await ana.correct(written.id, { watched: false });
+    const again = await ana.episode(written.id);
+    assert.equal(again.watched.known && again.watched.value, false);
+  });
+
+  test("retracting returns a field to unknown, not to false", async () => {
+    const written = await ana.record(stateOutcome(evening(), { watched: true }));
+    await ana.correct(written.id, { watched: null });
+    const read = await ana.episode(written.id);
+    assert.equal(read.watched.known, false, "a retraction left a stated no behind");
+  });
+
+  test("a retracted value does not reappear on a later read", async () => {
+    const written = await ana.record(stateOutcome(evening(), { watched: true, finished: true }));
+    await ana.correct(written.id, { finished: null });
+
+    for (const read of [await ana.episode(written.id), ...(await ana.episodes()).filter((e) => e.id === written.id)]) {
+      assert.equal(read.finished.known, false, "the superseded value came back");
+      assert.equal(read.watched.known && read.watched.value, true, "an untouched field moved");
+    }
+  });
+
+  test("correcting one outcome leaves the others exactly as they were", async () => {
+    const written = await ana.record(
+      stateOutcome(evening(), { chosen: offers[0], watched: true, finished: false }),
+    );
+
+    await ana.correct(written.id, { finished: true });
+    const afterFinished = await ana.episode(written.id);
+    assert.equal(afterFinished.watched.known && afterFinished.watched.value, true);
+    assert.deepEqual(afterFinished.chosen.known && afterFinished.chosen.value, offers[0]);
+
+    await ana.correct(written.id, { chosen: offers[1] });
+    const afterChosen = await ana.episode(written.id);
+    assert.deepEqual(afterChosen.chosen.known && afterChosen.chosen.value, offers[1]);
+    assert.equal(afterChosen.watched.known && afterChosen.watched.value, true, "chosen moved watched");
+    assert.equal(
+      afterChosen.finished.known && afterChosen.finished.value,
+      true,
+      "chosen moved finished",
+    );
+  });
+
+  test("a corrected chosen still has to be a film that was offered", async () => {
+    const written = await ana.record(stateOutcome(evening(), { chosen: offers[0] }));
+    await assert.rejects(
+      () => ana.correct(written.id, { chosen: { title: "Heat", year: 1995, lead: false } }),
+      EpisodeError,
+    );
+    const read = await ana.episode(written.id);
+    assert.deepEqual(read.chosen.known && read.chosen.value, offers[0], "a refused correction landed");
+  });
+
+  test("chosen can be retracted to unknown, leaving one offer marked by nobody", async () => {
+    const written = await ana.record(stateOutcome(evening(), { chosen: offers[0] }));
+    await ana.correct(written.id, { chosen: null });
+    const read = await ana.episode(written.id);
+    assert.equal(read.chosen.known, false);
+    assert.deepEqual(read.offered, offers, "retracting a choice removed the offer");
+  });
+
+  test("correcting nothing is refused rather than quietly doing nothing", async () => {
+    const written = await ana.record(evening());
+    await assert.rejects(() => ana.correct(written.id, {}), EpisodeError);
+  });
+
+  test("correcting or forgetting an episode that is not there says so", async () => {
+    const absent = "00000000-0000-0000-0000-000000000000";
+    await assert.rejects(() => ana.correct(absent, { watched: true }), EpisodeError);
+    await assert.rejects(() => ana.forget(absent), EpisodeError);
+  });
+
+  test("a forgotten episode is gone from the direct read and from the listing", async () => {
+    const written = await ana.record(evening());
+    assert.equal((await ana.episode(written.id)).id, written.id);
+
+    const forgotten = await ana.forget(written.id);
+    assert.equal(forgotten.id, written.id, "forgetting did not report what it removed");
+
+    await assert.rejects(() => ana.episode(written.id), EpisodeError);
+    assert.equal(
+      (await ana.episodes()).some((episode) => episode.id === written.id),
+      false,
+      "a forgotten episode is still listed",
+    );
+  });
+
+  test("forgetting takes the offers with it", async () => {
+    const written = await ana.record(evening());
+    await ana.forget(written.id);
+    const left = await driver.query<{ n: string }>(
+      `SELECT count(*) AS n FROM tonight_episode_offers WHERE episode = $1`,
+      [written.id],
+    );
+    assert.equal(Number(left[0]?.n), 0, "the offers outlived the episode");
+  });
+
+  test("one user cannot correct or forget another's episode", async () => {
+    const hers = await ana.record(evening());
+    await assert.rejects(() => ben.correct(hers.id, { watched: true }), EpisodeError);
+    await assert.rejects(() => ben.forget(hers.id), EpisodeError);
+
+    const still = await ana.episode(hers.id);
+    assert.equal(still.watched.known, false, "another user's correction landed");
+    assert.equal(still.id, hers.id, "another user's deletion landed");
+  });
+
+  test("forgetting one user's episode leaves the other's standing", async () => {
+    const hers = await ana.record(evening());
+    const his = await ben.record(evening());
+    await ana.forget(hers.id);
+    assert.equal((await ben.episode(his.id)).id, his.id, "the other user's evening went too");
   });
 
   test("nothing in episode persistence reaches the taste model", async () => {

@@ -168,6 +168,27 @@ test("an answer has one lead, matching the shape Phase 1 ships", () => {
   );
 });
 
+test("the same film is not offered twice in one answer", () => {
+  // Choosing is recorded against the film, so two identical offers would be two
+  // rows nothing could tell apart — and the store would be asked to mark both.
+  assert.throws(
+    () =>
+      beginEpisode("anything", [
+        { title: "Prisoners", year: 2013, lead: true },
+        { title: "Prisoners", year: 2013, lead: false },
+      ]),
+    EpisodeError,
+  );
+  // The same title in a different year is a different film, and stays legal.
+  assert.equal(
+    beginEpisode("anything", [
+      { title: "Insomnia", year: 1997, lead: true },
+      { title: "Insomnia", year: 2002, lead: false },
+    ]).offered.length,
+    2,
+  );
+});
+
 test("nothing here reaches the taste model", async () => {
   const source = await import("node:fs").then((fs) =>
     fs.readFileSync(new URL("model.ts", import.meta.url), "utf8"),
