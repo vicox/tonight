@@ -1,0 +1,4 @@
+{"at":"2026-09-17T11:09:20.562Z","method":"server/discover","status":200,"ms":17}
+{"at":"2026-09-17T11:09:45.576Z","method":"notifications/cancelled","status":202,"ms":6}
+{"at":"2026-09-17T11:09:45.581Z","method":"tools/list","status":200,"ms":8,"discovered":11}
+{"at":"2026-09-17T11:09:47.602Z","method":"tools/call","tool":"get_taste","arguments":{},"status":200,"ms":12,"result":{"content":[{"type":"text","text":"{\n  \"genres\": [],\n  \"mixes\": [],\n  \"movies\": []\n}"}],"structuredContent":{"genres":[],"mixes":[],"movies":[]},"resultType":"complete","_meta":{"io.modelcontextprotocol/serverInfo":{"name":"Tonight","version":"0.1.0"}}}}

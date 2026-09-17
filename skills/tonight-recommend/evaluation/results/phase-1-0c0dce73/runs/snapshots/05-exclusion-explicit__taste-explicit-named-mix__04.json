@@ -1,0 +1,62 @@
+{
+  "genres": [
+    {
+      "name": "Clever Thriller",
+      "instruction": "I want to be kept a step behind without being shouted at.",
+      "createdAt": "2026-09-17T11:09:19.302913Z",
+      "updatedAt": "2026-09-17T11:09:19.302913Z"
+    },
+    {
+      "name": "Slow Burn",
+      "instruction": "I like films that take their time and trust me to wait.",
+      "createdAt": "2026-09-17T11:09:19.308103Z",
+      "updatedAt": "2026-09-17T11:09:19.308103Z"
+    }
+  ],
+  "mixes": [
+    {
+      "name": "Quiet Dread",
+      "instruction": "Dread that arrives on foot, in daylight. Nothing gory, and nothing with torture in it — I will turn it off.",
+      "genres": [
+        "Clever Thriller",
+        "Slow Burn"
+      ],
+      "movies": [
+        {
+          "title": "The Vanishing",
+          "year": 1988
+        },
+        {
+          "title": "Zodiac",
+          "year": 2007
+        }
+      ],
+      "createdAt": "2026-09-17T11:09:19.319007Z",
+      "updatedAt": "2026-09-17T11:09:19.319007Z"
+    }
+  ],
+  "movies": [
+    {
+      "title": "The Vanishing",
+      "year": 1988,
+      "imdbId": null,
+      "state": "loved",
+      "mixes": [
+        "Quiet Dread"
+      ],
+      "createdAt": "2026-09-17T11:09:19.326640Z",
+      "updatedAt": "2026-09-17T11:09:19.326640Z"
+    },
+    {
+      "title": "Zodiac",
+      "year": 2007,
+      "imdbId": null,
+      "state": "liked",
+      "mixes": [
+        "Quiet Dread"
+      ],
+      "createdAt": "2026-09-17T11:09:19.334061Z",
+      "updatedAt": "2026-09-17T11:09:19.334061Z"
+    }
+  ]
+}
