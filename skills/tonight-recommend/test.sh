@@ -375,6 +375,23 @@ check "a film named only in a tool call was not recommended" \
 check "an owed answer arrives whole, and nothing is dropped because it was recorded" \
     "$(order_check 'Where an answer is owed, it arrives whole and in the shape above' \
         'nothing is left out of the reply because it was written down')" "True"
+# The b343335b sweep. The rule above stopped tool calls replacing recommendations —
+# nothing in sixty runs did — but said unconditionally it read as "an answer is always
+# owed", and 07-failure-explicit__taste-explicit__02 applied it inside the branch that
+# must stop, recommending a film "in the meantime" after reporting the failed read.
+# So the rule states what it does not decide, next to itself rather than only in the
+# branch table: a reader who never reaches `## When something fails` still meets it.
+check "the rule says what settles whether an answer is owed at all" \
+    "$(order_check 'Whether an answer is owed is settled before this rule, never by it' \
+        'A branch that says stop' \
+        'owes none')" "True"
+check "and says it decides the contents of an owed answer, never that one is owed" \
+    "$(order_check 'This rule says what an owed answer must contain, never that one is owed' \
+        'decides that, and decides it first')" "True"
+check "the added recommendation is named as the same failure from the other side" \
+    "$(order_check 'a recommendation added under it is the substitution' \
+        'that branch exists to prevent' \
+        'the same failure as answering only inside a tool call')" "True"
 check "a stretch is anchored in something they like, and an absence is not a reason" \
     "$(order_check 'Anchor a stretch in something they like' \
         'an absence shows where to look, never why')" "True"
@@ -581,10 +598,26 @@ check "and the retry is never stated as one shared obligation" \
 # to answer anyway, which would make the branch indistinguishable from the other one.
 check "the taste branch never recommends from taste it could not read" \
     "$(in_slice "$taste_branch" 'recommend anyway|answer anyway|recommend well')" "0"
+# And "stop" is not left to carry that on its own. The observed run obeyed "stop",
+# reported the error, offered a retry — and then recommended anyway, so the branch
+# now forbids the substitution by name and puts the shape rule outside itself.
+check "the taste branch owes no answer, and says so" \
+    "$(in_slice "$taste_branch" 'No answer is owed here')" "1"
+check "the taste branch recommends nothing, said as a prohibition" \
+    "$(in_slice "$taste_branch" 'recommend nothing')" "1"
+check "and the substitution that was observed is named" \
+    "$(in_slice "$taste_branch" 'no general pick, no film')" "1"
+check "the shape of an answer is put out of this branch" \
+    "$(in_slice "$taste_branch" 'The shape of an answer does not reach into this branch')" "1"
 
 # --- the ordinary-request branch, read alone ---
 # R2. The branch names the shape obligation itself, so it cannot degrade into a
 # disclosure, a question, or a bare list. R1 stays the source of the rule.
+check "a stop is complete as it stands, not a reply with the film left off" \
+    "$(order_check 'A stop is' \
+        'not an incomplete reply' \
+        'nothing is missing from it that the shape of an answer would supply')" "True"
+
 check "the ordinary branch owes the approved answer shape, and says so" \
     "$(in_slice "$ordinary_branch" 'in the shape above')" "1"
 check "and spells out what that means here" \

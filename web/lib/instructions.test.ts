@@ -405,7 +405,12 @@ test("the answer has one lead, and the rest are directions from it", () => {
     // of the 7cd5b2e3 sweep put its whole recommendation into a record_episode
     // call and replied with one follow-up sentence, which satisfied every rule
     // above and left the user with no film.
-    ["that the answer is what reaches them", "A tool call is not an answer"],
+    //
+    // Said with its condition attached, which is the b343335b repair: unconditioned,
+    // the rule reads as "an answer is always owed", and a run of that sweep applied
+    // it inside the branch that must stop.
+    ["that the answer is what reaches them", "a tool call is not one"],
+    ["that the rule holds where an answer is owed", "Owed an answer"],
   ] as [string, string][]) {
     assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
   }
@@ -810,10 +815,13 @@ test("the compact projection of a failure says the same thing the skill does", (
   const projected = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
   const behaviours: [string, RegExp, RegExp][] = [
-    ["the taste branch stops", /stop\. Report the failure/, /\*Taste question\*: stop/],
+    ["the taste branch stops", /— stop\. \*\*No answer is owed here\*\*/, /\*Taste question\*: stop/],
     ["it reports the tool's own words", /in the tool's own words/, /quote the error/],
     ["the taste branch offers its own retry",
-      /own words\s+and offer to retry/, /stop, quote the error, offer to retry/],
+      /own words, offer to retry/, /stop, quote the error, offer to retry/],
+    // The b343335b repair. Stopping said what to do and not what to stop doing, and
+    // one run read the shape rule as an obligation that outlived the stop.
+    ["the taste branch recommends nothing", /and recommend nothing/, /\*\*recommend nothing\*\*/],
     ["the ordinary branch answers", /recommend anyway/, /answer anyway/],
     ["the disclosure is the first sentence", /\*\*first sentence\*\*/, /first sentence/],
     ["it says the read failed", /their model could not be read/, /model unread/],
@@ -841,6 +849,83 @@ test("the compact projection of a failure says the same thing the skill does", (
   // never written here. If it stops being there, this projection has a second source.
   // The raw file, not the canonical-only view, because the block is what is sought.
   assert.match(skill(), /<!-- project:compact/, "the compact wording is not in the skill");
+});
+
+test("a branch that stops outranks the rule that shapes an answer", () => {
+  /**
+   * The b343335b Step-8 recertification. The integration rule — a tool call is not
+   * an answer — did what it was written for: across sixty runs nothing replaced a
+   * recommendation with a write. But it was stated unconditionally, and
+   * `07-failure-explicit__taste-explicit__02` applied it inside the branch that must
+   * stop: it reported the failed read, offered a retry, and then recommended *The
+   * Nice Guys* "in the meantime" — the substitution fixture 07 exists to catch, and
+   * a thing no run of the seven earlier sweeps had ever done.
+   *
+   * So the repair is a precedence, not a retreat. The rule still says the reply is
+   * what reaches them; what it no longer says is that a reply is always owed.
+   */
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const canonical = canonicalSkill().replace(/\s+/g, " ");
+
+  // --- the rule carries its condition, in both artifacts ---
+  // Unconditioned it reads as an obligation to answer, which is how it was misread.
+  assert.match(flat, /Owed an answer, a tool call is not one/,
+    "the projection states the integration rule with no condition on it");
+  assert.match(canonical, /Whether an answer is owed is settled before this rule, never by it/,
+    "the skill does not say what settles whether an answer is owed");
+  assert.match(canonical, /This rule says what an owed answer must contain, never that one is owed/,
+    "the skill does not say what the rule is silent about");
+  // And it names which rule decides instead, so the precedence is followable rather
+  // than inferred: a reader landing here is sent to the branch table.
+  assert.match(canonical, /\*\*When something fails\*\* decides that, and decides it first/,
+    "the skill does not say which rule settles it");
+
+  // --- and nothing about it is weakened ---
+  // Each of these is the rule the 7cd5b2e3 sweep was repaired for. A precedence that
+  // bought itself room by dropping one of them would be a different regression.
+  for (const kept of [
+    /a tool call is not an answer/i,
+    /Tools serve the reply and never stand in for it/,
+    /happens \*\*as well as\*\* the answer and never in place of it/,
+    /A film named only inside a tool call was never recommended/,
+    /a follow-up sentence is not a recommendation they can act on/,
+    /Where an answer is owed, it arrives whole and in the shape above/,
+    /nothing is left out of the reply because it was written down/,
+  ] as RegExp[]) {
+    assert.match(canonical, kept, `the integration rule lost: ${String(kept)}`);
+  }
+
+  // --- where a recommendation is owed, a write is still additive ---
+  // The ordinary branch is a branch that owes one, so the shape obligation has to
+  // survive there. If the precedence had been written as "the shape applies less
+  // often", this is the assertion that would fail.
+  const ordinary = flat.slice(flat.indexOf("*Ordinary*"), flat.indexOf("**A write fails**"));
+  assert.match(ordinary, /in the usual shape/, "a branch that owes an answer lost the shape");
+  assert.match(canonical, /- \*\*`get_taste` fails on an ordinary request\*\* — recommend anyway/,
+    "the ordinary branch no longer answers");
+
+  // --- and where one is not owed, the stop is the whole of it ---
+  // AC6a, said as a prohibition rather than left to follow from "stop". The observed
+  // run obeyed "stop" and recommended anyway, so "stop" alone is demonstrably not
+  // enough to carry it.
+  const taste = flat.slice(flat.indexOf("*Taste question*"), flat.indexOf("*Ordinary*"));
+  assert.match(taste, /recommend nothing/i, "the stop branch does not forbid recommending");
+  assert.match(canonical, /No answer is owed here/, "the skill does not say the stop owes nothing");
+  assert.match(canonical, /no general pick, no film \*"in the meantime"\*/,
+    "the skill does not name the substitution that was observed");
+  assert.match(canonical, /The shape of an answer does not reach into this branch/,
+    "the skill does not put the shape rule out of this branch");
+  assert.match(canonical,
+    /\*\*A stop is not an incomplete reply\*\*: nothing is missing from it that the shape of an answer would supply/,
+    "the skill does not say a stop is complete as it stands");
+
+  // The precedence is stated where the rule is, not only where the branch is. A
+  // reader who never reaches `## When something fails` still meets the condition.
+  assert.ok(
+    canonical.indexOf("Whether an answer is owed is settled before this rule")
+      < canonical.indexOf("## When something fails"),
+    "the precedence is stated only inside the branch it governs",
+  );
 });
 
 test("the compact projection of the write flow says the same thing the skill does", () => {
