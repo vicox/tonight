@@ -31,11 +31,14 @@ import { VerdictError, withdrawVerdict, type Film } from "./model.ts";
  *
  * ## What it deliberately does not record
  *
- * No answer. No guess at one. No confidence, no score, no count of how often it
- * has gone unasked, and **no meaning attached to age**. The record says a
- * question is open and when it opened; it does not say that a question open for
- * a long time means anything, because silence meaning something is precisely
- * what the milestone forbids.
+ * No answer. No guess at one. No confidence and no score.
+ *
+ * It does record how long a question has been open and how many chances to ask
+ * have gone by, because the approved retirement rule needs both — and that is
+ * the only thing either is for. Neither is evidence: a question that ran out of
+ * time or out of chances says nothing about the film and nothing about the user.
+ * **Silence never hardens into an answer**, which is the whole point of retiring
+ * a question rather than concluding from it.
  *
  * ## Asking is not this module's business
  *
@@ -50,15 +53,60 @@ import { VerdictError, withdrawVerdict, type Film } from "./model.ts";
 /**
  * A film Tonight has something to ask about.
  *
- * Two fields, and there is deliberately nowhere to put a third. `since` exists
- * so the question can be read back in the order it arose and so a later,
- * approved rule can retire it — not so that its age can be read as an answer.
+ * Three fields, and there is deliberately nowhere to put a fourth. `since` and
+ * `opportunities` exist so the approved retirement rule below can be applied —
+ * not so that either can be read as an answer. A question open for a long time,
+ * or one that went unasked three times, means only that it is no longer worth
+ * carrying.
  */
 export type Question = {
   film: Film;
-  /** When the question became pending, as a canonical instant. */
+  /** When the question first became pending, as a canonical instant. */
   since: string;
+  /**
+   * How many eligible opportunities have passed without an answer.
+   *
+   * Counted only when a caller says one occurred — see `opportunity`. It is a
+   * count of chances, never of anything about the user.
+   */
+  opportunities: number;
 };
+
+/**
+ * When a question stops being worth carrying.
+ *
+ * The product decision, recorded in `docs/work/phase-2-implementation.md` §M2:
+ * a pending question retires at the **third** eligible opportunity that passes
+ * without an answer, or **30 days** after it first arose, whichever comes first.
+ *
+ * Both limits exist because either alone fails somebody. Counting only
+ * opportunities leaves a question waiting years for a user who does not come
+ * back; counting only days retires a question for a user who returns on day 31
+ * to exactly the conversation it belonged to. Whichever is reached first is the
+ * one that ends it.
+ */
+export const MAX_OPPORTUNITIES = 3;
+export const MAX_PENDING_DAYS = 30;
+
+const DAY = 86_400_000;
+
+/**
+ * Whether a question has retired, as of a given instant.
+ *
+ * Derived rather than stored, for the reason the verdict model derives standing:
+ * a flag beside the fields it is computed from is a second answer that can
+ * disagree with the first. The caller supplies the instant, so this is a
+ * function of its arguments and of nothing else — there is no clock in here to
+ * make a test depend on the day it runs.
+ *
+ * **Retiring is not answering.** It removes a question; it produces no verdict,
+ * no rejection, no withdrawal and no observation. Silence stays silence.
+ */
+export function retired(question: Question, now: unknown): boolean {
+  const instant = withdrawVerdict(question.film, now).at;
+  if (question.opportunities >= MAX_OPPORTUNITIES) return true;
+  return Date.parse(instant) - Date.parse(question.since) >= MAX_PENDING_DAYS * DAY;
+}
 
 /**
  * Opens a question about a film.
@@ -67,17 +115,21 @@ export type Question = {
  * the alternative is a second definition here, free to drift from the one with
  * the contracts on it.
  */
-export function askAbout(film: unknown, since: unknown): Question {
+export function askAbout(film: unknown, since: unknown, opportunities: unknown = 0): Question {
   const checked = withdrawVerdict(film, since);
-  return { film: checked.film, since: checked.at };
+  if (typeof opportunities !== "number" || !Number.isInteger(opportunities) || opportunities < 0) {
+    throw new VerdictError("Opportunities are counted in whole numbers, from none.");
+  }
+  return { film: checked.film, since: checked.at, opportunities };
 }
 
 /**
  * What Slice 3 needs from persistence, and nothing beyond it.
  *
- * Three operations: open one, read what is open, close one. There is no
- * `answer`, because answering is giving a Verdict and that goes through the
- * verdict store; closing a question neither creates one nor changes one.
+ * Four operations: open one, read what is still worth carrying, record that a
+ * chance to ask went by, close one. There is no `answer`, because answering is
+ * giving a Verdict and that goes through the verdict store; neither closing a
+ * question nor retiring one creates or changes a claim.
  */
 export type QuestionStore = {
   /**
@@ -89,8 +141,32 @@ export type QuestionStore = {
    */
   open(question: Question): Promise<Question>;
 
-  /** Every question this user has open, oldest first. Empty is the normal case. */
-  pending(): Promise<Question[]>;
+  /**
+   * Every question of this user's that is still worth carrying, oldest first.
+   *
+   * Takes the instant to judge against, and **writes nothing**. A question that
+   * has retired is absent from the answer; its row may still be there, and that
+   * is deliberate — reading must not be a way for the clock to change the
+   * database behind somebody's back. Rows are cleared by the operations that
+   * were called on purpose.
+   */
+  pending(now: unknown): Promise<Question[]>;
+
+  /**
+   * Records that an eligible opportunity to ask passed without an answer.
+   *
+   * The caller states this, and only the caller can: an opportunity is one where
+   * the user began the interaction, Tonight was already engaged, and this
+   * question could legitimately have been put. Nothing here can observe any of
+   * that, so nothing here counts one by itself — in particular `pending` does
+   * not, because a read that aged what it read would make every glance cost
+   * something.
+   *
+   * Returns the question as it now stands, or `null` if that was its last
+   * chance. Retiring removes the question and nothing else: no verdict is
+   * written, and the user is left exactly as unasked as they were.
+   */
+  opportunity(film: Film, now: unknown): Promise<Question | null>;
 
   /**
    * Closes a question about a film.

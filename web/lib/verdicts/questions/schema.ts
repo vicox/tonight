@@ -12,17 +12,17 @@ import type { SchemaModule } from "../../db/migrate.ts";
  *
  * ## What the table cannot hold
  *
- * There is no answer column, no guess, no confidence, no score, and no counter
- * of how often the question has gone unasked. Adding any of them would make an
- * unanswered question into a weak opinion, which is the failure §5 of the plan
- * names: *"a question going unanswered across several sessions is not a verdict
- * either, and an unanswered question expires quietly rather than hardening into
- * an assumption."*
+ * There is no answer column, no guess, no confidence and no score. Adding any of
+ * them would make an unanswered question into a weak opinion, which is the
+ * failure §5 of the plan names: *"a question going unanswered across several
+ * sessions is not a verdict either, and an unanswered question expires quietly
+ * rather than hardening into an assumption."*
  *
- * `since` is here so questions can be read in the order they arose, and so a
- * later approved rule can retire them. It is not a measure of anything. Nothing
- * in this module reads it as meaning, and no column exists for a meaning to be
- * written into.
+ * `since` and `opportunities` are here because the approved retirement rule
+ * needs both — 30 days, or three chances that went by. Neither is a measure of
+ * anything: a question that ran out says nothing about the film and nothing
+ * about the user, and retiring it is a removal rather than a conclusion. No
+ * column exists for a conclusion to be written into.
  *
  * ## One question per film
  *
@@ -66,6 +66,26 @@ export const QUESTIONS_SCHEMA: SchemaModule = {
 
           CONSTRAINT tonight_verdict_questions_title CHECK (btrim(title) <> '')
         );
+      `,
+    },
+    {
+      // The approved retirement rule needs one more fact than v1 recorded: how
+      // many chances to ask have gone by. Appended rather than folded into v1,
+      // which has shipped — a version already recorded is never re-run, so
+      // editing it would leave two deployments disagreeing about the schema.
+      version: 2,
+      sql: `
+        ALTER TABLE tonight_verdict_questions
+          -- Counted only when a caller states that an eligible opportunity
+          -- occurred. Never a measure of the user, and never incremented by a
+          -- read: see \`opportunity\` in ../questions.ts.
+          ADD COLUMN opportunities integer NOT NULL DEFAULT 0;
+
+        -- Whole chances, from none. A negative count would be a number nobody
+        -- could have reached, and the rule reads it as a threshold.
+        ALTER TABLE tonight_verdict_questions
+          ADD CONSTRAINT tonight_verdict_questions_opportunities
+          CHECK (opportunities >= 0);
       `,
     },
   ],

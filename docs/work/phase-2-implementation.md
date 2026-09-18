@@ -109,6 +109,16 @@ a film Tonight recommended being watched is not a verdict; a question going unan
 several sessions is not a verdict either, and an unanswered question expires quietly rather than
 hardening into an assumption.
 
+**When a question expires, decided during M2:** at the **third** eligible opportunity that passes
+without an answer, or **30 days** after it first became pending, whichever comes first. An
+opportunity counts only where the user began the interaction, Tonight was already engaged, and the
+question could legitimately have been put — background time, scheduled work and outbound contact
+never count, and a caller states that one occurred rather than it being inferred from a read. Both
+limits are needed: opportunities alone leave a question waiting indefinitely for somebody who does
+not come back, and days alone retire one for somebody who returns on day 31 to the conversation it
+belonged to. Expiry removes the question and does nothing else — no verdict, no rejection, no
+withdrawal, no observation.
+
 **6. Correction and deletion.** A verdict can be changed or withdrawn in one sentence, and
 withdrawal removes its influence rather than replacing it with a neutral value.
 

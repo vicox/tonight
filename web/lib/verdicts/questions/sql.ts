@@ -1,7 +1,7 @@
 import type { SqlDriver } from "../../db/driver.ts";
 import type { AuthenticatedUser } from "../../identity.ts";
 import { withdrawVerdict, type Film } from "../model.ts";
-import { askAbout, type Question, type QuestionStore } from "../questions.ts";
+import { askAbout, retired, type Question, type QuestionStore } from "../questions.ts";
 import { QUESTIONS_SCHEMA } from "./schema.ts";
 
 export { QUESTIONS_SCHEMA };
@@ -18,16 +18,21 @@ export { QUESTIONS_SCHEMA };
  * same shape as one this store inserted, and a malformed one is an error rather
  * than a half-question passed upwards.
  *
+ * ## When the clock may write
+ *
+ * `pending` takes the instant to judge against and writes nothing: a retired
+ * question is simply absent from its answer. Reading must not be a way for time
+ * to change the database behind somebody's back, and a row left behind costs
+ * nothing because nothing treats a row as the answer.
+ *
+ * `opportunity` and `close` are called on purpose, so they may write — and
+ * `opportunity` is where a retired question is actually removed. There is no
+ * timer here and nothing that runs by itself: every write traces to a caller
+ * that decided to make one.
+ *
  * ## What is not here
  *
- * No expiry. The plan says an unanswered question *"expires quietly"* and never
- * says after what, and the difference between a rule counted in sessions and one
- * counted in days is a decision about the product rather than a number to pick.
- * So the lifetime is left unimplemented and reported rather than guessed: a
- * store that retired questions on a schedule nobody approved would be making
- * that decision silently.
- *
- * No answer either, in any form. Closing a question says it is no longer
+ * No answer, in any form. Closing a question says it is no longer
  * pending; it says nothing about what the user thinks, and there is nowhere here
  * for what they think to go. That is `lib/verdicts/store.ts`, and it takes a
  * claim the user actually made.
@@ -52,7 +57,7 @@ export function sqlQuestionStore(driver: SqlDriver, user: AuthenticatedUser): Qu
         [owner, checked.film.title, checked.film.year, checked.since],
       );
       const [row] = await driver.query<QuestionRow>(
-        `SELECT title, year, since
+        `SELECT title, year, since, opportunities
            FROM tonight_verdict_questions
           WHERE user_id = $1 AND title = $2 AND year = $3`,
         [owner, checked.film.title, checked.film.year],
@@ -61,15 +66,58 @@ export function sqlQuestionStore(driver: SqlDriver, user: AuthenticatedUser): Qu
       return assemble(row);
     },
 
-    async pending(): Promise<Question[]> {
+    async pending(now: unknown): Promise<Question[]> {
       const rows = await driver.query<QuestionRow>(
-        `SELECT title, year, since
+        `SELECT title, year, since, opportunities
            FROM tonight_verdict_questions
           WHERE user_id = $1
           ORDER BY since, id`,
         [owner],
       );
-      return rows.map(assemble);
+      return rows.map(assemble).filter((question) => !retired(question, now));
+    },
+
+    async opportunity(film: Film, now: unknown): Promise<Question | null> {
+      const named = namedFilm(film);
+      return driver.transaction(async (tx) => {
+        // Locked before it is read: two interactions reporting a chance at once
+        // would otherwise each count against the state the other found, and one
+        // of the three would go missing.
+        const [row] = await tx.query<QuestionRow>(
+          `SELECT title, year, since, opportunities
+             FROM tonight_verdict_questions
+            WHERE user_id = $1 AND title = $2 AND year = $3
+              FOR UPDATE`,
+          [owner, named.title, named.year],
+        );
+        // Nothing waiting is not an error. A caller reporting a chance to ask
+        // about a film nobody has a question about has described the world
+        // correctly, and the answer is that there is nothing to age.
+        if (!row) return null;
+
+        const counted = askAbout(
+          { title: row.title, year: row.year },
+          moment(row.since),
+          row.opportunities + 1,
+        );
+        if (retired(counted, now)) {
+          // Out of chances, or out of time. Removing the question is the whole
+          // of retiring it: no verdict is written, nothing is concluded, and the
+          // user is left exactly as unasked as they were.
+          await tx.query(
+            `DELETE FROM tonight_verdict_questions
+                   WHERE user_id = $1 AND title = $2 AND year = $3`,
+            [owner, named.title, named.year],
+          );
+          return null;
+        }
+        await tx.query(
+          `UPDATE tonight_verdict_questions SET opportunities = $4
+                 WHERE user_id = $1 AND title = $2 AND year = $3`,
+          [owner, named.title, named.year, counted.opportunities],
+        );
+        return counted;
+      });
     },
 
     async close(film: Film): Promise<void> {
@@ -86,11 +134,16 @@ export function sqlQuestionStore(driver: SqlDriver, user: AuthenticatedUser): Qu
   };
 }
 
-type QuestionRow = { title: string; year: number; since: Date | string };
+type QuestionRow = {
+  title: string;
+  year: number;
+  since: Date | string;
+  opportunities: number;
+};
 
 /** A row, rebuilt through the model so it cannot mean more than a question. */
 function assemble(row: QuestionRow): Question {
-  return askAbout({ title: row.title, year: row.year }, moment(row.since));
+  return askAbout({ title: row.title, year: row.year }, moment(row.since), row.opportunities);
 }
 
 /**
