@@ -77,9 +77,10 @@ A required behaviour must appear in **every** run of the fixtures named for it; 
 Shipping also requires the paired comparison against the frozen baseline to show no loss on fit or
 constraint compliance, and no prohibited outcome anywhere.
 
-## Result
+## Result — the first certification
 
-**Instruction version `0c0dce73`, 7,894 characters.**
+**Instruction version `0c0dce73`, 7,894 characters.** Superseded; see **Recertification** below for
+the version certified today.
 
 Final Step 8 run in `skills/tonight-recommend/evaluation/results/phase-1-0c0dce73/`: 60 runs, 60
 snapshots, 60 logs, 60 distinct sessions, all provenance present, every digest recomputing. The
@@ -108,9 +109,39 @@ Four candidates preceded it: `645a831f` failed AC1, AC2, AC3b and AC6b; `a3357c1
 
 **Independently approved. Phase 1 is complete.**
 
+## Recertification
+
+`0c0dce73` closed Phase 1, and Phase 2 reopened it. M1 gave Tonight four Episode tools and changed
+the instructions that describe them — a change to what the model sees — so the rule at the foot of
+this document applied to itself. Twice, because the first repair was too broad.
+
+| Version | Step 8 |
+| --- | --- |
+| `7cd5b2e3` | **failed AC1** — a run put its whole recommendation inside `record_episode` and replied with one sentence |
+| `b343335b` | **failed AC6a** — the repair for that said a tool call is not an answer, without saying when an answer is owed, so a run reported the failed `get_taste`, offered a retry, and recommended three films "in the meantime" |
+| **`15d30c08`** | **passes every row** |
+
+**Current certified instruction version: `15d30c08`, 7,893 characters, commit `a39b2dc`.**
+
+All eight AC rows pass. The deterministic layer reported 0 faults and 35 flags; all 35 were
+adjudicated and none stands. No §8.3.2 prohibited outcome appears in any of the 120 answers. The
+paired blind comparison against the frozen `f098fd5b` baseline regresses on no dimension, and a
+second comparison against `0c0dce73` finds the certified behaviour unchanged. The full record is
+`results/phase-1-15d30c08/`.
+
+| | |
+| --- | --- |
+| `744575a` | Prevent tool writes from replacing user-visible answers |
+| `a39b2dc` | Instruction priority: stop branches outrank answer shape |
+| `2076864` | Phase 1 recertification record for `15d30c08` |
+
+**Phase 1 is recertified on the shipped instruction version, and M1 is complete.** The freeze below
+holds unchanged; the cycle it prescribes is what produced this section, and it applies again to the
+next model-visible instruction change.
+
 ## Commits
 
-Phase 1 runs from `b4fe97e` to `238a62f`.
+Phase 1 runs from `b4fe97e` to `238a62f`. The recertification commits are listed above.
 
 | | |
 | --- | --- |
@@ -141,8 +172,10 @@ Status commits between steps are omitted.
 
 - **The baseline**, `results/baseline/` at `f098fd5b`. It is the only approved comparison point,
   and a change to it voids every comparison made against it.
-- **The four retained result sets.** They are the record of what failed and why.
-- **`0c0dce73` as the shipped version**, and the result set that carries it.
+- **The retained result sets.** They are the record of what failed and why — the four candidates
+  of the first cycle, and the two of the recertification.
+- **`15d30c08` as the shipped version**, and the result set that carries it. `0c0dce73` and its
+  result set are retained as the first certification, superseded but not rewritten.
 - **The acceptance criteria and the gate**, §8.3.1 and §8.3.2 as written.
 
 ### May evolve
