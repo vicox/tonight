@@ -18,6 +18,7 @@ import { migrate, type SchemaModule } from "./migrate.ts";
 import { TASTE_SCHEMA } from "../taste/store/sql.ts";
 import { EPISODES_SCHEMA } from "../episodes/store/sql.ts";
 import { VERDICTS_SCHEMA } from "../verdicts/store/sql.ts";
+import { QUESTIONS_SCHEMA } from "../verdicts/questions/sql.ts";
 import { OAUTH_SCHEMA } from "../oauth/store/sql.ts";
 import { WEB_SCHEMA } from "../web/store/sql.ts";
 import type { SqlDriver } from "./driver.ts";
@@ -29,6 +30,7 @@ const SCHEMAS: readonly SchemaModule[] = [
   WEB_SCHEMA,
   EPISODES_SCHEMA,
   VERDICTS_SCHEMA,
+  QUESTIONS_SCHEMA,
 ];
 
 const url = process.env.DATABASE_URL?.trim();
