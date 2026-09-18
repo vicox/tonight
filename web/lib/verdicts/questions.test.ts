@@ -37,6 +37,21 @@ import type { VerdictStore } from "./store.ts";
  */
 
 const asUser = (id: string): AuthenticatedUser => ({ id }) as AuthenticatedUser;
+
+/**
+ * A claim without the place persistence gave it.
+ *
+ * The store assigns a write order on the way in, so an act read back carries one
+ * and an act built in a test does not. What these contracts are about is the
+ * claim, so the order is set aside rather than asserted here — `store.test.ts`
+ * is where it is held to account.
+ */
+const claim = (act: unknown): unknown => {
+  if (act === null || typeof act !== "object") return act;
+  const { order, ...rest } = act as Record<string, unknown>;
+  void order;
+  return rest;
+};
 const SINCE = "2026-01-01T20:00:00.000Z";
 /** A day after `SINCE`: near enough that nothing retires by time unless a test says so. */
 const NOW = "2026-01-02T20:00:00.000Z";
@@ -162,10 +177,10 @@ describe("an open verdict question", () => {
     await ana.close(f);
 
     assert.deepEqual(await ana.pending(NOW), []);
-    assert.deepEqual(current(await herVerdicts.history(f)), said);
+    assert.deepEqual(claim(current(await herVerdicts.history(f))), said);
     // Closing again must not disturb the claim that now exists.
     await ana.close(f);
-    assert.deepEqual(current(await herVerdicts.history(f)), said, "closing a question changed a verdict");
+    assert.deepEqual(claim(current(await herVerdicts.history(f))), said, "closing a question changed a verdict");
   });
 
   test("closing one film's question leaves another's alone", async () => {
@@ -318,7 +333,7 @@ describe("an open verdict question", () => {
     await herVerdicts.say(said);
     await ana.close(f);
     assert.deepEqual(await ana.pending(NOW), []);
-    assert.deepEqual(current(await herVerdicts.history(f)), said);
+    assert.deepEqual(claim(current(await herVerdicts.history(f))), said);
   });
 
   test("the rule is a function of its arguments, with no clock inside it", () => {

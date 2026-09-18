@@ -18,6 +18,21 @@ import {
   type OutcomeStatement,
 } from "../episodes/model.ts";
 import type { EpisodeStore } from "../episodes/store.ts";
+import {
+  JUDGEMENTS,
+  MAX_OCCASION_LENGTH,
+  MAX_REASON_LENGTH,
+  REACHES,
+  stateVerdict,
+  TOLD,
+  VerdictError,
+  withdrawVerdict,
+  type Film,
+  type Scope,
+} from "../verdicts/model.ts";
+import { current, supersession } from "../verdicts/model.ts";
+import type { QuestionStore } from "../verdicts/questions.ts";
+import type { VerdictStore } from "../verdicts/store.ts";
 import type { TasteStore } from "../taste/store.ts";
 import { SERVER_NAME, SERVER_VERSION } from "./identity.ts";
 
@@ -61,6 +76,18 @@ export type McpSession = {
    * one to write the other.
    */
   episodes: EpisodeStore;
+  /**
+   * Opened for the same user, and separate again on purpose. An episode is what
+   * happened; a verdict is what they thought of it. Nothing here reads one to
+   * write the other, and the chain stops before liking exactly as M1 says.
+   */
+  verdicts: VerdictStore;
+  /**
+   * Which films are waiting on an answer — Tonight's own note, not the user's.
+   * Inert: it is read inside a conversation the user began, and nothing here
+   * ever makes Tonight appear on its own.
+   */
+  questions: QuestionStore;
 };
 
 // --- shared field schemas --------------------------------------------------
@@ -104,6 +131,42 @@ const episodeChosen = z
   );
 
 const episodeFlag = z.boolean().nullable().optional();
+
+const verdictFilm = z
+  .object({
+    title: z.string().min(1).describe("The film's title."),
+    year: z.number().int().describe("Its release year."),
+  })
+  .describe("The film they were talking about. Title and year together name it.");
+
+const verdictTold = z
+  .enum(TOLD)
+  .describe(
+    "How they came to say it. `volunteered` if they said it unasked; `confirmed` if they " +
+      "answered a question you put. Both are theirs and both count — but they are not equally " +
+      "strong evidence, so record which actually happened rather than guessing.",
+  );
+
+const verdictOccasion = z
+  .string()
+  .min(1)
+  .max(MAX_OCCASION_LENGTH)
+  .describe(
+    "The evening this applies to, named by any stable identifier for it. Required for " +
+      "`not-tonight` and refused for anything else.",
+  );
+
+const verdictWords = (what: string) =>
+  z
+    .string()
+    .min(1)
+    .max(MAX_REASON_LENGTH)
+    .nullable()
+    .optional()
+    .describe(
+      `${what} Their words, not yours. Leave it out where they did not say — an explanation ` +
+        "you worked out is not something they told you.",
+    );
 //
 // Described once, because the description is what a model reads to decide how to
 // call a tool, and two tools disagreeing about what `name` means would be worse
@@ -227,7 +290,11 @@ const movieMixes = z
  */
 export function tonightMcpServer(session: McpSession): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  const { store, episodes } = session;
+  const { store, episodes, verdicts, questions } = session;
+  // The instant a claim is made is the server's to know, not a caller's to
+  // state: a tool that accepted a timestamp would let a model backdate what
+  // somebody said, and when they said it is part of the claim.
+  const now = (): string => new Date().toISOString();
 
   server.registerTool(
     "get_server_info",
@@ -564,6 +631,166 @@ export function tonightMcpServer(session: McpSession): McpServer {
     async ({ episode }) => attempt(async () => ({ forgotten: await episodes.forget(episode) })),
   );
 
+  // --- verdicts ------------------------------------------------------------
+  //
+  // What the user said about a film. Only they can say it, so every tool below
+  // records something they actually stated and none of them concludes anything:
+  // a film watched is not a film liked, a film finished is not a film liked, and
+  // a question that went unanswered is not an answer.
+
+  server.registerTool(
+    "record_verdict",
+    {
+      title: "Record what they said about a film",
+      description:
+        "Write down what they told you they thought of a film. Only what they actually said — " +
+        "watching a film is not liking it, finishing one is not liking it, and taking your " +
+        "recommendation is not liking it either. Silence is not a verdict at all.\n\n" +
+        "A judgement is liked, loved or disliked, and it is about the film, so it applies " +
+        "everywhere. A rejection is different: `not-ever` is about the film and also applies " +
+        "everywhere, but `not-tonight` is about one evening — it says nothing about the film, " +
+        "so it needs the occasion it belongs to and never stands beyond it. Keep their own " +
+        "words for why, where they gave them.\n\n" +
+        "Changed their mind? Record the new verdict; it supersedes the old one and the old one " +
+        "stays in the history. Nothing is rewritten. If a question about this film was waiting " +
+        "on an answer, this closes it.",
+      inputSchema: z.object({
+        film: verdictFilm,
+        told: verdictTold,
+        said: z
+          .discriminatedUnion("about", [
+            z.object({
+              about: z.literal("judgement"),
+              judgement: z.enum(JUDGEMENTS).describe("What they said about it."),
+              because: verdictWords("Why, if they said why."),
+            }),
+            z.object({
+              about: z.literal("rejection"),
+              reach: z
+                .enum(REACHES)
+                .describe(
+                  "`not-tonight` turns it down for one evening and means nothing beyond it; " +
+                    "`not-ever` turns it down for good.",
+                ),
+              reason: verdictWords("Why they turned it down, if they said."),
+              occasion: verdictOccasion.optional(),
+            }),
+          ])
+          .describe("What they said: a judgement about the film, or a refusal of it."),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ film, told, said }) =>
+      attempt(async () => {
+        const assertion =
+          said.about === "judgement"
+            ? { about: "judgement" as const, judgement: said.judgement, because: said.because }
+            : {
+                about: "rejection" as const,
+                rejection: { reach: said.reach, reason: said.reason ?? null },
+              };
+        const scope: Scope =
+          said.about === "rejection" && said.occasion !== undefined
+            ? { occasion: said.occasion }
+            : "everywhere";
+        // The claim is written first, and the note is closed after. If closing
+        // fails the user's verdict still stands and an inert question is left to
+        // retire on its own; the other order could lose what they said in order
+        // to tidy up something that was never theirs.
+        const verdict = await verdicts.say(stateVerdict(film, assertion, told, now(), scope));
+        await questions.close(film);
+        return { verdict };
+      }),
+  );
+
+  server.registerTool(
+    "withdraw_verdict",
+    {
+      title: "Take back what they said about a film",
+      description:
+        "They no longer stand by what they told you. This leaves no current verdict for that " +
+        "scope — not a neutral one, and certainly not a dislike: taking back \"I loved it\" " +
+        "means they have said nothing, the way it was before they spoke.\n\n" +
+        "Withdraw in the scope the claim was made in. A judgement or a `not-ever` is global, so " +
+        "leave the occasion out; an evening's `not-tonight` is taken back by naming that " +
+        "evening, and doing so restores whatever applied before it rather than silencing the " +
+        "evening.\n\n" +
+        "The history is kept. What they said and that they took it back are both true.",
+      inputSchema: z.object({ film: verdictFilm, occasion: verdictOccasion.optional() }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ film, occasion }) =>
+      attempt(async () => ({
+        withdrawal: await verdicts.say(
+          withdrawVerdict(film, now(), occasion === undefined ? "everywhere" : { occasion }),
+        ),
+      })),
+  );
+
+  server.registerTool(
+    "get_verdicts",
+    {
+      title: "What they have said about a film",
+      description:
+        "Everything they have said about one film, and which of it stands now. Ask about an " +
+        "occasion to see what applies on that evening: an evening's `not-tonight` shows there " +
+        "and nowhere else, and where an evening has nothing of its own the global claim shows " +
+        "through.\n\n" +
+        "`current` is null when they have said nothing, or when they took back what they said. " +
+        "Both are silence, and neither is a preference you may act on as though it were one.",
+      inputSchema: z.object({ film: verdictFilm, occasion: verdictOccasion.optional() }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ film, occasion }) =>
+      attempt(async () => {
+        const history = await verdicts.history(film as Film);
+        const asked: Scope = occasion === undefined ? "everywhere" : { occasion };
+        return {
+          film,
+          current: current(history, asked),
+          superseded: supersession(history),
+          history,
+        };
+      }),
+  );
+
+  server.registerTool(
+    "get_open_questions",
+    {
+      title: "Films waiting on an answer",
+      description:
+        "Which films you have something to ask about, oldest first. This is your own note, not " +
+        "anything they told you: a film waiting here says nothing about whether they liked it, " +
+        "and a question that has waited a long time says nothing either.\n\n" +
+        "Read it while you are already talking with them, and ask at most where it fits what " +
+        "they came for. It is never a reason to start a conversation — Tonight does not get in " +
+        "touch on its own. Reading this costs the question nothing.",
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async () => attempt(async () => ({ questions: await questions.pending(now()) })),
+  );
+
+  server.registerTool(
+    "record_opportunity",
+    {
+      title: "Note that a chance to ask went by",
+      description:
+        "Say that there was a real chance to ask about this film — they were here, you were " +
+        "already talking, and the question would have fitted — and no answer came of it. Only " +
+        "call this when that was actually true; reading the open questions is not a chance, and " +
+        "neither is anything happening while nobody is here.\n\n" +
+        "A question retires after three such chances, or thirty days, whichever comes first. " +
+        "Retiring removes the question and means nothing else: it is not a dislike, not a " +
+        "refusal, and not an answer. If they do answer, record the verdict instead — that closes " +
+        "the question without any of this mattering.",
+      inputSchema: z.object({ film: verdictFilm }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ film }) =>
+      attempt(async () => ({ question: await questions.opportunity(film as Film, now()) })),
+  );
+
   return server;
 }
 
@@ -597,7 +824,13 @@ async function attempt(work: () => Promise<unknown>) {
   try {
     return answer(await work());
   } catch (error) {
-    if (!(error instanceof TasteError) && !(error instanceof EpisodeError)) throw error;
+    if (
+    !(error instanceof TasteError) &&
+    !(error instanceof EpisodeError) &&
+    !(error instanceof VerdictError)
+  ) {
+    throw error;
+  }
     return {
       isError: true as const,
       content: [{ type: "text" as const, text: error.message }],

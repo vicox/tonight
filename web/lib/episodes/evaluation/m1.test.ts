@@ -22,6 +22,16 @@ import { TRAJECTORIES } from "./trajectories.ts";
 
 const asUser = (id: string): AuthenticatedUser => ({ id }) as AuthenticatedUser;
 
+/** A store that refuses everything, so reaching it is a failure and not a write. */
+const refusing = <T>(what: string): T =>
+  new Proxy({} as object, {
+    get(_, name) {
+      return () => {
+        throw new Error(`M1 reached the ${what} store: ${String(name)}`);
+      };
+    },
+  }) as T;
+
 type Tool = {
   handler: (args: Record<string, unknown>) => Promise<{
     isError?: boolean;
@@ -46,6 +56,12 @@ describe("M1 — remembers the evening", () => {
           reference: "ref",
           store: sqlTasteStore(driver, asUser(who)),
           episodes: sqlEpisodeStore(driver, asUser(who)),
+          // M1's gates run against a session where verdicts and open questions
+          // refuse every call, so "nothing here concludes anything about taste"
+          // is proved rather than assumed: an episode tool that reached either
+          // would throw instead of quietly succeeding.
+          verdicts: refusing("verdict"),
+          questions: refusing("question"),
         }) as unknown as { _registeredTools: Record<string, Tool> }
       )._registeredTools;
 

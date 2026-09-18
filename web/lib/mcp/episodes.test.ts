@@ -8,6 +8,8 @@ import { EPISODES_SCHEMA, sqlEpisodeStore } from "../episodes/store/sql.ts";
 import type { EpisodeStore } from "../episodes/store.ts";
 import type { AuthenticatedUser } from "../identity.ts";
 import type { TasteStore } from "../taste/store.ts";
+import type { QuestionStore } from "../verdicts/questions.ts";
+import type { VerdictStore } from "../verdicts/store.ts";
 import { tonightMcpServer } from "./server.ts";
 
 /**
@@ -22,14 +24,19 @@ import { tonightMcpServer } from "./server.ts";
 
 const asUser = (id: string): AuthenticatedUser => ({ id }) as AuthenticatedUser;
 
-/** The taste half of a session, which no episode tool may reach. */
-const refusingTaste = new Proxy({} as TasteStore, {
-  get(_, name) {
-    return () => {
-      throw new Error(`an episode tool reached the taste store: ${String(name)}`);
-    };
-  },
-});
+/** The halves of a session no episode tool may reach. */
+const refusing = <T>(what: string): T =>
+  new Proxy({} as object, {
+    get(_, name) {
+      return () => {
+        throw new Error(`an episode tool reached the ${what} store: ${String(name)}`);
+      };
+    },
+  }) as T;
+
+const refusingTaste = refusing<TasteStore>("taste");
+const refusingVerdicts = refusing<VerdictStore>("verdict");
+const refusingQuestions = refusing<QuestionStore>("question");
 
 type Tool = {
   description?: string;
@@ -43,6 +50,8 @@ function toolsOf(episodes: EpisodeStore): Record<string, Tool> {
     reference: "ref",
     store: refusingTaste,
     episodes,
+    verdicts: refusingVerdicts,
+    questions: refusingQuestions,
   });
   return (server as unknown as { _registeredTools: Record<string, Tool> })._registeredTools;
 }

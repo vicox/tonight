@@ -145,22 +145,29 @@ test("every tool is discoverable, and only the intended ones", async () => {
     "delete_movie",
     "forget_episode",
     "get_episodes",
+    "get_open_questions",
     "get_server_info",
     "get_taste",
+    "get_verdicts",
     "record_episode",
+    "record_opportunity",
+    "record_verdict",
     "update_genre",
     "update_mix",
     "update_movie",
+    "withdraw_verdict",
   ]);
 
-  // Fifteen, and every one of them a state operation. Product guidance ships in
+  // Twenty, and every one of them a state operation. Product guidance ships in
   // skills/ beside the server rather than as a runtime tool: an exhaustive list
   // is what keeps one from creeping back.
   //
-  // Eleven of them are the taste model's and four are M1's episodes, which write
-  // what happened rather than what somebody likes. The two sets never mix: no
-  // episode tool reads or writes a genre, a mix or a movie state.
-  assert.equal(tools.length, 15);
+  // Eleven are the taste model's, four are M1's episodes, which write what
+  // happened rather than what somebody likes, and five are M2's verdicts, which
+  // write what they thought of it. The three sets never mix: no episode tool
+  // reads or writes a genre, a mix or a movie state, and no verdict tool does
+  // either — the chain from watching to liking is never closed for the user.
+  assert.equal(tools.length, 20);
 
   const info = tools.find((tool) => tool.name === "get_server_info");
   assert.equal(info?.title, "Server information");

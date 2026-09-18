@@ -264,6 +264,143 @@ describe("the verdict store", () => {
     assert.deepEqual(current(await ben.history(f)), his[0], "her withdrawal reached his claim");
   });
 
+  /* ------------------------------------------------- order within an instant */
+
+  test("two claims in the same instant resolve to the one said second", async () => {
+    // The defect this exists for: `said_at` has millisecond resolution, two calls
+    // can land inside one, and a correction must still take.
+    const f = film();
+    const at = "2026-01-01T20:00:00.000Z";
+    await ana.say(about(f, judged("loved", at)));
+    await ana.say(about(f, judged("liked", at)));
+    const history = await ana.history(f);
+    assert.equal(
+      (current(history) as unknown as { assertion: { judgement: string } }).assertion.judgement,
+      "liked",
+      "the later correction was lost to a content tie-break",
+    );
+    assert.equal(supersession(history).length, 1);
+  });
+
+  test("a withdrawal in the same instant withdraws the verdict before it", async () => {
+    const f = film();
+    const at = "2026-01-01T20:00:00.000Z";
+    await ana.say(about(f, judged("loved", at)));
+    await ana.say(about(f, withdrawVerdict(f, at)));
+    assert.equal(current(await ana.history(f)), null, "a same-instant withdrawal did not take");
+  });
+
+  test("a verdict in the same instant after a withdrawal becomes current", async () => {
+    const f = film();
+    const at = "2026-01-01T20:00:00.000Z";
+    await ana.say(about(f, withdrawVerdict(f, at)));
+    await ana.say(about(f, judged("loved", at)));
+    assert.equal(
+      (current(await ana.history(f)) as unknown as { assertion: { judgement: string } }).assertion.judgement,
+      "loved",
+      "the verdict after a same-instant withdrawal did not stand",
+    );
+  });
+
+  test("the order survives the round trip, and rises with each act", async () => {
+    const f = film();
+    const at = "2026-01-01T20:00:00.000Z";
+    await ana.say(about(f, judged("loved", at)));
+    await ana.say(about(f, judged("liked", at)));
+    const orders = (await ana.history(f)).map((act) => (act as unknown as { order: number }).order);
+    assert.equal(orders.length, 2);
+    assert.ok(orders.every((o) => Number.isInteger(o) && o > 0), "an act came back without an order");
+    assert.ok(orders[0]! < orders[1]!, "the order did not follow the order of writing");
+  });
+
+  test("a caller cannot choose its place in the order", async () => {
+    const f = film();
+    const at = "2026-01-01T20:00:00.000Z";
+    const first = await ana.say(about(f, judged("loved", at)));
+    // Sent with an order far ahead of anything the sequence will hand out. If it
+    // were honoured, this would jump the queue rather than join it.
+    await ana.say({ ...about(f, judged("liked", at)), order: 10_000_000 } as unknown as Act);
+    const history = await ana.history(f);
+    const orders = history.map((act) => (act as unknown as { order: number }).order);
+    assert.ok(orders.every((o) => o < 10_000_000), "a caller's order was written down");
+    assert.ok(
+      (first as unknown as { order: number }).order < Math.max(...orders),
+      "the forged act did not take the next place in line",
+    );
+  });
+
+  test("two writes accepted at once never share a place in the order", async () => {
+    const f = film();
+    const at = "2026-01-01T20:00:00.000Z";
+    const many = 12;
+    await Promise.all(
+      Array.from({ length: many }, (_, each) =>
+        ana.say(about(f, judged(each % 2 === 0 ? "loved" : "liked", at))),
+      ),
+    );
+    const orders = (await ana.history(f)).map((act) => (act as unknown as { order: number }).order);
+    assert.equal(orders.length, many);
+    assert.equal(new Set(orders).size, many, "two concurrent writes shared an order");
+    // And whatever order they landed in, the answer is stable across reads.
+    const once = current(await ana.history(f));
+    const again = current(await ana.history(f));
+    assert.deepEqual(once, again, "standing was not stable across reads");
+  });
+
+  test("the table refuses two acts sharing a place in the order", async () => {
+    // The sequence never hands the same number out twice, so this cannot happen
+    // by writing through the store. It is asserted anyway because the order is
+    // what breaks a tie: something that reached the table another way — a
+    // migration, a repair script — must not be able to leave two acts
+    // indistinguishable again.
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
+    const [row] = await driver.query<{ seq: number }>(
+      "SELECT seq FROM tonight_verdict_acts WHERE title = $1",
+      [f.title],
+    );
+    await assert.rejects(
+      () =>
+        driver.query(
+          `INSERT INTO tonight_verdict_acts
+                  (user_id, said, title, year, said_at, told, about, judgement, seq)
+                VALUES ('google:ana', 'verdict', $1, 2013, now(), 'volunteered', 'judgement', 'liked', $2)`,
+          [f.title, row?.seq],
+        ),
+      "the table accepted a duplicate place in the order",
+    );
+  });
+
+  test("a row written before the order existed still resolves deterministically", async () => {
+    // Legacy rows carry no order — nothing recorded which of two same-instant
+    // acts came first — so the content fallback decides, and it decides the same
+    // way every time rather than inventing a precedence.
+    const f = film();
+    const at = "2026-01-01T20:00:00.000Z";
+    await ana.say(about(f, judged("loved", at)));
+    await ana.say(about(f, judged("liked", at)));
+    await driver.query("UPDATE tonight_verdict_acts SET seq = NULL WHERE title = $1", [f.title]);
+    const one = current(await ana.history(f));
+    const other = current(await ana.history(f));
+    assert.deepEqual(one, other, "legacy rows resolved differently between reads");
+    assert.ok(one !== null);
+  });
+
+  test("an act that carries an order sorts after one that does not", async () => {
+    // The column was added later, so anything holding an order was written after
+    // everything missing it.
+    const f = film();
+    const at = "2026-01-01T20:00:00.000Z";
+    await ana.say(about(f, judged("loved", at)));
+    await driver.query("UPDATE tonight_verdict_acts SET seq = NULL WHERE title = $1", [f.title]);
+    await ana.say(about(f, judged("disliked", at)));
+    assert.equal(
+      (current(await ana.history(f)) as unknown as { assertion: { judgement: string } }).assertion.judgement,
+      "disliked",
+      "a newer act lost to a legacy one at the same instant",
+    );
+  });
+
   /* ------------------------------------------------- the boundary, again */
 
   test("a malformed act is refused rather than written", async () => {
@@ -347,13 +484,17 @@ describe("the verdict store", () => {
     const history = await ana.history(f);
     const back = history.find((act) => act.said === "withdrawal");
     assert.deepEqual(back, taken);
-    assert.deepEqual(back, {
+    // The claim itself, exactly — plus the order the store accepted it in, which
+    // it assigns and the user never said.
+    const { order, ...claim } = back as unknown as Record<string, unknown>;
+    assert.deepEqual(claim, {
       said: "withdrawal",
       claimant: "user",
       film: f,
       scope: TUESDAY,
       at: "2026-03-01T20:00:00.000Z",
     });
+    assert.equal(typeof order, "number", "persistence did not record the write order");
   });
 
   test("a malformed film is refused rather than matching nothing", async () => {

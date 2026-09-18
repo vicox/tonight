@@ -405,6 +405,51 @@ test("reversing the list cannot change which verdict stands", () => {
   assert.deepEqual(supersession(acts), supersession(backwards));
 });
 
+test("at the same instant, the one written later stands", () => {
+  // The order the store accepted them in, not the content. A correction made
+  // inside one millisecond is still a correction.
+  const first = { ...judged("loved", "2026-01-01T20:00:00.000Z"), order: 1 } as unknown as Act;
+  const second = { ...judged("disliked", "2026-01-01T20:00:00.000Z"), order: 2 } as unknown as Act;
+  assert.equal((current([first, second]) as { assertion: { judgement: string } }).assertion.judgement, "disliked");
+  assert.equal((current([second, first]) as { assertion: { judgement: string } }).assertion.judgement, "disliked");
+  assert.deepEqual(supersession([second, first]), [{ verdict: first, by: second }]);
+});
+
+test("a written order beats the content fallback, never the other way round", () => {
+  // Content ordering would put "confirmed" before "volunteered" and make the
+  // first claim stand. The written order says otherwise, and it wins.
+  const first = { ...loved("2026-01-01T20:00:00.000Z"), order: 7 } as unknown as Act;
+  const second = {
+    ...stateVerdict(prisoners, { about: "judgement", judgement: "liked" }, "confirmed", "2026-01-01T20:00:00.000Z"),
+    order: 8,
+  } as unknown as Act;
+  assert.equal((current([first, second]) as { assertion: { judgement: string } }).assertion.judgement, "liked");
+});
+
+test("an act carrying a written order sorts after one that does not", () => {
+  const legacy = loved("2026-01-01T20:00:00.000Z");
+  const later = { ...judged("disliked", "2026-01-01T20:00:00.000Z"), order: 1 } as unknown as Act;
+  assert.equal((current([later, legacy]) as { assertion: { judgement: string } }).assertion.judgement, "disliked");
+});
+
+test("a write order nobody could have been given is refused", () => {
+  // The store allocates it. Anything else means the row did not come from there.
+  for (const forged of [0, -1, 1.5, "2", true, {}]) {
+    assert.throws(
+      () => current([{ ...loved("2026-01-01T20:00:00.000Z"), order: forged } as unknown as Act]),
+      VerdictError,
+      `${JSON.stringify(forged)} was accepted as a write order`,
+    );
+  }
+});
+
+test("a verdict built here carries no write order", () => {
+  // It is the store's to give, so no constructor produces one — a claim that
+  // carried its own would be a claim whose author chose its place in history.
+  assert.equal("order" in loved(), false);
+  assert.equal("order" in withdrawVerdict(prisoners, "2026-01-01T20:00:00.000Z"), false);
+});
+
 test("two claims at the very same instant resolve the same way every time", () => {
   // Arbitrary but stable: whoever hands the history over, and in whatever order,
   // gets one answer. A sequence number would be less arbitrary and belongs to a

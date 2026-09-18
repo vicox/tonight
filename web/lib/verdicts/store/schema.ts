@@ -23,6 +23,15 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * to answer *"what stands"*, and the answer would depend on how the union was
  * built. One table keeps the order a property of the rows.
  *
+ * ## Why the order acts arrived in is stored
+ *
+ * `said_at` is when the user spoke, to the millisecond, and it is the primary
+ * order. Two tool calls can land in one millisecond, though, and then the
+ * question *"which did they say second"* has to be answerable from something —
+ * so `seq` records the order this table accepted them in. It is Postgres' to
+ * allocate: no statement here supplies it, so nothing outside the database can
+ * choose or forge one, and no two acts can share one.
+ *
  * ## Why NULL means everywhere
  *
  *     occasion  text  NULL is the global scope. A value names one evening.
@@ -146,6 +155,39 @@ export const VERDICTS_SCHEMA: SchemaModule = {
         -- slice makes, and the only index it needs.
         CREATE INDEX tonight_verdict_acts_film
           ON tonight_verdict_acts (user_id, title, year, said_at);
+      `,
+    },
+    {
+      // The order acts were accepted in, so that two claims made in the same
+      // millisecond still resolve to the one the user said second.
+      //
+      // Appended rather than folded into v1, which has shipped. `said_at` has
+      // millisecond resolution, and two tool calls can land inside one: without
+      // this the model fell back to comparing content, which is deterministic
+      // but is not "the later one wins" — a correction could silently not take.
+      version: 2,
+      sql: `
+        -- Added without a default first, so rows written before this migration
+        -- keep NULL. Backfilling them from a sequence would order them by
+        -- however they happen to sit on disk, which is an invention rather than
+        -- a fact: nothing recorded which of two same-instant legacy acts came
+        -- first, and pretending otherwise is worse than admitting it.
+        ALTER TABLE tonight_verdict_acts ADD COLUMN seq bigint;
+
+        CREATE SEQUENCE tonight_verdict_acts_seq;
+
+        -- Allocated by Postgres at insert. A sequence is atomic, shared by every
+        -- connection and every process, and never hands the same number out
+        -- twice — which is what makes this work across concurrent requests and
+        -- across server instances, where a counter in the application could not.
+        ALTER TABLE tonight_verdict_acts
+          ALTER COLUMN seq SET DEFAULT nextval('tonight_verdict_acts_seq');
+
+        -- Two acts sharing an order would leave the tie unbroken again. Unique
+        -- rather than trusted: NULLs do not collide, so the legacy rows above
+        -- are unaffected.
+        CREATE UNIQUE INDEX tonight_verdict_acts_order
+          ON tonight_verdict_acts (seq);
       `,
     },
   ],

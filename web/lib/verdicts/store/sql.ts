@@ -58,13 +58,16 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
         ? checked.assertion.rejection
         : null;
 
+      // `seq` is deliberately absent from the column list: it is allocated by
+      // the sequence behind its default, so nothing a caller sends can choose or
+      // forge a place in the order.
       const [row] = await driver.query<ActRow>(
         `INSERT INTO tonight_verdict_acts
                 (user_id, said, title, year, occasion, said_at,
                  told, about, judgement, because, reach, reason)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            RETURNING said, title, year, occasion, said_at,
-                     told, about, judgement, because, reach, reason`,
+                     told, about, judgement, because, reach, reason, seq`,
         [
           owner,
           checked.said,
@@ -88,12 +91,12 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
       const named = namedFilm(film);
       const rows = await driver.query<ActRow>(
         `SELECT said, title, year, occasion, said_at,
-                told, about, judgement, because, reach, reason
+                told, about, judgement, because, reach, reason, seq
            FROM tonight_verdict_acts
           WHERE user_id = $1 AND title = $2 AND year = $3
           -- Stable, and not the answer: the model orders by the instant the
           -- user spoke. The row id only breaks ties, so two reads agree.
-          ORDER BY said_at, id`,
+          ORDER BY said_at, seq, id`,
         [owner, named.title, named.year],
       );
       return rows.map(assemble);
@@ -113,13 +116,26 @@ type ActRow = {
   because: string | null;
   reach: string | null;
   reason: string | null;
+  /** The order this table accepted the act in. Null on rows predating v2. */
+  seq: number | null;
 };
 
-/** An act, rebuilt through the model so a row cannot mean more than a claim. */
+/**
+ * An act, rebuilt through the model so a row cannot mean more than a claim.
+ *
+ * The write order is carried across as it was stored. It is not part of the
+ * claim and no constructor takes one, so it is attached to the rebuilt act
+ * rather than passed through — which is also why nothing a caller sends can
+ * become one: `say` never names the column, and this is the only place a value
+ * for it comes from.
+ */
 function assemble(row: ActRow): Act {
   const scope = row.occasion === null ? "everywhere" : { occasion: row.occasion };
   const at = moment(row.said_at);
-  if (row.said === "withdrawal") return withdrawVerdict({ title: row.title, year: row.year }, at, scope);
+  const order = row.seq === null ? {} : { order: Number(row.seq) };
+  if (row.said === "withdrawal") {
+    return { ...withdrawVerdict({ title: row.title, year: row.year }, at, scope), ...order };
+  }
   if (row.said !== "verdict") throw new VerdictError(`No act is a ${row.said}.`);
 
   // The discriminant is read from the column that holds it, and an unknown
@@ -135,7 +151,7 @@ function assemble(row: ActRow): Act {
     row.about === "judgement"
       ? { about: "judgement", judgement: row.judgement, because: row.because }
       : { about: "rejection", rejection: { reach: row.reach, reason: row.reason } };
-  return stateVerdict({ title: row.title, year: row.year }, assertion, row.told, at, scope);
+  return { ...stateVerdict({ title: row.title, year: row.year }, assertion, row.told, at, scope), ...order };
 }
 
 /** The scope, as the column holds it: null is everywhere. */

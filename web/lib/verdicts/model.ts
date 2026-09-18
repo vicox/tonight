@@ -192,6 +192,26 @@ export type Withdrawal = {
 /** Everything the user has said about one film. Order is derived, not given. */
 export type Act = Verdict | Withdrawal;
 
+/**
+ * An act as persistence handed it back, carrying the order it was written in.
+ *
+ * `at` is when the user spoke and is the order that matters. It has millisecond
+ * resolution, though, and two calls can land inside one — so the store records
+ * which it accepted first, and this is that number coming back.
+ *
+ * It is **not** part of the claim. The user did not say it, no constructor here
+ * produces one, and nothing that compares what was claimed looks at it. It
+ * exists for exactly one question: of two things said in the same millisecond,
+ * which was said second.
+ */
+export type Written<T> = T & { order: number };
+
+/** The write order an act carries, or none — a legacy row predating the column. */
+function orderOf(act: Act): number | null {
+  const order = (act as Partial<Written<Act>>).order;
+  return typeof order === "number" ? order : null;
+}
+
 export const MAX_TITLE_LENGTH = 200;
 export const MAX_REASON_LENGTH = 2_000;
 export const MAX_OCCASION_LENGTH = 200;
@@ -347,15 +367,41 @@ function ordered(acts: readonly Act[]): Act[] {
   if (named.size > 1) {
     throw new VerdictError("These are verdicts about different films.");
   }
-  return checked.sort(byInstantThenContent);
+  return checked.sort(byInstantThenOrder);
 }
 
-function byInstantThenContent(a: Act, b: Act): number {
+/**
+ * Which of two acts came first.
+ *
+ * Three rules, in order, and the first that decides wins:
+ *
+ * 1. **The instant the user spoke.** Time is part of the claim, so this is the
+ *    order that means something.
+ * 2. **The order the store accepted them in**, where both carry one. Two calls
+ *    can share a millisecond; the second one the store took is the second one
+ *    they said, and a correction made inside that millisecond still takes.
+ * 3. **Canonical content**, and only where neither carries an order — rows
+ *    written before the store recorded one. Deterministic and stable, but it is
+ *    a fallback rather than a meaning: nothing recorded which of two such acts
+ *    came first, so this admits that rather than inventing an answer.
+ *
+ * An act that carries an order sorts after one that does not, at the same
+ * instant, because the column was added later: anything holding one was written
+ * after everything that is missing it.
+ */
+function byInstantThenOrder(a: Act, b: Act): number {
   const difference = Date.parse(a.at) - Date.parse(b.at);
   if (difference !== 0) return difference;
-  const left = JSON.stringify(canonical(a));
-  const right = JSON.stringify(canonical(b));
-  return left < right ? -1 : left > right ? 1 : 0;
+
+  const left = orderOf(a);
+  const right = orderOf(b);
+  if (left !== null && right !== null) return left - right;
+  if (left !== null) return 1;
+  if (right !== null) return -1;
+
+  const one = JSON.stringify(canonical(a));
+  const other = JSON.stringify(canonical(b));
+  return one < other ? -1 : one > other ? 1 : 0;
 }
 
 /** An act with its keys in a fixed order, so equal content compares equal. */
@@ -388,15 +434,32 @@ function checkAct(value: unknown): Act {
     throw new VerdictError("Only the user states a verdict.");
   }
   if (act.said === "verdict") {
-    return stateVerdict(act.film, act.assertion, act.told, act.at, act.scope);
+    return written(stateVerdict(act.film, act.assertion, act.told, act.at, act.scope), act.order);
   }
   if (act.said === "withdrawal") {
     for (const owned of ["assertion", "told"]) {
       if (owned in act) throw new VerdictError(`A withdrawal asserts nothing, so it has no ${owned}.`);
     }
-    return withdrawVerdict(act.film, act.at, act.scope);
+    return written(withdrawVerdict(act.film, act.at, act.scope), act.order);
   }
   throw new VerdictError("Each act says whether it is a verdict or a withdrawal.");
+}
+
+/**
+ * Puts the write order back on a rebuilt act, if it came with one.
+ *
+ * The constructors do not take one and never will: the order is the store's to
+ * allocate, and a claim that could carry its own would be a claim whose place in
+ * the history its author chose. So it is reattached here rather than passed
+ * through, and anything that is not a whole positive number is refused rather
+ * than dropped — a malformed order means the row did not come from the store.
+ */
+function written(act: Act, order: unknown): Act {
+  if (order === undefined || order === null) return act;
+  if (typeof order !== "number" || !Number.isInteger(order) || order <= 0) {
+    throw new VerdictError("A write order is a whole number, and the store assigns it.");
+  }
+  return { ...act, order } as unknown as Act;
 }
 
 function checkFilm(value: unknown): Film {
