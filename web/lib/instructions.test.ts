@@ -80,10 +80,10 @@ test("surfacing a pattern stays optional, and gated on the taste looking durable
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
   assert.match(flat, /looks lasting\? You \*\*may\*\*/, "the durability gate is gone");
-  assert.match(flat, /You \*\*may\*\* put it to them/, "asking has become obligatory");
+  assert.match(flat, /You \*\*may\*\* ask/, "asking has become obligatory");
   assert.match(
     flat,
-    /an ordinary recommendation, or a mood for tonight, is no reason to ask/,
+    /an ordinary recommendation or a mood for tonight is no reason to/,
     "nothing stops a taste-confirmation prompt after every answer",
   );
 });
@@ -95,17 +95,17 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   // Movies from them or implies Tonight does the choosing.
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
-  assert.match(flat, /`get_taste` returns their saved Movies/);
-  assert.match(flat, /no Tonight tool turns a taste into film recommendations/);
+  assert.match(flat, /`get_taste` returns what they saved, not a shortlist/);
+  assert.match(flat, /no tool here turns a taste into films/);
   assert.equal(flat.includes("No tool here returns films"), false);
 
   // Instructions belong to Genres and Mixes; a Movie carries state. What each of
   // those requires is now stated by the tool that writes it, so what the
   // instructions carry is the shape and a pointer.
-  assert.match(flat, /holds the taste model and nothing else\*\* — Genres, Mixes, Movies/);
+  assert.match(flat, /Tonight's evidence is what they told it\*\* — Genres, Mixes, Movies, verdicts/);
   assert.match(flat, /Read a Mix as \*\*its own instruction/);
   assert.match(flat, /arrive with `create_genre` and `create_mix`/);
-  assert.match(flat, /Which sentence means which state is in `create_movie`/);
+  assert.match(flat, /is a verdict —\s+`record_verdict`, never a state; `create_movie` says what a state means/);
 
   // And the ratings wording was too broad twice over: liked and disliked are
   // real Movie state the user gave, and only a score is out of scope. Both of the
@@ -154,7 +154,7 @@ test("what moved to the tools is no longer stated here as well", () => {
   // And a pointer is left where the skill still has to refer to the behaviour,
   // so a reader is sent somewhere rather than left with a gap.
   assert.match(flat, /arrive with `create_genre` and `create_mix`/, "no pointer for the write rules");
-  assert.match(flat, /Which sentence means which state is in `create_movie`/, "no pointer for the state");
+  assert.match(flat, /is a verdict —\s+`record_verdict`, never a state; `create_movie` says what a state means/, "no pointer for the state");
 });
 
 test("what is conversation rather than a field stays here", () => {
@@ -163,7 +163,7 @@ test("what is conversation rather than a field stays here", () => {
   // read before the call it describes.
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
-  assert.match(flat, /never ask for a state their sentence gave you/, "asking before calling");
+  assert.match(flat, /never ask for what their sentence gave you/, "asking before calling");
   assert.match(flat, /Say so and let them decide/, "how a change is agreed to");
   assert.match(flat, /already say they saw it/, "why an opinion needs no second question");
 });
@@ -267,7 +267,7 @@ test("a Mix is evidence, and the states under it calibrate rather than gate", ()
       /A matching Mix is a reason the recommendation fits/],
     ["that it counts immediately", /counts from the moment it exists/],
     ["that an empty Mix says as much as a full one",
-      /nothing under it, says as much as one with ten films/],
+      /one written last night says as much as one with ten films under it/],
     ["that a Genre is thinner", /A Genre is an ingredient/],
     ["that a Genre name alone justifies nothing", /a Genre name alone is a label/],
     ["that states calibrate", /States calibrate it, never decide whether it counts/],
@@ -638,7 +638,7 @@ test("saving a film classifies it, and may grow the model rather than bend it", 
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
   for (const [what, rule] of [
-    ["to classify rather than fit", /Classify the film[,;] do not fit it to what is there/],
+    ["to classify rather than fit", /Classify the film rather than fitting it to what is there/],
     ["to look before deciding", /read the Genres and Mixes first/i],
     ["to reuse a Genre that fits", /Reuse the Genres that (genuinely )?fit/],
     ["to create one when none covers it", /create one for anything (no Genre covers|uncovered)/],
@@ -672,9 +672,9 @@ test("a proposed Mix is made tangible before it is agreed to", () => {
     ["that the asking still comes last", /Then ask/],
     ["that the films are illustration", /Those films are illustration only/],
     ["that they are not written and not filed", /never written, never in (the|a) Mix/],
-    ["that they get no state and no classification", /never given a state, nothing to classify/],
+    ["that they get no state and no classification", /never given a state or\s+classified/],
     ["what is actually being saved", /only the film they asked to keep is (being )?saved/i],
-    ["that a fitting Mix skips all of it", /a Mix that genuinely fits needs none of this/],
+    ["that a fitting Mix skips all of it", /a Mix that (genuinely )?fits needs none of this/],
   ] as [string, RegExp][]) {
     assert.match(flat, rule, `the agent is never told ${what}`);
   }
@@ -946,14 +946,14 @@ test("the compact projection of the write flow says the same thing the skill doe
     ["keeping a film needs a Mix",
       /Never write a Movie this way without at least one Mix/,
       /Never write a Movie this way without at least one Mix/],
-    ["recording a state never invents one",
-      /Never invent a Mix, or ask for one, to record a state/,
-      /Never invent a Mix, or ask for one, to record a state/],
-    ["a later keep still takes a Mix", /A later request to keep it takes a Mix/,
-      /A later request to keep it takes a Mix/],
+    ["a verdict never invents a Mix",
+      /No Mix is needed for one and none may be invented to hold it/,
+      /no Mix needed or\s+invented for one/],
+    ["a later keep still takes a Mix", /a later request to keep the film takes a Mix/,
+      /a later request to keep the film takes a Mix/],
     ["the Mix question is classification, not permission",
       /not \*"may I save this\?"\* but \*"what kind of night is this\?"\*/,
-      /is a classification, never a request for permission/],
+      /is a classification, not a request for permission/],
     ["classify rather than fit", /Classify the film/, /Classify the film/],
     ["read first", /Read the Genres and Mixes first/i, /read the Genres and Mixes first/i],
     ["one that fits is just saved", /save it there, say so in one sentence, ask nothing further/,
@@ -973,7 +973,7 @@ test("the compact projection of the write flow says the same thing the skill doe
     ["and padding is still forbidden",
       /never filler to hit a number/, /never filler to hit a number/],
     ["the Mix choice is yours", /Never ask which Mix they want; that judgement is yours/,
-      /Never ask which Mix they want; that judgement is yours/],
+      /Never ask which they want; that judgement is yours/],
     ["a proposal is made concrete", /make the idea concrete/, /make it concrete/],
     ["with three to five films", /three to five other films that would belong in it/,
       /three to five other films that would belong/],
@@ -983,18 +983,18 @@ test("the compact projection of the write flow says the same thing the skill doe
       /Those films are illustration only/],
     ["never written, never filed", /never written, never in the Mix/, /never written, never in a Mix/],
     ["no state, no classification", /never given a state, nothing to classify/,
-      /never given a state, nothing to classify/],
+      /never given a state or\s+classified/],
     ["only the asked-for film is saved", /Only the film they asked to keep is being saved/,
       /only the film they asked to keep is saved/],
     ["a yes covers the whole flow", /A yes is the whole of the permission/,
-      /A yes is the whole of the permission/],
-    ["and is never asked twice", /never ask a second time/, /never ask a second time/],
+      /A yes is the whole permission/],
+    ["and is never asked twice", /never ask a second time/, /never ask twice/],
     ["a no settles it", /A no settles it\*\*, never saving the film loose/,
       /A no settles it\*\*, never saving the film loose/],
     ["propose while saving", /Propose while saving, not while recommending/,
       /Propose while saving, not while recommending/],
-    ["a fitting Mix skips it", /a Mix that genuinely fits needs none of this/,
-      /a Mix that genuinely fits needs none of this/],
+    ["a fitting Mix skips it", /a Mix that (genuinely )?fits needs none of this/,
+      /a Mix that (genuinely )?fits needs none of this/],
     ["a film in no Mix is fine", /A film in no Mix is legitimate/, /A film in no Mix is legitimate/],
     ["and is left alone", /Do not sort them, propose Mixes for them, or mention them\s*unasked/,
       /Do not sort them, propose Mixes for them, or mention them\s*unasked/],
@@ -1048,7 +1048,7 @@ test("the compact projection of the taste model says the same thing the skill do
     ["it counts immediately", /counts from\s*the moment it exists/, /counts from the moment it exists/],
     ["an empty Mix says as much as a full one",
       /nothing under it yet says as much about what\s*they like as one with ten films under it/,
-      /nothing under it, says as much as one with ten films/],
+      /one written last night says as much as one with ten films under it/],
     ["a Genre is thinner", /A Genre is an ingredient/, /A Genre is an ingredient/],
     ["states calibrate rather than gate",
       /Movie states calibrate that evidence. They never decide whether it counts/,
@@ -1298,23 +1298,23 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Never stretch a Mix to avoid making one",
     // movies
     "Never write a Movie this way without at least one Mix",
-    "Never invent a Mix, or ask for one, to record",
+    "no Mix needed or",
     "not a bucket",
     "do not save the film yet",
-    "Never ask which Mix they want",
+    "Never ask which they want",
     "Those films are illustration only",
-    "A yes is the whole of the permission",
-    "never ask a second time",
+    "A yes is the whole permission",
+    "never ask twice",
     "A film in no Mix is legitimate",
     "Do not sort them, propose Mixes for them, or mention them unasked",
     "A recommendation is not a saved Movie",
-    "never ask for a state their sentence gave you",
-    "Which sentence means which state is in `create_movie`",
+    "never ask for what their sentence gave you",
+    "`record_verdict`, never a state",
     "arrive with `create_genre` and `create_mix`",
     "Settle title and year first",
     // what Tonight is and is not — the boundary, stated so neither half is lost
-    "get_taste` returns their saved Movies",
-    "no Tonight tool turns a taste into film recommendations",
+    "get_taste` returns what they saved, not a shortlist",
+    "no tool here turns a taste into films",
     // the model is inspected and managed in conversation, in plain sentences
     "## Asked about the model directly",
     "**do those**",

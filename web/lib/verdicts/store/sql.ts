@@ -1,12 +1,14 @@
 import type { SqlDriver } from "../../db/driver.ts";
 import type { AuthenticatedUser } from "../../identity.ts";
 import {
+  standing,
   stateVerdict,
   VerdictError,
   withdrawVerdict,
   type Act,
   type Film,
   type Scope,
+  type Standing,
 } from "../model.ts";
 import type { VerdictStore } from "../store.ts";
 import { VERDICTS_SCHEMA } from "./schema.ts";
@@ -100,6 +102,28 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
         [owner, named.title, named.year],
       );
       return rows.map(assemble);
+    },
+
+    async standing(): Promise<Standing[]> {
+      // One read, grouped in memory rather than in SQL. Which claim stands, and
+      // how an evening layers over the global base, is the model's rule and has
+      // contracts on it; resolving it a second time here in SQL would be a
+      // second implementation free to drift from the one that is tested.
+      const rows = await driver.query<ActRow>(
+        `SELECT said, title, year, occasion, said_at,
+                told, about, judgement, because, reach, reason, seq
+           FROM tonight_verdict_acts
+          WHERE user_id = $1
+          ORDER BY title, year, said_at, seq, id`,
+        [owner],
+      );
+      const films = new Map<string, Act[]>();
+      for (const row of rows) {
+        const act = assemble(row);
+        const key = `${act.film.title}\u0000${String(act.film.year)}`;
+        films.set(key, [...(films.get(key) ?? []), act]);
+      }
+      return [...films.values()].flatMap((acts) => standing(acts));
     },
   };
 }

@@ -548,7 +548,7 @@ describe("the verdict store", () => {
   });
 
   test("the store offers no way to change what was said", () => {
-    assert.deepEqual(Object.keys(ana).sort(), ["history", "say"]);
+    assert.deepEqual(Object.keys(ana).sort(), ["history", "say", "standing"]);
     for (const generic of ["update", "upsert", "set", "delete", "forget", "correct"]) {
       assert.equal(generic in ana, false, `${generic} appeared on the verdict store`);
     }

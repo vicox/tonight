@@ -266,6 +266,84 @@ export function withdrawVerdict(film: unknown, at: unknown, scope: unknown = "ev
 }
 
 /**
+ * What currently stands about one film, in the shape recommendation work reads.
+ *
+ * A projection, not the claim: it carries what the user said and where it
+ * applies, and leaves out everything that is Tonight's own bookkeeping — who
+ * claimed it (always them), when, and the order it was written in. Superseded
+ * and withdrawn claims are absent by construction, because this is built from
+ * `current` rather than from the history.
+ *
+ * Judgement and rejection keep their own words for *why*. They are different
+ * facets in the model and stay different here: a reason for turning a film down
+ * one evening is not an explanation of an opinion about it.
+ */
+export type Standing = {
+  title: string;
+  year: number;
+  /** What they said about it, where they judged it. */
+  judgement?: Judgement;
+  /** Their words for why they judged it so, where they gave them. */
+  because?: string;
+  /** How far they turned it down, where they turned it down. */
+  rejected?: Reach;
+  /** Their words for why they turned it down, where they gave them. */
+  reason?: string;
+  /** The evening it applies to. Absent means it applies everywhere. */
+  occasion?: string;
+  /** Whether they volunteered it or answered a question. Texture, never a score. */
+  told: Told;
+};
+
+/**
+ * Everything that currently stands about one film — globally, and per evening.
+ *
+ * One entry for the global claim if there is one, and one for each evening that
+ * holds a claim of its own. An evening where nothing local stands is absent
+ * rather than repeated: §6's inheritance means the global claim already applies
+ * there, and listing it twice would suggest two claims where there is one.
+ *
+ * Built from `current`, so a superseded claim, a withdrawn one and an evening
+ * whose refusal was taken back are all simply not here. There is no filtering
+ * step that could forget to run.
+ */
+export function standing(acts: readonly Act[]): Standing[] {
+  const line = ordered(acts);
+  if (line.length === 0) return [];
+
+  const everywhere = current(line, "everywhere");
+  const local = scopes(line)
+    .filter((scope) => scope !== "everywhere")
+    .map((scope) => current(line, scope))
+    .filter((verdict): verdict is Verdict => verdict !== null && verdict.scope !== "everywhere");
+
+  return [...(everywhere ? [everywhere] : []), ...local].map(projected);
+}
+
+function projected(verdict: Verdict): Standing {
+  const where = verdict.scope === "everywhere" ? {} : { occasion: verdict.scope.occasion };
+  const said =
+    verdict.assertion.about === "judgement"
+      ? {
+          judgement: verdict.assertion.judgement,
+          ...(verdict.assertion.because === null ? {} : { because: verdict.assertion.because }),
+        }
+      : {
+          rejected: verdict.assertion.rejection.reach,
+          ...(verdict.assertion.rejection.reason === null
+            ? {}
+            : { reason: verdict.assertion.rejection.reason }),
+        };
+  return {
+    title: verdict.film.title,
+    year: verdict.film.year,
+    ...said,
+    ...where,
+    told: verdict.told,
+  };
+}
+
+/**
  * The claim that stands where you are asking, or none.
  *
  * §6 describes how the layers combine, and this is that description executed:
@@ -285,9 +363,9 @@ export function withdrawVerdict(film: unknown, at: unknown, scope: unknown = "ev
 export function current(acts: readonly Act[], asked: Scope = "everywhere"): Verdict | null {
   const line = ordered(acts);
   const where = checkScope(asked);
-  const global = standing(line, "everywhere");
+  const global = heldIn(line, "everywhere");
   if (where === "everywhere") return global;
-  return standing(line, where) ?? global;
+  return heldIn(line, where) ?? global;
 }
 
 /**
@@ -314,7 +392,7 @@ export function supersession(acts: readonly Act[]): { verdict: Verdict; by: Act 
 }
 
 /** The latest act in exactly one scope, if it left a verdict standing. */
-function standing(line: readonly Act[], scope: Scope): Verdict | null {
+function heldIn(line: readonly Act[], scope: Scope): Verdict | null {
   const layer = line.filter((act) => sameScope(act.scope, scope));
   const latest = layer[layer.length - 1];
   return latest?.said === "verdict" ? latest : null;

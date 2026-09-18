@@ -162,8 +162,8 @@ check "nobody has to understand the data model to get a film" \
 echo
 echo "--- the tool-orchestration boundary ---"
 
-check "Tonight holds the taste model and nothing else" \
-    "$(order_check 'Tonight holds the taste model and nothing else' \
+check "Tonight's evidence is what they told it, and nothing else" \
+    "$(order_check "Tonight's evidence is what they told it" \
         'No catalogue, no lookup' \
         'nothing about it was ever fetched')" "True"
 check "film knowledge and film tools sit beside Tonight, not inside it" \
@@ -266,9 +266,10 @@ check "describing how well a film answers the Mix stays allowed" \
 check "what is refused is a verdict they have not given" \
     "$(order_check 'What you may not say is that' \
         'like it, or that it is confirmed, proven or settled for them')" "True"
-check "and only a Movie state carries that verdict" \
-    "$(order_check 'only a Movie state carries' \
-        'their verdict, and there is none yet')" "True"
+check "and their verdict comes from a state or from what they said" \
+    "$(order_check 'their verdict comes from a' \
+        'Movie state or from what they have said about the film' \
+        'there is neither yet')" "True"
 # None of the rejected mechanisms may come back with it.
 check "no Mix is graded as provisional" \
     "$(grep -ciE 'aspirational|untested|unproven|provisional' "$SKILL")" "0"
@@ -480,7 +481,7 @@ check "a confirmation grounds only the meaning that was made plain" \
     "$(order_check 'only the meaning they could agree to' \
         'reaches further than the last thing said')" "True"
 check "the asking is about taste, not about permission to write" \
-    "$(order_check 'Asking that is not asking permission' \
+    "$(order_check 'Asking is not asking permission' \
         'somebody who has just said plainly what they like has already answered it')" "True"
 check "it is explicitly not a save-confirmation dialog" \
     "$(order_check 'is not asking permission' \
@@ -654,32 +655,33 @@ check "a Movie is theirs, by either of the two ways one comes to exist" \
 check "a Movie is named by its title and its year" \
     "$(order_check 'Title and year name it')" "True"
 check "the three Movie tools are the way a direct request is done" \
-    "$(order_check 'Two requests write a Movie, and they differ' \
+    "$(order_check 'Two requests about a film, and they differ' \
         'The tools are `create_movie`, `update_movie` and `delete_movie`')" "True"
 check "a recommendation is not persistence, for a film as for a Genre" \
     "$(order_check 'A recommendation is not a saved Movie' \
         'Naming three films writes nothing down')" "True"
-check "which sentence means which state points at the tool that states it" \
-    "$(order_check 'Which sentence means which state is in' \
-        '`create_movie`')" "True"
+check "which sentence means which points at the tools that state it" \
+    "$(order_check 'What they say about a film is a verdict' \
+        '`record_verdict`, never a state' \
+        '`create_movie` says what a state means')" "True"
 check "an opinion is never asked for twice" \
     "$(order_check 'already say they saw it' \
-        'never ask for a state their sentence gave you')" "True"
+        'never ask for what their sentence gave you')" "True"
 check "the handle is settled before a write, and asking which film is not ceremony" \
     "$(order_check 'Settle title and year first' \
         'resolves *which film*' \
         'not permission')" "True"
 
-check "keeping a film and recording a remark about one are different requests" \
-    "$(order_check 'Two requests write a Movie, and they differ')" "True"
+check "keeping a film and saying something about one are different requests" \
+    "$(order_check 'Two requests about a film, and they differ')" "True"
 check "a film the user asks to keep goes into a Mix, and they need not know that" \
     "$(order_check 'Keeping a film goes into a Mix' \
         'Never write a Movie this way without at least one Mix')" "True"
-check "watched and liked are recorded without inventing a Mix for them" \
-    "$(order_check 'Recording what they said does not' \
-        'leave Mixes alone' \
-        'Never invent a Mix, or ask for one, to record' \
-        'A later request to keep it takes a Mix')" "True"
+check "a verdict is recorded through its own tool, without inventing a Mix for it" \
+    "$(order_check 'What they said about a film does not' \
+        'it goes to `record_verdict`' \
+        'none may be invented to hold it' \
+        'a later request to keep the film takes a Mix')" "True"
 check "a Mix that genuinely fits is used, and nothing further is asked" \
     "$(order_check 'One genuinely fits' \
         'ask nothing further')" "True"
@@ -778,7 +780,7 @@ check "the score prohibition lives only on the state field" \
 # And the two the Step 2 review sent back: they are conversation, not a field
 # invariant, and the skill is their only home.
 check "asking before calling stays in the skill" \
-    "$(order_check 'never ask for a state their sentence gave you')" "True"
+    "$(order_check 'never ask for what their sentence gave you')" "True"
 check "how a rewording is agreed to stays in the skill" \
     "$(order_check 'Say so and let them decide')" "True"
 

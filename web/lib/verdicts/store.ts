@@ -2,13 +2,15 @@ import { database } from "../db.ts";
 import type { SqlDriver } from "../db/driver.ts";
 import { prepareSchema } from "../db/migrate.ts";
 import type { AuthenticatedUser } from "../identity.ts";
-import type { Act, Film } from "./model.ts";
+import type { Act, Film, Standing } from "./model.ts";
 
 /**
  * What Slice 2 of M2 needs from persistence, and nothing beyond it.
  *
- * Two operations, because a history is append-only. Something the user said
- * goes on the end; nothing already said is ever edited. Changing their mind is
+ * Three operations, because a history is append-only. Something the user said
+ * goes on the end, one film's history comes back for the model to resolve, and
+ * what currently stands comes back for recommendation work to read. Nothing
+ * already said is ever edited. Changing their mind is
  * a later verdict, taking it back is a withdrawal, and both are acts in their
  * own right — so there is no `update` here, and nothing for one to be.
  *
@@ -47,6 +49,19 @@ export type VerdictStore = {
    * mentioned, which is silence rather than a gap.
    */
   history(film: Film): Promise<Act[]>;
+
+  /**
+   * What currently stands about every film this user has spoken about.
+   *
+   * The read recommendation work uses, and the only one that does. It answers
+   * with the projection the model builds — current claims, globally and per
+   * evening — so a superseded verdict, a withdrawn one and an evening whose
+   * refusal was taken back are absent because the model resolved them away, not
+   * because a query remembered to exclude them.
+   *
+   * Empty for somebody who has said nothing, which is the ordinary first case.
+   */
+  standing(): Promise<Standing[]>;
 };
 
 /**

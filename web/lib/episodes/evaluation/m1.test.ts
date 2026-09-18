@@ -22,6 +22,17 @@ import { TRAJECTORIES } from "./trajectories.ts";
 
 const asUser = (id: string): AuthenticatedUser => ({ id }) as AuthenticatedUser;
 
+/** A store that refuses everything but what is named, so reaching it is a failure. */
+const refusingExcept = <T>(what: string, allowed: Record<string, unknown>): T =>
+  new Proxy({} as object, {
+    get(_, name) {
+      if (typeof name === "string" && name in allowed) return allowed[name];
+      return () => {
+        throw new Error(`M1 reached the ${what} store: ${String(name)}`);
+      };
+    },
+  }) as T;
+
 /** A store that refuses everything, so reaching it is a failure and not a write. */
 const refusing = <T>(what: string): T =>
   new Proxy({} as object, {
@@ -56,11 +67,16 @@ describe("M1 — remembers the evening", () => {
           reference: "ref",
           store: sqlTasteStore(driver, asUser(who)),
           episodes: sqlEpisodeStore(driver, asUser(who)),
-          // M1's gates run against a session where verdicts and open questions
-          // refuse every call, so "nothing here concludes anything about taste"
-          // is proved rather than assumed: an episode tool that reached either
-          // would throw instead of quietly succeeding.
-          verdicts: refusing("verdict"),
+          // M1's gates run against a session where the verdict and question
+          // stores refuse every call an episode tool could make, so "nothing
+          // here concludes anything about taste" is proved rather than assumed.
+          //
+          // `standing` is the exception, and it is not a hole: reading the taste
+          // model asks the verdict store what currently stands, and gate 7 reads
+          // it before and after every trajectory. Answering with nothing is the
+          // truth for a user who has said nothing, and it keeps the refusal on
+          // every path an episode tool could actually take.
+          verdicts: refusingExcept("verdict", { standing: async () => [] }),
           questions: refusing("question"),
         }) as unknown as { _registeredTools: Record<string, Tool> }
       )._registeredTools;

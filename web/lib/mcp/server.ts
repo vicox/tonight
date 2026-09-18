@@ -269,7 +269,9 @@ const movieState = z
       "\"didn't like it\" -> disliked. Omit the " +
       "field when they have not said; that " +
       "records nothing, and it is not the same as not_seen. Pass null to go back to having " +
-      "been told nothing. These are states the user expressed, never a score or star rating.",
+      "been told nothing. These are states the user expressed, never a score or star rating — " +
+      "and never where a fresh opinion goes: what they say about a film now is a verdict, and " +
+      "`record_verdict` is what records it.",
   );
 
 const movieMixes = z
@@ -336,10 +338,44 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "it last changed — which includes a mix's genres changing and a movie being filed " +
         "differently. Both are Tonight's own, ISO 8601 in UTC. No tool takes either, and " +
         "nothing you send can set or move them. createdAt is null on a film saved before " +
-        "Tonight recorded creation times; that is not known rather than not set.",
+        "Tonight recorded creation times; that is not known rather than not set.\n\n" +
+        "`verdicts` is what they have since said about particular films, in their own words, and " +
+        "it is separate from movies on purpose: a state is how a film is filed, a verdict is what " +
+        "they told you about it. Each entry names the film and either a judgement — liked, loved " +
+        "or disliked — or a rejection: `not-ever` turns the film down for good, `not-tonight` " +
+        "turns it down for one evening and carries the `occasion` it belongs to. Where they said " +
+        "why, `because` holds their words for a judgement and `reason` for a rejection; where " +
+        "they did not, neither is there, and you have none to offer — and where they did, use their " +
+        "words as they said them and do not make them stronger: \"the tension never lets up\" is " +
+        "not \"you love tense films\". `told` says whether they " +
+        "volunteered it or answered a question you put — the first tells you more than the " +
+        "second, and neither is a number.\n\n" +
+        "A refusal reaches exactly as far as they said and no further. `not-tonight` is about " +
+        "that evening: outside it the film stands where it stood, it never becomes a dislike, " +
+        "and it is never a reason to avoid films like it. `not-ever` stops that film for good — " +
+        "that film, not its genre, its director or anything resembling it. One film refused is " +
+        "one film refused.\n\n" +
+        "Only what currently stands is here. A verdict they corrected shows as the correction and " +
+        "the one it replaced is gone from this list; one they took back is gone too, and the " +
+        "film's state in movies is what is left of what they said — unchanged, and true again. " +
+        "An evening whose refusal they withdrew has nothing of its own once more. Nothing else " +
+        "about a film reaches this list: not that you recommended it, not that they watched or " +
+        "finished it, not a question of yours waiting on an answer, and not how long any of it " +
+        "has been true.",
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async () => attempt(() => store.taste()),
+    async () =>
+      attempt(async () => {
+        // Two sources, kept apart. The taste model is what they filed; the
+        // verdicts are what they have since said about particular films, and
+        // which of those still stands is resolved by the verdict model rather
+        // than assembled here.
+        const [taste, said] = await Promise.all([store.taste(), verdicts.standing()]);
+        // Absent rather than empty for somebody who has said nothing, so a user
+        // with no verdicts reads exactly as they did before this existed —
+        // there is nothing to say about them, and an empty list says it anyway.
+        return said.length === 0 ? taste : { ...taste, verdicts: said };
+      }),
   );
 
   server.registerTool(
@@ -455,7 +491,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Save a movie",
       description:
-        "Record a film the user told you about, and what they said about it. A recommendation " +
+        "File a film the user told you about, with the state it carries. What they are telling " +
+        "you about a film — that they loved it, that it is not for tonight, that they never want " +
+        "it again — is a verdict and belongs to `record_verdict`; it is never written here as a " +
+        "state. A recommendation " +
         "is not a saved movie: naming three films persists nothing, and neither does the user " +
         "liking your suggestion of one. Write only Movie identity and state the user expressed, " +
         "or a meaning you put to them and they confirmed — and a confirmation covers only the " +
@@ -487,7 +526,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "by its current title and year; new_title and new_year change either half and the film " +
         "stays the same object, so its filings follow it. Omitting a field leaves it alone — " +
         "passing null is what clears one back to unknown, and the two are not the same. " +
-        "Absence is never not_seen: say a state only when they said it. A recommendation is " +
+        "Absence is never not_seen: say a state only when they said it. What they are telling " +
+        "you now about a film is a verdict, not a state: `record_verdict` records it, and " +
+        "`withdraw_verdict` takes one back, after which the state stored here is what is left. " +
+        "A recommendation is " +
         "not a saved movie here either — proposing a film, or the user watching one you " +
         "proposed, is nothing Tonight knows unless they said so. Write only what they " +
         "expressed or confirmed, and a confirmation covers only the meaning they were shown; " +
