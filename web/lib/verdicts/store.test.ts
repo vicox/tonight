@@ -1,0 +1,430 @@
+import assert from "node:assert/strict";
+import test, { after, before, describe } from "node:test";
+
+import type { SqlDriver } from "../db/driver.ts";
+import { migrate } from "../db/migrate.ts";
+import { embeddedDriver } from "../db/pglite.ts";
+import type { AuthenticatedUser } from "../identity.ts";
+import {
+  current,
+  stateVerdict,
+  supersession,
+  VerdictError,
+  withdrawVerdict,
+  type Act,
+  type Film,
+} from "./model.ts";
+import type { VerdictStore } from "./store.ts";
+import { sqlVerdictStore, VERDICTS_SCHEMA } from "./store/sql.ts";
+
+/**
+ * The verdict store, held to one question: does a claim mean the same thing
+ * after a round trip as it did before?
+ *
+ * Persistence is where a model gets flattened. A scope becomes a boolean, an
+ * absent explanation becomes an empty string, a withdrawal becomes a row with a
+ * neutral value in it, and each of those is a small convenience that changes
+ * what Tonight believes about somebody. So most of these contracts write
+ * something, read it back, and ask the *model* what it means — because the model
+ * is what the rest of the product will ask.
+ */
+
+const asUser = (id: string): AuthenticatedUser => ({ id }) as AuthenticatedUser;
+
+const prisoners: Film = { title: "Prisoners", year: 2013 };
+const zodiac: Film = { title: "Zodiac", year: 2007 };
+const TUESDAY = { occasion: "evening-1" };
+const WEDNESDAY = { occasion: "evening-2" };
+
+const judged = (judgement: "liked" | "loved" | "disliked", at: string, because: string | null = null) =>
+  stateVerdict(prisoners, { about: "judgement", judgement, because }, "volunteered", at);
+
+const notTonight = (at: string, scope = TUESDAY, reason: string | null = null) =>
+  stateVerdict(prisoners, { about: "rejection", rejection: { reach: "not-tonight", reason } }, "confirmed", at, scope);
+
+const notEver = (at: string, reason: string | null = null) =>
+  stateVerdict(prisoners, { about: "rejection", rejection: { reach: "not-ever", reason } }, "volunteered", at);
+
+describe("the verdict store", () => {
+  let driver: SqlDriver;
+  let ana: VerdictStore;
+  let ben: VerdictStore;
+
+  before(async () => {
+    driver = await embeddedDriver();
+    await migrate(driver, VERDICTS_SCHEMA);
+    ana = sqlVerdictStore(driver, asUser("google:ana"));
+    ben = sqlVerdictStore(driver, asUser("google:ben"));
+  });
+
+  after(async () => {
+    await driver.close();
+  });
+
+  /** A fresh film per test, so histories cannot leak into one another. */
+  let next = 0;
+  const film = (): Film => ({ title: `Subject ${String(++next)}`, year: 2013 });
+  const about = (f: Film, act: Act): Act => ({ ...act, film: f }) as Act;
+
+  /* ------------------------------------------------------------- round trip */
+
+  test("a judgement survives the round trip as the same claim", async () => {
+    const f = film();
+    const given = await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z", "the tension never lets up")));
+    const [back] = await ana.history(f);
+    assert.deepEqual(back, given);
+    assert.equal(back?.said, "verdict");
+    assert.deepEqual((back as { assertion: unknown }).assertion, {
+      about: "judgement",
+      judgement: "loved",
+      because: "the tension never lets up",
+    });
+  });
+
+  test("a rejection survives as a rejection, not as a judgement", async () => {
+    const f = film();
+    await ana.say(about(f, notEver("2026-01-01T20:00:00.000Z", "three hours of misery")));
+    const [back] = await ana.history(f);
+    const assertion = (back as { assertion: { about: string; rejection?: unknown } }).assertion;
+    assert.equal(assertion.about, "rejection");
+    assert.deepEqual(assertion.rejection, { reach: "not-ever", reason: "three hours of misery" });
+    assert.equal("judgement" in assertion, false, "a rejection came back carrying a judgement");
+  });
+
+  /* ---------------------------------------------------------------- scope */
+
+  test("a global verdict comes back global", async () => {
+    const f = film();
+    await ana.say(about(f, judged("liked", "2026-01-01T20:00:00.000Z")));
+    const [back] = await ana.history(f);
+    assert.equal((back as { scope: unknown }).scope, "everywhere");
+  });
+
+  test("a not-tonight refusal comes back with the exact evening", async () => {
+    const f = film();
+    await ana.say(about(f, notTonight("2026-01-01T20:00:00.000Z", TUESDAY, "too long")));
+    const [back] = await ana.history(f);
+    assert.deepEqual((back as { scope: unknown }).scope, TUESDAY, "a local refusal came back global");
+    // And it still behaves as local: invisible globally, standing in its evening.
+    const history = await ana.history(f);
+    assert.equal(current(history), null);
+    assert.deepEqual(current(history, TUESDAY), back);
+  });
+
+  test("one evening cannot contaminate another", async () => {
+    const f = film();
+    const tuesday = await ana.say(about(f, notTonight("2026-01-01T20:00:00.000Z", TUESDAY, "too long")));
+    const wednesday = await ana.say(about(f, notTonight("2026-02-01T20:00:00.000Z", WEDNESDAY, "not tonight either")));
+    const history = await ana.history(f);
+    assert.deepEqual(current(history, TUESDAY), tuesday);
+    assert.deepEqual(current(history, WEDNESDAY), wednesday);
+    assert.equal(current(history, "everywhere"), null);
+    assert.deepEqual(supersession(history), [], "one evening superseded another across the round trip");
+  });
+
+  test("the global base stays available outside the occasion", async () => {
+    const f = film();
+    const judgement = await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
+    await ana.say(about(f, notTonight("2026-02-01T20:00:00.000Z")));
+    const history = await ana.history(f);
+    assert.deepEqual(current(history, "everywhere"), judgement);
+    assert.deepEqual(current(history, WEDNESDAY), judgement, "an unrelated evening lost the base");
+  });
+
+  /* ----------------------------------------------------------- withdrawal */
+
+  test("a global withdrawal leaves silence, not a neutral verdict", async () => {
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
+    const taken = await ana.say(about(f, withdrawVerdict(f, "2026-03-01T20:00:00.000Z")));
+    assert.equal(taken.said, "withdrawal");
+    const history = await ana.history(f);
+    assert.equal(current(history), null);
+    assert.equal(history.length, 2, "the withdrawal replaced the verdict instead of following it");
+  });
+
+  test("a local withdrawal reaches only its own evening", async () => {
+    const f = film();
+    const judgement = await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
+    await ana.say(about(f, notTonight("2026-02-01T20:00:00.000Z")));
+    await ana.say(about(f, withdrawVerdict(f, "2026-03-01T20:00:00.000Z", TUESDAY)));
+    const history = await ana.history(f);
+    assert.deepEqual(current(history, TUESDAY), judgement, "the evening did not fall back to the base");
+    assert.deepEqual(current(history, "everywhere"), judgement, "a local withdrawal reached the global claim");
+  });
+
+  test("a withdrawal does not resurrect an earlier verdict", async () => {
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
+    await ana.say(about(f, judged("liked", "2026-02-01T20:00:00.000Z")));
+    await ana.say(about(f, withdrawVerdict(f, "2026-03-01T20:00:00.000Z")));
+    assert.equal(current(await ana.history(f)), null);
+  });
+
+  /* ------------------------------------------ explanation and provenance */
+
+  test("their explanation survives byte for byte", async () => {
+    const f = film();
+    const words = "I loved it because the tension never lets up — even the quiet scenes.";
+    await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z", words)));
+    const [back] = await ana.history(f);
+    assert.equal((back as { assertion: { because: string } }).assertion.because, words);
+  });
+
+  test("an absent explanation stays absent rather than becoming empty text", async () => {
+    const f = film();
+    await ana.say(about(f, judged("liked", "2026-01-01T20:00:00.000Z", null)));
+    const [back] = await ana.history(f);
+    const assertion = (back as { assertion: { because: string | null } }).assertion;
+    assert.equal(assertion.because, null, "a missing explanation came back as something");
+    assert.notEqual(assertion.because, "");
+  });
+
+  test("a rejection's reason stays the rejection's, and absent stays absent", async () => {
+    const f = film();
+    await ana.say(about(f, notEver("2026-01-01T20:00:00.000Z")));
+    const [back] = await ana.history(f);
+    const assertion = (back as { assertion: { rejection: { reason: string | null }; because?: unknown } }).assertion;
+    assert.equal(assertion.rejection.reason, null);
+    assert.equal("because" in assertion, false, "a judgement's facet appeared on a rejection");
+  });
+
+  test("volunteered and confirmed do not collapse into each other", async () => {
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
+    await ana.say(
+      about(f, stateVerdict(f, { about: "judgement", judgement: "liked" }, "confirmed", "2026-02-01T20:00:00.000Z")),
+    );
+    const history = await ana.history(f);
+    assert.deepEqual(history.map((act) => (act.said === "verdict" ? act.told : null)), [
+      "volunteered",
+      "confirmed",
+    ]);
+  });
+
+  /* --------------------------------------------------------------- time */
+
+  test("a canonical instant survives the round trip", async () => {
+    const f = film();
+    // Written with an offset; the model canonicalises, and the database must
+    // hand back the same instant rather than a local rendering of it.
+    await ana.say(about(f, judged("loved", "2026-01-01T21:00:00+01:00")));
+    const [back] = await ana.history(f);
+    assert.equal(back?.at, "2026-01-01T20:00:00.000Z");
+  });
+
+  test("standing does not depend on the order rows come back in", async () => {
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-03-01T20:00:00.000Z")));
+    await ana.say(about(f, judged("disliked", "2026-01-01T20:00:00.000Z")));
+    const history = await ana.history(f);
+    const shuffled = [...history].reverse();
+    assert.deepEqual(current(history), current(shuffled));
+    assert.deepEqual(supersession(history), supersession(shuffled));
+    // And it is the later claim that stands, whatever order it was written in.
+    assert.equal((current(history) as { assertion: { judgement: string } }).assertion.judgement, "loved");
+  });
+
+  test("two claims at the same instant resolve the same way after a round trip", async () => {
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
+    await ana.say(about(f, judged("disliked", "2026-01-01T20:00:00.000Z")));
+    const history = await ana.history(f);
+    assert.deepEqual(current(history), current([...history].reverse()));
+  });
+
+  /* ---------------------------------------------------------- isolation */
+
+  test("one user cannot read another's verdicts", async () => {
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
+    assert.deepEqual(await ben.history(f), [], "another user's history was readable");
+  });
+
+  test("one user cannot withdraw another's verdict", async () => {
+    const f = film();
+    const hers = await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
+    // Ben can say what he likes; it lands in his own history and leaves hers be.
+    await ben.say(about(f, withdrawVerdict(f, "2026-03-01T20:00:00.000Z")));
+    assert.deepEqual(current(await ana.history(f)), hers, "a stranger's withdrawal reached her claim");
+    assert.equal(current(await ben.history(f)), null);
+  });
+
+  test("identical histories about the same film stay apart", async () => {
+    const f = film();
+    const mine = judged("loved", "2026-01-01T20:00:00.000Z", "the same words");
+    await ana.say(about(f, mine));
+    await ben.say(about(f, mine));
+    const hers = await ana.history(f);
+    const his = await ben.history(f);
+    assert.equal(hers.length, 1);
+    assert.equal(his.length, 1);
+    await ana.say(about(f, withdrawVerdict(f, "2026-03-01T20:00:00.000Z")));
+    assert.equal(current(await ana.history(f)), null);
+    assert.deepEqual(current(await ben.history(f)), his[0], "her withdrawal reached his claim");
+  });
+
+  /* ------------------------------------------------- the boundary, again */
+
+  test("a malformed act is refused rather than written", async () => {
+    const f = film();
+    const sound = judged("loved", "2026-01-01T20:00:00.000Z");
+    for (const broken of [
+      { ...sound, told: "observed" },
+      { ...sound, claimant: "agent" },
+      { ...sound, assertion: { about: "judgement", judgement: "adored", because: null } },
+      { ...sound, at: "whenever" },
+      { ...sound, scope: { occasion: "" } },
+    ]) {
+      await assert.rejects(() => ana.say(about(f, broken as unknown as Act)), VerdictError);
+    }
+    assert.deepEqual(await ana.history(f), [], "a refused act was written anyway");
+  });
+
+  test("an act that is neither a verdict nor a withdrawal is refused", async () => {
+    // Not "anything that is not a withdrawal is a verdict". An unknown
+    // discriminator is an object this model has no shape for, and the only
+    // honest answer is to refuse it — treating it as the nearest valid kind
+    // writes down a claim whose own label said it was something else.
+    const f = film();
+    const sound = judged("loved", "2026-01-01T20:00:00.000Z");
+    for (const said of ["opinion", "verdict-ish", "", "VERDICT", null, undefined, 1, {}]) {
+      await assert.rejects(
+        () => ana.say(about(f, { ...sound, said } as unknown as Act)),
+        VerdictError,
+        `said: ${JSON.stringify(said)} was accepted`,
+      );
+    }
+    assert.deepEqual(await ana.history(f), [], "an unknown act was written anyway");
+  });
+
+  test("a withdrawal carrying a verdict's facets is refused, not trimmed", async () => {
+    // Silently dropping the extra fields would turn a malformed object into a
+    // valid, different claim — the normalisation this boundary exists to refuse.
+    const f = film();
+    const taking = withdrawVerdict(f, "2026-03-01T20:00:00.000Z");
+    for (const extra of [
+      { told: "volunteered" },
+      { told: "confirmed" },
+      { assertion: { about: "judgement", judgement: "loved", because: null } },
+      { assertion: { about: "rejection", rejection: { reach: "not-ever", reason: null } } },
+      { judgement: "loved" },
+      { because: "it earns its length" },
+      { reach: "not-ever" },
+      { reason: "too long" },
+    ]) {
+      await assert.rejects(
+        () => ana.say({ ...taking, ...extra } as unknown as Act),
+        VerdictError,
+        `a withdrawal carrying ${Object.keys(extra).join(", ")} was accepted`,
+      );
+    }
+    assert.deepEqual(await ana.history(f), [], "a refused withdrawal was written anyway");
+  });
+
+  test("a refused act leaves no row behind, in the table itself", async () => {
+    const f = film();
+    const sound = judged("loved", "2026-01-01T20:00:00.000Z");
+    await assert.rejects(() => ana.say(about(f, { ...sound, said: "opinion" } as unknown as Act)), VerdictError);
+    await assert.rejects(
+      () => ana.say({ ...withdrawVerdict(f, "2026-03-01T20:00:00.000Z"), told: "volunteered" } as unknown as Act),
+      VerdictError,
+    );
+    // Read past the store, because the store is what is on trial.
+    const rows = await driver.query<{ n: string }>(
+      "SELECT count(*) AS n FROM tonight_verdict_acts WHERE title = $1",
+      [f.title],
+    );
+    assert.equal(Number(rows[0]?.n), 0, "a rejected act reached the table");
+  });
+
+  test("a valid withdrawal still round-trips untouched", async () => {
+    // The positive control for the two refusals above: the shape they guard is
+    // still the shape that works.
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
+    const taken = await ana.say(withdrawVerdict(f, "2026-03-01T20:00:00.000Z", TUESDAY));
+    const history = await ana.history(f);
+    const back = history.find((act) => act.said === "withdrawal");
+    assert.deepEqual(back, taken);
+    assert.deepEqual(back, {
+      said: "withdrawal",
+      claimant: "user",
+      film: f,
+      scope: TUESDAY,
+      at: "2026-03-01T20:00:00.000Z",
+    });
+  });
+
+  test("a malformed film is refused rather than matching nothing", async () => {
+    for (const notAFilm of [{ title: "", year: 2013 }, { title: "x", year: 2013.5 }]) {
+      await assert.rejects(() => ana.history(notAFilm as Film), VerdictError);
+    }
+  });
+
+  /* --------------------------------------- what the table refuses by itself */
+
+  test("the schema refuses what the model refuses, for writers that skip it", async () => {
+    // A migration, a repair script or a restore never passes through a
+    // constructor. The invariant that an evening's refusal cannot become a fact
+    // about the film is one nobody should be able to write by hand either.
+    const insert = (columns: string, values: string) =>
+      driver.query(
+        `INSERT INTO tonight_verdict_acts (user_id, title, year, said_at, ${columns})
+              VALUES ('google:ana', 'Direct', 2013, now(), ${values})`,
+      );
+
+    for (const [what, columns, values] of [
+      ["a global not-tonight", "said, told, about, reach", "'verdict', 'volunteered', 'rejection', 'not-tonight'"],
+      ["a scoped not-ever", "said, told, about, reach, occasion", "'verdict', 'volunteered', 'rejection', 'not-ever', 'evening-1'"],
+      ["a scoped judgement", "said, told, about, judgement, occasion", "'verdict', 'volunteered', 'judgement', 'loved', 'evening-1'"],
+      ["an observed provenance", "said, told, about, judgement", "'verdict', 'observed', 'judgement', 'loved'"],
+      ["an invented judgement", "said, told, about, judgement", "'verdict', 'volunteered', 'judgement', 'adored'"],
+      ["an empty explanation", "said, told, about, judgement, because", "'verdict', 'volunteered', 'judgement', 'loved', '   '"],
+      ["a withdrawal that judges", "said, about, judgement", "'withdrawal', 'judgement', 'loved'"],
+      ["a verdict asserting nothing", "said, told", "'verdict', 'volunteered'"],
+      ["an act that is neither", "said, told, about, judgement", "'opinion', 'volunteered', 'judgement', 'loved'"],
+      ["an assertion about neither", "said, told, about, judgement", "'verdict', 'volunteered', 'feeling', 'loved'"],
+      ["a judgement carrying a reach", "said, told, about, judgement, reach", "'verdict', 'volunteered', 'judgement', 'loved', 'not-ever'"],
+      ["a rejection carrying a judgement", "said, told, about, reach, judgement", "'verdict', 'volunteered', 'rejection', 'not-ever', 'loved'"],
+    ] as [string, string, string][]) {
+      await assert.rejects(() => insert(columns, values), `the table accepted ${what}`);
+    }
+  });
+
+  test("nothing here answers a question about taste", async () => {
+    const source = await import("node:fs").then((fs) =>
+      fs.readFileSync(new URL("store/sql.ts", import.meta.url), "utf8"),
+    );
+    const code = source.replace(/\/\*\*[\s\S]*?\*\//gu, "").replace(/^[ \t]*\/\/.*$/gmu, "");
+    for (const forbidden of ["count(", "group by", "tonight_movies", "tonight_genres", "tonight_mixes", "tonight_episodes"]) {
+      assert.equal(code.toLowerCase().includes(forbidden), false, `${forbidden} appears in the verdict store`);
+    }
+    // And standing is not resolved in SQL: that rule lives in the model.
+    for (const owned of ["superseded", "current", "latest"]) {
+      assert.equal(new RegExp(`\\b${owned}\\b`, "iu").test(code), false, `${owned} is decided in SQL`);
+    }
+  });
+
+  test("the store offers no way to change what was said", () => {
+    assert.deepEqual(Object.keys(ana).sort(), ["history", "say"]);
+    for (const generic of ["update", "upsert", "set", "delete", "forget", "correct"]) {
+      assert.equal(generic in ana, false, `${generic} appeared on the verdict store`);
+    }
+  });
+
+  test("a film with nothing said about it has an empty history, not a gap", async () => {
+    assert.deepEqual(await ana.history(zodiac), []);
+    assert.equal(current(await ana.history(zodiac)), null);
+  });
+
+  test("histories of different films do not run together", async () => {
+    const one = film();
+    const two = film();
+    await ana.say(about(one, judged("loved", "2026-01-01T20:00:00.000Z")));
+    await ana.say(about(two, judged("disliked", "2026-02-01T20:00:00.000Z")));
+    assert.equal((await ana.history(one)).length, 1);
+    assert.equal((await ana.history(two)).length, 1);
+    assert.equal((current(await ana.history(one)) as { assertion: { judgement: string } }).assertion.judgement, "loved");
+  });
+});
