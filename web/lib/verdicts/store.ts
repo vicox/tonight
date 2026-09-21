@@ -7,10 +7,11 @@ import type { Act, Film, Standing } from "./model.ts";
 /**
  * What Slice 2 of M2 needs from persistence, and nothing beyond it.
  *
- * Three operations, because a history is append-only. Something the user said
- * goes on the end, one film's history comes back for the model to resolve, and
- * what currently stands comes back for recommendation work to read. Nothing
- * already said is ever edited. Changing their mind is
+ * Four operations, because a history is append-only. Something the user said
+ * goes on the end, one film's history comes back for the model to resolve, what
+ * currently stands comes back for recommendation work to read, and the whole
+ * act set comes back for anything that has to account for the history rather
+ * than act on it. Nothing already said is ever edited. Changing their mind is
  * a later verdict, taking it back is a withdrawal, and both are acts in their
  * own right — so there is no `update` here, and nothing for one to be.
  *
@@ -49,6 +50,27 @@ export type VerdictStore = {
    * mentioned, which is silence rather than a gap.
    */
   history(film: Film): Promise<Act[]>;
+
+  /**
+   * Every act this user has performed, about every film.
+   *
+   * The complete root set: verdicts that stand, verdicts that were superseded,
+   * and withdrawals. Nothing is resolved and nothing is filtered but ownership.
+   *
+   * ## Why `standing` and `history` cannot serve between them
+   *
+   * They can, until somebody takes back everything they ever said about a film.
+   * `standing` answers with what currently holds, so that film is simply absent
+   * from it — and a caller that never learns the film's name cannot ask
+   * `history` for it either. The film disappears from both, which is correct for
+   * recommendation work and wrong for anything that has to give an honest
+   * account of what was said. Completeness is this read's whole purpose.
+   *
+   * Grouping and ordering belong to the caller and the model. The rows arrive in
+   * a stable, convenient order and that order is never the answer, exactly as
+   * `history` documents.
+   */
+  acts(): Promise<Act[]>;
 
   /**
    * What currently stands about every film this user has spoken about.

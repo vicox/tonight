@@ -47,6 +47,30 @@ export { VERDICTS_SCHEMA };
 export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): VerdictStore {
   const owner = user.id;
 
+  /**
+   * Every act this user has performed, in a stable read order.
+   *
+   * Named apart from the surface because two entries use it: `acts` hands it
+   * over whole, and `standing` groups it by film before asking the model what
+   * each film's history means. One statement rather than two keeps those two
+   * from ever disagreeing about which rows exist.
+   *
+   * `title, year` keeps a film's acts together for that grouping; `said_at, seq,
+   * id` is the same stable tiebreak `history` uses. None of it is the answer —
+   * the model orders by the instant the user spoke.
+   */
+  const everything = async (): Promise<Act[]> => {
+    const rows = await driver.query<ActRow>(
+      `SELECT said, title, year, occasion, said_at,
+              told, about, judgement, because, reach, reason, seq
+         FROM tonight_verdict_acts
+        WHERE user_id = $1
+        ORDER BY title, year, said_at, seq, id`,
+      [owner],
+    );
+    return rows.map(assemble);
+  };
+
   return {
     async say(act: Act): Promise<Act> {
       // Revalidated rather than trusted. `say` is a boundary — an act can reach
@@ -104,22 +128,19 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
       return rows.map(assemble);
     },
 
+    acts: everything,
+
     async standing(): Promise<Standing[]> {
       // One read, grouped in memory rather than in SQL. Which claim stands, and
       // how an evening layers over the global base, is the model's rule and has
       // contracts on it; resolving it a second time here in SQL would be a
       // second implementation free to drift from the one that is tested.
-      const rows = await driver.query<ActRow>(
-        `SELECT said, title, year, occasion, said_at,
-                told, about, judgement, because, reach, reason, seq
-           FROM tonight_verdict_acts
-          WHERE user_id = $1
-          ORDER BY title, year, said_at, seq, id`,
-        [owner],
-      );
+      //
+      // The read itself is `acts`, so the complete set and the projection of it
+      // cannot disagree about which rows exist: there is one statement, and this
+      // adds only the grouping the model needs.
       const films = new Map<string, Act[]>();
-      for (const row of rows) {
-        const act = assemble(row);
+      for (const act of await everything()) {
         const key = `${act.film.title}\u0000${String(act.film.year)}`;
         films.set(key, [...(films.get(key) ?? []), act]);
       }

@@ -548,10 +548,150 @@ describe("the verdict store", () => {
   });
 
   test("the store offers no way to change what was said", () => {
-    assert.deepEqual(Object.keys(ana).sort(), ["history", "say", "standing"]);
+    assert.deepEqual(Object.keys(ana).sort(), ["acts", "history", "say", "standing"]);
     for (const generic of ["update", "upsert", "set", "delete", "forget", "correct"]) {
       assert.equal(generic in ana, false, `${generic} appeared on the verdict store`);
     }
+  });
+
+  /* ------------------------------------------------------- the complete set */
+
+  /**
+   * `acts` exists for one reason, and this is it.
+   *
+   * `standing` answers with what currently holds, so a film the user took every
+   * word back about is absent from it — correctly, because nothing stands there.
+   * `history` could still tell that film's story, but only to a caller who
+   * already knows its name, and the only place that name was going to come from
+   * was `standing`. Between them the film becomes unreachable, and an account of
+   * what somebody has told Tonight that silently omits the things they retracted
+   * is not an honest account.
+   */
+  test("a film withdrawn to silence is gone from standing and still in acts", async () => {
+    const f = film();
+    await ana.say(about(f, judged("liked", "2026-05-01T20:00:00.000Z")));
+    await ana.say(withdrawVerdict(f, "2026-05-02T20:00:00.000Z"));
+
+    const standing = await ana.standing();
+    assert.equal(
+      standing.some((held) => held.title === f.title),
+      false,
+      "a withdrawn film still stands",
+    );
+    assert.equal(current(await ana.history(f)), null);
+
+    const mine = (await ana.acts()).filter((act) => act.film.title === f.title);
+    assert.equal(mine.length, 2, "the withdrawn film is unreachable from acts");
+    assert.deepEqual(mine.map((act) => act.said).sort(), ["verdict", "withdrawal"]);
+  });
+
+  /**
+   * Completeness, checked against something `acts` did not supply.
+   *
+   * The films are named here and the store is this contract's own. Both matter,
+   * and the first one is the point: asking `acts` which films exist and then
+   * checking `acts` against those films is a question that answers itself — a
+   * read that lost a film entirely would lose it from the list derived from that
+   * read too, nobody would call `history` for it, and the contract would pass by
+   * agreeing with itself. So the two films are written down, and the expected
+   * roots come from `history`, which reads through its own statement.
+   *
+   * The history is deliberately more than what stands. `Union A` ends withdrawn,
+   * so it has no standing claim at all — a read that quietly answered with the
+   * current picture would come back two acts short.
+   */
+  test("acts is the union of every film's history", async () => {
+    const mine = sqlVerdictStore(driver, asUser("google:union"));
+    const a: Film = { title: "Union A", year: 2011 };
+    const b: Film = { title: "Union B", year: 2012 };
+
+    await mine.say(about(a, judged("loved", "2026-05-03T20:00:00.000Z", "the tension")));
+    await mine.say(about(a, judged("disliked", "2026-05-04T20:00:00.000Z")));
+    await mine.say(withdrawVerdict(a, "2026-05-05T20:00:00.000Z"));
+    await mine.say(about(b, notTonight("2026-05-06T20:00:00.000Z")));
+    await mine.say(about(b, judged("liked", "2026-05-07T20:00:00.000Z")));
+
+    const expected = [...(await mine.history(a)), ...(await mine.history(b))];
+    // Guards the oracle itself: if both reads broke the same way, two empty sets
+    // would agree and this contract would say nothing.
+    assert.equal(expected.length, 5, "the expected roots did not come back from history");
+    // And the fixture genuinely exceeds what stands: A is withdrawn to silence,
+    // so a read that answered with the current picture would be short by three.
+    const standing = await mine.standing();
+    assert.equal(standing.some((held) => held.title === a.title), false, "Union A still stands");
+    assert.ok(standing.length < expected.length, "the fixture no longer exceeds standing");
+
+    // As a set: the read order is a convenience, and a contract that depended on
+    // it would be pinning the database's convenience rather than the answer.
+    const asSet = (acts: Act[]) => acts.map((act) => JSON.stringify(act)).sort();
+    assert.deepEqual(asSet(await mine.acts()), asSet(expected));
+  });
+
+  test("acts resolves nothing — superseded, withdrawn and scoped all survive", async () => {
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-05-07T20:00:00.000Z", "the tension")));
+    await ana.say(about(f, judged("disliked", "2026-05-08T20:00:00.000Z")));
+    await ana.say(about(f, notTonight("2026-05-09T20:00:00.000Z", WEDNESDAY, "too long")));
+    await ana.say(withdrawVerdict(f, "2026-05-10T20:00:00.000Z", WEDNESDAY));
+
+    const mine = (await ana.acts()).filter((act) => act.film.title === f.title);
+    assert.equal(mine.length, 4, "an act was collapsed away");
+
+    // The superseded claim is still there, with the words it was given.
+    const displaced = mine.find(
+      (act) => act.said === "verdict" && JSON.stringify(act).includes("the tension"),
+    );
+    assert.ok(displaced, "the superseded verdict was resolved away");
+    // Nothing here is a Standing: no projection, no status, no ranking.
+    for (const act of mine) {
+      assert.ok(act.said === "verdict" || act.said === "withdrawal");
+      assert.equal("judgement" in act, false, "acts returned a projection rather than an act");
+      assert.equal("rejected" in act, false, "acts returned a projection rather than an act");
+    }
+    // And the model still reduces them to one standing claim.
+    assert.equal((await ana.standing()).filter((held) => held.title === f.title).length, 1);
+  });
+
+  test("acts never reaches another user, and says nothing about theirs", async () => {
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-05-11T20:00:00.000Z")));
+    await ben.say(about(f, judged("disliked", "2026-05-12T20:00:00.000Z")));
+
+    const hers = (await ben.acts()).filter((act) => act.film.title === f.title);
+    assert.equal(hers.length, 1, "acts crossed users");
+    assert.equal(
+      JSON.stringify(hers).includes("loved"),
+      false,
+      "another user's claim was visible through acts",
+    );
+    // And the owner is unaffected by the other's write.
+    const mine = (await ana.acts()).filter((act) => act.film.title === f.title);
+    assert.equal(mine.length, 1);
+    assert.equal(JSON.stringify(mine).includes("disliked"), false);
+  });
+
+  test("the user predicate is a statement, not a convention", async () => {
+    // A mutation removing `WHERE user_id` from the complete read would leave the
+    // contract above to catch it at runtime. This catches it in the source, the
+    // way the store's other SQL contracts do: the one statement that reads every
+    // act must name its owner.
+    const source = await import("node:fs").then((fs) =>
+      fs.readFileSync(new URL("store/sql.ts", import.meta.url), "utf8"),
+    );
+    const reads = [...source.matchAll(/FROM tonight_verdict_acts([\s\S]*?)`/gu)];
+    assert.ok(reads.length >= 2, "the verdict store no longer has the reads this pins");
+    for (const [, clause] of reads) {
+      assert.match(clause, /WHERE user_id = \$1/u, "a read of the act table is not bound to its owner");
+    }
+  });
+
+  test("two reads of the complete set agree", async () => {
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-05-13T20:00:00.000Z")));
+    await ana.say(withdrawVerdict(f, "2026-05-14T20:00:00.000Z"));
+    const once = await ana.acts();
+    const again = await ana.acts();
+    assert.deepEqual(once, again, "the complete set was not stable across reads");
   });
 
   test("a film with nothing said about it has an empty history, not a gap", async () => {
