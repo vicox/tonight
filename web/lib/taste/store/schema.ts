@@ -821,5 +821,101 @@ export const TASTE_SCHEMA: SchemaModule = {
         DROP FUNCTION tonight_movie_liked_of(text);
       `,
     },
+    {
+      version: 8,
+      // The film's canonical name, stored rather than derived.
+      //
+      // Until now the only thing that decided whether two spellings were one
+      // movie was Postgres, on a unique index over `lower(title)`. That worked
+      // while the taste model was the only reader. It stopped working when
+      // verdicts arrived: which verdict stands is resolved in memory, so
+      // JavaScript has to decide which acts are one film's, and the two answers
+      // disagree in both directions — Postgres folds `İ` and `i` together where
+      // JavaScript keeps them apart, and JavaScript folds `Ⱟ` and `ⱟ` together
+      // where Postgres keeps them apart. One film with two current verdicts, or
+      // two films merged into one history.
+      //
+      // So the direction is reversed. `lib/films/identity.ts` produces the
+      // canonical name, this column stores it, and nothing folds a title on its
+      // own any more.
+      sql: `
+        ALTER TABLE tonight_movies ADD COLUMN canonical_title text;
+      `,
+    },
+    {
+      version: 9,
+      /**
+       * Names every film the way the domain names one, then makes that the
+       * identity.
+       *
+       * ## Why this step is code and not SQL
+       *
+       * Because SQL cannot run the rule. That is the point of the rule not
+       * being `lower()`.
+       *
+       * ## Why it is safe to require the migration before the new build
+       *
+       * `canonical_title` is NOT NULL at the end of this, so a build that has
+       * never heard of the column cannot write a movie afterwards. Tonight
+       * accepts that: this migration is applied with the application out of
+       * service, and old and new builds are never writing at once. That is a
+       * decision rather than an oversight, and `migrate.test.ts` records it.
+       *
+       * ## What happens if two existing films collide
+       *
+       * Nothing, loudly. Two rows can have survived the old `lower(title)`
+       * index and still canonicalise to one name — the `Ⱟ`/`ⱟ` case above.
+       * Merging them would mean choosing between two states the user set, two
+       * imdb ids and two sets of filings, and there is no non-arbitrary choice;
+       * deleting one loses something they said. So this refuses, names the two
+       * films, and leaves the database exactly as it was. A deploy that stops
+       * is recoverable. A merge is not.
+       */
+      run: async (tx) => {
+        const { canonicalTitle } = await import("../../films/identity.ts");
+
+        // Naming a film is not changing it. `tonight_movies_written_at` stamps
+        // `updated_at` on every UPDATE, so writing the canonical name through
+        // it would tell every user that every film they have was touched today
+        // — and `updated_at` is on the read, so they would see it.
+        await tx.exec("ALTER TABLE tonight_movies DISABLE TRIGGER tonight_movies_written_at;");
+
+        const rows = await tx.query<{ id: string; user_id: string; title: string; year: number }>(
+          "SELECT id, user_id, title, year FROM tonight_movies",
+        );
+        const seen = new Map<string, string>();
+        for (const row of rows) {
+          const key = `${row.user_id}\u0000${canonicalTitle(row.title)}\u0000${String(row.year)}`;
+          const already = seen.get(key);
+          if (already !== undefined) {
+            throw new Error(
+              "Two saved films now have the same name and Tonight will not choose between " +
+                `them: ${JSON.stringify(already)} and ${JSON.stringify(row.title)} (${String(row.year)}). ` +
+                "Rename one of them, then run the migration again. Nothing has been changed.",
+            );
+          }
+          seen.set(key, row.title);
+          await tx.query("UPDATE tonight_movies SET canonical_title = $1 WHERE id = $2", [
+            canonicalTitle(row.title),
+            row.id,
+          ]);
+        }
+
+        await tx.exec(`
+          ALTER TABLE tonight_movies ENABLE TRIGGER tonight_movies_written_at;
+
+          ALTER TABLE tonight_movies ALTER COLUMN canonical_title SET NOT NULL;
+          ALTER TABLE tonight_movies
+            ADD CONSTRAINT tonight_movies_canonical CHECK (btrim(canonical_title) <> '');
+
+          -- The handle. What the domain calls this film, compared as stored.
+          -- Postgres no longer folds anything, so there is nothing left for it
+          -- and JavaScript to disagree about.
+          DROP INDEX tonight_movies_identity;
+          CREATE UNIQUE INDEX tonight_movies_identity
+            ON tonight_movies (user_id, canonical_title, year);
+        `);
+      },
+    },
   ],
 };

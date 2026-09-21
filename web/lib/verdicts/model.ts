@@ -1,3 +1,7 @@
+import { filmKey } from "../films/identity.ts";
+
+export { filmKey };
+
 /**
  * What the user said about a film, where it applies, and how they came to say it.
  *
@@ -531,7 +535,7 @@ function canonical(act: Act): unknown {
 const scopeKey = (scope: Scope): string =>
   scope === "everywhere" ? "everywhere" : `occasion:${scope.occasion}`;
 
-const key = (film: Film): string => `${film.title} ${String(film.year)}`;
+const key = filmKey;
 
 /**
  * An act from anywhere, checked as thoroughly as one built here.

@@ -968,13 +968,60 @@ for (const driver of drivers) {
       assert.match(await refusal(alice.createMovie({ title: "dune", year: 2021 })), /already exists/);
     });
 
+    /**
+     * Which two spellings are one film, asserted in both directions.
+     *
+     * These two cases are the whole reason the identity moved out of Postgres.
+     * They are written as consequences of the domain's rule, never as "whatever
+     * the database does" — and each fails if the unique index goes back to
+     * `lower(title)`, because Postgres answers them the other way round.
+     */
+    test("İstanbul and istanbul are two films, because the domain says so", async () => {
+      const { alice } = await fresh();
+      await alice.createMovie({ title: `${DOTTED_I}stanbul`, year: 2000 });
+      // Postgres folds these together and would refuse the second. The domain
+      // does not, so both are saved and both are reachable.
+      await alice.createMovie({ title: "istanbul", year: 2000 });
+
+      const titles = (await alice.taste()).movies.map((movie) => movie.title).sort();
+      assert.equal(titles.length, 2, "one of the two films was refused as a duplicate");
+      assert.deepEqual(titles, [`${DOTTED_I}stanbul`, "istanbul"].sort());
+    });
+
+    test("Ⱟ and ⱟ are one film, because the domain says so", async () => {
+      const { alice } = await fresh();
+      await alice.createMovie({ title: "Ⱟ", year: 2000 });
+      // Some collations keep these apart and would allow a second row. The
+      // domain folds them, so this is the same film and saving it again is a
+      // duplicate the user can act on.
+      assert.match(await refusal(alice.createMovie({ title: "ⱟ", year: 2000 })), /already exists/);
+      assert.equal((await alice.taste()).movies.length, 1);
+      // And it is reachable under either spelling, being one film.
+      assert.equal((await alice.updateMovie("ⱟ", 2000, { state: "loved" })).state, "loved");
+    });
+
+    test("whitespace is not part of a film's name", async () => {
+      const { alice } = await fresh();
+      await alice.createMovie({ title: "Black Bag", year: 2025 });
+      assert.match(await refusal(alice.createMovie({ title: " black   bag ", year: 2025 })), /already exists/);
+      assert.equal((await alice.updateMovie("  BLACK  bag ", 2025, { state: "seen" })).state, "seen");
+      // The stored title is still what they typed.
+      assert.equal((await alice.taste()).movies[0]?.title, "Black Bag");
+    });
+
     test("a movie title the database folds differently from JavaScript stays reachable", async () => {
       const { alice } = await fresh();
       const title = `${DOTTED_I}stanbul`;
       await alice.createMovie({ title, year: 2000 });
 
-      // The same trap as for genres: fold this in JavaScript and the movie
-      // becomes unreachable by the title it was created with.
+      // `İ` is where a database's fold and JavaScript's part company, and this
+      // used to be the trap it still is for genres: fold in JavaScript while
+      // Postgres owns the index, and the movie becomes unreachable by the title
+      // it was created with. A film is no longer named by Postgres — the
+      // canonical name is the domain's and the column stores it — so the two
+      // cannot part company here at all. Reverting the identity to
+      // `lower(title)` while the lookups canonicalise in JavaScript brings the
+      // trap straight back, and this is what catches it.
       assert.match(await refusal(alice.createMovie({ title, year: 2000 })), /already exists/);
       assert.equal((await alice.updateMovie(title, 2000, { state: "seen" })).state, "seen");
       await alice.deleteMovie(title, 2000);
@@ -1011,17 +1058,23 @@ for (const driver of drivers) {
       // user sees. These are here because the column constraints are the floor
       // under it: a future path that skipped the domain would still not be able
       // to put a yearless, untitled or oversized row in the table.
+      // The canonical name is supplied too, because it is not optional and a
+      // forged row that merely forgot it would be refused for the wrong reason.
+      // These prove the *content* constraints are the floor, so each row is
+      // otherwise complete.
       const forged: [string, unknown[]][] = [
-        ["a year outside any plausible film", [ALICE.id, "Forged", 1200, null]],
-        ["a title that is only whitespace", [ALICE.id, "   ", 2024, null]],
-        ["a title past the length limit", [ALICE.id, "D".repeat(201), 2024, null]],
-        ["an IMDb id that is not one", [ALICE.id, "Forged", 2024, "tt42"]],
+        ["a year outside any plausible film", [ALICE.id, "Forged", "forged", 1200, null]],
+        ["a title that is only whitespace", [ALICE.id, "   ", "x", 2024, null]],
+        ["a title past the length limit", [ALICE.id, "D".repeat(201), "d".repeat(201), 2024, null]],
+        ["an IMDb id that is not one", [ALICE.id, "Forged", "forged", 2024, "tt42"]],
+        ["a canonical name that is only whitespace", [ALICE.id, "Forged", "   ", 2024, null]],
       ];
 
       for (const [what, params] of forged) {
         await assert.rejects(
           sql.query(
-            `INSERT INTO tonight_movies (user_id, title, year, imdb_id) VALUES ($1, $2, $3, $4)`,
+            `INSERT INTO tonight_movies (user_id, title, canonical_title, year, imdb_id)
+                  VALUES ($1, $2, $3, $4, $5)`,
             params,
           ),
           (error: unknown) => {
@@ -1536,9 +1589,9 @@ for (const driver of drivers) {
                   return tx.query<Row>(statement, params);
                 }
                 return tx.query<Row>(
-                  `INSERT INTO tonight_movies (user_id, id, title, year)
-                   VALUES ($1, $2, $3, $4) RETURNING id`,
-                  [ALICE.id, theirs!.id, "Forced", 2001],
+                  `INSERT INTO tonight_movies (user_id, id, title, canonical_title, year)
+                   VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                  [ALICE.id, theirs!.id, "Forced", "forced", 2001],
                 );
               },
             }),
@@ -2031,3 +2084,117 @@ for (const driver of drivers) {
     });
   });
 }
+
+
+/**
+ * What the canonical-identity migration does to films that were already there.
+ *
+ * The suite above starts from a database migrated all the way, which is the one
+ * shape that cannot answer this: every row in it was written by code that knew
+ * about `canonical_title`. So this builds the old world — the schema as it was
+ * before the column existed, with films inserted through it — and then upgrades.
+ *
+ * The expected canonical names are written out here rather than read back from
+ * the migration. They are what `lib/films/identity.ts` says, and that is the
+ * point: the database now stores the domain's answer instead of producing one
+ * of its own.
+ */
+describe("upgrading films that were saved before they had a canonical name", () => {
+  const upTo = (version: number) => ({
+    module: TASTE_SCHEMA.module,
+    migrations: TASTE_SCHEMA.migrations.filter((migration) => migration.version <= version),
+  });
+
+  const legacy = async (films: readonly { title: string; year: number }[]) => {
+    const sql = await embeddedDriver();
+    await migrate(sql, upTo(7));
+    for (const film of films) {
+      await sql.query(
+        `INSERT INTO tonight_movies (user_id, title, year, state) VALUES ($1, $2, $3, $4)`,
+        [ALICE.id, film.title, film.year, "loved"],
+      );
+    }
+    return sql;
+  };
+
+  test("every saved film is named the way the domain names one", async () => {
+    const sql = await legacy([
+      { title: "Black Bag", year: 2025 },
+      { title: "Heat", year: 1995 },
+    ]);
+    await migrate(sql, TASTE_SCHEMA);
+
+    const rows = await sql.query<{ title: string; canonical_title: string }>(
+      `SELECT title, canonical_title FROM tonight_movies ORDER BY canonical_title`,
+    );
+    assert.deepEqual(rows, [
+      { title: "Black Bag", canonical_title: "black bag" },
+      { title: "Heat", canonical_title: "heat" },
+    ]);
+    // What the user typed is untouched. The canonical name is for matching.
+    const read = await sqlTasteStore(sql, ALICE).taste();
+    assert.deepEqual(
+      read.movies.map((movie) => ({ title: movie.title, year: movie.year, state: movie.state })),
+      [
+        { title: "Black Bag", year: 2025, state: "loved" },
+        { title: "Heat", year: 1995, state: "loved" },
+      ],
+    );
+    await sql.close();
+  });
+
+  test("identity is the stored canonical name afterwards, not a fold", async () => {
+    const sql = await legacy([{ title: "Black Bag", year: 2025 }]);
+    await migrate(sql, TASTE_SCHEMA);
+    const alice = sqlTasteStore(sql, ALICE);
+
+    // The same film under another spelling is the same film, through the store.
+    await alice.updateMovie("  BLACK   bag ", 2025, { state: "disliked" });
+    const [movie] = (await alice.taste()).movies;
+    assert.equal(movie?.state, "disliked", "a spelling variant did not reach the film");
+    assert.equal(movie?.title, "Black Bag", "the stored title was overwritten by a lookup spelling");
+    assert.equal((await alice.taste()).movies.length, 1, "a variant created a second film");
+    await sql.close();
+  });
+
+  test("a legacy film the old rule kept apart and the new rule joins stops the upgrade", async () => {
+    // Postgres' `lower()` kept these two apart, so both could be saved. The
+    // domain calls them one film. Merging would mean choosing between two states
+    // the user set, so the migration refuses and says which films are in the way.
+    const sql = await legacy([
+      { title: "Ⱟ", year: 2020 },
+      { title: "ⱟ", year: 2020 },
+    ]);
+
+    await assert.rejects(
+      () => migrate(sql, TASTE_SCHEMA),
+      (error: unknown) => {
+        assert.match(String((error as Error).message), /will not choose between them/u);
+        assert.match(String((error as Error).message), /Ⱟ|ⱟ/u, "the refusal does not name the films");
+        return true;
+      },
+    );
+
+    // And nothing was changed: both films are still there, still as they were.
+    const rows = await sql.query<{ title: string }>(`SELECT title FROM tonight_movies ORDER BY title`);
+    assert.equal(rows.length, 2, "a refused upgrade removed somebody's film");
+    await sql.close();
+  });
+
+  test("the upgrade is refused whole, so it can be run again after the collision is resolved", async () => {
+    const sql = await legacy([
+      { title: "Ⱟ", year: 2020 },
+      { title: "ⱟ", year: 2020 },
+    ]);
+    await assert.rejects(() => migrate(sql, TASTE_SCHEMA));
+
+    // The operator renames one. The same migration then succeeds.
+    await sql.query(`UPDATE tonight_movies SET title = $1 WHERE title = $2`, ["Other", "ⱟ"]);
+    await migrate(sql, TASTE_SCHEMA);
+    const rows = await sql.query<{ canonical_title: string }>(
+      `SELECT canonical_title FROM tonight_movies ORDER BY canonical_title`,
+    );
+    assert.deepEqual(rows.map((row) => row.canonical_title), ["other", "ⱟ"]);
+    await sql.close();
+  });
+});

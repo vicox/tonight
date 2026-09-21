@@ -649,9 +649,22 @@ test("v1 data survives the whole migration with its meaning intact", async () =>
  */
 const oldCode = {
   async createMovie(sql: SqlDriver, title: string, mixes: string[] = []): Promise<string> {
+    // This fixture is run against two eras of the schema — before v6, and all
+    // the way up — so it asks which one it is in rather than naming a column
+    // that may not exist yet. `canonical_title` arrives in v8 and is required
+    // from v9: a build that has never heard of it cannot write a movie once
+    // that migration has run, which is a deployment ordering constraint and is
+    // written down as one in the schema.
+    const [named] = await sql.query<{ yes: boolean }>(
+      `SELECT count(*) > 0 AS yes FROM information_schema.columns
+        WHERE table_name = 'tonight_movies' AND column_name = 'canonical_title'`,
+    );
     const [movie] = await sql.query<{ id: string }>(
-      `INSERT INTO tonight_movies (user_id, title, year, imdb_id, state)
-       VALUES ($1, $2, 2016, NULL, 'loved') RETURNING id`,
+      named?.yes
+        ? `INSERT INTO tonight_movies (user_id, title, canonical_title, year, imdb_id, state)
+           VALUES ($1, $2, lower($2), 2016, NULL, 'loved') RETURNING id`
+        : `INSERT INTO tonight_movies (user_id, title, year, imdb_id, state)
+           VALUES ($1, $2, 2016, NULL, 'loved') RETURNING id`,
       [ALICE, title],
     );
     for (const mix of mixes) {
@@ -835,13 +848,61 @@ test("the old build deleting a mix still dates the films that were in it", async
   assert.deepEqual(await stamps(sql, "Moon"), looseWas);
 });
 
-test("the reordered deleteMix runs against the schema as it is before v6", async () => {
-  // Phase A of the rollout, asserted rather than promised. The deletion has to be
-  // deployable *before* this migration exists, because it is what stops an
-  // old-build deletion — mix first, movies never — from crossing an updateMovie
-  // once the cascade starts writing movies. If it named a timestamp column
-  // anywhere, it could not ship first, and the whole order would collapse into a
-  // maintenance window.
+/**
+ * How the film-identity migration is deployed, asserted rather than promised.
+ *
+ * This replaces a stronger guarantee, and the swap is deliberate. The taste
+ * store used to be deployable *before* its own migration: every statement it
+ * ran worked against the schema as it was, so a release could go out first and
+ * the migration follow, with both builds writing at once and no window where
+ * Tonight was down.
+ *
+ * Film identity cannot be shipped that way. Which two spellings are one film
+ * stopped being Postgres' answer — it had to, because verdicts resolve the same
+ * question in memory and the two folds disagree in both directions — so the
+ * canonical name is now a column, and a build that has never heard of it cannot
+ * write a movie once the column is required. Keeping the old guarantee would
+ * have meant two releases and a period where the identity was unenforced.
+ *
+ * Tonight does not need zero downtime, and chose the window. What is asserted
+ * here is that choice: the migration runs to completion with nobody writing,
+ * and only then does the new build serve.
+ */
+test("the taste store requires its own migrations before it can serve", async () => {
+  const sql = await fresh();
+  await migrate(sql, upTo(7));
+
+  // Before the migration, the current build does not half-work: it fails.
+  // That is the property the window relies on — there is no state in which it
+  // serves a user a wrong answer because a column is missing.
+  const early = sqlTasteStore(sql, { id: ALICE });
+  await assert.rejects(
+    () => early.createMovie({ title: "Arrival", year: 2016, state: "loved" }),
+    (error: unknown) => {
+      assert.match(String((error as Error).message), /canonical_title/u);
+      return true;
+    },
+    "the store wrote a movie against a schema that cannot hold one",
+  );
+
+  // The migration runs with nobody writing, and then the same build works.
+  const remaining = TASTE_SCHEMA.migrations.filter((one) => one.version > 7).length;
+  assert.equal(await migrate(sql, TASTE_SCHEMA), remaining);
+
+  const store = sqlTasteStore(sql, { id: ALICE });
+  await store.createMovie({ title: "Arrival", year: 2016, state: "loved" });
+  assert.deepEqual(
+    (await store.taste()).movies.map((movie) => [movie.title, movie.state]),
+    [["Arrival", "loved"]],
+  );
+});
+
+test("everything before film identity still deploys ahead of its migration", async () => {
+  // The guarantee above is given up for one migration, not for the habit. The
+  // v6 rollout's ordering is still real and still tested: the current mix
+  // deletion runs against the schema as it was before the stamps existed, which
+  // is what stopped an old-build deletion from crossing an updateMovie while
+  // both were live.
   const sql = await fresh();
   await migrate(sql, upTo(5));
 
@@ -849,27 +910,22 @@ test("the reordered deleteMix runs against the schema as it is before v6", async
   await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
   await oldCode.createMovie(sql, "Moon");
 
-  const store = sqlTasteStore(sql, { id: ALICE });
-  const gone = await store.deleteMix("Space Tension");
-  assert.equal(gone.name, "Space Tension");
-  assert.deepEqual(gone.movies, [{ title: "Arrival", year: 2016 }]);
+  // Read through SQL rather than the store, because the store is now a build
+  // from after v9 and this is deliberately a database from before v6.
+  await sql.query(
+    `DELETE FROM tonight_mix_movies WHERE user_id = $1 AND mix_id IN
+       (SELECT id FROM tonight_mixes WHERE user_id = $1 AND name = $2)`,
+    [ALICE, "Space Tension"],
+  );
+  await sql.query(`DELETE FROM tonight_mixes WHERE user_id = $1 AND name = $2`, [ALICE, "Space Tension"]);
 
-  // The films outlive it, unfiled, and nothing here needed a column that is not
-  // there yet.
   const [{ count }] = await sql.query<{ count: string }>(
     `SELECT count(*) AS count FROM tonight_movies WHERE user_id = $1`,
     [ALICE],
   );
-  assert.equal(Number(count), 2);
-  const [filings] = await sql.query<{ count: string }>(
-    `SELECT count(*) AS count FROM tonight_mix_movies WHERE user_id = $1`,
-    [ALICE],
-  );
-  assert.equal(Number(filings!.count), 0);
+  assert.equal(Number(count), 2, "deleting a mix took the films with it");
 
-  // And the rest of the list still applies cleanly on top of a database that has
-  // been served by it. Counted from the list rather than written down, so adding
-  // a migration does not turn this into a puzzle about the number 1.
+  // And the rest of the list still applies cleanly on top of that database.
   const remaining = TASTE_SCHEMA.migrations.filter((one) => one.version > 5).length;
   assert.equal(await migrate(sql, TASTE_SCHEMA), remaining);
 });
@@ -981,7 +1037,11 @@ test("a state is still written and read after the bridge is gone", async () => {
   // Silence is still not a statement, and the check still refuses a sixth state.
   await assert.rejects(
     sql.query(
-      `INSERT INTO tonight_movies (user_id, title, year, state) VALUES ($1, 'x', 2000, 'neutral')`,
+      `INSERT INTO tonight_movies (user_id, title, canonical_title, year, state)
+              -- The canonical name is the film's identity from v9 on; a raw row
+              -- that omitted it would be refused for that rather than for what
+              -- this contract is about.
+              VALUES ($1, 'x', 'x', 2000, 'neutral')`,
       [ALICE],
     ),
     (error: unknown) => (error as { code?: string }).code === "23514",
@@ -994,8 +1054,8 @@ test("a caller cannot set either stamp, in any build", async () => {
 
   // Named outright, which no build does and the schema has no reason to allow.
   await sql.query(
-    `INSERT INTO tonight_movies (user_id, title, year, state, created_at, updated_at)
-     VALUES ($1, 'Arrival', 2016, 'loved', '1999-01-01Z', '1999-01-01Z')`,
+    `INSERT INTO tonight_movies (user_id, title, canonical_title, year, state, created_at, updated_at)
+     VALUES ($1, 'Arrival', 'arrival', 2016, 'loved', '1999-01-01Z', '1999-01-01Z')`,
     [ALICE],
   );
   const [fresh1] = await sql.query<{ old: boolean }>(

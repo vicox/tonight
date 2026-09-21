@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 
 import {
   current,
+  filmKey,
   JUDGEMENTS,
   MAX_OCCASION_LENGTH,
   MAX_REASON_LENGTH,
@@ -532,9 +534,19 @@ test("there is no route from something that happened to something they think", a
   );
   const code = source.replace(/\/\*\*[\s\S]*?\*\//gu, "").replace(/^[ \t]*\/\/.*$/gmu, "");
 
-  for (const elsewhere of ["../episodes/", "../taste/", "./store", "node:"]) {
+  // Everything except one neighbour. `../films/` is how a film is named, and it
+  // is neutral by construction: it depends on nothing, the taste model imports
+  // it too, and it holds no opinion about anybody's taste. Letting it through is
+  // not a loophole in this rule but the thing that makes the rule survivable —
+  // the alternative was this model restating the naming rule and a contract
+  // asserting two implementations were equivalent, which is not something a
+  // contract can honestly assert across a database boundary.
+  for (const elsewhere of ["../episodes/", "../taste/", "../memory/", "../mcp/", "./store", "node:"]) {
     assert.equal(source.includes(elsewhere), false, `the verdict model reached ${elsewhere}`);
   }
+  // And the one it may reach brings nothing else with it.
+  const identity = readFileSync(new URL("../films/identity.ts", import.meta.url), "utf8");
+  assert.equal(/^\s*import /mu.test(identity), false, "the shared film identity reached for something");
   for (const owned of ["Episode", "episode", "offered", "MovieState", "genre", "mix", "recommend"]) {
     assert.equal(
       new RegExp(`\\b${owned}`, "u").test(code),
@@ -542,6 +554,18 @@ test("there is no route from something that happened to something they think", a
       `${owned} appears in verdict code, outside its comments`,
     );
   }
+});
+
+test("a film is named by its title and its year, both", () => {
+  // Case and whitespace are how a title was typed, not which film it is.
+  assert.equal(filmKey({ title: "Black Bag", year: 2025 }), filmKey({ title: "black bag", year: 2025 }));
+  assert.equal(filmKey({ title: "Black Bag", year: 2025 }), filmKey({ title: " Black  Bag ", year: 2025 }));
+  // The year is not decoration: a remake is another film.
+  assert.notEqual(filmKey({ title: "Heat", year: 1995 }), filmKey({ title: "Heat", year: 1986 }));
+  // Non-ASCII folds too, because `toLowerCase` is the whole of the policy.
+  assert.equal(filmKey({ title: "AMÉLIE", year: 2001 }), filmKey({ title: "amélie", year: 2001 }));
+  // And two different films are never one.
+  assert.notEqual(filmKey({ title: "Heat", year: 1995 }), filmKey({ title: "Heat 2", year: 1995 }));
 });
 
 test("nothing here decides how much a verdict should weigh", () => {

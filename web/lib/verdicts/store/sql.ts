@@ -6,6 +6,7 @@ import {
   VerdictError,
   withdrawVerdict,
   type Act,
+  filmKey,
   type Film,
   type Identified,
   type Scope,
@@ -115,18 +116,18 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
     },
 
     async history(film: Film): Promise<Identified<Act>[]> {
+      // Filtered in memory rather than matched in SQL, because which acts are
+      // one film's is `filmKey`'s answer and it has to be the same answer here
+      // as in `standing`. A `WHERE title = $2` matched exactly and split
+      // `Black Bag` from `black bag`; a `WHERE lower(title) = lower($2)` would
+      // fold under Postgres' collation while everything else folds under
+      // JavaScript's, which is the same disagreement one layer down.
+      //
+      // One statement, one rule. The log belongs to one person and `standing`
+      // already reads all of it.
       const named = namedFilm(film);
-      const rows = await driver.query<ActRow>(
-        `SELECT id, said, title, year, occasion, said_at,
-                told, about, judgement, because, reach, reason, seq
-           FROM tonight_verdict_acts
-          WHERE user_id = $1 AND title = $2 AND year = $3
-          -- Stable, and not the answer: the model orders by the instant the
-          -- user spoke. The row id only breaks ties, so two reads agree.
-          ORDER BY said_at, seq, id`,
-        [owner, named.title, named.year],
-      );
-      return rows.map(assemble);
+      const wanted = filmKey(named);
+      return (await everything()).filter((act) => filmKey(act.film) === wanted);
     },
 
     acts: everything,
@@ -142,7 +143,7 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
       // adds only the grouping the model needs.
       const films = new Map<string, Act[]>();
       for (const act of await everything()) {
-        const key = `${act.film.title}\u0000${String(act.film.year)}`;
+        const key = filmKey(act.film);
         films.set(key, [...(films.get(key) ?? []), act]);
       }
       return [...films.values()].flatMap((acts) => standing(acts));

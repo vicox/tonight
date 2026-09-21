@@ -1,5 +1,5 @@
 import { ConfigurationError } from "../oauth/config.ts";
-import type { SqlDriver } from "./driver.ts";
+import type { SqlDriver, Transaction } from "./driver.ts";
 
 /**
  * One migration mechanism, for every schema in the database.
@@ -19,7 +19,28 @@ import type { SqlDriver } from "./driver.ts";
  */
 
 /** One step, and the SQL that takes it. */
-export type Migration = { version: number; sql: string };
+export type Migration = { version: number } & (
+  | { sql: string; run?: never }
+  /**
+   * A step that needs the domain to compute what it writes.
+   *
+   * Almost every migration is SQL and should be: a schema change belongs in the
+   * database and a string is the whole of it. This exists for the one thing SQL
+   * cannot do — write a value that only the application's own rule can produce.
+   *
+   * The taste model's film identity is that case. Which two spellings are one
+   * film used to be Postgres' answer, on a unique index over `lower(title)`,
+   * and it had to stop being Postgres' answer because a second store resolves
+   * the same question in memory and the two folds disagree in both directions.
+   * The canonical name is now `lib/films/identity.ts`'s, which means a backfill
+   * cannot be an UPDATE with an expression in it.
+   *
+   * Runs inside the migration's own transaction, with the same claim-or-skip
+   * behaviour as a SQL step: it either lands whole or not at all, and throwing
+   * is how a step refuses.
+   */
+  | { run: (tx: Transaction) => Promise<void>; sql?: never }
+);
 
 /**
  * A named schema and its ordered steps.
@@ -128,7 +149,9 @@ export async function migrate(driver: SqlDriver, schema: SchemaModule): Promise<
       );
       if (!claimed.length) return false;
 
-      await tx.exec(migration.sql);
+      // One or the other, never both: the type above admits exactly one.
+      if (migration.sql === undefined) await migration.run(tx);
+      else await tx.exec(migration.sql);
       return true;
     });
     if (ran) applied += 1;

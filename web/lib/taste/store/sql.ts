@@ -1,4 +1,5 @@
 import { isSqlState, UNIQUE_VIOLATION, type SqlDriver, type Transaction } from "../../db/driver.ts";
+import { canonicalTitle } from "../../films/identity.ts";
 import type { AuthenticatedUser } from "../../identity.ts";
 import {
   byName,
@@ -327,10 +328,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           MOVIE_UNIQUENESS,
           () =>
             tx.query<{ id: string }>(
-              `INSERT INTO tonight_movies (user_id, title, year, imdb_id, state)
-               VALUES ($1, $2, $3, $4, $5)
+              `INSERT INTO tonight_movies (user_id, title, canonical_title, year, imdb_id, state)
+               VALUES ($1, $2, $3, $4, $5, $6)
                RETURNING id`,
-              [owner, entry.title, entry.year, entry.imdbId, entry.state],
+              [owner, entry.title, canonicalTitle(entry.title), entry.year, entry.imdbId, entry.state],
             ),
           () => movieConflict(tx, owner, entry),
         );
@@ -408,10 +409,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           () =>
             tx.query(
               `UPDATE tonight_movies
-                  SET title = $3, year = $4, imdb_id = $5, state = $6
+                  SET title = $3, canonical_title = $7, year = $4, imdb_id = $5, state = $6
                 WHERE user_id = $1 AND id = $2
                RETURNING id`,
-              [owner, current.id, entry.title, entry.year, entry.imdbId, entry.state],
+              [owner, current.id, entry.title, entry.year, entry.imdbId, entry.state, canonicalTitle(entry.title)],
             ),
           () => movieConflict(tx, owner, entry, current.id),
         );
@@ -604,13 +605,13 @@ type Filed = { id: string; title: string; year: number };
  * Addressed by the mix's id, never by its name: this is called before the mix is
  * locked, and a name resolved twice can resolve to two different mixes.
  *
- * The title comes back folded by Postgres, which is the same folding the unique
+ * The title comes back as the canonical name the column holds, which is what the unique
  * index and `lockMovies` use. Nothing about which two spellings are one movie is
  * decided here.
  */
 async function filedMovies(sql: Transaction, owner: string, mixId: string): Promise<Filed[]> {
   return sql.query<Filed>(
-    `SELECT v.id, lower(v.title) AS title, v.year
+    `SELECT v.id, v.canonical_title AS title, v.year
        FROM tonight_mix_movies AS r
        JOIN tonight_movies AS v ON v.user_id = r.user_id AND v.id = r.movie_id
       WHERE r.user_id = $1 AND r.mix_id = $2`,
@@ -655,7 +656,7 @@ async function holdFiledMovies(
     const at = byKey.get(key)!;
     const [row] = await sql.query<{ id: string }>(
       `SELECT id FROM tonight_movies
-        WHERE user_id = $1 AND lower(title) = $2 AND year = $3
+        WHERE user_id = $1 AND canonical_title = $2 AND year = $3
         FOR UPDATE`,
       [owner, at.title, at.year],
     );
@@ -946,7 +947,10 @@ async function lockMovies(
   to?: MovieHandle,
 ): Promise<{ source?: MovieRow; destination?: MovieRow }> {
   const wanted = to === undefined ? [from] : [from, to];
-  const folded = await fold(sql, wanted.map((handle) => handle.title));
+  // Named here rather than folded by a query. The canonical name is the
+  // domain's and the column holds exactly it, so a round trip would only be a
+  // second opinion about a question that now has one answer.
+  const folded = wanted.map((handle) => canonicalTitle(handle.title));
 
   const byKey = new Map<string, { title: string; year: number }>();
   const keys = wanted.map((handle, index) => {
@@ -966,7 +970,7 @@ async function lockMovies(
       state: MovieState | null;
     }>(
       `SELECT id, title, year, imdb_id, state FROM tonight_movies
-        WHERE user_id = $1 AND lower(title) = $2 AND year = $3
+        WHERE user_id = $1 AND canonical_title = $2 AND year = $3
         FOR UPDATE`,
       [owner, at.title, at.year],
     );
