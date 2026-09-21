@@ -135,9 +135,38 @@ second comparison against `0c0dce73` finds the certified behaviour unchanged. Th
 | `a39b2dc` | Instruction priority: stop branches outrank answer shape |
 | `2076864` | Phase 1 recertification record for `15d30c08` |
 
-**Phase 1 is recertified on the shipped instruction version, and M1 is complete.** The freeze below
-holds unchanged; the cycle it prescribes is what produced this section, and it applies again to the
-next model-visible instruction change.
+**Phase 1 was recertified on `15d30c08`, and M1 is complete.**
+
+### M2 — `aeb05781`
+
+M2 reopened it again, and the rule worked as written rather than as a formality: slices 4 and 5 gave
+Tonight five Verdict tools, rewrote three tool descriptions so a new opinion routes to
+`record_verdict` rather than to a Movie state, and changed `SKILL.md` and the generated instructions
+to teach the difference between a film somebody saved and something somebody said. All three are
+model-visible, so the whole of Step 8 ran again.
+
+**Current certified instruction version: `aeb05781`, 7,891 characters, commit `8730ce6`.**
+
+All eight AC rows pass, every one of them in every run of the fixtures that owe it. The
+deterministic layer reported 0 faults and 39 flags; all 39 were adjudicated and none stands. No
+§8.3.2 prohibited outcome appears in any of the 120 answers. The paired blind comparison against the
+frozen `f098fd5b` baseline gives the candidate fit 55–0 and decisiveness 55–0, ties constraint
+compliance across all sixty, and regresses on no dimension. The full record is
+`results/phase-1-aeb05781/`.
+
+The finding worth keeping is a negative one. The tool surface grew from fifteen to twenty, and
+**no run called any of the five Verdict tools.** Nobody in these fixtures tells Tonight what they
+thought of a film, so there was nothing to record — and a run that had recorded one anyway would
+have manufactured the evidence it then read back. That is the failure M2 exists to prevent, it was
+newly reachable for the first time in this cycle, and it did not occur.
+
+| | |
+| --- | --- |
+| `8730ce6` | M2 slice 5: integrate verdicts into recommendation evidence |
+| `8abea19` | M2: add verdict evaluation gates |
+
+The freeze below holds unchanged; the cycle it prescribes is what produced both sections above, and
+it applies again to the next model-visible instruction change.
 
 ## Commits
 
