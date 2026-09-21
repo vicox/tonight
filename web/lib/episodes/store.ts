@@ -2,7 +2,7 @@ import { database } from "../db.ts";
 import type { SqlDriver } from "../db/driver.ts";
 import { prepareSchema } from "../db/migrate.ts";
 import type { AuthenticatedUser } from "../identity.ts";
-import type { Episode, OutcomeStatement, Recorded } from "./model.ts";
+import type { Episode, Correction, Recorded } from "./model.ts";
 
 /**
  * What Slice 2 of M1 needs from persistence, and nothing beyond it.
@@ -48,7 +48,7 @@ export type EpisodeStore = {
    * Tonight observed, they were true when they happened, and an evening whose
    * offer could be rewritten afterwards would be a record of nothing.
    */
-  correct(id: string, statement: OutcomeStatement): Promise<Recorded<Episode>>;
+  correct(id: string, statement: Correction): Promise<Recorded<Episode>>;
 
   /**
    * Forgets an episode: it and its offers, gone.

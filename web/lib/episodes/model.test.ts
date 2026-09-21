@@ -6,7 +6,7 @@ import {
   EpisodeError,
   MAX_OFFERED,
   MAX_REQUEST_LENGTH,
-  stateOutcome,
+  correctEpisode,
   type Episode,
   type Offer,
 } from "./model.ts";
@@ -55,20 +55,20 @@ test("a recommendation does not imply a choice", () => {
 });
 
 test("a choice does not imply it was watched", () => {
-  const episode = stateOutcome(evening(), { chosen: offers[0] });
+  const episode = correctEpisode(evening(), { chosen: offers[0] });
   assert.equal(episode.chosen.known, true);
   assert.equal(episode.watched.known, false, "watching was inferred from choosing");
   assert.equal(episode.finished.known, false);
 });
 
 test("watching does not imply finishing", () => {
-  const episode = stateOutcome(evening(), { watched: true });
+  const episode = correctEpisode(evening(), { watched: true });
   assert.equal(episode.watched.known, true);
   assert.equal(episode.finished.known, false, "finishing was inferred from watching");
 });
 
 test("finishing implies nothing further — there is nowhere to record a verdict", () => {
-  const episode = stateOutcome(evening(), { watched: true, finished: true });
+  const episode = correctEpisode(evening(), { watched: true, finished: true });
   assert.equal(episode.finished.known, true);
   // M2 owns verdicts. If this key ever appears, the milestone boundary moved.
   assert.equal("liked" in episode, false, "a verdict field appeared in M1");
@@ -76,7 +76,9 @@ test("finishing implies nothing further — there is nowhere to record a verdict
     "chosen",
     "finished",
     "offered",
+    "offeredSource",
     "request",
+    "requestSource",
     "watched",
   ]);
 });
@@ -84,24 +86,24 @@ test("finishing implies nothing further — there is nowhere to record a verdict
 test("an established choice never later becomes a watching", () => {
   // The chain has to hold across statements, not only within one. Once chosen is
   // established, a later statement about something else must leave watched alone.
-  const chosen = stateOutcome(evening(), { chosen: offers[0] });
-  const later = stateOutcome(chosen, { finished: null });
+  const chosen = correctEpisode(evening(), { chosen: offers[0] });
+  const later = correctEpisode(chosen, { finished: null });
   assert.equal(later.watched.known, false, "watching was derived from an earlier choice");
 });
 
 test("an established watching never later becomes a finishing", () => {
-  const watched = stateOutcome(evening(), { watched: true });
-  const later = stateOutcome(watched, { chosen: offers[0] });
+  const watched = correctEpisode(evening(), { watched: true });
+  const later = correctEpisode(watched, { chosen: offers[0] });
   assert.equal(later.finished.known, false, "finishing was derived from an earlier watching");
 });
 
 test("an established outcome says the user is its source", () => {
-  const episode = stateOutcome(evening(), { watched: true });
+  const episode = correctEpisode(evening(), { watched: true });
   assert.equal(episode.watched.known && episode.watched.source, "stated");
 });
 
 test("a stated no is not the same as nobody saying", () => {
-  const said = stateOutcome(evening(), { watched: false });
+  const said = correctEpisode(evening(), { watched: false });
   assert.equal(said.watched.known, true, "a stated no was stored as silence");
   assert.equal(said.watched.known && said.watched.value, false);
 
@@ -110,30 +112,30 @@ test("a stated no is not the same as nobody saying", () => {
 });
 
 test("null retracts a field to unknown rather than to a false value", () => {
-  const said = stateOutcome(evening(), { watched: true, finished: true });
-  const taken = stateOutcome(said, { finished: null });
+  const said = correctEpisode(evening(), { watched: true, finished: true });
+  const taken = correctEpisode(said, { finished: null });
   assert.equal(taken.finished.known, false, "a retraction left a value behind");
   assert.equal(taken.watched.known, true, "a retraction touched a field it was not about");
 });
 
 test("a field left out of a statement is untouched", () => {
-  const first = stateOutcome(evening(), { watched: true });
-  const second = stateOutcome(first, { finished: false });
+  const first = correctEpisode(evening(), { watched: true });
+  const second = correctEpisode(first, { finished: false });
   assert.equal(second.watched.known && second.watched.value, true);
   assert.equal(second.finished.known && second.finished.value, false);
   assert.equal(second.chosen.known, false);
 });
 
 test("a statement that says nothing is refused rather than silently doing nothing", () => {
-  assert.throws(() => stateOutcome(evening(), {}), EpisodeError);
+  assert.throws(() => correctEpisode(evening(), {}), EpisodeError);
 });
 
 test("the chosen film must be one Tonight actually offered", () => {
   assert.throws(
-    () => stateOutcome(evening(), { chosen: { title: "Heat", year: 1995, lead: false } }),
+    () => correctEpisode(evening(), { chosen: { title: "Heat", year: 1995, lead: false } }),
     EpisodeError,
   );
-  const episode = stateOutcome(evening(), { chosen: offers[1] });
+  const episode = correctEpisode(evening(), { chosen: offers[1] });
   assert.equal(episode.chosen.known && episode.chosen.value.title, "Zodiac");
 });
 

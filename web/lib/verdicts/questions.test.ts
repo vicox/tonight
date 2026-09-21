@@ -7,6 +7,7 @@ import { embeddedDriver } from "../db/pglite.ts";
 import type { AuthenticatedUser } from "../identity.ts";
 import {
   current,
+  spoken,
   stateVerdict,
   supersession,
   VerdictError,
@@ -39,19 +40,15 @@ import type { VerdictStore } from "./store.ts";
 const asUser = (id: string): AuthenticatedUser => ({ id }) as AuthenticatedUser;
 
 /**
- * A claim without the place persistence gave it.
+ * A claim without the handles persistence gave it.
  *
- * The store assigns a write order on the way in, so an act read back carries one
- * and an act built in a test does not. What these contracts are about is the
- * claim, so the order is set aside rather than asserted here — `store.test.ts`
- * is where it is held to account.
+ * The store assigns a write order and a reference on the way in, so an act read
+ * back carries both and an act built in a test carries neither. What these
+ * contracts are about is the claim, so both are set aside rather than asserted
+ * here — `store.test.ts` is where they are held to account.
  */
-const claim = (act: unknown): unknown => {
-  if (act === null || typeof act !== "object") return act;
-  const { order, ...rest } = act as Record<string, unknown>;
-  void order;
-  return rest;
-};
+const claim = (act: unknown): unknown =>
+  act === null || typeof act !== "object" ? act : spoken(act as Act);
 const SINCE = "2026-01-01T20:00:00.000Z";
 /** A day after `SINCE`: near enough that nothing retires by time unless a test says so. */
 const NOW = "2026-01-02T20:00:00.000Z";

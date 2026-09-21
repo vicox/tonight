@@ -8,6 +8,7 @@ import type { AuthenticatedUser } from "../identity.ts";
 import {
   current,
   stateVerdict,
+  spoken,
   supersession,
   VerdictError,
   withdrawVerdict,
@@ -484,17 +485,19 @@ describe("the verdict store", () => {
     const history = await ana.history(f);
     const back = history.find((act) => act.said === "withdrawal");
     assert.deepEqual(back, taken);
-    // The claim itself, exactly — plus the order the store accepted it in, which
-    // it assigns and the user never said.
-    const { order, ...claim } = back as unknown as Record<string, unknown>;
-    assert.deepEqual(claim, {
+    // The claim itself, exactly — and nothing else in it. `spoken` takes off the
+    // two things persistence added, which are asserted separately below because
+    // they are facts about the record rather than about what was said.
+    assert.deepEqual(spoken(back as Act), {
       said: "withdrawal",
       claimant: "user",
       film: f,
       scope: TUESDAY,
       at: "2026-03-01T20:00:00.000Z",
     });
-    assert.equal(typeof order, "number", "persistence did not record the write order");
+    const handles = back as unknown as Record<string, unknown>;
+    assert.equal(typeof handles.order, "number", "persistence did not record the write order");
+    assert.equal(typeof handles.ref, "string", "persistence did not hand back a reference");
   });
 
   test("a malformed film is refused rather than matching nothing", async () => {
@@ -548,8 +551,12 @@ describe("the verdict store", () => {
   });
 
   test("the store offers no way to change what was said", () => {
-    assert.deepEqual(Object.keys(ana).sort(), ["acts", "history", "say", "standing"]);
-    for (const generic of ["update", "upsert", "set", "delete", "forget", "correct"]) {
+    assert.deepEqual(Object.keys(ana).sort(), ["acts", "forget", "history", "say", "standing"]);
+    // `forget` is not on this list and the rest still are. Removing an act whole,
+    // because the user asked, is a different thing from editing one into
+    // something they did not say — and only the second is what these names would
+    // let in.
+    for (const generic of ["update", "upsert", "set", "delete", "correct", "amend", "revise"]) {
       assert.equal(generic in ana, false, `${generic} appeared on the verdict store`);
     }
   });
@@ -692,6 +699,207 @@ describe("the verdict store", () => {
     const once = await ana.acts();
     const again = await ana.acts();
     assert.deepEqual(once, again, "the complete set was not stable across reads");
+  });
+
+  /* ---------------------------------------------------- the act's own name */
+
+  /**
+   * Why a reference and not a position.
+   *
+   * Two acts can be identical in every stated respect and still be two things
+   * the user said — the same film, the same judgement, the same millisecond.
+   * Forgetting "the loved one" would then be an ambiguous instruction, and
+   * forgetting "the second one" would break the moment anything before it went.
+   * Only a name that belongs to the act itself survives both.
+   */
+  test("every act comes back with a reference, and identical acts differ by it", async () => {
+    const f = film();
+    const one = await ana.say(about(f, judged("loved", "2026-06-01T20:00:00.000Z")));
+    const two = await ana.say(about(f, judged("loved", "2026-06-01T20:00:00.000Z")));
+
+    assert.deepEqual(spoken(one), spoken(two), "the fixture no longer says the same thing twice");
+    assert.notEqual(one.ref, two.ref, "two things they said share one reference");
+    for (const act of [one, two]) {
+      assert.equal(typeof act.ref, "string");
+      assert.ok((act.ref ?? "").length > 0);
+    }
+
+    const read = await ana.history(f);
+    assert.deepEqual(read.map((act) => act.ref).sort(), [one.ref, two.ref].sort());
+  });
+
+  test("a reference survives every read and the model's own resolving", async () => {
+    const f = film();
+    const said = await ana.say(about(f, judged("loved", "2026-06-02T20:00:00.000Z")));
+
+    const first = (await ana.history(f))[0];
+    const again = (await ana.history(f))[0];
+    assert.equal(first?.ref, said.ref, "the reference changed between writing and reading");
+    assert.equal(again?.ref, said.ref, "the reference changed between two reads");
+    assert.equal((await ana.acts()).find((act) => act.film.title === f.title)?.ref, said.ref);
+
+    // Resolving rebuilds every act from its stated parts. The reference has to
+    // come through that, or it would exist until the moment somebody asked
+    // which verdict stands — which is when they need it.
+    const held = current(await ana.history(f)) as { ref?: string } | null;
+    assert.equal(held?.ref, said.ref, "resolving a history dropped the reference");
+  });
+
+  test("the reference is not the order, and does not move when the order does", async () => {
+    const f = film();
+    const early = await ana.say(about(f, judged("loved", "2026-06-03T20:00:00.000Z")));
+    const later = await ana.say(about(f, judged("disliked", "2026-06-04T20:00:00.000Z")));
+    const orders = [early, later].map((act) => (act as unknown as { order: number }).order);
+
+    assert.notEqual(early.ref, String(orders[0]), "the reference is the write order wearing a name");
+    assert.ok(orders[0] < orders[1], "the fixture no longer exercises two orders");
+    // Forgetting the earlier act leaves a gap in the order and changes nothing
+    // about the later act's name.
+    await ana.forget(early.ref);
+    const left = await ana.history(f);
+    assert.equal(left.length, 1);
+    assert.equal(left[0]?.ref, later.ref, "the surviving act was renamed by a deletion");
+    assert.equal((left[0] as unknown as { order: number }).order, orders[1]);
+  });
+
+  /* ----------------------------------------------------------- forgetting */
+
+  test("forgetting removes exactly the act named and no other", async () => {
+    const f = film();
+    const kept = await ana.say(about(f, judged("loved", "2026-06-05T20:00:00.000Z", "the tension")));
+    const gone = await ana.say(about(f, judged("disliked", "2026-06-06T20:00:00.000Z")));
+
+    await ana.forget(gone.ref);
+    const left = await ana.history(f);
+    assert.deepEqual(left.map((act) => act.ref), [kept.ref]);
+    assert.deepEqual(spoken(left[0] as Act), spoken(kept), "the surviving act was edited");
+  });
+
+  /**
+   * The contract's worked example, stated as the product settled it.
+   *
+   * V1 loved · V2 liked · V3 withdrawal. Each case is its own film, so one does
+   * not leave anything behind for the next.
+   */
+  for (const [forgotten, expected] of [
+    ["V1", "silent"],
+    ["V2", "silent"],
+    ["V3", "liked"],
+    ["all", "silent"],
+  ] as const) {
+    test(`forgetting ${forgotten} leaves ${expected === "silent" ? "no current verdict" : `${expected} standing`}`, async () => {
+      const f = film();
+      const v1 = await ana.say(about(f, judged("loved", "2026-06-07T20:00:00.000Z")));
+      const v2 = await ana.say(about(f, judged("liked", "2026-06-08T20:00:00.000Z")));
+      const v3 = await ana.say(withdrawVerdict(f, "2026-06-09T20:00:00.000Z"));
+
+      const refs = { V1: [v1.ref], V2: [v2.ref], V3: [v3.ref], all: [v1.ref, v2.ref, v3.ref] };
+      for (const ref of refs[forgotten]) await ana.forget(ref);
+
+      const left = await ana.history(f);
+      const held = current(left) as { assertion?: { judgement?: string } } | null;
+      if (expected === "silent") {
+        assert.equal(held, null, `forgetting ${forgotten} left a current verdict`);
+      } else {
+        assert.equal(held?.assertion?.judgement, expected);
+      }
+      // And what stands is recomputed rather than remembered: no entry survives
+      // for a film that has nothing standing.
+      const standing = (await ana.standing()).filter((one) => one.title === f.title);
+      assert.equal(standing.length, expected === "silent" ? 0 : 1);
+
+      if (forgotten === "all") {
+        assert.deepEqual(left, [], "forgetting every act left history behind");
+        assert.deepEqual(
+          (await ana.acts()).filter((act) => act.film.title === f.title),
+          [],
+          "a forgotten film is still in the complete set",
+        );
+      }
+    });
+  }
+
+  test("forgetting a withdrawal lets the verdict it silenced stand again", async () => {
+    const f = film();
+    await ana.say(about(f, judged("loved", "2026-06-10T20:00:00.000Z")));
+    const taken = await ana.say(withdrawVerdict(f, "2026-06-11T20:00:00.000Z"));
+    assert.equal(current(await ana.history(f)), null);
+
+    await ana.forget(taken.ref);
+    const held = current(await ana.history(f)) as { assertion?: { judgement?: string } } | null;
+    assert.equal(held?.assertion?.judgement, "loved", "the silenced verdict did not come back");
+  });
+
+  test("supersession is recomputed from what is left, not remembered", async () => {
+    const f = film();
+    const first = await ana.say(about(f, judged("loved", "2026-06-12T20:00:00.000Z")));
+    const second = await ana.say(about(f, judged("liked", "2026-06-13T20:00:00.000Z")));
+    const third = await ana.say(about(f, judged("disliked", "2026-06-14T20:00:00.000Z")));
+    assert.equal(supersession(await ana.history(f)).length, 2);
+
+    await ana.forget(third.ref);
+    const after = supersession(await ana.history(f));
+    assert.equal(after.length, 1, "a verdict stayed superseded by an act that is gone");
+    assert.deepEqual(spoken(after[0]!.verdict), spoken(first));
+    assert.deepEqual(spoken(after[0]!.by as Act), spoken(second));
+  });
+
+  test("two acts in the same millisecond are forgotten one at a time", async () => {
+    const f = film();
+    const one = await ana.say(about(f, judged("loved", "2026-06-15T20:00:00.000Z")));
+    const two = await ana.say(about(f, judged("disliked", "2026-06-15T20:00:00.000Z")));
+
+    await ana.forget(one.ref);
+    const left = await ana.history(f);
+    assert.deepEqual(left.map((act) => act.ref), [two.ref], "the wrong act of the pair went");
+    assert.equal(
+      (current(left) as { assertion: { judgement: string } }).assertion.judgement,
+      "disliked",
+    );
+  });
+
+  test("forgetting an evening's refusal leaves the global claim alone", async () => {
+    const f = film();
+    const base = await ana.say(about(f, judged("loved", "2026-06-16T20:00:00.000Z")));
+    const evening = await ana.say(about(f, notTonight("2026-06-17T20:00:00.000Z", TUESDAY, "too long")));
+    assert.equal((current(await ana.history(f), TUESDAY) as { said: string }).said, "verdict");
+
+    await ana.forget(evening.ref);
+    const left = await ana.history(f);
+    assert.deepEqual(left.map((act) => act.ref), [base.ref]);
+    // The evening falls back to the base, which never moved.
+    for (const scope of ["everywhere", TUESDAY, WEDNESDAY] as const) {
+      const held = current(left, scope) as { assertion: { judgement: string } };
+      assert.equal(held.assertion.judgement, "loved", `the base moved in ${JSON.stringify(scope)}`);
+    }
+  });
+
+  test("a reference that names nothing is not an error and changes nothing", async () => {
+    const f = film();
+    const said = await ana.say(about(f, judged("loved", "2026-06-18T20:00:00.000Z")));
+    const before = await ana.history(f);
+
+    await ana.forget("00000000-0000-4000-8000-000000000000");
+    assert.deepEqual(await ana.history(f), before, "an unknown reference changed the history");
+    assert.equal((await ana.history(f))[0]?.ref, said.ref);
+  });
+
+  test("another user's reference does nothing and reveals nothing", async () => {
+    const f = film();
+    const hers = await ana.say(about(f, judged("loved", "2026-06-19T20:00:00.000Z")));
+
+    // Ben forgets Ana's act by its reference, and forgets one that does not
+    // exist at all. Both answer the same way, which is what stops this being a
+    // way to ask whether somebody else's act is there.
+    const known = await ben.forget(hers.ref).then(() => "ok", (error: Error) => error.message);
+    const unknown = await ben
+      .forget("00000000-0000-4000-8000-000000000001")
+      .then(() => "ok", (error: Error) => error.message);
+    assert.equal(known, unknown, "a foreign reference answered differently from an unknown one");
+
+    const left = await ana.history(f);
+    assert.deepEqual(left.map((act) => act.ref), [hers.ref], "a stranger forgot her act");
+    assert.deepEqual(spoken(left[0] as Act), spoken(hers));
   });
 
   test("a film with nothing said about it has an empty history, not a gap", async () => {

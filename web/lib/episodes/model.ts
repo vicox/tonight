@@ -88,8 +88,23 @@ export type Offer = {
 export type Episode = {
   /** What they asked for, in their words. Never a paraphrase, never a summary. */
   request: string;
+  /**
+   * How the request came to be what it says.
+   *
+   * `observed` is the ordinary case: Tonight received the request and wrote it
+   * down. `stated` means the user later said it was wrong and gave the right
+   * one. The difference is not decoration — a corrected request is something
+   * they told Tonight, and calling it observed afterwards would claim Tonight
+   * witnessed a sentence it never heard.
+   *
+   * A plain `Source` rather than an `Established`: a request is never unknown,
+   * because an evening without one is not an evening.
+   */
+  requestSource: Source;
   /** The films put forward. May be empty: an answer that named none is a fact too. */
   offered: readonly Offer[];
+  /** How the offer list came to be what it says. As `requestSource`. */
+  offeredSource: Source;
   /** Which film they said they went with. */
   chosen: Established<Offer>;
   /** Whether they said they watched it. */
@@ -131,6 +146,23 @@ export type OutcomeStatement = {
 };
 
 /**
+ * Everything about an evening that the user may put right.
+ *
+ * The outcomes, and the two facts Tonight recorded for itself. Those two are
+ * here because M3 promises that what is shown can be corrected where it is
+ * shown, and an evening whose request was written down wrongly cannot be
+ * repaired by deleting the evening — that loses the outcomes with it.
+ *
+ * An absent key is untouched, as it is for the outcomes. There is no `null` for
+ * `request` or `offered`: neither can be taken back to unknown, because an
+ * evening is not an evening without them.
+ */
+export type Correction = OutcomeStatement & {
+  request?: string;
+  offered?: readonly Offer[];
+};
+
+/**
  * Begin an episode from what Tonight observed.
  *
  * The outcomes start unknown and there is no parameter to start them anywhere
@@ -139,7 +171,12 @@ export type OutcomeStatement = {
 export function beginEpisode(request: unknown, offered: unknown): Episode {
   return {
     request: checkRequest(request),
+    // Both observed, always: recording an evening is Tonight writing down what
+    // it asked and what it offered. There is no parameter to say otherwise,
+    // because at this moment there is nothing else it could honestly be.
+    requestSource: "observed",
     offered: checkOffered(offered),
+    offeredSource: "observed",
     chosen: UNKNOWN,
     watched: UNKNOWN,
     finished: UNKNOWN,
@@ -156,30 +193,86 @@ export function beginEpisode(request: unknown, offered: unknown): Episode {
  * different evening, and quietly accepting it would let an episode claim Tonight
  * was part of something it had no part in.
  */
-export function stateOutcome(episode: Episode, statement: OutcomeStatement): Episode {
-  if (!("chosen" in statement) && !("watched" in statement) && !("finished" in statement)) {
-    throw new EpisodeError("Say what happened: chosen, watched or finished.");
+export function correctEpisode(episode: Episode, correction: Correction): Episode {
+  const keys = ["request", "offered", "chosen", "watched", "finished"] as const;
+  if (!keys.some((key) => key in correction)) {
+    throw new EpisodeError("Say what to correct: the request, the films offered, or what happened.");
   }
+
+  // One transition, described whole before any of it is judged. Each field is
+  // either what the correction says or what it already was, and the invariants
+  // are then checked against *that* evening — not against a half-applied one.
+  //
+  // The order used to be the other way round, and it made a legitimate
+  // correction impossible: replacing the offers and the choice together was
+  // refused, because the new list was held against the choice the user was in
+  // the middle of replacing.
+  const offered = "offered" in correction ? checkOffered(correction.offered) : episode.offered;
+  const chosen =
+    "chosen" in correction ? choiceAmong(offered, correction.chosen) : retained(episode.chosen, offered);
+
   return {
-    ...episode,
-    chosen: "chosen" in statement ? establishChosen(episode, statement.chosen) : episode.chosen,
-    watched: "watched" in statement ? establishFlag(statement.watched, "watched") : episode.watched,
+    request: "request" in correction ? checkRequest(correction.request) : episode.request,
+    requestSource: "request" in correction ? "stated" : episode.requestSource,
+    offered,
+    offeredSource: "offered" in correction ? "stated" : episode.offeredSource,
+    chosen,
+    watched: "watched" in correction ? establishFlag(correction.watched, "watched") : episode.watched,
     finished:
-      "finished" in statement ? establishFlag(statement.finished, "finished") : episode.finished,
+      "finished" in correction ? establishFlag(correction.finished, "finished") : episode.finished,
   };
 }
 
-function establishChosen(episode: Episode, chosen: Offer | null | undefined): Established<Offer> {
+/**
+ * A choice they already stated, carried across a corrected offer list.
+ *
+ * What is being kept is *"they chose film A"*. The Offer it points at is how
+ * that film was described in the list — its place, and whether it led — and a
+ * corrected list may describe it differently. So the choice is rebound to the
+ * entry in the new list rather than kept as the old one: otherwise the evening
+ * returned here would say `lead: true` and the same evening read back from the
+ * store would say `lead: false`, and both would claim to be what happened.
+ *
+ * If the film is not in the new list at all, the correction is refused whole.
+ * What they chose is theirs and the offer list is Tonight's; dropping their
+ * statement to make Tonight's list fit repairs the wrong one of the two. A
+ * correction that genuinely means to change both says so, and takes the other
+ * path above.
+ */
+function retained(chosen: Established<Offer>, offered: readonly Offer[]): Established<Offer> {
+  if (!chosen.known) return UNKNOWN;
+  const { title, year } = chosen.value;
+  const still = offered.find((offer) => offer.title === title && offer.year === year);
+  if (!still) {
+    throw new EpisodeError(
+      `They said they chose ${title} (${String(year)}), which is not in that list of films. ` +
+        `Correct what they chose in the same breath, or leave that film in.`,
+    );
+  }
+  return stated(still);
+}
+
+/**
+ * The film they said they went with, checked against the list it must be in.
+ *
+ * Takes the offer list rather than the episode, because the list to check
+ * against is the *corrected* one — the evening the correction is producing, not
+ * the one it started from.
+ */
+function choiceAmong(
+  offered: readonly Offer[],
+  chosen: Offer | null | undefined,
+): Established<Offer> {
   if (chosen === null || chosen === undefined) return UNKNOWN;
-  const offered = episode.offered.find(
+  const among = offered.find(
     (offer) => offer.title === chosen.title && offer.year === chosen.year,
   );
-  if (!offered) {
+  if (!among) {
     throw new EpisodeError(
       `Tonight did not offer ${chosen.title} (${String(chosen.year)}) that evening.`,
     );
   }
-  return stated(offered);
+  return stated(among);
 }
 
 function establishFlag(value: boolean | null | undefined, what: string): Established<boolean> {

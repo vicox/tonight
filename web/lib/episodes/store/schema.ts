@@ -108,5 +108,27 @@ export const EPISODES_SCHEMA: SchemaModule = {
           ON tonight_episode_offers (user_id, episode) WHERE chosen;
       `,
     },
+    {
+      version: 2,
+      sql: `
+        -- What the user later put right, and what Tonight recorded itself.
+        --
+        -- 'observed' is the honest default for every row that already exists:
+        -- correction of these two fields did not exist when they were written,
+        -- so none of them has been corrected, and saying so is a fact rather
+        -- than a guess. That is why these get a default where the verdict
+        -- table's \`seq\` deliberately did not — there, no value was true of the
+        -- old rows; here, one is.
+        ALTER TABLE tonight_episodes
+          ADD COLUMN request_source text NOT NULL DEFAULT 'observed',
+          ADD COLUMN offered_source text NOT NULL DEFAULT 'observed';
+
+        ALTER TABLE tonight_episodes
+          ADD CONSTRAINT tonight_episodes_request_source
+            CHECK (request_source IN ('observed', 'stated')),
+          ADD CONSTRAINT tonight_episodes_offered_source
+            CHECK (offered_source IN ('observed', 'stated'));
+      `,
+    },
   ],
 };

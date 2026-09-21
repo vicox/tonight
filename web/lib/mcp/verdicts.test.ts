@@ -442,4 +442,73 @@ describe("the verdict tools", () => {
       assert.equal(new RegExp(`\\b${later}`, "iu").test(text), false, `${later} appears in a verdict tool description`);
     }
   });
+
+  /* ------------------------------------------------ what leaves the boundary */
+
+  /**
+   * Persistence does not leave with the answer.
+   *
+   * The store hangs two handles on every act: `order`, which is how the table
+   * breaks a tie inside one millisecond, and `ref`, which is the name somebody
+   * will point at to take an act back. Neither is part of what the user said.
+   *
+   * `order` in particular must not be out here at all. It comes from a sequence
+   * shared by the whole table, so its value says something about how much
+   * everybody else has written — a fact about other people, handed to a model
+   * reading one person's verdicts.
+   */
+  test("no persistence handle reaches the get_verdicts payload", async () => {
+    const f = film();
+    await said(ana, "record_verdict", {
+      film: f,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "loved", because: "the tension" },
+    });
+    await said(ana, "record_verdict", {
+      film: f,
+      told: "confirmed",
+      said: { about: "judgement", judgement: "disliked" },
+    });
+    await said(ana, "withdraw_verdict", { film: f });
+
+    const answer = await said(ana, "get_verdicts", { film: f });
+    const payload = JSON.stringify(answer);
+    for (const handle of ["order", "ref", "seq"]) {
+      assert.equal(
+        new RegExp(`"${handle}"\\s*:`).test(payload),
+        false,
+        `${handle} reached the model: ${payload.slice(0, 200)}`,
+      );
+    }
+
+    // Every section, not only the list: current and superseded are acts too.
+    const read = answer as unknown as { current: unknown; superseded: unknown[]; history: unknown[] };
+    assert.equal(read.history.length, 3, "the history is no longer the whole of what was said");
+    // Two: the first verdict displaced by the second, and the second by the
+    // withdrawal that silenced it.
+    assert.equal(read.superseded.length, 2);
+    assert.equal(read.current, null, "the fixture no longer ends withdrawn");
+  });
+
+  test("stripping the handles did not change what the answer means", async () => {
+    // The ordering they exist for still works: two acts inside one millisecond
+    // resolve by the order the store accepted them, and the answer says so.
+    const f = film();
+    await said(ana, "record_verdict", {
+      film: f,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "loved" },
+    });
+    await said(ana, "record_verdict", {
+      film: f,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "disliked" },
+    });
+    const answer = (await said(ana, "get_verdicts", { film: f })) as unknown as {
+      current: { assertion: { judgement: string } };
+      history: { said: string }[];
+    };
+    assert.equal(answer.current.assertion.judgement, "disliked", "call order stopped deciding");
+    assert.equal(answer.history.length, 2);
+  });
 });

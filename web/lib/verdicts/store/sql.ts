@@ -7,6 +7,7 @@ import {
   withdrawVerdict,
   type Act,
   type Film,
+  type Identified,
   type Scope,
   type Standing,
 } from "../model.ts";
@@ -59,9 +60,9 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
    * id` is the same stable tiebreak `history` uses. None of it is the answer —
    * the model orders by the instant the user spoke.
    */
-  const everything = async (): Promise<Act[]> => {
+  const everything = async (): Promise<Identified<Act>[]> => {
     const rows = await driver.query<ActRow>(
-      `SELECT said, title, year, occasion, said_at,
+      `SELECT id, said, title, year, occasion, said_at,
               told, about, judgement, because, reach, reason, seq
          FROM tonight_verdict_acts
         WHERE user_id = $1
@@ -72,7 +73,7 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
   };
 
   return {
-    async say(act: Act): Promise<Act> {
+    async say(act: Act): Promise<Identified<Act>> {
       // Revalidated rather than trusted. `say` is a boundary — an act can reach
       // it from a request body as easily as from a constructor — and the model
       // is where "valid" is defined.
@@ -92,7 +93,7 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
                 (user_id, said, title, year, occasion, said_at,
                  told, about, judgement, because, reach, reason)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-           RETURNING said, title, year, occasion, said_at,
+           RETURNING id, said, title, year, occasion, said_at,
                      told, about, judgement, because, reach, reason, seq`,
         [
           owner,
@@ -113,10 +114,10 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
       return assemble(row);
     },
 
-    async history(film: Film): Promise<Act[]> {
+    async history(film: Film): Promise<Identified<Act>[]> {
       const named = namedFilm(film);
       const rows = await driver.query<ActRow>(
-        `SELECT said, title, year, occasion, said_at,
+        `SELECT id, said, title, year, occasion, said_at,
                 told, about, judgement, because, reach, reason, seq
            FROM tonight_verdict_acts
           WHERE user_id = $1 AND title = $2 AND year = $3
@@ -146,10 +147,27 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
       }
       return [...films.values()].flatMap((acts) => standing(acts));
     },
+
+    async forget(ref: string): Promise<void> {
+      // Both halves of the key, and that is the whole of the authorisation: a
+      // reference belonging to somebody else matches no row here, so it cannot
+      // delete one and cannot report that it exists. The statement is the same
+      // either way and so is the answer.
+      //
+      // Nothing is returned. Telling a caller whether a row went would answer
+      // "does this act exist" for any reference they cared to try.
+      await driver.query(
+        `DELETE FROM tonight_verdict_acts
+               WHERE user_id = $1 AND id = $2`,
+        [owner, ref],
+      );
+    },
   };
 }
 
 type ActRow = {
+  /** The row's own identity, and the reference a caller forgets an act by. */
+  id: string;
   said: string;
   title: string;
   year: number;
@@ -174,12 +192,15 @@ type ActRow = {
  * become one: `say` never names the column, and this is the only place a value
  * for it comes from.
  */
-function assemble(row: ActRow): Act {
+function assemble(row: ActRow): Identified<Act> {
   const scope = row.occasion === null ? "everywhere" : { occasion: row.occasion };
   const at = moment(row.said_at);
-  const order = row.seq === null ? {} : { order: Number(row.seq) };
+  // Two handles, and they are not the same kind of thing. `order` is how the
+  // table breaks a tie inside one millisecond; `ref` is what somebody points at
+  // to take one act back. See `Identified` in the model.
+  const handles = { ref: row.id, ...(row.seq === null ? {} : { order: Number(row.seq) }) };
   if (row.said === "withdrawal") {
-    return { ...withdrawVerdict({ title: row.title, year: row.year }, at, scope), ...order };
+    return { ...withdrawVerdict({ title: row.title, year: row.year }, at, scope), ...handles };
   }
   if (row.said !== "verdict") throw new VerdictError(`No act is a ${row.said}.`);
 
@@ -196,7 +217,7 @@ function assemble(row: ActRow): Act {
     row.about === "judgement"
       ? { about: "judgement", judgement: row.judgement, because: row.because }
       : { about: "rejection", rejection: { reach: row.reach, reason: row.reason } };
-  return { ...stateVerdict({ title: row.title, year: row.year }, assertion, row.told, at, scope), ...order };
+  return { ...stateVerdict({ title: row.title, year: row.year }, assertion, row.told, at, scope), ...handles };
 }
 
 /** The scope, as the column holds it: null is everywhere. */

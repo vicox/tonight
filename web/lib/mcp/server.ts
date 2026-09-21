@@ -30,7 +30,7 @@ import {
   type Film,
   type Scope,
 } from "../verdicts/model.ts";
-import { current, supersession } from "../verdicts/model.ts";
+import { current, spoken, supersession } from "../verdicts/model.ts";
 import type { QuestionStore } from "../verdicts/questions.ts";
 import type { VerdictStore } from "../verdicts/store.ts";
 import type { TasteStore } from "../taste/store.ts";
@@ -787,11 +787,21 @@ export function tonightMcpServer(session: McpSession): McpServer {
       attempt(async () => {
         const history = await verdicts.history(film as Film);
         const asked: Scope = occasion === undefined ? "everywhere" : { occasion };
+        // What leaves is what they said. Persistence hangs two handles on an act
+        // — the order the table accepted it in, and the reference it is known
+        // by — and neither is part of the claim. The order is machinery and was
+        // never anybody's business out here; the reference is real, but nothing
+        // on this surface can act on one yet, and an identifier a caller cannot
+        // use is an invitation to invent a use for it.
+        const held = current(history, asked);
         return {
           film,
-          current: current(history, asked),
-          superseded: supersession(history),
-          history,
+          current: held === null ? null : spoken(held),
+          superseded: supersession(history).map(({ verdict, by }) => ({
+            verdict: spoken(verdict),
+            by: spoken(by),
+          })),
+          history: history.map(spoken),
         };
       }),
   );

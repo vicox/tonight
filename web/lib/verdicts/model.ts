@@ -206,6 +206,45 @@ export type Act = Verdict | Withdrawal;
  */
 export type Written<T> = T & { order: number };
 
+/**
+ * An act with the handle persistence gave it, so a caller can name that one act.
+ *
+ * Distinct from `Written` and deliberately so. The order answers *"which of
+ * these was said second"* and is machinery — it belongs to the table, it moves
+ * if the table is rebuilt, and nothing outside persistence should hold it. The
+ * reference answers *"which act do you mean"* and is a product fact: it is what
+ * somebody points at to take one thing back, so it has to survive everything
+ * except being forgotten.
+ *
+ * Two acts can be identical in every stated respect — the same film, the same
+ * judgement, the same instant — and still be two things the user said. Only the
+ * reference tells them apart, which is why it cannot be derived from content.
+ *
+ * Like the order, it is **not** part of the claim: the user did not say it, no
+ * constructor here produces one, and nothing that compares what was claimed
+ * looks at it.
+ */
+export type Identified<T> = T & { ref: string };
+
+/**
+ * An act as they said it, with what persistence added taken back off.
+ *
+ * Both handles come off, and for different reasons. The order is machinery that
+ * was never anybody's business outside the store. The reference is a real
+ * product fact, but it is a fact about the record rather than about the claim —
+ * so a caller comparing *what was said* must not see it either, and a surface
+ * that has no way to act on a reference should not be handing them out.
+ *
+ * Used at the edges: where an act leaves Tonight, and where a contract asks
+ * whether a claim survived a round trip unchanged.
+ */
+export function spoken(act: Act): Act {
+  const { ref, order, ...said } = act as Act & Partial<Identified<Act>> & Partial<Written<Act>>;
+  void ref;
+  void order;
+  return said as Act;
+}
+
 /** The write order an act carries, or none — a legacy row predating the column. */
 function orderOf(act: Act): number | null {
   const order = (act as Partial<Written<Act>>).order;
@@ -512,13 +551,13 @@ function checkAct(value: unknown): Act {
     throw new VerdictError("Only the user states a verdict.");
   }
   if (act.said === "verdict") {
-    return written(stateVerdict(act.film, act.assertion, act.told, act.at, act.scope), act.order);
+    return handled(stateVerdict(act.film, act.assertion, act.told, act.at, act.scope), act);
   }
   if (act.said === "withdrawal") {
     for (const owned of ["assertion", "told"]) {
       if (owned in act) throw new VerdictError(`A withdrawal asserts nothing, so it has no ${owned}.`);
     }
-    return written(withdrawVerdict(act.film, act.at, act.scope), act.order);
+    return handled(withdrawVerdict(act.film, act.at, act.scope), act);
   }
   throw new VerdictError("Each act says whether it is a verdict or a withdrawal.");
 }
@@ -538,6 +577,28 @@ function written(act: Act, order: unknown): Act {
     throw new VerdictError("A write order is a whole number, and the store assigns it.");
   }
   return { ...act, order } as unknown as Act;
+}
+
+/**
+ * Puts both of persistence's handles back on a rebuilt act.
+ *
+ * Rebuilding is how this model refuses to trust what it was handed: every act
+ * is constructed again from its stated parts, so anything that is not a stated
+ * part is dropped. That is right for claims and wrong for the handles, which
+ * would then survive a read and vanish the moment anything resolved a history —
+ * and a reference that disappears when you ask which verdict stands is no use
+ * for taking that verdict back.
+ *
+ * So they are reattached here, deliberately and in one place, rather than
+ * being let through the constructors.
+ */
+function handled(act: Act, from: Record<string, unknown>): Act {
+  const ordered = written(act, from.order);
+  if (from.ref === undefined || from.ref === null) return ordered;
+  if (typeof from.ref !== "string" || from.ref.trim() === "") {
+    throw new VerdictError("A reference to an act is text, and the store assigns it.");
+  }
+  return { ...ordered, ref: from.ref } as unknown as Act;
 }
 
 function checkFilm(value: unknown): Film {

@@ -2,18 +2,22 @@ import { database } from "../db.ts";
 import type { SqlDriver } from "../db/driver.ts";
 import { prepareSchema } from "../db/migrate.ts";
 import type { AuthenticatedUser } from "../identity.ts";
-import type { Act, Film, Standing } from "./model.ts";
+import type { Act, Film, Identified, Standing } from "./model.ts";
 
 /**
  * What Slice 2 of M2 needs from persistence, and nothing beyond it.
  *
- * Four operations, because a history is append-only. Something the user said
- * goes on the end, one film's history comes back for the model to resolve, what
- * currently stands comes back for recommendation work to read, and the whole
- * act set comes back for anything that has to account for the history rather
- * than act on it. Nothing already said is ever edited. Changing their mind is
- * a later verdict, taking it back is a withdrawal, and both are acts in their
- * own right — so there is no `update` here, and nothing for one to be.
+ * Five operations. Something the user said goes on the end, one film's history
+ * comes back for the model to resolve, what currently stands comes back for
+ * recommendation work to read, the whole act set comes back for anything that
+ * has to account for the history rather than act on it, and one act can be
+ * forgotten outright.
+ *
+ * Nothing already said is ever **edited**. Changing their mind is a later
+ * verdict, taking it back is a withdrawal, and both are acts in their own right
+ * — so there is no `update` here and nothing for one to be. `forget` is not an
+ * exception to that: it removes an act whole, on the user's say-so, and never
+ * rewrites one into something they did not say.
  *
  * ## Why there are no identifiers in this surface
  *
@@ -39,7 +43,7 @@ export type VerdictStore = {
    * Inserts, always. There is no upsert and no id to collide on: saying the
    * same thing twice is two acts, which is what actually happened.
    */
-  say(act: Act): Promise<Act>;
+  say(act: Act): Promise<Identified<Act>>;
 
   /**
    * Everything this user has said about one film, for the model to resolve.
@@ -49,7 +53,7 @@ export type VerdictStore = {
    * convenience and never the answer. Empty for a film they have never
    * mentioned, which is silence rather than a gap.
    */
-  history(film: Film): Promise<Act[]>;
+  history(film: Film): Promise<Identified<Act>[]>;
 
   /**
    * Every act this user has performed, about every film.
@@ -70,7 +74,28 @@ export type VerdictStore = {
    * a stable, convenient order and that order is never the answer, exactly as
    * `history` documents.
    */
-  acts(): Promise<Act[]>;
+  acts(): Promise<Identified<Act>[]>;
+
+  /**
+   * Removes exactly one act, because the user asked for that one to be gone.
+   *
+   * The single place this store deletes anything, and it deletes a whole act
+   * rather than editing one: what they said either stands in the history or is
+   * not there. Nothing is written in its place — no tombstone, no "forgotten"
+   * flag — because a record that something was removed is a record of what was
+   * removed, which is the thing they asked to be rid of.
+   *
+   * Everything downstream is recomputed from what remains. Forgetting a
+   * withdrawal lets the verdict it silenced stand again; forgetting the last
+   * act about a film leaves that film as though nothing was ever said, and
+   * whatever the Movie state says applies once more.
+   *
+   * A reference that names nothing, or names another user's act, is not an
+   * error and is not distinguishable from one that does: both leave the store
+   * as it was and answer the same way. Anything else would make this a way to
+   * ask whether somebody else's act exists.
+   */
+  forget(ref: string): Promise<void>;
 
   /**
    * What currently stands about every film this user has spoken about.
