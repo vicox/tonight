@@ -520,7 +520,19 @@ check "and the reverse is what must not happen" \
 check "the CRUD tools are named as the way to do it" \
     "$(order_check '## Asked about the model directly' \
         '**do those**' \
-        'call `get_taste` and answer in ordinary sentences')" "True"
+        'Read back with `get_taste`')" "True"
+# M3 gave the skill a second read. Which one answers which question is a rule,
+# and the skill has to carry it in the order somebody meets it: the taste read
+# first, because that is the older and commoner case, then the memory read named
+# for what it is for.
+check "the two reads are told apart where a read-back is decided" \
+    "$(order_check 'Read back with `get_taste`' \
+        '`get_memory` for' \
+        'what Tonight remembers')" "True"
+check "the skill explains why they are two reads, not one" \
+    "$(order_check 'is a different question from' \
+        '`get_taste` is what a recommendation stands on' \
+        'history rather than belief')" "True"
 check "nobody is sent to the website for something the conversation can do" \
     "$(order_check 'is *a* management surface, not *the* one' \
         'Do not send somebody to the website for something you can do in the')" "True"

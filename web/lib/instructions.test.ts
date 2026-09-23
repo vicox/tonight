@@ -695,8 +695,67 @@ test("the model can be inspected and changed in the conversation, in plain sente
 
   assert.match(flat, /## Asked about the model directly/);
   assert.match(flat, /\*\*do those\*\*, in the conversation/);
-  assert.match(flat, /call `get_taste` and answer in ordinary sentences/);
+  assert.match(flat, /in ordinary sentences/);
   assert.match(flat, /is \*a\* management surface, not \*the\* one/);
+});
+
+/**
+ * Which read answers which question.
+ *
+ * M3 gave Tonight a second thing to read, and the rule above used to send every
+ * read-back to `get_taste` — which was right while that was the only read and
+ * became wrong the moment `get_memory` existed. *"What do I like?"* and *"what
+ * do you know about me?"* are different questions with different answers, and an
+ * agent that cannot tell them apart will either recommend from history or
+ * explain a person using only the part of them that drives recommendations.
+ *
+ * Asserted as behaviour rather than as one sentence: what has to survive is that
+ * both tools are named and told apart, in whatever wording carries it.
+ */
+test("a read-back names both reads, and says which is for what", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+
+  // Both are named where a read-back is decided.
+  const section = flat.slice(
+    flat.indexOf("## Asked about the model directly"),
+    flat.indexOf("## What Tonight remembers"),
+  );
+  assert.ok(section.length > 100, "the read-back section could not be found");
+  assert.match(section, /`get_taste`/, "the taste read is not named where a read-back is decided");
+  assert.match(section, /`get_memory`/, "the memory read is not named where a read-back is decided");
+  // And the memory read is tied to remembering rather than to liking.
+  assert.match(section, /`get_memory`[^.]{0,40}remember/iu);
+});
+
+test("recommending still reads the taste model, and never the memory view", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const recommending = flat.slice(
+    flat.indexOf("## Recommending"),
+    flat.indexOf("## What may be persisted"),
+  );
+
+  assert.ok(recommending.length > 500, "the recommending section could not be found");
+  assert.match(recommending, /\*\*Read `get_taste` either way\*\*/, "recommendation lost its read");
+  assert.equal(
+    recommending.includes("get_memory"),
+    false,
+    "the memory view was made part of recommending",
+  );
+});
+
+/**
+ * Remembering is not believing, and the instructions still say so.
+ *
+ * M3 makes this reachable — an agent can now ask for the whole of what Tonight
+ * holds, most of which is history. The rule that history teaches nothing was
+ * already there for M1's sake; this pins it against the new way of meeting it.
+ */
+test("what is remembered is still not what is believed", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  assert.match(flat, /\*\*History is not taste\*\*/);
+  assert.match(flat, /nothing is learned from it/);
+  // And the one thing that is evidence is still named as the exception.
+  assert.match(flat, /\*\*A saved film is different\*\*: its state is evidence/);
 });
 
 test("a taste read that fails is split by what was asked, not by what broke", () => {
@@ -1214,8 +1273,16 @@ const CAP = 8000;
  * rules — reaching 6,800 would mean dropping some. The number here is therefore
  * what the contract actually costs plus a little room; lowering it is a product
  * decision about which rules stop reaching the agent, not an editing task.
+ *
+ * Raised from 7,900 when M3 gave Tonight a second thing to read — `get_memory`
+ * beside `get_taste` — and the rule saying which to reach for would not fit.
+ * The alternative was deleting a Phase-1 rule to make room, which is the
+ * decision the paragraph above says this number exists to make explicit. The
+ * cap did not move and cannot: it is measured, not chosen.
+ *
+ * This is not general prose budget. It is what one more routing rule cost.
  */
-const GUARD = 7900;
+const GUARD = 7950;
 
 test("all of the instructions fit in a ChatGPT project, with room to spare", () => {
   assert.equal(PROJECT_INSTRUCTIONS_LENGTH, PROJECT_INSTRUCTIONS.length);
@@ -1318,7 +1385,8 @@ test("every rule the agent cannot work out for itself is in the text it is given
     // the model is inspected and managed in conversation, in plain sentences
     "## Asked about the model directly",
     "**do those**",
-    "call `get_taste` and answer in ordinary sentences",
+    "Read back with `get_taste`, or `get_memory` for",
+    "in ordinary sentences",
     // failures
     "offer to retry",
     "*Taste question*: stop",

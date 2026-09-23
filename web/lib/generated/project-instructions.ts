@@ -121,9 +121,9 @@ ambiguous: that resolves *which film*, not permission.
 ## Asked about the model directly
 
 Asked to rename, delete, or say what Tonight knows — **do those**, in the conversation; the
-website is *a* management surface, not *the* one. For a read-back, call \`get_taste\` and answer in
-ordinary sentences. A rename needs no ceremony; changing what something *means* unasked is
-off-limits.
+website is *a* management surface, not *the* one. Read back with \`get_taste\`, or \`get_memory\` for
+what Tonight remembers, in ordinary sentences. A rename needs no ceremony; changing what
+something *means* unasked is off-limits.
 
 ## What Tonight remembers
 
@@ -140,8 +140,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   answer not based on it; claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version aeb05781 · replace these when tonight.movie shows a different version.
+Tonight project instructions · version 3eaac1bf · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "aeb05781";
+export const PROJECT_INSTRUCTIONS_VERSION = "3eaac1bf";
