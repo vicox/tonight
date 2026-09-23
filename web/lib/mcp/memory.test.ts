@@ -530,4 +530,35 @@ describe("the memory tools", () => {
       );
     }
   });
+
+  test("the memory view says where an evening's own record came from", () => {
+    // `get_memory` shows the two source fields itself, so it has to define them
+    // itself. A model that reaches this surface without `get_episodes` would
+    // otherwise meet `requestSource: "stated"` with nothing to read it by — and
+    // the obvious wrong reading, that the user stated a preference, is exactly
+    // the one this whole surface exists to prevent.
+    const memoryText = someone().get_memory!.description ?? "";
+
+    // Meaning, not phrasing: a reworded but equally explicit definition has to
+    // pass, so none of these pins a whole sentence.
+    assert.match(memoryText, /`?requestSource`?/u, "the memory view never names requestSource");
+    assert.match(memoryText, /`?offeredSource`?/u, "the memory view never names offeredSource");
+    assert.match(
+      memoryText,
+      /`observed`[^.]*Tonight[^.]*(received|put|made|itself)/iu,
+      "the memory view does not say that observed means Tonight was there itself",
+    );
+    assert.match(
+      memoryText,
+      /`stated`[^.]*(user|they)[^.]*(later|afterwards)[^.]*(corrected|said|put it right)/iu,
+      "the memory view does not say that stated means the user corrected it later",
+    );
+    // And it still says the thing that stops a corrected evening being read as
+    // evidence, which is why the sentence above needs no guard of its own.
+    assert.match(
+      memoryText,
+      /(An evening is not a preference|not a preference|never a preference)/iu,
+      "the memory view no longer rules out reading an evening as a preference",
+    );
+  });
 });

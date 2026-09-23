@@ -613,7 +613,13 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "offered, and whatever they said happened. Each of chosen, watched and finished is " +
         "either known — with the value they stated — or not known at all. Not known means " +
         "nobody ever said, and it is a complete answer rather than a gap: do not read it as no, " +
-        "and do not fill it in from what seems likely.",
+        "and do not fill it in from what seems likely.\n\n" +
+        "`requestSource` and `offeredSource` say where those two came from. `observed` means " +
+        "Tonight received that request itself, or itself put those films forward, at the time. " +
+        "`stated` means the user later corrected it, so what the field now says is theirs " +
+        "rather than yours. Both are about the record and never about the film: a corrected " +
+        "evening says nothing about what they like, and neither value is something you worked " +
+        "out.",
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
@@ -888,7 +894,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "something they say.\n\n" +
         "Every entry carries where it came from and, where one exists, the handle you correct " +
         "it by: a genre or mix by its name, a film by title and year, an evening by its id, and " +
-        "one thing they said by its `ref`. A verdict's `ref` is what `forget_verdict` takes.\n\n" +
+        "one thing they said by its `ref`. A verdict's `ref` is what `forget_verdict` takes. An " +
+        "evening also says where its own record came from: `requestSource` and `offeredSource` " +
+        "are `observed` where Tonight received the request or put the films forward itself, and " +
+        "`stated` where the user later corrected it.\n\n" +
         "This is for explaining and correcting, not for recommending. `get_taste` is what a " +
         "recommendation reads; this holds history beside belief on purpose, and using the " +
         "history as though it were taste is the one thing it must not be used for. Reading it " +

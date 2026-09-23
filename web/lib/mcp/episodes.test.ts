@@ -250,6 +250,158 @@ describe("episode tools", () => {
     ]);
   });
 
+  test("the descriptions define where an evening's own record came from", () => {
+    // Two fields were added to every public Episode payload and nothing told a
+    // model what they meant. A field a model can see and cannot interpret is
+    // worse than an absent one: it will be interpreted anyway, and the two
+    // readings available here — that `stated` is a preference, or that
+    // `observed` is something Tonight worked out — are both wrong and both
+    // plausible.
+    //
+    // What is asserted below is meaning, not phrasing. An earlier version of
+    // this test also demanded that the words "taste", "verdict", "prefer" and
+    // "infer" never appear, which forbids the clearest possible wording — *"this
+    // is not taste evidence"* — while proving nothing about what the
+    // description actually establishes. A correct explicit negation has to be
+    // allowed, so the contract is stated positively instead.
+    const said = ana.get_episodes!.description ?? "";
+
+    // Both fields are named, where the payload shows them.
+    assert.match(said, /`?requestSource`?/u, "get_episodes never names requestSource");
+    assert.match(said, /`?offeredSource`?/u, "get_episodes never names offeredSource");
+
+    // They are provenance of the record — where the field's content came from —
+    // and not a property of the evening or of the film.
+    assert.match(
+      said,
+      /(requestSource|offeredSource)[^.]*(came from|where .*came|provenance)/iu,
+      "the description never says the two fields are about where the record came from",
+    );
+
+    // `observed`: Tonight was there. Received it, or put the films forward itself.
+    assert.match(
+      said,
+      /`observed`[^.]*Tonight[^.]*(received|put|made|itself)/iu,
+      "the description never says observed means Tonight was there itself",
+    );
+
+    // `stated`: the user put it right afterwards, so the field became theirs.
+    assert.match(
+      said,
+      /`stated`[^.]*(user|they)[^.]*(later|afterwards)[^.]*(corrected|said|put it right)/iu,
+      "the description never says stated means the user corrected it later",
+    );
+
+    // A corrected evening is a repaired record and says nothing about the film.
+    assert.match(
+      said,
+      /(nothing about what they like|not a preference|never about the film|not (taste|verdict) evidence)/iu,
+      "the description never rules out reading a corrected evening as a preference",
+    );
+
+    // And neither value is something the model arrived at.
+    assert.match(
+      said,
+      /(not something you worked out|never (inferred|an inference)|not an inference|neither value is something you)/iu,
+      "the description never rules out reading observed or stated as something inferred",
+    );
+  });
+
+  test("an evening's two sources move one at a time, and each correction moves only its own", async () => {
+    // The pair, at every stage, from two independent places: what the write
+    // answered, and what a later public read says about that same evening.
+    //
+    // Asserting one field at a time is what made the earlier version of this
+    // test weak: `offeredSource === "stated"` after an offers-only correction
+    // passes just as happily if that correction quietly reset `requestSource` to
+    // `observed`. So the assertion is always the pair.
+    type Sourced = { id: string; requestSource: string; offeredSource: string };
+    const domain = new Set<string>();
+
+    const pairOf = (evening: Sourced): [string, string] => {
+      domain.add(evening.requestSource);
+      domain.add(evening.offeredSource);
+      return [evening.requestSource, evening.offeredSource];
+    };
+    const written = async (name: string, args: Record<string, unknown>) =>
+      (await call(ana, name, args)).structuredContent!.episode as Sourced;
+    /** That one evening, as `get_episodes` hands it back — by its own id. */
+    const readBack = async (id: string): Promise<Sourced> => {
+      const listed = (await call(ana, "get_episodes")).structuredContent!.episodes as Sourced[];
+      const one = listed.find((entry) => entry.id === id);
+      assert.ok(one, `get_episodes no longer lists ${id}`);
+      return one;
+    };
+
+    /* -- recorded: Tonight was there for both halves ------------------------- */
+
+    const mine = await written("record_episode", { request: "something tense", offered });
+    assert.deepEqual(pairOf(mine), ["observed", "observed"], "a recorded evening did not say Tonight was there");
+    assert.deepEqual(pairOf(await readBack(mine.id)), ["observed", "observed"]);
+
+    // A second evening nobody ever corrects. It is the control: a per-episode
+    // swap, or a correction that reached across evenings, shows up here and
+    // nowhere else.
+    const other = await written("record_episode", { request: "something quiet", offered });
+    assert.deepEqual(pairOf(other), ["observed", "observed"]);
+
+    /* -- the request corrected, and only the request ------------------------- */
+
+    const afterRequest = await written("correct_episode", {
+      episode: mine.id,
+      request: "what they actually asked for",
+    });
+    assert.deepEqual(
+      pairOf(afterRequest),
+      ["stated", "observed"],
+      "correcting the request left it claiming Tonight heard it, or moved the offers with it",
+    );
+    assert.deepEqual(
+      pairOf(await readBack(mine.id)),
+      ["stated", "observed"],
+      "the corrected request does not read back as theirs",
+    );
+
+    /* -- the offers corrected, and the request left where it was ------------- */
+
+    // Only `offered`. Nothing else is sent — no `chosen: null` to keep it
+    // company, because a second field in the call makes this a two-field
+    // correction and the step would no longer prove what it is named for: that
+    // an **offers-only** correction leaves the request where the user put it.
+    // The evening has no choice to take back anyway; passing one said nothing
+    // and hid the case.
+    const afterOffers = await written("correct_episode", {
+      episode: mine.id,
+      offered: [offered[0]!],
+    });
+    // The whole point of this step: `offeredSource` becomes theirs **and**
+    // `requestSource` stays theirs. A correction that reset the request to
+    // `observed` would un-say something the user already put right.
+    assert.deepEqual(
+      pairOf(afterOffers),
+      ["stated", "stated"],
+      "correcting the offers reset the request they had already corrected",
+    );
+    assert.deepEqual(
+      pairOf(await readBack(mine.id)),
+      ["stated", "stated"],
+      "the corrected pair does not read back whole",
+    );
+
+    /* -- the evening nobody touched ----------------------------------------- */
+
+    assert.deepEqual(
+      pairOf(await readBack(other.id)),
+      ["observed", "observed"],
+      "correcting one evening moved another evening's provenance",
+    );
+
+    // And there is no third value, anywhere in any of that. The domain proof is
+    // kept — it is what rules out a fourth state — but it is a supplement to the
+    // pairs above rather than a substitute for them.
+    assert.deepEqual([...domain].sort(), ["observed", "stated"]);
+  });
+
   test("the descriptions carry the boundary a model has to read", () => {
     // Read from the registry rather than the source, because that is the text a
     // model is actually handed — and because concatenation in the source breaks
