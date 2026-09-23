@@ -15,7 +15,7 @@ import {
   EpisodeError,
   MAX_OFFERED,
   MAX_REQUEST_LENGTH,
-  type OutcomeStatement,
+  type Correction,
 } from "../episodes/model.ts";
 import type { EpisodeStore } from "../episodes/store.ts";
 import {
@@ -31,6 +31,7 @@ import {
   type Scope,
 } from "../verdicts/model.ts";
 import { current, spoken, supersession } from "../verdicts/model.ts";
+import { compose } from "../memory/model.ts";
 import type { QuestionStore } from "../verdicts/questions.ts";
 import type { VerdictStore } from "../verdicts/store.ts";
 import type { TasteStore } from "../taste/store.ts";
@@ -624,6 +625,11 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Record or correct what happened",
       description:
+        "Put an evening right. Two kinds of thing are correctable here and they are not the " +
+        "same: what the user told you happened, and what you yourself wrote down at the time. " +
+        "Correcting the request or the films offered marks that fact as theirs rather than " +
+        "yours, because a record you had to be corrected on is no longer something you " +
+        "witnessed.\n\n" +
         "Say what the user told you about an evening: which film they went with, whether they " +
         "watched it, whether they finished it. Only ever from what they said. Choosing is not " +
         "watching, watching is not finishing, and finishing is not liking — a later one is never " +
@@ -633,6 +639,20 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "that evening offered.",
       inputSchema: z.object({
         episode: episodeId,
+        request: episodeRequest
+          .optional()
+          .describe(
+            "What they actually asked for, if you wrote it down wrongly. Replaces it, in their " +
+              "own words. It cannot be blank: an evening without a request is not an evening.",
+          ),
+        offered: episodeOffers
+          .optional()
+          .describe(
+            "The films you actually put forward, if the list is wrong. Replaces it whole rather " +
+              "than adding to it. An empty list is allowed and means you named no film — but " +
+              "not while they are still recorded as having chosen one, so correct what they " +
+              "chose in the same call if you are taking that film away.",
+          ),
         chosen: episodeChosen,
         watched: episodeFlag.describe(
           "True or false as they said it, or null to take it back to not known. Leave out to " +
@@ -645,12 +665,14 @@ export function tonightMcpServer(session: McpSession): McpServer {
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
-    async ({ episode, chosen, watched, finished }) =>
+    async ({ episode, request, offered, chosen, watched, finished }) =>
       attempt(async () => {
         // Each key is forwarded only when the caller sent it, because an absent
         // field means "leave it alone" and a present null means "take it back".
         // Collapsing the two here would make retraction unsayable.
-        const statement: OutcomeStatement = {};
+        const statement: Correction = {};
+        if (request !== undefined) statement.request = request;
+        if (offered !== undefined) statement.offered = offered;
         if (chosen !== undefined) {
           statement.chosen = chosen === null ? null : { ...chosen, lead: false };
         }
@@ -841,6 +863,89 @@ export function tonightMcpServer(session: McpSession): McpServer {
     },
     async ({ film }) =>
       attempt(async () => ({ question: await questions.opportunity(film as Film, now()) })),
+  );
+
+  // --- memory --------------------------------------------------------------
+  //
+  // What Tonight remembers, and what it makes of it. Nothing here writes, and
+  // nothing here decides anything the stores have not already decided: the
+  // arranging is `lib/memory/model.ts`'s, which is where the placement rules
+  // and the precedence have contracts on them.
+
+  server.registerTool(
+    "get_memory",
+    {
+      title: "Everything Tonight remembers about them",
+      description:
+        "The whole of what Tonight holds about this user, in three parts, so that \"what do " +
+        "you know about me?\" has a complete and honest answer.\n\n" +
+        "`held` is what it currently holds as theirs: their genres, their mixes, the films they " +
+        "saved, and the verdicts that still stand. `operative` is only the places where two of " +
+        "those disagree about one film — it names both and says which one governs, and it is " +
+        "not a second copy of `held`. `remembered` is what it remembers happening: evenings, " +
+        "verdicts they replaced, verdicts they took back. **Remembered is not evidence about " +
+        "them.** An evening is not a preference, and something they stopped saying is not " +
+        "something they say.\n\n" +
+        "Every entry carries where it came from and, where one exists, the handle you correct " +
+        "it by: a genre or mix by its name, a film by title and year, an evening by its id, and " +
+        "one thing they said by its `ref`. A verdict's `ref` is what `forget_verdict` takes.\n\n" +
+        "This is for explaining and correcting, not for recommending. `get_taste` is what a " +
+        "recommendation reads; this holds history beside belief on purpose, and using the " +
+        "history as though it were taste is the one thing it must not be used for. Reading it " +
+        "writes nothing and changes nothing.",
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    async () =>
+      attempt(async () => {
+        // Three reads and one call. The boundary gathers roots; what is held,
+        // what governs and what is merely remembered is the memory model's
+        // answer, and asking it twice in two places is how two answers start.
+        const [taste, acts, evenings] = await Promise.all([
+          store.taste(),
+          verdicts.acts(),
+          episodes.episodes(),
+        ]);
+        return compose({ taste, acts, episodes: evenings });
+      }),
+  );
+
+  server.registerTool(
+    "forget_verdict",
+    {
+      title: "Forget that they ever said one thing",
+      description:
+        "Remove one thing they said about a film, by the `ref` `get_memory` gives it. It is " +
+        "gone: not withdrawn, not marked, not kept where anybody can see it.\n\n" +
+        "**This is not `withdraw_verdict`, and the difference matters.** Withdrawing says *I " +
+        "no longer stand by that* — the claim stops applying and the fact that they said it " +
+        "stays true and visible. Forgetting says *take it out of what you remember*. Use this " +
+        "when they ask you to forget something, and withdraw when they have changed their " +
+        "mind.\n\n" +
+        "Only that one act goes. Everything else about the film is worked out again from what " +
+        "is left, so forgetting a withdrawal lets the verdict it silenced stand once more, and " +
+        "forgetting the last thing they said about a film leaves it as though they had never " +
+        "said anything — whatever the saved film says applies again.",
+      inputSchema: z.object({
+        ref: z
+          .string()
+          .min(1)
+          .describe(
+            "The one act to forget, exactly as `get_memory` gave it. There is no other way to " +
+              "name it: a title, a year or a position would not tell two identical statements " +
+              "apart.",
+          ),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
+    },
+    async ({ ref }) =>
+      attempt(async () => {
+        // The same answer whether or not there was anything there. A reference
+        // that names nothing, or names somebody else's act, must not be a way to
+        // find out that it exists.
+        await verdicts.forget(ref);
+        return { forgotten: ref };
+      }),
   );
 
   return server;

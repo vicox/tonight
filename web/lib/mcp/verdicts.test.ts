@@ -402,9 +402,13 @@ describe("the verdict tools", () => {
     }
   });
 
-  test("the surface is the five tools this slice approved, and no generic mutation", () => {
+  test("the surface is the six tools approved so far, and no generic mutation", () => {
+    // M2 approved five. M3 adds `forget_verdict`, which is not a sixth way to
+    // change what they said: it removes one act whole, on their say-so, and the
+    // names below are still the ones that would let an edit in.
     const mine = Object.keys(ana).filter((name) => /verdict|question|opportunit/.test(name)).sort();
     assert.deepEqual(mine, [
+      "forget_verdict",
       "get_open_questions",
       "get_verdicts",
       "record_opportunity",

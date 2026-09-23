@@ -144,7 +144,9 @@ test("every tool is discoverable, and only the intended ones", async () => {
     "delete_mix",
     "delete_movie",
     "forget_episode",
+    "forget_verdict",
     "get_episodes",
+    "get_memory",
     "get_open_questions",
     "get_server_info",
     "get_taste",
@@ -158,16 +160,19 @@ test("every tool is discoverable, and only the intended ones", async () => {
     "withdraw_verdict",
   ]);
 
-  // Twenty, and every one of them a state operation. Product guidance ships in
-  // skills/ beside the server rather than as a runtime tool: an exhaustive list
-  // is what keeps one from creeping back.
+  // Twenty-two, and every one of them a state operation. Product guidance ships
+  // in skills/ beside the server rather than as a runtime tool: an exhaustive
+  // list is what keeps one from creeping back.
   //
   // Eleven are the taste model's, four are M1's episodes, which write what
-  // happened rather than what somebody likes, and five are M2's verdicts, which
-  // write what they thought of it. The three sets never mix: no episode tool
-  // reads or writes a genre, a mix or a movie state, and no verdict tool does
-  // either — the chain from watching to liking is never closed for the user.
-  assert.equal(tools.length, 20);
+  // happened rather than what somebody likes, five are M2's verdicts, which
+  // write what they thought of it, and two are M3's: one that explains all of it
+  // back and one that takes a single statement out of it. The sets never mix: no
+  // episode tool reads or writes a genre, a mix or a movie state, and no verdict
+  // tool does either — the chain from watching to liking is never closed for the
+  // user. M3's pair read across all of them and write nothing but a deletion the
+  // user asked for.
+  assert.equal(tools.length, 22);
 
   const info = tools.find((tool) => tool.name === "get_server_info");
   assert.equal(info?.title, "Server information");
