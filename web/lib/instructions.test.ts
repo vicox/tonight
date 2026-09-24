@@ -723,8 +723,16 @@ test("a read-back names both reads, and says which is for what", () => {
   assert.ok(section.length > 100, "the read-back section could not be found");
   assert.match(section, /`get_taste`/, "the taste read is not named where a read-back is decided");
   assert.match(section, /`get_memory`/, "the memory read is not named where a read-back is decided");
-  // And the memory read is tied to remembering rather than to liking.
-  assert.match(section, /`get_memory`[^.]{0,40}remember/iu);
+  // And the memory read is tied to remembering rather than to liking. The word
+  // was "remembers" until the sentence had to carry the disagreement rule as
+  // well; what has to hold is that `get_memory` is named for memory and
+  // `get_taste` is not, which is the routing the whole section exists for.
+  assert.match(section, /`get_memory` for [^.;]{0,40}\bmemor/iu, "the memory read is no longer tied to memory");
+  assert.doesNotMatch(
+    section,
+    /`get_taste` for [^.;]{0,40}\bmemor/iu,
+    "the taste read was given the memory question",
+  );
 });
 
 /**
@@ -809,9 +817,11 @@ test("a question about what disagrees is routed to the read that can see both si
   );
   assert.ok(asked.length > 200, "the read-back section could not be found");
 
-  // (6) Disagreement is named as something `get_memory` answers.
+  // (6) `get_memory` is named as the read for a read-back, and disagreement is
+  // named as one of the things it answers.
   assert.match(asked, /`get_memory`/u, "the memory view is no longer named for a read-back");
-  assert.match(asked, /disagree/iu, "nothing routes a disagreement question anywhere");
+  assert.match(asked, /`get_memory` for [^.;]*\bmemory\b/iu, "the memory view is no longer named for memory");
+  assert.match(asked, /`get_memory` for [^.;]*\bdisagreement/iu, "the memory view is no longer named for disagreements");
 
   // (7) And `get_verdicts` is named as insufficient — but only for the case
   // that needs both sides. Two things have to be true at once, and the second
@@ -819,15 +829,21 @@ test("a question about what disagrees is routed to the read that can see both si
   assert.match(asked, /`get_verdicts`/u, "the insufficient read is not named");
   assert.match(asked, /\balone\b/u, "the limit reads as a ban on get_verdicts rather than on using it alone");
 
-  // (7a) The restriction is scoped: something between "disagree" and
-  // "`get_verdicts`" has to tie the limit to the disagreement, or the sentence
-  // reads as a standing rule against ever using that read by itself.
-  const between = asked.slice(asked.search(/disagree/iu), asked.indexOf("`get_verdicts`"));
-  assert.ok(
-    /\b(on|for)\b[^.]*\b(one|it|that|those|a disagreement|disagreements)\b/iu.test(between) ||
-      /\bdisagree\w*\b[^.]*\bneeds?\b/iu.test(between),
-    `the limit on \`get_verdicts\` is not scoped to a disagreement: ${JSON.stringify(between)}`,
+  // (7a) The restriction is scoped, and scoped by naming the thing rather than
+  // pointing at it. An earlier version said "on one, never `get_verdicts`
+  // alone", which is the same rule and unreadable: a model has to work out what
+  // "one" refers to before it knows whether the limit applies. So the clause
+  // that carries the scope must contain the word itself.
+  const limit = asked.slice(0, asked.indexOf("`get_verdicts`"));
+  const scope = limit.slice(limit.lastIndexOf(";") + 1);
+  assert.match(
+    scope,
+    /\bdisagreement/iu,
+    `the clause scoping the \`get_verdicts\` limit does not name a disagreement: ${JSON.stringify(scope)}`,
   );
+  for (const anaphor of [/\bon one\b/iu, /\bfor one\b/iu, /\bon those\b/iu, /\bon that\b/iu, /\bthere\b/iu]) {
+    assert.doesNotMatch(scope, anaphor, `the scope is carried by a pronoun rather than the word: ${JSON.stringify(scope)}`);
+  }
 
   // (7b) And it must not read as a blanket rule. `get_verdicts` is the right
   // read on its own for "what have I said about this film?", and a wording that

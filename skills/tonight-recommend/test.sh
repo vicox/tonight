@@ -533,10 +533,17 @@ check "the CRUD tools are named as the way to do it" \
 # and the skill has to carry it in the order somebody meets it: the taste read
 # first, because that is the older and commoner case, then the memory read named
 # for what it is for.
+# The phrase was "what Tonight remembers" until the read-back sentence had to
+# carry the disagreement rule too and nothing else would fit under the cap. What
+# the contract protects is the routing — which read answers which question — not
+# the gloss: `get_memory` is still named for memory, the section below still
+# says what Tonight remembers, and the tool's own description still carries the
+# long form. Pinning the gloss here would have forced an ambiguous pronoun into
+# the rule instead.
 check "the two reads are told apart where a read-back is decided" \
     "$(order_check 'Read back with `get_taste`' \
         '`get_memory` for' \
-        'what Tonight remembers')" "True"
+        'memory')" "True"
 check "the skill explains why they are two reads, not one" \
     "$(order_check 'is a different question from' \
         '`get_taste` is what a recommendation stands on' \
