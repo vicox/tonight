@@ -76,12 +76,261 @@ describe("the verdict tools", () => {
   let next = 0;
   const film = () => ({ title: `Subject ${String(++next)}`, year: 2013 });
 
+  /** Every act about one film, oldest first, as `get_verdicts` gives them. */
+  const history = async (tools: Record<string, Tool>, f: object) =>
+    ((await said(tools, "get_verdicts", { film: f })) as unknown as { history: { said: string }[] })
+      .history;
+
   const standing = async (tools: Record<string, Tool>, f: object, occasion?: string) =>
     (await said(tools, "get_verdicts", { film: f, ...(occasion ? { occasion } : {}) })) as unknown as {
       current: { assertion?: { about: string; judgement?: string; because?: string | null } } | null;
       history: { said: string }[];
       superseded: unknown[];
     };
+
+  /* -------------------------------- what a partial read may not be used to settle */
+
+  test("forgetting says where it ends, so it is not read as licence to tidy up", async () => {
+    // Three semantic runs out of three forgot the act correctly and then also
+    // destroyed the saved film — one with `delete_movie`, two by clearing the
+    // state. The description promised the opposite ("whatever the saved film
+    // says applies again") and said nothing about where the request stops.
+    const said = ana.forget_verdict!.description ?? "";
+
+    assert.match(said, /this call is the whole of the request/iu, "nothing says the request ends here");
+    assert.match(
+      said,
+      /do not[^.]*(update|delete)[^.]*saved film/iu,
+      "nothing forbids going on to change the saved film",
+    );
+    assert.match(
+      said,
+      /(genre|mix|evening)[^.]*unless they separately ask/iu,
+      "the boundary names only the film, not the other roots",
+    );
+    assert.match(
+      said,
+      /(stays exactly as it is|applies once no verdict overlays it)/iu,
+      "nothing says the saved film survives and applies again",
+    );
+  });
+
+  test("a verdict history says what it cannot settle", async () => {
+    // One run read this alone and answered "No superseded or conflicting entries
+    // exist for it" about a film whose saved state and standing verdict plainly
+    // disagreed. The read was honest; the conclusion drawn from it was not.
+    const said = ana.get_verdicts!.description ?? "";
+
+    assert.match(said, /reads what they said and nothing else/iu, "it does not say what it covers");
+
+    // (A) The saved Movie, named on its own. This is the limitation the failing
+    // run walked into — a film filed `liked` and a standing verdict of
+    // `disliked` — and an alternation that accepted any one root would still
+    // pass with exactly this clause deleted.
+    assert.match(
+      said,
+      /cannot (see|tell)[^.]*saved film/iu,
+      "the description does not say it cannot see the saved film's state",
+    );
+
+    // (B) And the other typed roots, so this is stated as a general limit on a
+    // partial read rather than one exception about Movies.
+    for (const root of ["genre", "mix", "evening"]) {
+      assert.match(
+        said,
+        new RegExp(`cannot (see|tell)[^.]*\\b${root}`, "iu"),
+        `the description does not say it cannot see a ${root}`,
+      );
+    }
+
+    assert.match(
+      said,
+      /never conclude from this read that[^.]*nothing conflicts/iu,
+      "it does not forbid concluding that nothing conflicts",
+    );
+    assert.match(said, /`get_memory`/u, "it does not name the read that can answer a conflict question");
+  });
+
+  test("the memory view says which absence is not evidence", async () => {
+    // A run read `get_memory` and volunteered "no episodes or open questions on
+    // file yet". There was one, ten days old. Pending questions are excluded
+    // from this view on purpose, so their absence here proves nothing — and the
+    // fix is to say so, not to put them in.
+    const said = ana.get_memory!.description ?? "";
+
+    assert.match(said, /deliberately not here|left out on purpose/iu, "it does not say anything is excluded");
+    assert.match(
+      said,
+      /absence here[^.]*no evidence|never say there are no open questions/iu,
+      "it does not say the exclusion proves nothing",
+    );
+    assert.match(said, /`get_open_questions`/u, "it does not name the read that can answer it");
+
+    // That the exclusion itself holds is proved properly elsewhere — the M3
+    // pending-state gate runs two people who differ only in having a question
+    // open and compares the whole view. Repeating it weakly here would add a
+    // second, worse answer to a question that already has a good one.
+  });
+
+  /* ------------------------------------------ what a write hands back, exactly */
+
+  test("a write answers with the act as they said it, its reference, and no machinery", async () => {
+    // Persistence hangs two handles on an act and only one of them is theirs.
+    // The write order is the table's sequence — it moves if the table is
+    // rebuilt, and because it counts what everybody has written it is a fact
+    // about other people. The reference is what somebody points at to take that
+    // one act back. The writes were handing back both, which is how a model came
+    // to see `"order": 222` in the answer to a withdrawal.
+    const f = film();
+
+    const stated = (await said(ana, "record_verdict", {
+      film: f,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "loved", because: "the ending earns it" },
+    })) as unknown as { verdict: Record<string, unknown> };
+
+    assert.deepEqual(Object.keys(stated.verdict).sort(), [
+      "assertion",
+      "at",
+      "claimant",
+      "film",
+      "ref",
+      "said",
+      "scope",
+      "told",
+    ]);
+    assert.equal(typeof stated.verdict.ref, "string");
+    assert.ok((stated.verdict.ref as string).length > 0, "a written verdict came back with no reference");
+
+    const taken = (await said(ana, "withdraw_verdict", { film: f })) as unknown as {
+      withdrawal: Record<string, unknown>;
+    };
+
+    assert.deepEqual(Object.keys(taken.withdrawal).sort(), [
+      "at",
+      "claimant",
+      "film",
+      "ref",
+      "said",
+      "scope",
+    ]);
+    assert.equal(typeof taken.withdrawal.ref, "string");
+    assert.ok((taken.withdrawal.ref as string).length > 0, "a taking-back came back with no reference");
+    assert.notEqual(taken.withdrawal.ref, stated.verdict.ref, "two acts share one reference");
+
+    // And the machinery is nowhere in either payload, at any depth — a nested
+    // copy would read exactly the same to a model.
+    for (const [name, payload] of [["record_verdict", stated], ["withdraw_verdict", taken]] as const) {
+      const whole = JSON.stringify(payload);
+      assert.equal(/"order"\s*:/u.test(whole), false, `${name} leaks an order somewhere inside`);
+      assert.equal(/"seq"\s*:/u.test(whole), false, `${name} leaks a seq somewhere inside`);
+    }
+  });
+
+  test("the reference a write hands back is the one that forgets that exact act", async () => {
+    // Why the reference is public and the order is not, in one trajectory. Two
+    // acts identical in every stated respect — same film, same judgement, same
+    // words, same user — and nothing but the reference tells them apart. If a
+    // write handed back no reference, a caller could not name either of them;
+    // if it handed back the order instead, naming one would mean counting.
+    const f = film();
+    const same = {
+      film: f,
+      told: "volunteered" as const,
+      said: { about: "judgement", judgement: "liked", because: "the same words twice" },
+    };
+
+    const first = (await said(ana, "record_verdict", same)) as unknown as { verdict: { ref: string } };
+    const second = (await said(ana, "record_verdict", same)) as unknown as { verdict: { ref: string } };
+    assert.notEqual(first.verdict.ref, second.verdict.ref, "two identical statements got one reference");
+
+    const before = await history(ana, f);
+    assert.equal(before.length, 2, "both statements were not recorded");
+
+    // Forget the first, by the reference its own write returned.
+    const gone = await said(ana, "forget_verdict", { ref: first.verdict.ref });
+    assert.deepEqual(gone, { forgotten: first.verdict.ref });
+
+    const after = await history(ana, f);
+    assert.equal(after.length, 1, "forgetting by a write's own reference removed the wrong number of acts");
+
+    // And it was the right one: the survivor is the second act, named by the
+    // reference the second write returned.
+    const left = (await said(ana, "get_memory")) as unknown as {
+      held: { of: string; act: { film: { title: string } }; handle: { ref?: string } }[];
+      remembered: { of: string; act: { film: { title: string } }; handle: { ref?: string } }[];
+    };
+    const mine = [...left.held, ...left.remembered].filter(
+      (one) => one.of === "verdict" && one.act.film.title === f.title,
+    );
+    assert.deepEqual(
+      mine.map((one) => one.handle.ref),
+      [second.verdict.ref],
+      "the act that survived is not the one the second write named",
+    );
+  });
+
+  test("the reference a withdrawal hands back forgets the taking-back and leaves the claim", async () => {
+    const f = film();
+    const stated = (await said(ana, "record_verdict", {
+      film: f,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "loved" },
+    })) as unknown as { verdict: { ref: string } };
+
+    const taken = (await said(ana, "withdraw_verdict", { film: f })) as unknown as {
+      withdrawal: { ref: string };
+    };
+    assert.equal((await history(ana, f)).length, 2);
+
+    // Forget the taking-back, by the reference the withdrawal itself returned.
+    const gone = await said(ana, "forget_verdict", { ref: taken.withdrawal.ref });
+    assert.deepEqual(gone, { forgotten: taken.withdrawal.ref });
+
+    const after = await history(ana, f);
+    assert.deepEqual(
+      after.map((act) => act.said),
+      ["verdict"],
+      "forgetting the taking-back did not leave the claim it silenced",
+    );
+
+    // And the claim it silenced stands again, which is the whole difference
+    // between forgetting a withdrawal and withdrawing a verdict.
+    const now = await standing(ana, f);
+    assert.equal(now.current?.assertion?.judgement, "loved");
+
+    // The verdict's own reference was never touched by any of it.
+    const left = (await said(ana, "get_memory")) as unknown as {
+      held: { of: string; act: { film: { title: string } }; handle: { ref?: string } }[];
+    };
+    const root = left.held.find((one) => one.of === "verdict" && one.act.film.title === f.title);
+    assert.equal(root?.handle.ref, stated.verdict.ref);
+  });
+
+  test("the reference is still how an act is named where a caller can act on one", async () => {
+    // Taking the order off must not take the reference with it anywhere a tool
+    // needs one. `get_memory` is where a caller is given a reference, and
+    // `forget_verdict` is what takes it — so the round trip has to still work.
+    const f = film();
+    await said(ana, "record_verdict", {
+      film: f,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "liked" },
+    });
+
+    const memory = (await said(ana, "get_memory")) as unknown as {
+      held: { of: string; act: { film: { title: string } }; handle: { by: string; ref?: string } }[];
+    };
+    const root = memory.held.find((one) => one.of === "verdict" && one.act.film.title === f.title);
+    assert.ok(root, "the memory view stopped naming the act that was just written");
+    assert.equal(root.handle.by, "ref");
+    const ref = root.handle.ref;
+    assert.equal(typeof ref, "string");
+    assert.ok(ref && ref.length > 0);
+
+    const gone = await said(ana, "forget_verdict", { ref });
+    assert.deepEqual(gone, { forgotten: ref });
+  });
 
   /* ------------------------------------------------------- stating a verdict */
 

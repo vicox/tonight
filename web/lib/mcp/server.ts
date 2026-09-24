@@ -27,7 +27,9 @@ import {
   TOLD,
   VerdictError,
   withdrawVerdict,
+  type Act,
   type Film,
+  type Identified,
   type Scope,
 } from "../verdicts/model.ts";
 import { current, spoken, supersession } from "../verdicts/model.ts";
@@ -769,7 +771,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         // to tidy up something that was never theirs.
         const verdict = await verdicts.say(stateVerdict(film, assertion, told, now(), scope));
         await questions.close(film);
-        return { verdict };
+        return { verdict: written(verdict) };
       }),
   );
 
@@ -791,8 +793,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
     },
     async ({ film, occasion }) =>
       attempt(async () => ({
-        withdrawal: await verdicts.say(
-          withdrawVerdict(film, now(), occasion === undefined ? "everywhere" : { occasion }),
+        withdrawal: written(
+          await verdicts.say(
+            withdrawVerdict(film, now(), occasion === undefined ? "everywhere" : { occasion }),
+          ),
         ),
       })),
   );
@@ -807,7 +811,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "and nowhere else, and where an evening has nothing of its own the global claim shows " +
         "through.\n\n" +
         "`current` is null when they have said nothing, or when they took back what they said. " +
-        "Both are silence, and neither is a preference you may act on as though it were one.",
+        "Both are silence, and neither is a preference you may act on as though it were one." +
+        "\n\nThis reads what they said and nothing else: verdicts and takings-back, for one film. " +
+        "It cannot see a saved film's state, a genre, a mix or an evening, so it cannot tell you " +
+        "whether what they said disagrees with any of those. **Never conclude from this read that " +
+        "nothing conflicts.** A question about a contradiction, or about what Tonight holds as a " +
+        "whole, is `get_memory`'s — it names both sides of a disagreement and says which governs.",
       inputSchema: z.object({ film: verdictFilm, occasion: verdictOccasion.optional() }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -901,7 +910,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "This is for explaining and correcting, not for recommending. `get_taste` is what a " +
         "recommendation reads; this holds history beside belief on purpose, and using the " +
         "history as though it were taste is the one thing it must not be used for. Reading it " +
-        "writes nothing and changes nothing.",
+        "writes nothing and changes nothing.\n\n" +
+        "One thing is deliberately not here: a question you are carrying about a film is your " +
+        "own note, not something Tonight knows about them, so it is left out on purpose. Its " +
+        "absence here is therefore no evidence that there is none — **never say there are no " +
+        "open questions on the strength of this read.** `get_open_questions` is the only read " +
+        "that can answer that, and it belongs to you rather than to them either way.",
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
@@ -934,7 +948,13 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "Only that one act goes. Everything else about the film is worked out again from what " +
         "is left, so forgetting a withdrawal lets the verdict it silenced stand once more, and " +
         "forgetting the last thing they said about a film leaves it as though they had never " +
-        "said anything — whatever the saved film says applies again.",
+        "said anything — whatever the saved film says applies again.\n\n" +
+        "**This call is the whole of the request.** Do not go on to update or delete the saved " +
+        "film, and do not touch any genre, mix, evening or anything else, unless they separately " +
+        "ask you to change that. A saved film is a different thing from something they said " +
+        "about it: it stays exactly as it is, and it is what applies once no verdict overlays " +
+        "it. Tidying it away is not part of forgetting — it destroys a second thing they never " +
+        "asked you to remove.",
       inputSchema: z.object({
         ref: z
           .string()
@@ -958,6 +978,25 @@ export function tonightMcpServer(session: McpSession): McpServer {
   );
 
   return server;
+}
+
+/**
+ * An act just written, as the caller may have it back.
+ *
+ * Persistence hangs two handles on an act and only one of them is theirs. The
+ * **order** is the table's sequence — machinery, it moves if the table is
+ * rebuilt, and because it counts what everybody has written it is a fact about
+ * other people; it has no business out here and was leaving in the answer to a
+ * write. The **reference** is the opposite: it is what somebody points at to
+ * take that one act back, `forget_verdict` is what takes it, and two acts
+ * identical in every stated respect are told apart by nothing else. So the
+ * order comes off and the reference stays.
+ *
+ * `get_verdicts` uses `spoken` alone, and is right to: it answers *what was
+ * said*, over a history a caller reaches by film rather than by reference.
+ */
+function written(act: Identified<Act>): Act & { ref: string } {
+  return { ...spoken(act), ref: act.ref };
 }
 
 /**
