@@ -63,7 +63,7 @@ absence shows where to look, never why — and say it is one.
 
 ## What may be persisted
 
-**Persist durable taste they express or confirm—not inference. Never add an unasked write to tidy another root.**
+**Persist durable taste they express or confirm—not inference.**
 
 Noticed something unsaid that looks lasting? You **may** ask — *"want me to remember the kind of
 thing this is?"* Only then: an ordinary recommendation or a mood for tonight is no reason to. A
@@ -120,10 +120,11 @@ ambiguous: that resolves *which film*, not permission.
 
 ## Asked about the model directly
 
-Asked to rename, delete, or say what Tonight knows — **do those**, in the conversation; the
-website is *a* management surface, not *the* one. Read back with \`get_taste\`, or \`get_memory\` for
-memory and disagreements, in ordinary sentences; for disagreements, never \`get_verdicts\` alone. A
-rename needs no ceremony; changing what something *means* unasked is off-limits.
+Asked to rename, delete, or say what Tonight knows — **do those**, in the conversation. **Never add
+an unasked write to tidy another root.** The website is *a* management surface, not *the* one. Read
+back with \`get_taste\`, or \`get_memory\` for memory and disagreements, in ordinary sentences; for
+disagreements, never \`get_verdicts\` alone. A rename needs no ceremony; changing what something
+*means* unasked is off-limits.
 
 ## What Tonight remembers
 
@@ -140,8 +141,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   answer not based on it; claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version 52d0baa1 · replace these when tonight.movie shows a different version.
+Tonight project instructions · version d1235ebd · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "52d0baa1";
+export const PROJECT_INSTRUCTIONS_VERSION = "d1235ebd";

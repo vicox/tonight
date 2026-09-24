@@ -470,14 +470,18 @@ echo "--- persistence: expressed, never inferred ---"
 check "the rule names both routes in, and rules inference out" \
     "$(order_check 'durable taste they express or confirm' \
         'not inference')" "True"
-# The boundary M3's semantic evaluation had to add: authorisation to change one
-# root is not authorisation to tidy another. It lives beside the inference rule
-# because both answer the same question — what a turn may write — and because
-# forgetting one statement destroyed the saved film in three runs of three while
-# this was stated only in a tool description.
-check "changing one root is not permission to tidy another" \
-    "$(order_check 'not inference' \
-        'Never add an unasked write to tidy another root')" "True"
+# The boundary M3's semantic evaluation had to add, and where three sweeps put
+# it. In `forget_verdict`'s description it failed 3 of 3; beside the inference
+# rule it failed 2 of 3. Both times the model had been told somewhere it was not
+# reading — the failure is the second call, chosen after a forgetting request has
+# already been accepted. So it sits where a direct operation is authorised, one
+# sentence after the authorisation, and before the read-back routing: nothing
+# between the permission and its limit.
+check "a direct operation is authorised, and its limit follows immediately" \
+    "$(order_check 'Asked to rename, delete, or say what Tonight knows' \
+        '**do those**' \
+        'Never add an unasked write to tidy another root' \
+        'Read back with `get_taste`')" "True"
 # The second route into the model, and the reason it is not the first: a pattern
 # the agent noticed may be put to the user, and their yes is what makes the
 # meaning theirs. Pinned because the rule above it, read alone, forbids it.

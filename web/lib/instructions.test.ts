@@ -748,7 +748,7 @@ test("a read-back names both reads, and says which is for what", () => {
  *
  * What is checked is what the rule establishes, not one arrangement of words.
  */
-test("changing one root is not permission to tidy another", () => {
+test("what may be persisted is about persisting, and says inference is not", () => {
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
   const persisted = flat.slice(
     flat.indexOf("## What may be persisted"),
@@ -756,16 +756,68 @@ test("changing one root is not permission to tidy another", () => {
   );
   assert.ok(persisted.length > 400, "the persistence section could not be found");
 
-  // (1) and (2): what may be written, and what may not.
+  // (A) What may be written, and what may not. This section keeps its own rule
+  // and only its own rule — the cross-root boundary moved, because a forgetting
+  // request is not a persistence question and a model deciding how to honour one
+  // never comes here.
   assert.match(persisted, /Persist durable taste they express or confirm/u, "expressed taste stopped being writable");
   assert.match(persisted, /not inference/iu, "inference stopped being ruled out");
   assert.match(persisted, /Never infer a preference from silence/u, "the older inference rule was lost");
+});
 
-  // (3) The new boundary: the write nobody asked for.
+/**
+ * Where the cross-root boundary has to be read.
+ *
+ * It was written into `forget_verdict`'s description first and failed 3 of 3;
+ * put under "What may be persisted" it went to 2 of 3. Both times the model had
+ * been told and both times the telling was somewhere it was not looking: the
+ * failure is the *second* call, chosen after a forgetting request has already
+ * been accepted. So the rule now sits where a direct model operation is
+ * authorised, one sentence after the authorisation — which is the sentence the
+ * failing runs had just acted on.
+ *
+ * This contract is about placement. Asserting the rule exists somewhere is what
+ * the previous two versions did.
+ */
+test("authorising a direct operation does not authorise tidying another root", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const asked = flat.slice(
+    flat.indexOf("## Asked about the model directly"),
+    flat.indexOf("## What Tonight remembers"),
+  );
+  assert.ok(asked.length > 200, "the read-back section could not be found");
+
+  // (B) The boundary lives here.
   assert.match(
-    persisted,
+    asked,
     /Never add an unasked write to tidy another root/u,
-    "nothing forbids a second, unasked write to another root",
+    "the cross-root boundary is not where a direct operation is authorised",
+  );
+
+  // (C) And it comes straight after the authorisation it qualifies — before the
+  // read-back routing, so nothing sits between the permission and its limit.
+  const authorises = asked.search(/\*\*do those\*\*/u);
+  const boundary = asked.search(/Never add an unasked write/u);
+  const readback = asked.search(/Read back with/u);
+  assert.ok(authorises >= 0 && boundary >= 0 && readback >= 0, "the section lost one of its three parts");
+  assert.ok(
+    authorises < boundary,
+    "the boundary is stated before the operation it qualifies is authorised",
+  );
+  assert.ok(
+    boundary < readback,
+    "the boundary was pushed past the read-back routing, away from the authorisation",
+  );
+
+  // And it is not left behind in the persistence section.
+  const persisted = flat.slice(
+    flat.indexOf("## What may be persisted"),
+    flat.indexOf("## Films they tell you about"),
+  );
+  assert.doesNotMatch(
+    persisted,
+    /Never add an unasked write/u,
+    "the boundary is in two places, so neither is the one that governs",
   );
 
   // (4) and (5): what the rule must NOT have forbidden. It bites on *unasked*
@@ -774,11 +826,11 @@ test("changing one root is not permission to tidy another", () => {
   // said "one write per turn" or "never touch two roots" would read differently
   // here, and would break `correct_episode`, which exists to put a whole
   // evening right in one call.
-  // Structural rather than a list of forbidden phrasings: whatever the rule
+  // (D) Structural rather than a list of forbidden phrasings: whatever the rule
   // says, the thing it forbids has to be qualified as *unasked* and as
   // reaching *another* root. A rule that dropped either qualifier would forbid
   // work the user asked for.
-  const forbidding = persisted.slice(persisted.search(/Never add|never write|never change/iu));
+  const forbidding = asked.slice(asked.search(/Never add|never write|never change/iu));
   const clause = forbidding.slice(0, forbidding.indexOf(".") + 1);
   assert.ok(clause.length > 10, "the write boundary could not be found");
   assert.match(
@@ -796,6 +848,10 @@ test("changing one root is not permission to tidy another", () => {
   // how much one turn may change, which would break both an explicitly
   // requested multi-root change and `correct_episode`, whose whole purpose is
   // putting several fields of one evening right in a single call.
+  // (E), (F) and (G): the shapes it must never take. Each would read as a cap on
+  // how much one turn may change, which would break an explicitly requested
+  // multi-root change and `correct_episode`, whose whole purpose is putting
+  // several fields of one evening right in a single call.
   for (const overreach of [
     /never write (more than one|two)/iu,
     /one root per/iu,
@@ -805,7 +861,7 @@ test("changing one root is not permission to tidy another", () => {
     /a single root/iu,
     /one write per/iu,
   ]) {
-    assert.doesNotMatch(persisted, overreach, "the boundary was widened into a limit on asked-for work");
+    assert.doesNotMatch(asked, overreach, "the boundary was widened into a limit on asked-for work");
   }
 });
 
@@ -1516,7 +1572,10 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "`not_seen` does not",
     "Anchor a stretch in something they like",
     // ownership and semantic confirmation
-    "Persist durable taste they express or confirm—not inference. Never add an unasked write to tidy another root.",
+    // Two rules, and they live in two sections now: persistence under "What may
+    // be persisted", the cross-root boundary beside the operation it qualifies.
+    "Persist durable taste they express or confirm—not inference.",
+    "Never add an unasked write to tidy another root.",
     "only the meaning they could agree to",
     "is not asking permission",
     "writes **nothing** — what they want now, not what they are like",
