@@ -469,7 +469,15 @@ echo "--- persistence: expressed, never inferred ---"
 
 check "the rule names both routes in, and rules inference out" \
     "$(order_check 'durable taste they express or confirm' \
-        'Never persist what you conclude alone')" "True"
+        'not inference')" "True"
+# The boundary M3's semantic evaluation had to add: authorisation to change one
+# root is not authorisation to tidy another. It lives beside the inference rule
+# because both answer the same question — what a turn may write — and because
+# forgetting one statement destroyed the saved film in three runs of three while
+# this was stated only in a tool description.
+check "changing one root is not permission to tidy another" \
+    "$(order_check 'not inference' \
+        'Never add an unasked write to tidy another root')" "True"
 # The second route into the model, and the reason it is not the first: a pattern
 # the agent noticed may be put to the user, and their yes is what makes the
 # meaning theirs. Pinned because the rule above it, read alone, forbids it.

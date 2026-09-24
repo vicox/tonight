@@ -727,6 +727,79 @@ test("a read-back names both reads, and says which is for what", () => {
   assert.match(section, /`get_memory`[^.]{0,40}remember/iu);
 });
 
+/**
+ * The two rules M3's semantic evaluation had to put here.
+ *
+ * Both were written into a tool's own description first — `forget_verdict` was
+ * told not to tidy up the saved film, `get_verdicts` was told it cannot settle
+ * a conflict — and the sweep found the model doing both anyway, three runs of
+ * three and one run of three. A description is read when a tool is chosen; the
+ * failure in each case was the *next* decision, taken after the description was
+ * behind it. So the rules are in the standing text, and these contracts keep
+ * them there.
+ *
+ * What is checked is what the rule establishes, not one arrangement of words.
+ */
+test("changing one root is not permission to tidy another", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const persisted = flat.slice(
+    flat.indexOf("## What may be persisted"),
+    flat.indexOf("## Films they tell you about"),
+  );
+  assert.ok(persisted.length > 400, "the persistence section could not be found");
+
+  // (1) and (2): what may be written, and what may not.
+  assert.match(persisted, /Persist durable taste they express or confirm/u, "expressed taste stopped being writable");
+  assert.match(persisted, /not inference/iu, "inference stopped being ruled out");
+  assert.match(persisted, /Never infer a preference from silence/u, "the older inference rule was lost");
+
+  // (3) The new boundary: the write nobody asked for.
+  assert.match(
+    persisted,
+    /Never add an unasked write to tidy another root/u,
+    "nothing forbids a second, unasked write to another root",
+  );
+
+  // (4) and (5): what the rule must NOT have forbidden. It bites on *unasked*
+  // writes to *another* root — so a change the user asked for is untouched, and
+  // so is correcting several fields of the one root they named. A rule that had
+  // said "one write per turn" or "never touch two roots" would read differently
+  // here, and would break `correct_episode`, which exists to put a whole
+  // evening right in one call.
+  assert.match(persisted, /unasked/u, "the boundary stopped being about writes nobody asked for");
+  assert.match(persisted, /another root/u, "the boundary stopped being about a second, different root");
+  for (const overreach of [
+    /never write more than one/iu,
+    /one root per/iu,
+    /never change two/iu,
+    /only one field/iu,
+  ]) {
+    assert.doesNotMatch(persisted, overreach, "the boundary was widened into a limit on asked-for work");
+  }
+});
+
+test("a question about what disagrees is routed to the read that can see both sides", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const asked = flat.slice(
+    flat.indexOf("## Asked about the model directly"),
+    flat.indexOf("## What Tonight remembers"),
+  );
+  assert.ok(asked.length > 200, "the read-back section could not be found");
+
+  // (6) Disagreement is named as something `get_memory` answers.
+  assert.match(asked, /`get_memory`/u, "the memory view is no longer named for a read-back");
+  assert.match(asked, /disagrees/iu, "nothing routes a disagreement question anywhere");
+
+  // (7) And `get_verdicts` is named as insufficient on its own — "alone" is
+  // load-bearing: it is the right read for one film's history, and only a
+  // universal claim drawn from it is wrong.
+  assert.match(asked, /`get_verdicts`/u, "the insufficient read is not named");
+  assert.match(asked, /\balone\b/u, "the limit reads as a ban on get_verdicts rather than on using it alone");
+
+  // (8) And the older rule about *how* to answer survived the addition.
+  assert.match(asked, /in ordinary sentences/u, "a read-back stopped being answered in prose");
+});
+
 test("recommending still reads the taste model, and never the memory view", () => {
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
   const recommending = flat.slice(
@@ -1280,22 +1353,34 @@ const CAP = 8000;
  * decision the paragraph above says this number exists to make explicit. The
  * cap did not move and cannot: it is measured, not chosen.
  *
- * This is not general prose budget. It is what one more routing rule cost.
+ * Then it was retired, and the reason is worth keeping. M3's semantic sweep
+ * found two rules the model does not follow while they live only in a tool's
+ * own description: forgetting one statement destroyed the saved film in three
+ * runs of three, and a question about a contradiction was answered "nothing
+ * conflicts" from a read that cannot see the other side. Both had been written
+ * into the tool descriptions first and neither took. Moving them into the
+ * projection cost 71 characters and crossed the guard — and every way of
+ * getting back under it meant dropping a rule that is still true, which is the
+ * one thing the paragraph above says this number exists to prevent.
+ *
+ * So the guard is gone and `CAP` is the only limit, because `CAP` is the only
+ * one that was ever measured. What replaces the guard is the paragraph above:
+ * room is not made by deleting rules. If the next rule does not fit under
+ * 8,000, something has to be genuinely redundant — not merely expendable.
  */
-const GUARD = 7950;
 
-test("all of the instructions fit in a ChatGPT project, with room to spare", () => {
+test("all of the instructions fit in a ChatGPT project", () => {
   assert.equal(PROJECT_INSTRUCTIONS_LENGTH, PROJECT_INSTRUCTIONS.length);
   assert.ok(PROJECT_INSTRUCTIONS_LENGTH > 0);
 
+  // The one limit, and it is measured rather than chosen: a 22,080-character
+  // version came back truncated at 8,083. Nothing about being close to it is a
+  // failure; being over it means rules silently stop reaching the agent.
   assert.ok(
     PROJECT_INSTRUCTIONS_LENGTH < CAP,
-    `the instructions are ${PROJECT_INSTRUCTIONS_LENGTH} characters and would be truncated at ${CAP}`,
-  );
-  assert.ok(
-    PROJECT_INSTRUCTIONS_LENGTH <= GUARD,
-    `the instructions are ${PROJECT_INSTRUCTIONS_LENGTH} characters, past the ${GUARD} guard — ` +
-      "move rationale between full:start and full:end rather than raising this",
+    `the instructions are ${PROJECT_INSTRUCTIONS_LENGTH} characters and would be truncated at ${CAP} — ` +
+      "move rationale between full:start and full:end, or find something genuinely redundant; " +
+      "a rule that is still true is not headroom",
   );
 });
 
@@ -1353,7 +1438,7 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "`not_seen` does not",
     "Anchor a stretch in something they like",
     // ownership and semantic confirmation
-    "Persist durable taste they express or confirm. Never persist what you conclude alone.",
+    "Persist durable taste they express or confirm—not inference. Never add an unasked write to tidy another root.",
     "only the meaning they could agree to",
     "is not asking permission",
     "writes **nothing** — what they want now, not what they are like",
