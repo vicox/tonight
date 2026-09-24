@@ -766,13 +766,36 @@ test("changing one root is not permission to tidy another", () => {
   // said "one write per turn" or "never touch two roots" would read differently
   // here, and would break `correct_episode`, which exists to put a whole
   // evening right in one call.
-  assert.match(persisted, /unasked/u, "the boundary stopped being about writes nobody asked for");
-  assert.match(persisted, /another root/u, "the boundary stopped being about a second, different root");
+  // Structural rather than a list of forbidden phrasings: whatever the rule
+  // says, the thing it forbids has to be qualified as *unasked* and as
+  // reaching *another* root. A rule that dropped either qualifier would forbid
+  // work the user asked for.
+  const forbidding = persisted.slice(persisted.search(/Never add|never write|never change/iu));
+  const clause = forbidding.slice(0, forbidding.indexOf(".") + 1);
+  assert.ok(clause.length > 10, "the write boundary could not be found");
+  assert.match(
+    clause,
+    /\b(unasked|unrequested|nobody asked|did not ask)\b/iu,
+    `the boundary stopped being about writes nobody asked for: ${JSON.stringify(clause)}`,
+  );
+  assert.match(
+    clause,
+    /\banother\b[^.]*\broot\b|\broot\b[^.]*\bnobody named\b/iu,
+    `the boundary stopped being about a second, different root: ${JSON.stringify(clause)}`,
+  );
+
+  // And the shapes it must never take. Each of these would read as a cap on
+  // how much one turn may change, which would break both an explicitly
+  // requested multi-root change and `correct_episode`, whose whole purpose is
+  // putting several fields of one evening right in a single call.
   for (const overreach of [
-    /never write more than one/iu,
+    /never write (more than one|two)/iu,
     /one root per/iu,
     /never change two/iu,
-    /only one field/iu,
+    /only one (root|field)/iu,
+    /never write to two/iu,
+    /a single root/iu,
+    /one write per/iu,
   ]) {
     assert.doesNotMatch(persisted, overreach, "the boundary was widened into a limit on asked-for work");
   }
@@ -788,13 +811,37 @@ test("a question about what disagrees is routed to the read that can see both si
 
   // (6) Disagreement is named as something `get_memory` answers.
   assert.match(asked, /`get_memory`/u, "the memory view is no longer named for a read-back");
-  assert.match(asked, /disagrees/iu, "nothing routes a disagreement question anywhere");
+  assert.match(asked, /disagree/iu, "nothing routes a disagreement question anywhere");
 
-  // (7) And `get_verdicts` is named as insufficient on its own — "alone" is
-  // load-bearing: it is the right read for one film's history, and only a
-  // universal claim drawn from it is wrong.
+  // (7) And `get_verdicts` is named as insufficient — but only for the case
+  // that needs both sides. Two things have to be true at once, and the second
+  // is what the first version of this rule got wrong.
   assert.match(asked, /`get_verdicts`/u, "the insufficient read is not named");
   assert.match(asked, /\balone\b/u, "the limit reads as a ban on get_verdicts rather than on using it alone");
+
+  // (7a) The restriction is scoped: something between "disagree" and
+  // "`get_verdicts`" has to tie the limit to the disagreement, or the sentence
+  // reads as a standing rule against ever using that read by itself.
+  const between = asked.slice(asked.search(/disagree/iu), asked.indexOf("`get_verdicts`"));
+  assert.ok(
+    /\b(on|for)\b[^.]*\b(one|it|that|those|a disagreement|disagreements)\b/iu.test(between) ||
+      /\bdisagree\w*\b[^.]*\bneeds?\b/iu.test(between),
+    `the limit on \`get_verdicts\` is not scoped to a disagreement: ${JSON.stringify(between)}`,
+  );
+
+  // (7b) And it must not read as a blanket rule. `get_verdicts` is the right
+  // read on its own for "what have I said about this film?", and a wording that
+  // forbade that would break a legitimate question to fix an illegitimate
+  // inference. These are the overbroad forms the earlier version allowed.
+  for (const overbroad of [
+    /never use `get_verdicts` alone/iu,
+    /`get_verdicts` (is )?never (to be )?used alone/iu,
+    /always pair `get_verdicts`/iu,
+    /`get_verdicts` (must|has to) (always )?be paired/iu,
+    /never `get_verdicts` (by itself|on its own)\./iu,
+  ]) {
+    assert.doesNotMatch(asked, overbroad, "the limit was widened into a ban on reading one film's history");
+  }
 
   // (8) And the older rule about *how* to answer survived the addition.
   assert.match(asked, /in ordinary sentences/u, "a read-back stopped being answered in prose");
@@ -1376,12 +1423,27 @@ test("all of the instructions fit in a ChatGPT project", () => {
   // The one limit, and it is measured rather than chosen: a 22,080-character
   // version came back truncated at 8,083. Nothing about being close to it is a
   // failure; being over it means rules silently stop reaching the agent.
+  //
+  // Inclusive, because 8,000 characters is what fits — the cap is the last
+  // admissible length, not the first inadmissible one. `<` was off by one and
+  // would have rejected a projection that the host accepts.
   assert.ok(
-    PROJECT_INSTRUCTIONS_LENGTH < CAP,
+    PROJECT_INSTRUCTIONS_LENGTH <= CAP,
     `the instructions are ${PROJECT_INSTRUCTIONS_LENGTH} characters and would be truncated at ${CAP} — ` +
       "move rationale between full:start and full:end, or find something genuinely redundant; " +
       "a rule that is still true is not headroom",
   );
+});
+
+test("the cap admits exactly 8,000 characters and refuses 8,001", () => {
+  // The boundary itself, since the assertion above can only ever exercise
+  // whichever side today's projection happens to fall on.
+  const fits = (length: number) => length <= CAP;
+
+  assert.equal(CAP, 8000);
+  assert.equal(fits(CAP), true, "8,000 characters is what fits and must be admissible");
+  assert.equal(fits(CAP + 1), false, "8,001 characters would be truncated and must be refused");
+  assert.equal(fits(CAP - 1), true);
 });
 
 test("nothing marked full-skill-only reaches the agent", () => {
