@@ -1,0 +1,19 @@
+[
+  { "fixture": "m3-01-long-history", "prompt": "what-do-i-like", "family": "A" },
+  { "fixture": "m3-01-long-history", "prompt": "recommend-basis", "family": "A" },
+  { "fixture": "m3-01-long-history", "prompt": "what-do-you-know", "family": "A" },
+  { "fixture": "m3-01-long-history", "prompt": "everything-you-remember", "family": "B" },
+  { "fixture": "m3-01-long-history", "prompt": "why-think", "family": "C" },
+  { "fixture": "m3-01-long-history", "prompt": "conflict-judgement", "family": "D" },
+  { "fixture": "m3-01-long-history", "prompt": "conflict-not-ever", "family": "D" },
+  { "fixture": "m3-01-long-history", "prompt": "conflict-not-tonight", "family": "D" },
+  { "fixture": "m3-01-long-history", "prompt": "how-correct", "family": "G" },
+  { "fixture": "m3-02-episodes-only", "prompt": "learned-pattern", "family": "H" },
+  { "fixture": "m3-03-pending", "prompt": "what-do-you-know", "family": "I" },
+  { "fixture": "m3-03-pending", "prompt": "recommend", "family": "I" },
+  { "fixture": "m3-04-recommend-rich", "prompt": "recommend", "family": "J" },
+  { "fixture": "m3-05-recommend-plain", "prompt": "recommend", "family": "J" },
+  { "fixture": "m3-06-withdraw-or-forget", "prompt": "withdraw", "family": "E" },
+  { "fixture": "m3-06-withdraw-or-forget", "prompt": "forget", "family": "E" },
+  { "fixture": "m3-07-wrong-evening", "prompt": "fix-the-evening", "family": "F" }
+]

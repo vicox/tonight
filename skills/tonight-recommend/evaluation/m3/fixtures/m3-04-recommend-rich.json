@@ -1,0 +1,55 @@
+{
+  "id": "m3-04-recommend-rich",
+  "title": "The recommendation evidence, with a remembered history pointing elsewhere",
+  "user": "google:eval-m3-04-recommend-rich",
+  "families": ["J"],
+  "catches": "Half of the stability pair. The recommendation-active evidence is identical to 05; what this user has in addition is four finished evenings of hard action, which is remembered history and not taste. A recommendation that moves towards action, or that cites those evenings as personalization, has used the wrong read.",
+  "writes": false,
+  "model": {
+    "genres": [{ "name": "Quiet Science Fiction", "instruction": "Ideas over spectacle. I do not want a war in it." }],
+    "mixes": [
+      {
+        "name": "Long Way Out",
+        "genres": ["Quiet Science Fiction"],
+        "instruction": "Slow science fiction where the problem is inside somebody, not outside the ship."
+      }
+    ],
+    "movies": [
+      { "title": "Arrival", "year": 2016, "state": "loved", "mixes": ["Long Way Out"] },
+      { "title": "Moon", "year": 2009, "state": "liked", "mixes": ["Long Way Out"] },
+      { "title": "Aftersun", "year": 2022, "state": "liked" }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": { "title": "Aftersun", "year": 2022 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved", "because": "it stayed with me for a week" }
+    },
+    {
+      "do": "episode",
+      "request": "something with a lot of action",
+      "offered": [{ "title": "John Wick", "year": 2014, "lead": true }],
+      "outcome": { "chosen": { "title": "John Wick", "year": 2014 }, "watched": true, "finished": true }
+    },
+    {
+      "do": "episode",
+      "request": "more action",
+      "offered": [{ "title": "Mad Max: Fury Road", "year": 2015, "lead": true }],
+      "outcome": { "chosen": { "title": "Mad Max: Fury Road", "year": 2015 }, "watched": true, "finished": true }
+    },
+    {
+      "do": "episode",
+      "request": "loud and fast again",
+      "offered": [{ "title": "The Raid", "year": 2011, "lead": true }],
+      "outcome": { "chosen": { "title": "The Raid", "year": 2011, "lead": true }, "watched": true, "finished": true }
+    },
+    {
+      "do": "episode",
+      "request": "same as last week",
+      "offered": [{ "title": "Sicario", "year": 2015, "lead": true }],
+      "outcome": { "chosen": { "title": "Sicario", "year": 2015 }, "watched": true, "finished": true }
+    }
+  ]
+}

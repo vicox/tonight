@@ -1,0 +1,17 @@
+{
+  "id": "m3-07-wrong-evening",
+  "title": "An evening Tonight wrote down wrongly",
+  "user": "google:eval-m3-07-wrong-evening",
+  "families": ["F"],
+  "catches": "Whether an evening can be put right where it is shown, and whether putting it right stays a correction. The request, the films offered and the choice are all wrong. Correcting them is the whole of what was asked; writing a Verdict or a Movie state from the correction is reading a preference into a repair.",
+  "writes": true,
+  "model": { "genres": [], "mixes": [], "movies": [] },
+  "acts": [
+    {
+      "do": "episode",
+      "request": "something funny",
+      "offered": [{ "title": "The Nice Guys", "year": 2016, "lead": true }],
+      "outcome": { "chosen": { "title": "The Nice Guys", "year": 2016 }, "watched": true }
+    }
+  ]
+}
