@@ -743,6 +743,134 @@ describe("the verdict tools", () => {
     assert.equal(read.current, null, "the fixture no longer ends withdrawn");
   });
 
+  test("a verdict history says what it answers for, in the answer and not only in the description", async () => {
+    // Four semantic runs read this alone and then made a claim about the whole
+    // position: "the only thing on record for it", "no lasting verdict on it
+    // either way ... no standing opinion", "no like/dislike/loved recorded
+    // either". Each was false — a saved film existed — and each was reached by a
+    // reader who had met the description before the call and the answer after
+    // it, and had only the answer in front of it when it wrote the sentence.
+    //
+    // So the limit travels with the answer. It is a constant, which is the whole
+    // design: a coverage line that varied would report what this read cannot see.
+    const f = film();
+    await said(ana, "record_verdict", {
+      film: f,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "disliked", because: "it never earned the ending" },
+    });
+
+    const answer = (await said(ana, "get_verdicts", { film: f })) as unknown as {
+      coverage: unknown;
+    };
+
+    assert.deepEqual(
+      answer.coverage,
+      { completeFor: ["verdictHistory"], excluded: { otherMemoryRoots: { readWith: "get_memory" } } },
+      "the coverage this read publishes is not the one agreed",
+    );
+  });
+
+  test("the verdict coverage is the same sentence whatever the other roots hold", async () => {
+    // The point of a constant. `get_memory`'s coverage is constant for the same
+    // reason and against the same mistake: one computed from what the excluded
+    // roots contain would answer "is there a saved film?" for anybody who
+    // compared two calls, which is exactly the question this read must not be a
+    // way to ask.
+    const told = { told: "volunteered", said: { about: "judgement", judgement: "loved" } };
+    const read = async (f: object) =>
+      ((await said(ana, "get_verdicts", { film: f })) as unknown as { coverage: unknown }).coverage;
+
+    // (A) A film with no saved Movie at all.
+    const bare = film();
+    await said(ana, "record_verdict", { film: bare, ...told });
+
+    // (B) The same, with a saved Movie that agrees with the verdict.
+    const agreeing = film();
+    await said(ana, "record_verdict", { film: agreeing, ...told });
+    await said(ana, "create_movie", { ...agreeing, state: "loved" });
+
+    // (C) And the case the false claims were made about: a saved Movie the
+    // standing verdict disagrees with.
+    const clashing = film();
+    await said(ana, "record_verdict", {
+      film: clashing,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "disliked" },
+    });
+    await said(ana, "create_movie", { ...clashing, state: "liked" });
+
+    // (D) And a film nobody has said anything about at all.
+    const silent = film();
+
+    const seen = await Promise.all([read(bare), read(agreeing), read(clashing), read(silent)]);
+    for (const one of seen) {
+      assert.deepEqual(one, seen[0], "the coverage moved with what the other roots hold");
+    }
+  });
+
+  test("the coverage is the only thing the verdict read gained", async () => {
+    // A coverage line is a place a cross-root lookup could be smuggled in. This
+    // pins the whole payload: the four sections that were always there, and one
+    // constant. A fifth field — a count of saved films, a "conflicts" flag, a
+    // hint — fails here rather than being discovered in a sweep.
+    const f = film();
+    await said(ana, "record_verdict", {
+      film: f,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "liked" },
+    });
+    await said(ana, "create_movie", { ...f, state: "disliked" });
+
+    const answer = await said(ana, "get_verdicts", { film: f });
+    assert.deepEqual(
+      Object.keys(answer).sort(),
+      ["coverage", "current", "film", "history", "superseded"],
+      "the verdict read answers with a different set of fields than agreed",
+    );
+
+    // And the parts that were there still mean what they meant. The saved
+    // `disliked` above is deliberately the opposite of the standing `liked`, and
+    // none of it shows here — which is the limitation the coverage declares.
+    const read = answer as unknown as {
+      current: { assertion: { judgement: string } };
+      history: unknown[];
+      superseded: unknown[];
+    };
+    assert.equal(read.current.assertion.judgement, "liked");
+    assert.equal(read.history.length, 1);
+    assert.deepEqual(read.superseded, []);
+    assert.equal(JSON.stringify(answer).includes("disliked"), false, "the saved state reached this read");
+  });
+
+  test("asking for two things still gets two things", async () => {
+    // The control on the whole D2 repair. Every sentence added at an action
+    // point says the second write is not cleanup — and the failure mode of
+    // saying that is a model that stops after the first call when the user
+    // plainly asked for both. Six semantic runs test the behaviour; this tests
+    // that the product still permits it, which is the part a description cannot
+    // take away and a future edit could.
+    const f = film();
+    const stated = (await said(ana, "record_verdict", {
+      film: f,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "disliked" },
+    })) as unknown as { verdict: { ref: string } };
+    await said(ana, "create_movie", { ...f, state: "liked" });
+
+    // "Forget my verdict, and clear the saved state too."
+    await said(ana, "forget_verdict", { ref: stated.verdict.ref });
+    await said(ana, "update_movie", { ...f, state: null });
+
+    assert.deepEqual(await history(ana, f), [], "the verdict act survived");
+    const taste = (await said(ana, "get_taste")) as unknown as {
+      movies: { title: string; state: string | null }[];
+    };
+    const movie = taste.movies.find((one) => one.title === f.title);
+    assert.ok(movie, "clearing the state removed the film, which is delete_movie's job");
+    assert.equal(movie.state, null, "the explicitly requested clearing did not happen");
+  });
+
   test("stripping the handles did not change what the answer means", async () => {
     // The ordering they exist for still works: two acts inside one millisecond
     // resolve by the order the store accepted them, and the answer says so.

@@ -107,6 +107,18 @@ export type McpSession = {
 
 const episodeId = z.string().uuid().describe("The evening, by the id a read returned.");
 
+/**
+ * How one verdict act is named, wherever a caller may name one.
+ *
+ * The same syntax an evening is addressed by, because it is the same kind of
+ * handle and a second format for the same idea would be one to get wrong. What
+ * it buys is not authorisation — a well-formed reference to somebody else's act
+ * is still just a string here — but a place for a malformed one to stop, before
+ * the store compares it to a uuid column and the database answers with its own
+ * complaint about the type.
+ */
+const actReference = z.string().uuid();
+
 const episodeRequest = z
   .string()
   .min(1)
@@ -278,7 +290,12 @@ const movieState = z
       "\"didn't like it\" -> disliked. Omit the " +
       "field when they have not said; that " +
       "records nothing, and it is not the same as not_seen. Pass null to go back to having " +
-      "been told nothing. These are states the user expressed, never a score or star rating — " +
+      "been told nothing — and only where clearing the saved state is itself what they asked " +
+      "for. **Null is not a way to tidy up after something else.** Forgetting or withdrawing a " +
+      "verdict leaves the saved state standing on purpose, because it is what applies once no " +
+      "verdict overlays it; clearing it then destroys a second thing they never asked you to " +
+      "remove. If they asked for both, do both. These are states the user expressed, never a " +
+      "score or star rating — " +
       "and never where a fresh opinion goes: what they say about a film now is a verdict, and " +
       "`record_verdict` is what records it.",
   );
@@ -591,8 +608,13 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Delete a movie",
       description:
-        "Forget a film the user saved. Always allowed: it leaves every mix it was in and the " +
-        "mixes themselves are left alone. Addressed by title and year together.",
+        "Forget a film the user saved, where removing it is itself what they asked for. It " +
+        "leaves every mix it was in and the mixes themselves are left alone. Addressed by " +
+        "title and year together.\n\n" +
+        "**Not a way to tidy up after something else.** Forgetting or withdrawing a verdict " +
+        "leaves the saved film standing on purpose, because it is what applies once no verdict " +
+        "overlays it; deleting it then destroys a second thing they never asked you to remove. " +
+        "If they asked for both, do both.",
       inputSchema: z.object({ title: movieTitle, year: movieYear }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
@@ -857,6 +879,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
             by: spoken(by),
           })),
           history: history.map(spoken),
+          // What this read answers for, said in the answer rather than left to
+          // be remembered from the description. A constant, and nothing above is
+          // consulted to build it: a coverage line that changed with whether a
+          // saved film existed would report the existence of the very root this
+          // read cannot see.
+          coverage: VERDICT_COVERAGE,
         };
       }),
   );
@@ -987,14 +1015,19 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "it. Tidying it away is not part of forgetting — it destroys a second thing they never " +
         "asked you to remove.",
       inputSchema: z.object({
-        ref: z
-          .string()
-          .min(1)
-          .describe(
-            "The one act to forget, exactly as `get_memory` gave it. There is no other way to " +
-              "name it: a title, a year or a position would not tell two identical statements " +
-              "apart.",
-          ),
+        // Shaped here so a reference that is not one is an argument the tool
+        // refuses, rather than a string handed to the store to compare against a
+        // uuid column — which answered with the database's own complaint about
+        // its type, and told a caller something about how this is stored. The
+        // syntax is all this judges: a well-formed reference naming nothing and
+        // a well-formed reference naming somebody else's act are both accepted
+        // here and both answered identically below, which is what keeps this
+        // from being a way to ask whether an act exists.
+        ref: actReference.describe(
+          "The one act to forget, exactly as `get_memory` gave it. There is no other way to " +
+            "name it: a title, a year or a position would not tell two identical statements " +
+            "apart.",
+        ),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
@@ -1027,6 +1060,30 @@ export function tonightMcpServer(session: McpSession): McpServer {
 const COVERAGE = {
   completeFor: ["held", "operative", "remembered"],
   excluded: { openQuestions: { readWith: "get_open_questions" } },
+} as const;
+
+/**
+ * What `get_verdicts` answers for, and what it deliberately does not.
+ *
+ * The same device as `COVERAGE` above, for the same reason and against a
+ * different mistake. This read is complete about one thing — everything said
+ * about one film, and which of it stands — and a reader who has only ever called
+ * it has seen no saved film, no genre, no mix and no evening. The description
+ * says so, but a description is read before the call and the answer is read
+ * after it, so the limit travels with the answer too.
+ *
+ * It is what stands between an honest narrow claim and a false wide one. *"They
+ * have said nothing else about this film"* this read supports. *"There is no
+ * standing opinion"*, *"this is the only thing on record"*, *"they never marked
+ * it liked"* are claims about roots it cannot see, and belong to `get_memory`.
+ *
+ * Constant, identical for everybody, consulted for nothing — computing it from
+ * what the other roots hold would be the existence leak this read is shaped to
+ * avoid.
+ */
+const VERDICT_COVERAGE = {
+  completeFor: ["verdictHistory"],
+  excluded: { otherMemoryRoots: { readWith: "get_memory" } },
 } as const;
 
 /**

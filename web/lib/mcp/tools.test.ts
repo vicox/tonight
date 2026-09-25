@@ -759,3 +759,119 @@ test("retitling a movie keeps it the same film, filed where it was", async () =>
   assert.deepEqual(gone.deleted.mixes, ["Space Tension"]);
   assert.deepEqual((await ok(token, "get_taste")).mixes[0].movies, [], "the mix kept a dead handle");
 });
+
+test("a reference that is not one is an argument this tool refuses, in its own words", async () => {
+  // A semantic run read `get_verdicts`, took the whole act it found there and
+  // sent it as `ref`. The string reached the store, the store compared it to a
+  // uuid column, and PostgreSQL answered — so what came back to the model was
+  // `invalid input syntax for type uuid: "{\"said\":\"verdict\"...`. That is the
+  // database describing our storage to a caller, which is not something a caller
+  // is owed and not something we want a model reasoning about.
+  const token = await tokenFor(someone());
+
+  const payload = '{"said":"verdict","film":{"title":"Black Bag","year":2025}}';
+
+  for (const ref of [
+    payload,
+    "not-a-reference",
+    "",
+    "8e5077cf-bf53-4f4f-b599-65702cbd089", // one character short of one
+  ]) {
+    const why = await refused(token, "forget_verdict", { ref });
+
+    // Named like every other schema refusal in this file: the field, and the
+    // shape it takes. That is what a caller needs to correct, and saying the
+    // reference is a uuid says nothing a client cannot already read off the
+    // published schema for this field.
+    assert.match(why, /ref/i, `the refusal of ${JSON.stringify(ref)} does not name the field`);
+
+    // What must not come back is the database's own sentence. These are the
+    // exact words that leaked, and the assertion is over the whole message so a
+    // refusal that merely reorders them still fails.
+    for (const leak of [/invalid input syntax/i, /\bpostgres/i, /\bsql\b/i, /\bcolumn\b/i, /\brelation\b/i]) {
+      assert.doesNotMatch(why, leak, `the refusal of ${JSON.stringify(ref)} describes our storage`);
+    }
+
+    // And it does not hand the caller's own string back. The original leak
+    // embedded the whole malformed payload in the database's complaint, so a
+    // model asking "what did I send?" was answered by our error path.
+    assert.doesNotMatch(why, /said.*verdict|Black Bag/iu, "the refusal echoes what was sent");
+  }
+
+  assert.equal(
+    (await refused(token, "forget_verdict", { ref: payload })).includes(payload),
+    false,
+    "the refusal quotes the whole payload back",
+  );
+});
+
+test("a well-formed reference is answered the same way whoever it belongs to", async () => {
+  // The syntax check must not have become an existence oracle. A reference that
+  // is shaped right is accepted here and answered identically whether it names
+  // one of yours, one of somebody else's, or nothing at all — which is the
+  // property that makes `forget_verdict` safe to call with a guess.
+  const mine = await tokenFor(someone());
+  const theirs = await tokenFor(someone());
+
+  const film = { title: "Solaris", year: 1972 };
+  const written = await ok(theirs, "record_verdict", {
+    film,
+    told: "volunteered",
+    said: { about: "judgement", judgement: "loved" },
+  });
+
+  const stranger = written.verdict.ref as string;
+  const nobody = "00000000-0000-4000-8000-000000000000";
+
+  const one = await ok(mine, "forget_verdict", { ref: stranger });
+  const other = await ok(mine, "forget_verdict", { ref: nobody });
+
+  assert.deepEqual(one, { forgotten: stranger, writeScope: "verdict-act-only", otherRoots: "unchanged" });
+  assert.deepEqual(other, { forgotten: nobody, writeScope: "verdict-act-only", otherRoots: "unchanged" });
+
+  // And the act it named is still theirs. Being answered politely is not the
+  // same as having had an effect.
+  const held = await ok(theirs, "get_verdicts", { film });
+  assert.equal(held.history.length, 1, "a stranger's call reached somebody else's act");
+});
+
+test("the tools that change a saved film say that clearing it is its own request", async () => {
+  // One semantic run out of twelve forgot a verdict correctly and then cleared
+  // the saved film, unasked. The receipt `forget_verdict` hands back already
+  // says the write ended there — but the model had left that call by the time it
+  // chose the next one, so the boundary is restated where the second write is
+  // actually selected: on the field and the tool that perform it.
+  //
+  // A description, not an authorisation. Nothing here can tell an authorised
+  // second write from an unauthorised one, and nothing here tries to — which is
+  // why each of these also has to say that asking for both means doing both.
+  const tools = await listTools(await tokenFor(someone()));
+  const fieldOf = (tool: string, field: string) =>
+    ((tools.find((one) => one.name === tool)?.inputSchema.properties?.[field] ?? {}) as {
+      description?: string;
+    }).description ?? "";
+
+  // (A) `update_movie` with `state: null`, which is how eleven of the twelve
+  // cleanup attempts across all sweeps were actually performed.
+  const state = fieldOf("update_movie", "state");
+  assert.match(state, /only where clearing the saved state is itself what they asked for/iu, "state: not its own request");
+  assert.match(state, /not a way to tidy up after something else/iu, "state: not cleanup");
+  assert.match(state, /forgetting or withdrawing a verdict/iu, "state: does not name the operation it must not follow");
+  assert.match(state, /if they asked for both, do both/iu, "state: does not keep explicit multi-root work allowed");
+
+  // (B) `delete_movie`, which is how the twelfth was. Its old opening — "Always
+  // allowed" — was a sentence about the operation never being refused, and it
+  // read as permission to reach for it.
+  const deleting = tools.find((one) => one.name === "delete_movie")?.description ?? "";
+  assert.doesNotMatch(deleting, /always allowed/iu, "delete_movie still opens with a licence");
+  assert.match(deleting, /where removing it is itself what they asked for/iu, "delete_movie: not its own request");
+  assert.match(deleting, /not a way to tidy up after something else/iu, "delete_movie: not cleanup");
+  assert.match(deleting, /forgetting or withdrawing a verdict/iu, "delete_movie: does not name the operation it must not follow");
+  assert.match(deleting, /if they asked for both, do both/iu, "delete_movie: does not keep explicit multi-root work allowed");
+
+  // (C) And both say why the saved film is left standing, so the rule is a
+  // consequence of the model rather than an arbitrary prohibition.
+  for (const [what, said] of [["state", state], ["delete_movie", deleting]] as const) {
+    assert.match(said, /applies once no verdict overlays it/iu, `${what}: does not say why it is left`);
+  }
+});
