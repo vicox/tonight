@@ -7,6 +7,7 @@ import { embeddedDriver } from "../db/pglite.ts";
 import { EPISODES_SCHEMA, sqlEpisodeStore } from "../episodes/store/sql.ts";
 import type { AuthenticatedUser } from "../identity.ts";
 import { sqlTasteStore, TASTE_SCHEMA } from "../taste/store/sql.ts";
+import { askAbout } from "../verdicts/questions.ts";
 import { QUESTIONS_SCHEMA, sqlQuestionStore } from "../verdicts/questions/sql.ts";
 import { sqlVerdictStore, VERDICTS_SCHEMA } from "../verdicts/store/sql.ts";
 import { tonightMcpServer } from "./server.ts";
@@ -53,6 +54,18 @@ type Memory = {
   }[];
   remembered: Root[];
 };
+
+/**
+ * What the boundary adds to the composer's answer, and what a forgetting says
+ * about its own reach. Written out here so every contract below compares
+ * against one statement of them rather than repeating a literal.
+ */
+const COVERAGE = {
+  completeFor: ["held", "operative", "remembered"],
+  excluded: { openQuestions: { readWith: "get_open_questions" } },
+};
+
+const RECEIPT = { writeScope: "verdict-act-only", otherRoots: "unchanged" };
 
 describe("the memory tools", () => {
   let driver: SqlDriver;
@@ -147,7 +160,14 @@ describe("the memory tools", () => {
       acts: await sqlVerdictStore(driver, who).acts(),
       episodes: await sqlEpisodeStore(driver, who).episodes(),
     });
-    assert.deepEqual(await memory(her), JSON.parse(JSON.stringify(direct)) as Memory);
+    const answered = (await said(her, "get_memory")) as unknown as Memory & { coverage: unknown };
+    const { coverage, ...sections } = answered;
+    // The three sections are the composer's, untouched.
+    assert.deepEqual(sections, JSON.parse(JSON.stringify(direct)) as Memory);
+    // And coverage is the only thing the boundary adds — a fourth section, or a
+    // decision taken on the way out, would show up here as a difference above.
+    assert.deepEqual(Object.keys(answered).sort(), ["coverage", "held", "operative", "remembered"]);
+    assert.deepEqual(coverage, COVERAGE);
   });
 
   /* -------------------------------------------------------------- conflict */
@@ -391,7 +411,7 @@ describe("the memory tools", () => {
     const before = await memory(her);
 
     const answer = await said(her, "forget_verdict", { ref: "00000000-0000-4000-8000-000000000000" });
-    assert.deepEqual(answer, { forgotten: "00000000-0000-4000-8000-000000000000" });
+    assert.deepEqual(answer, { forgotten: "00000000-0000-4000-8000-000000000000", ...RECEIPT });
     assert.deepEqual(await memory(her), before, "an unknown reference changed something");
   });
 
@@ -406,7 +426,16 @@ describe("the memory tools", () => {
     // The same shape of answer for both, so this cannot be asked whether an act
     // exists for somebody else.
     assert.deepEqual(Object.keys(known).sort(), Object.keys(unknown).sort());
-    assert.deepEqual(known, { forgotten: ref });
+    assert.deepEqual(known, { forgotten: ref, ...RECEIPT });
+    // Stronger than matching shapes: every value but the reference the caller
+    // themselves sent is identical, so neither answer carries anything the other
+    // does not — including the receipt, which describes the operation and never
+    // what it found.
+    assert.deepEqual(
+      { ...known, forgotten: null },
+      { ...unknown, forgotten: null },
+      "a foreign reference is answered differently from one that names nothing",
+    );
 
     assert.equal(of((await memory(hers)).held, "verdict").length, 1, "a stranger forgot her verdict");
   });
@@ -479,6 +508,226 @@ describe("the memory tools", () => {
     assert.equal(evening.requestSource, "observed");
   });
 
+  /* -------------------------------- what a recommendation is told disagrees */
+
+  /**
+   * The failure this exists for: a run read `get_taste`, which carried both a
+   * film saved `loved` and a standing `not-tonight` about it, and reported the
+   * loved state alone. Both roots were in the payload and the relationship
+   * between them was not, so every reader had to re-derive it and one did not.
+   *
+   * It is derived, never stored, and it is the same comparison the memory view
+   * uses — `lib/precedence.ts`, one matrix rather than two that can drift.
+   */
+  const clashes = async (tools: Record<string, Tool>) =>
+    ((await said(tools, "get_taste")) as unknown as { disagreements?: unknown[] }).disagreements;
+
+  test("a film saved one way and judged another disagrees, everywhere", async () => {
+    const her = someone("x4-judgement");
+    await said(her, "create_movie", { ...BLACK_BAG, state: "loved" });
+    await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
+
+    assert.deepEqual(await clashes(her), [
+      { ...BLACK_BAG, saved: "loved", governedBy: { judgement: "disliked" }, applies: "everywhere" },
+    ]);
+  });
+
+  test("a loved film refused for good disagrees, everywhere", async () => {
+    const her = someone("x4-not-ever");
+    await said(her, "create_movie", { ...BLACK_BAG, state: "loved" });
+    await said(her, "record_verdict", {
+      film: BLACK_BAG,
+      told: "confirmed",
+      said: { about: "rejection", reach: "not-ever", reason: "three hours of misery" },
+    });
+
+    assert.deepEqual(await clashes(her), [
+      { ...BLACK_BAG, saved: "loved", governedBy: { rejected: "not-ever" }, applies: "everywhere" },
+    ]);
+  });
+
+  test("a loved film refused for one evening disagrees only there", async () => {
+    // The whole point of `applies`. A reader that took this for a standing fact
+    // would turn a mood into a preference, which is the failure the scope exists
+    // to prevent — so the scope is carried beside the disagreement rather than
+    // left to be inferred.
+    const her = someone("x4-not-tonight");
+    await said(her, "create_movie", { ...HEAT, state: "loved" });
+    await said(her, "record_verdict", {
+      film: HEAT,
+      told: "confirmed",
+      said: { about: "rejection", reach: "not-tonight", reason: "too long", occasion: "evening-tuesday" },
+    });
+
+    assert.deepEqual(await clashes(her), [
+      {
+        ...HEAT,
+        saved: "loved",
+        governedBy: { rejected: "not-tonight" },
+        applies: { occasion: "evening-tuesday" },
+      },
+    ]);
+    // And nothing says it reaches further: the only scope in the payload is the
+    // evening it was said in.
+    const whole = JSON.stringify(await said(her, "get_taste"));
+    assert.equal(whole.includes('"applies":"everywhere"'), false, "an evening's refusal was made global");
+    // The saved state is still there, unchanged, as the base outside that evening.
+    const movie = ((await said(her, "get_taste")) as unknown as { movies: { state: string }[] }).movies[0];
+    assert.equal(movie?.state, "loved");
+  });
+
+  test("a taken-back verdict disagrees with nothing", async () => {
+    const her = someone("x4-withdrawn");
+    await said(her, "create_movie", { ...BLACK_BAG, state: "loved" });
+    await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
+    await said(her, "withdraw_verdict", { film: BLACK_BAG });
+
+    assert.equal(await clashes(her), undefined);
+  });
+
+  test("a replaced verdict disagrees only as its replacement does", async () => {
+    const her = someone("x4-superseded");
+    await said(her, "create_movie", { ...BLACK_BAG, state: "loved" });
+    await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
+    await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
+
+    // The standing claim now agrees with the saved state, so the superseded
+    // disagreement is gone rather than remembered here.
+    assert.equal(await clashes(her), undefined);
+  });
+
+  test("a film nobody has spoken about disagrees with nothing", async () => {
+    const her = someone("x4-silent");
+    await said(her, "create_movie", { ...BLACK_BAG, state: "loved" });
+    assert.equal(await clashes(her), undefined);
+  });
+
+  test("two negatives are not a disagreement", async () => {
+    const her = someone("x4-agree");
+    await said(her, "create_movie", { ...BLACK_BAG, state: "disliked" });
+    await said(her, "record_verdict", {
+      film: BLACK_BAG,
+      told: "confirmed",
+      said: { about: "rejection", reach: "not-ever" },
+    });
+    assert.equal(await clashes(her), undefined, "a refusal beside a disliked film invented a contradiction");
+  });
+
+  test("a state that is not an opinion disagrees with nothing said about it", async () => {
+    // `seen` says they watched it and nothing more; `not_seen` and never-told
+    // are the absence of experience. A verdict beside any of them adds an
+    // opinion rather than contradicting one, so none of them is a disagreement —
+    // and this is the case the shared resolver's own guard protects.
+    for (const [who, state] of [
+      ["x4-seen", "seen"],
+      ["x4-not-seen", "not_seen"],
+    ] as const) {
+      const her = someone(who);
+      await said(her, "create_movie", { ...BLACK_BAG, state });
+      await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
+      assert.equal(await clashes(her), undefined, `${state} was treated as an opinion to contradict`);
+    }
+
+    // And a film they filed without ever saying how it went.
+    const untold = someone("x4-untold");
+    await said(untold, "create_movie", BLACK_BAG);
+    await said(untold, "record_verdict", judged(BLACK_BAG, "loved"));
+    assert.equal(await clashes(untold), undefined, "never-told was treated as an opinion");
+
+    // The same states against a refusal, which is the other half of the matrix.
+    const seenRefused = someone("x4-seen-refused");
+    await said(seenRefused, "create_movie", { ...HEAT, state: "seen" });
+    await said(seenRefused, "record_verdict", {
+      film: HEAT,
+      told: "confirmed",
+      said: { about: "rejection", reach: "not-ever" },
+    });
+    assert.equal(await clashes(seenRefused), undefined);
+  });
+
+  test("case and spacing do not make a second film to disagree with", async () => {
+    const her = someone("x4-identity");
+    await said(her, "create_movie", { ...BLACK_BAG, state: "loved" });
+    await said(her, "record_verdict", judged({ title: " black   bag ", year: 2025 }, "disliked"));
+
+    const found = (await clashes(her)) as { saved: string }[] | undefined;
+    assert.equal(found?.length, 1, "one film was treated as two");
+    assert.equal(found?.[0]?.saved, "loved");
+  });
+
+  test("a history with nothing to disagree about reads exactly as it did before", async () => {
+    // Byte compatibility: the key is absent, not empty, so a user with no
+    // disagreement sees the payload they saw before this existed.
+    const her = someone("x4-bytes");
+    await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
+    await said(her, "create_movie", { ...HEAT, state: "loved" });
+
+    const payload = (await said(her, "get_taste")) as Record<string, unknown>;
+    assert.equal("disagreements" in payload, false, "an empty disagreement list was sent");
+    assert.deepEqual(Object.keys(payload).sort(), ["genres", "mixes", "movies"]);
+  });
+
+  /* ------------------------------------------- what the read does not reach */
+
+  test("coverage says what the read is complete for, and never whether a question exists", async () => {
+    // The failure this exists for: a run read `get_memory`, saw no questions in
+    // it — because they are excluded by design — and told the user there were
+    // none. There was one. Coverage has to say "not carried here" without ever
+    // saying "none", so it is the same constant either way.
+    const quiet = someone("coverage-quiet");
+    const waiting = someone("coverage-waiting");
+    for (const who of [quiet, waiting]) {
+      await said(who, "create_movie", { ...BLACK_BAG, state: "liked" });
+    }
+    await sqlQuestionStore(driver, asUser("google:coverage-waiting")).open(
+      askAbout(HEAT, new Date(Date.now() - 10 * 86_400_000).toISOString(), 2),
+    );
+
+    const without = (await said(quiet, "get_memory")) as unknown as { coverage: unknown };
+    const with_ = (await said(waiting, "get_memory")) as unknown as { coverage: unknown };
+
+    assert.deepEqual(without.coverage, COVERAGE);
+    assert.deepEqual(with_.coverage, without.coverage, "coverage moved when a question existed");
+    assert.equal(
+      JSON.stringify(with_.coverage),
+      JSON.stringify(without.coverage),
+      "coverage is not byte-identical between the two",
+    );
+
+    // The section order is part of the contract: a reader is told what is
+    // covered before it is told what is not.
+    assert.deepEqual((without.coverage as { completeFor: string[] }).completeFor, [
+      "held",
+      "operative",
+      "remembered",
+    ]);
+
+    // And the question itself reached nothing.
+    const whole = JSON.stringify(with_);
+    for (const leak of ["Heat", "opportunit", "since", '"question']) {
+      assert.equal(whole.includes(leak), false, `${leak} reached the memory view`);
+    }
+    // While the read that owns it still answers.
+    const open = (await said(waiting, "get_open_questions")) as unknown as { questions: unknown[] };
+    assert.equal(open.questions.length, 1, "get_open_questions stopped being the read for this");
+    assert.equal(
+      ((await said(quiet, "get_open_questions")) as unknown as { questions: unknown[] }).questions.length,
+      0,
+    );
+  });
+
+  test("a pending question moves no root in the memory view", async () => {
+    const her = someone("coverage-roots");
+    await said(her, "create_movie", { ...BLACK_BAG, state: "liked" });
+    await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
+    const before = await memory(her);
+
+    await sqlQuestionStore(driver, asUser("google:coverage-roots")).open(
+      askAbout(HEAT, new Date().toISOString(), 0),
+    );
+    assert.deepEqual(await memory(her), before, "opening a question changed what Tonight remembers");
+  });
+
   /* --------------------------------------------------------- the boundary */
 
   test("one person's memory holds nothing of another's", async () => {
@@ -488,7 +737,7 @@ describe("the memory tools", () => {
     await said(hers, "record_verdict", judged(BLACK_BAG, "disliked"));
     await said(hers, "record_episode", { request: "hers alone", offered: [{ ...HEAT, lead: true }] });
 
-    assert.deepEqual(await memory(his), { held: [], operative: [], remembered: [] });
+    assert.deepEqual(await memory(his), { held: [], operative: [], remembered: [], coverage: COVERAGE });
     assert.equal(JSON.stringify(await memory(his)).includes("hers alone"), false);
   });
 

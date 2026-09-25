@@ -249,7 +249,7 @@ describe("the verdict tools", () => {
 
     // Forget the first, by the reference its own write returned.
     const gone = await said(ana, "forget_verdict", { ref: first.verdict.ref });
-    assert.deepEqual(gone, { forgotten: first.verdict.ref });
+    assert.deepEqual(gone, { forgotten: first.verdict.ref, writeScope: "verdict-act-only", otherRoots: "unchanged" });
 
     const after = await history(ana, f);
     assert.equal(after.length, 1, "forgetting by a write's own reference removed the wrong number of acts");
@@ -285,7 +285,7 @@ describe("the verdict tools", () => {
 
     // Forget the taking-back, by the reference the withdrawal itself returned.
     const gone = await said(ana, "forget_verdict", { ref: taken.withdrawal.ref });
-    assert.deepEqual(gone, { forgotten: taken.withdrawal.ref });
+    assert.deepEqual(gone, { forgotten: taken.withdrawal.ref, writeScope: "verdict-act-only", otherRoots: "unchanged" });
 
     const after = await history(ana, f);
     assert.deepEqual(
@@ -329,7 +329,7 @@ describe("the verdict tools", () => {
     assert.ok(ref && ref.length > 0);
 
     const gone = await said(ana, "forget_verdict", { ref });
-    assert.deepEqual(gone, { forgotten: ref });
+    assert.deepEqual(gone, { forgotten: ref, writeScope: "verdict-act-only", otherRoots: "unchanged" });
   });
 
   /* ------------------------------------------------------- stating a verdict */

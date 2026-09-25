@@ -30,10 +30,16 @@ import {
   type Act,
   type Film,
   type Identified,
+  type Judgement,
+  type Reach,
   type Scope,
+  type Standing,
 } from "../verdicts/model.ts";
 import { current, spoken, supersession } from "../verdicts/model.ts";
 import { compose } from "../memory/model.ts";
+import { disagrees } from "../precedence.ts";
+import { filmKey } from "../films/identity.ts";
+import type { MovieState } from "../taste/model.ts";
 import type { QuestionStore } from "../verdicts/questions.ts";
 import type { VerdictStore } from "../verdicts/store.ts";
 import type { TasteStore } from "../taste/store.ts";
@@ -364,7 +370,13 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "An evening whose refusal they withdrew has nothing of its own once more. Nothing else " +
         "about a film reaches this list: not that you recommended it, not that they watched or " +
         "finished it, not a question of yours waiting on an answer, and not how long any of it " +
-        "has been true.",
+        "has been true.\n\n" +
+        "`disagreements` appears when a film they filed one way and something they still say " +
+        "pull different ways. It names the film, the `saved` state, what is `governedBy` it, and " +
+        "— the part to read carefully — where it `applies`: `everywhere`, or one evening. A " +
+        "`not-tonight` applies **only** in the evening it names, and outside it the saved state " +
+        "is the base as it always was. Nothing here is new: both sides are already above, and " +
+        "this only says which governs and where. It is absent when nothing disagrees.",
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () =>
@@ -374,10 +386,16 @@ export function tonightMcpServer(session: McpSession): McpServer {
         // which of those still stands is resolved by the verdict model rather
         // than assembled here.
         const [taste, said] = await Promise.all([store.taste(), verdicts.standing()]);
-        // Absent rather than empty for somebody who has said nothing, so a user
-        // with no verdicts reads exactly as they did before this existed —
-        // there is nothing to say about them, and an empty list says it anyway.
-        return said.length === 0 ? taste : { ...taste, verdicts: said };
+        const clashes = disagreements(taste.movies, said);
+        // Absent rather than empty, both of them: a user with no verdicts and no
+        // disagreement reads exactly as they did before either existed. An empty
+        // list would say there is nothing to say, which is what saying nothing
+        // already does.
+        return {
+          ...taste,
+          ...(said.length === 0 ? {} : { verdicts: said }),
+          ...(clashes.length === 0 ? {} : { disagreements: clashes }),
+        };
       }),
   );
 
@@ -907,6 +925,11 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "evening also says where its own record came from: `requestSource` and `offeredSource` " +
         "are `observed` where Tonight received the request or put the films forward itself, and " +
         "`stated` where the user later corrected it.\n\n" +
+        "`coverage` says what this read answers for — `held`, `operative` and `remembered` are " +
+        "the whole of Memory — and what it leaves out. A question you are carrying is your own " +
+        "note rather than something they told you, so it is excluded here and read with " +
+        "`get_open_questions`. It is the same either way, so their absence from this answer is " +
+        "never evidence that there are none.\n\n" +
         "This is for explaining and correcting, not for recommending. `get_taste` is what a " +
         "recommendation reads; this holds history beside belief on purpose, and using the " +
         "history as though it were taste is the one thing it must not be used for. Reading it " +
@@ -929,7 +952,11 @@ export function tonightMcpServer(session: McpSession): McpServer {
           verdicts.acts(),
           episodes.episodes(),
         ]);
-        return compose({ taste, acts, episodes: evenings });
+        // The composer's answer, unchanged, plus what this read does not reach.
+        // `COVERAGE` is a constant and nothing above it is consulted to build
+        // it: a coverage line computed from whether a question exists would be
+        // the existence oracle the exclusion is there to prevent.
+        return { ...compose({ taste, acts, episodes: evenings }), coverage: COVERAGE };
       }),
   );
 
@@ -949,6 +976,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "is left, so forgetting a withdrawal lets the verdict it silenced stand once more, and " +
         "forgetting the last thing they said about a film leaves it as though they had never " +
         "said anything — whatever the saved film says applies again.\n\n" +
+        "The answer says what the call did: `writeScope` is `verdict-act-only` and `otherRoots` " +
+        "is `unchanged`, because this changes that one act and nothing else. Neither field says " +
+        "whether the reference named anything, and neither says your whole errand is done — if " +
+        "they asked for something else as well, that is still yours to do.\n\n" +
         "**This call is the whole of the request.** Do not go on to update or delete the saved " +
         "film, and do not touch any genre, mix, evening or anything else, unless they separately " +
         "ask you to change that. A saved film is a different thing from something they said " +
@@ -971,14 +1002,85 @@ export function tonightMcpServer(session: McpSession): McpServer {
       attempt(async () => {
         // The same answer whether or not there was anything there. A reference
         // that names nothing, or names somebody else's act, must not be a way to
-        // find out that it exists.
+        // find out that it exists — which is why the two fields below are
+        // constants describing the operation rather than anything it found.
         await verdicts.forget(ref);
-        return { forgotten: ref };
+        return { forgotten: ref, writeScope: "verdict-act-only", otherRoots: "unchanged" };
       }),
   );
 
   return server;
 }
+
+/**
+ * What `get_memory` answers for, and what it deliberately does not.
+ *
+ * A constant, and that is the whole design. A question Tonight is carrying is
+ * its own note rather than something the user told it, so it is not Memory and
+ * is not in the three sections — but a reader that met their absence would have
+ * no way to tell "there are none" from "this read does not carry them", and the
+ * first of those is a claim about the user that nothing here can support. So the
+ * read says which parts it is complete for and names the one read that answers
+ * the rest. Identical for everybody, consulted for nothing: building it from
+ * whether a question exists would leak exactly what excluding them protects.
+ */
+const COVERAGE = {
+  completeFor: ["held", "operative", "remembered"],
+  excluded: { openQuestions: { readWith: "get_open_questions" } },
+} as const;
+
+/**
+ * Where a saved film and a standing verdict pull different ways, for the
+ * recommendation read.
+ *
+ * Derived, never stored, and never new knowledge: both roots are already in this
+ * payload and this only says which of them governs and where. It exists because
+ * the alternative is every reader re-deriving it, and the one that does not
+ * re-derive it reports the saved state alone and sounds confident about a film
+ * the user has since turned down.
+ *
+ * The comparison is `lib/precedence.ts`'s, shared with the memory view, so there
+ * is one matrix rather than two that can drift.
+ *
+ * `applies` is the point of the shape. A `not-tonight` governs in its own
+ * evening and nowhere else, and a reader must not be able to take it for a
+ * standing fact about the person — so the scope is carried explicitly beside the
+ * disagreement instead of being left to be inferred from an occasion field.
+ */
+function disagreements(
+  movies: readonly { title: string; year: number; state: MovieState | null }[],
+  standing: readonly Standing[],
+): Disagreement[] {
+  const filed = new Map(movies.map((movie) => [filmKey(movie), movie] as const));
+
+  const found: Disagreement[] = [];
+  for (const said of standing) {
+    const movie = filed.get(filmKey(said));
+    if (!movie) continue;
+
+    const governedBy: Disagreement["governedBy"] =
+      said.judgement === undefined ? { rejected: said.rejected! } : { judgement: said.judgement };
+    if (!disagrees(movie.state, governedBy)) continue;
+
+    found.push({
+      title: said.title,
+      year: said.year,
+      saved: movie.state as MovieState,
+      governedBy,
+      applies: said.occasion === undefined ? "everywhere" : { occasion: said.occasion },
+    });
+  }
+  return found;
+}
+
+/** One film two roots disagree about, as a recommendation reads it. */
+type Disagreement = {
+  title: string;
+  year: number;
+  saved: MovieState;
+  governedBy: { judgement: Judgement } | { rejected: Reach };
+  applies: "everywhere" | { occasion: string };
+};
 
 /**
  * An act just written, as the caller may have it back.

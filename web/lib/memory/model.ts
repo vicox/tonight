@@ -1,5 +1,6 @@
 import type { Episode, Recorded } from "../episodes/model.ts";
 import { filmKey } from "../films/identity.ts";
+import { disagrees as pullsAgainst, evaluative } from "../precedence.ts";
 import type { Movie, MovieHandle, MovieState, Taste, Written } from "../taste/model.ts";
 import {
   current,
@@ -495,16 +496,17 @@ function conflicts(held: readonly HeldRoot[]): Conflict[] {
   return found;
 }
 
-/** Whether a Movie state says how they felt, rather than whether they watched. */
-const evaluative = (state: MovieState | null): boolean =>
-  state === "liked" || state === "loved" || state === "disliked";
-
-/** Whether what they said pulls against how the film is filed. */
-function disagrees(state: MovieState | null, verdict: Verdict): boolean {
-  if (verdict.assertion.about === "judgement") {
-    return verdict.assertion.judgement !== state;
-  }
-  // A refusal is not a rating, so it can only disagree with a liking. Against
-  // `disliked` it says the same thing twice.
-  return state === "liked" || state === "loved";
-}
+/**
+ * Whether what they said pulls against how the film is filed.
+ *
+ * The comparison itself is `lib/precedence.ts`'s, shared with the taste model
+ * so that a recommendation and an explanation cannot disagree about what
+ * disagrees. This reduces a verdict to the two facts that rule needs.
+ */
+const disagrees = (state: MovieState | null, verdict: Verdict): boolean =>
+  pullsAgainst(
+    state,
+    verdict.assertion.about === "judgement"
+      ? { judgement: verdict.assertion.judgement }
+      : { rejected: verdict.assertion.rejection.reach },
+  );
