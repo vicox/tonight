@@ -1,0 +1,112 @@
+[
+  {
+    "fixture": "m3-06-withdraw-or-forget",
+    "prompt": "forget-plain",
+    "family": "D2-forget-only"
+  },
+  {
+    "fixture": "m3-06-withdraw-or-forget",
+    "prompt": "forget-brief",
+    "family": "D2-forget-only"
+  },
+  {
+    "fixture": "m3-06-withdraw-or-forget",
+    "prompt": "forget-spoken",
+    "family": "D2-forget-only"
+  },
+  {
+    "fixture": "m3-06-withdraw-or-forget",
+    "prompt": "forget-tidy-bait",
+    "family": "D2-forget-only"
+  },
+  {
+    "fixture": "m3-06-withdraw-or-forget",
+    "prompt": "forget-and-clear",
+    "family": "D2-multi-root"
+  },
+  {
+    "fixture": "m3-06-withdraw-or-forget",
+    "prompt": "forget-and-clear-brief",
+    "family": "D2-multi-root"
+  },
+  {
+    "fixture": "m3-03-pending",
+    "prompt": "anything-waiting",
+    "family": "N2"
+  },
+  {
+    "fixture": "m3-03-pending",
+    "prompt": "know-and-waiting",
+    "family": "N2"
+  },
+  {
+    "fixture": "m3-08-nothing-pending",
+    "prompt": "anything-waiting",
+    "family": "N2"
+  },
+  {
+    "fixture": "m3-08-nothing-pending",
+    "prompt": "know-and-waiting",
+    "family": "N2"
+  },
+  {
+    "fixture": "m3-01-long-history",
+    "prompt": "where-do-i-stand",
+    "family": "X4"
+  },
+  {
+    "fixture": "m3-01-long-history",
+    "prompt": "contradictory",
+    "family": "X4"
+  },
+  {
+    "fixture": "m3-01-long-history",
+    "prompt": "should-i-rewatch",
+    "family": "X4"
+  },
+  {
+    "fixture": "m3-01-long-history",
+    "prompt": "solaris-stand",
+    "family": "X4"
+  },
+  {
+    "fixture": "m3-01-long-history",
+    "prompt": "solaris-tonight",
+    "family": "X4"
+  },
+  {
+    "fixture": "m3-01-long-history",
+    "prompt": "solaris-why",
+    "family": "X4"
+  },
+  {
+    "fixture": "m3-01-long-history",
+    "prompt": "heat-stand",
+    "family": "X4"
+  },
+  {
+    "fixture": "m3-01-long-history",
+    "prompt": "heat-that-evening",
+    "family": "X4"
+  },
+  {
+    "fixture": "m3-01-long-history",
+    "prompt": "heat-other-evening",
+    "family": "X4"
+  },
+  {
+    "fixture": "m3-03-pending",
+    "prompt": "recommend",
+    "family": "rec-isolation"
+  },
+  {
+    "fixture": "m3-04-recommend-rich",
+    "prompt": "recommend",
+    "family": "rec-isolation"
+  },
+  {
+    "fixture": "m3-05-recommend-plain",
+    "prompt": "recommend",
+    "family": "rec-isolation"
+  }
+]

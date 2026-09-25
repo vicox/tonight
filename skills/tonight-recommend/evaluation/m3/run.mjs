@@ -17,11 +17,14 @@
  * `get_memory` is the broader view; the whole of family A is which of them the
  * model chooses, so the artifact has to be able to show what each of them held.
  *
- * **It records the state afterwards, for the scenarios that write.** Whether a
- * withdrawal was a withdrawal is not a question about prose. The three writing
- * scenarios have their memory and their verdict history read again after the
- * agent has finished, straight to the server, and the difference is in the
- * artifact.
+ * **It records the state afterwards, for every run.** Whether a withdrawal was a
+ * withdrawal is not a question about prose, so memory and verdict history are
+ * read again after the agent has finished, straight to the server, and the
+ * difference is in the artifact. Every run, not only the scenarios that expect a
+ * write: what a fixture declares is what the scenario asks for, and a run that
+ * wrote anyway is the one whose after-state is worth having. The declaration is
+ * recorded beside the mutations the proxy actually saw, so the two disagreeing
+ * shows up as a finding instead of as a missing file.
  *
  * What it does not do, ever, is the same list: it does not call a tool on the
  * agent's behalf, reason for it, or write its transcript. The transcript is the
@@ -102,14 +105,29 @@ function target() {
 }
 
 const TARGET = target();
-const OUT = join(here, "results", `m3-${VERSION}-${TARGET}`, "runs");
+/**
+ * Which set of scenarios to run, and what to call the result.
+ *
+ * The full sweep is the default and is what `--set` omitted means. A targeted
+ * set is a second `<name>.scenarios.json` and `<name>.prompts.md` beside the
+ * originals, writing to its own namespace — so a preflight aimed at three
+ * failure classes cannot dilute, reshape or overwrite the sweep that is the
+ * milestone's actual acceptance evidence. The fixtures are shared: a targeted
+ * run that invented its own history would be testing a different product.
+ */
+const SET = option("set", null);
+const scenarioFile = SET === null ? "scenarios.json" : `${SET}.scenarios.json`;
+const promptFile = SET === null ? "prompts.md" : `${SET}.prompts.md`;
+const namespace = SET === null ? `m3-${VERSION}-${TARGET}` : `m3-${SET}-${VERSION}-${TARGET}`;
 
-const scenarios = JSON.parse(readFileSync(join(here, "scenarios.json"), "utf8"));
+const OUT = join(here, "results", namespace, "runs");
+
+const scenarios = JSON.parse(readFileSync(join(here, scenarioFile), "utf8"));
 const fixture = (id) => JSON.parse(readFileSync(join(here, "fixtures", `${id}.json`), "utf8"));
 
-/** The request set, as `prompts.md` writes it. */
+/** The request set, as the chosen prompt table writes it. */
 function prompts() {
-  const table = readFileSync(join(here, "prompts.md"), "utf8");
+  const table = readFileSync(join(here, promptFile), "utf8");
   const said = new Map();
   for (const row of table.matchAll(/^\| `([a-z-]+)` \| \*"(.+?)"\* \|/gm)) said.set(row[1], row[2]);
   return said;
@@ -160,6 +178,34 @@ function answeredBy(session) {
   return "unknown";
 }
 
+/**
+ * Which tools change something, as the server itself marks them.
+ *
+ * The proxy log records what was called, not what it did, so deciding whether a
+ * run wrote anything means knowing which names are writes. It is a list here
+ * rather than a lookup because the proxy speaks HTTP and never sees an
+ * annotation — and it is kept honest by `web/lib/evaluation-m3.test.ts`, which
+ * fails if it stops matching the tools the server declares as writing.
+ */
+const MUTATING = new Set([
+  "correct_episode",
+  "create_genre",
+  "create_mix",
+  "create_movie",
+  "delete_genre",
+  "delete_mix",
+  "delete_movie",
+  "forget_episode",
+  "forget_verdict",
+  "record_episode",
+  "record_opportunity",
+  "record_verdict",
+  "update_genre",
+  "update_mix",
+  "update_movie",
+  "withdraw_verdict",
+]);
+
 function transcript(logFile) {
   const lines = readFileSync(join(OUT, logFile), "utf8").trim().split("\n").filter(Boolean);
   const calls = lines.map((line) => JSON.parse(line)).filter((entry) => entry.tool);
@@ -167,7 +213,8 @@ function transcript(logFile) {
     ? calls.map((entry, at) => `${at + 1}. \`${entry.tool}\` → ${entry.failed ? "refused" : `ok (${entry.status})`}`).join("\n")
     : "None.";
   const discovered = lines.map((line) => JSON.parse(line)).find((entry) => entry.discovered !== undefined)?.discovered;
-  return { calls: calls.map((one) => one.tool), rendered, discovered: discovered ?? "unknown" };
+  const called = calls.map((one) => one.tool);
+  return { calls: called, mutations: called.filter((one) => MUTATING.has(one)), rendered, discovered: discovered ?? "unknown" };
 }
 
 /** One run: a fresh history, a fresh agent, and whatever it did with the tools. */
@@ -241,20 +288,25 @@ async function run(scenario, said, index) {
     await shutDown(proxy, PORT);
   }
 
-  // What the history looks like now. Only for the scenarios that ask the agent
-  // to change it, because for the others it is the snapshot again by definition
-  // — and a read purity claim is the deterministic suite's, not this one's.
-  let afterDigest = null;
-  if (spec.writes) afterDigest = seed(scenario.fixture, "--snapshot", join(OUT, afterFile));
+  // What the history looks like now — for every run, without exception.
+  //
+  // This used to be taken only where the fixture declared `writes`, on the
+  // reasoning that for the others it is the snapshot again by definition. It is
+  // not: a fixture's `writes` is what the scenario *expects*, and a run that
+  // wrote anyway is precisely the run whose after-state nobody has. That is not
+  // hypothetical — three preflight runs of a `writes: false` scenario called
+  // `record_episode`, and the artifact said `writes: no` over the top of it.
+  //
+  // So the declaration no longer decides what evidence exists. It is recorded
+  // beside what the proxy actually saw, and the two disagreeing is a finding
+  // rather than a silence.
+  const afterDigest = seed(scenario.fixture, "--snapshot", join(OUT, afterFile));
 
   return { name, spec, snapshotFile, afterFile, logFile, digest, afterDigest, answer, failure, resolved, session };
 }
 
 function artifact(scenario, said, index, result, stamp) {
-  const { rendered, discovered } = transcript(result.logFile);
-  const after = result.afterDigest
-    ? `state_after: ${result.afterDigest}\nstate_after_file: ${result.afterFile}\n`
-    : "";
+  const { rendered, discovered, mutations } = transcript(result.logFile);
   return `---
 fixture: ${scenario.fixture}
 prompt: ${scenario.prompt}
@@ -274,7 +326,11 @@ external_tools: disabled
 external_evidence: n/a
 state_before: ${result.digest}
 state_before_file: ${result.snapshotFile}
-${after}writes: ${result.spec.writes ? "yes" : "no"}
+state_after: ${result.afterDigest}
+state_after_file: ${result.afterFile}
+writes_expected: ${result.spec.writes ? "yes" : "no"}
+writes_observed: ${mutations.length ? mutations.join(", ") : "none"}
+state_changed: ${result.digest === result.afterDigest ? "no" : "yes"}
 recorded: ${stamp}
 ---
 
@@ -309,7 +365,7 @@ if (chosen.length === 0) throw new Error(`nothing matches ${ONLY}`);
 
 const planned = chosen.length * RUNS;
 console.error(
-  `M3 semantic evaluation — instructions ${VERSION} at ${TARGET}, model ${MODEL}, CLI ${CLI}\n` +
+  `M3 ${SET === null ? "semantic evaluation" : `${SET} set`} — instructions ${VERSION} at ${TARGET}, model ${MODEL}, CLI ${CLI}\n` +
     `${chosen.length} scenarios × ${RUNS} runs = ${planned} runs → ${OUT}`,
 );
 if (DRY) {
@@ -323,7 +379,7 @@ mkdirSync(join(OUT, "logs"), { recursive: true });
 let done = 0;
 for (const scenario of chosen) {
   const request = said.get(scenario.prompt);
-  if (!request) throw new Error(`prompts.md has no request called ${scenario.prompt}`);
+  if (!request) throw new Error(`${promptFile} has no request called ${scenario.prompt}`);
   for (let index = 1; index <= RUNS; index += 1) {
     const result = await run(scenario, request, index);
     writeFileSync(join(OUT, `${result.name}.md`), artifact(scenario, request, index, result, new Date().toISOString()));

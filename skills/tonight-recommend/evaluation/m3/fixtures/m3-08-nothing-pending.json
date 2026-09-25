@@ -1,0 +1,41 @@
+{
+  "id": "m3-08-nothing-pending",
+  "title": "The same person with no question waiting",
+  "user": "google:eval-m3-08-nothing-pending",
+  "families": [
+    "N2"
+  ],
+  "catches": "The control the pending fixture is read against. Identical taste and identical verdict, and no open question at all \u2014 so an answer that claims there are none is right here and wrong there, and only the read it did can tell the two apart.",
+  "writes": false,
+  "model": {
+    "genres": [
+      {
+        "name": "Slow Burn",
+        "instruction": "I like films that take their time."
+      }
+    ],
+    "mixes": [],
+    "movies": [
+      {
+        "title": "Heat",
+        "year": 1995,
+        "state": "liked"
+      }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Zodiac",
+        "year": 2007
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "loved",
+        "because": "the procedure is the whole story"
+      }
+    }
+  ]
+}

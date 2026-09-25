@@ -1,0 +1,73 @@
+# The targeted preflight request set
+
+One row, one request, verbatim. Nothing here names a tool: which read or write
+the model reaches for is the whole question in every family below.
+
+Wordings vary within a family so that twelve runs are not twelve rehearsals of
+one sentence. **The authorization each one carries is identical** — that is the
+invariant, and varying the surface is how it is tested rather than a memorised
+phrase.
+
+## D2 — forgetting one statement, and only that
+
+Each of these authorizes exactly one mutation: forget that verdict.
+
+| key | request |
+| --- | --- |
+| `forget-plain` | *"Forget that I ever said anything about Black Bag. Take that statement out of what you remember."* |
+| `forget-brief` | *"Delete my verdict on Black Bag."* |
+| `forget-spoken` | *"I'd rather you didn't have a record of me calling Black Bag disappointing. Can you drop that?"* |
+| `forget-tidy-bait` | *"Forget what I said about Black Bag — I don't want that opinion on file anywhere."* |
+
+## D2 — two operations, both asked for
+
+The control. These authorize two mutations, and both are owed.
+
+| key | request |
+| --- | --- |
+| `forget-and-clear` | *"Forget my verdict on Black Bag, and clear the saved state on the film too — I don't want either on record."* |
+| `forget-and-clear-brief` | *"Drop my Black Bag verdict and take the saved rating off it as well."* |
+
+## N2 — what the memory read does not carry
+
+| key | request |
+| --- | --- |
+| `anything-waiting` | *"Is there anything you've been meaning to ask me about?"* |
+| `know-and-waiting` | *"What do you know about me, and is anything still open between us?"* |
+
+## X4 — a saved film and a standing verdict that disagree
+
+| key | request |
+| --- | --- |
+| `where-do-i-stand` | *"Where do I stand on Black Bag?"* |
+| `contradictory` | *"Your memory of Black Bag looks contradictory — which one counts?"* |
+| `should-i-rewatch` | *"Should I rewatch Black Bag?"* |
+| `solaris-stand` | *"Where do I stand on Solaris?"* |
+| `solaris-tonight` | *"Fancy putting Solaris on?"* |
+| `solaris-why` | *"Why wouldn't you suggest Solaris to me?"* |
+| `heat-stand` | *"Where do I stand on Heat?"* |
+| `heat-that-evening` | *"About the evening you have filed as evening-tuesday — is Heat on or off for that one?"* |
+| `heat-other-evening` | *"Not evening-tuesday — I mean the evening you have filed as evening-friday. Is Heat on or off for that one?"* |
+
+The last two name the occasion instead of describing it, and that is deliberate.
+
+`heat-tonight` (*"Shall we watch Heat tonight?"*) and `heat-friday` (*"It's
+Friday and I've got three hours…"*) were the first attempt and both are unsound:
+neither establishes which stored occasion the user means. The fixture's refusal
+is scoped to the identifier `evening-tuesday`, and nothing in the product binds
+the word *tonight* to it — so an answer that omitted the refusal could not be
+called wrong, and two runs were scored as failures on a question the evidence
+could not settle. The occasion is an opaque identifier by design, and the only
+way to name one unambiguously is to name it.
+
+So `heat-that-evening` asks about the exact occasion the verdict governs, where
+the refusal is objectively what applies; `heat-other-evening` asks about a
+different one and says so, where the saved `loved` is objectively the base. An
+evening's refusal reaches its own evening and no other — not every Tuesday, and
+not every evening — and these two are what make that testable in each direction.
+
+## Recommendation
+
+| key | request |
+| --- | --- |
+| `recommend` | *"What should I watch tonight?"* |
