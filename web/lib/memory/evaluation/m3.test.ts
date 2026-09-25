@@ -919,6 +919,35 @@ describe("M3 — explains itself, and can be corrected", () => {
     });
   });
 
+  test("an evening's refusal reported as a standing one is caught", () => {
+    // The killer Gate H was missing. A `not-tonight` governs in its own evening
+    // and nowhere else; projected as `everywhere` it reads as a standing fact
+    // about the person, which is the mood-into-preference failure the scope
+    // exists to prevent. The gate derives the expected scope from the script's
+    // own conflict, so it disagrees with this and says where.
+    probe("an evening's refusal is widened to everywhere", "recommendation-isolation", (copy) => {
+      const seen = copy.seen["not-on-a-tuesday"]!;
+      const clash = seen.taste.disagreements![0]!;
+      clash.applies = "everywhere";
+    });
+  });
+
+  test("dropping the disagreements a recommendation is told about is caught", () => {
+    // The gap itself: before this, production could stop answering with
+    // disagreements and every gate would still pass.
+    probe("the disagreement projection disappears", "recommendation-isolation", (copy) => {
+      delete copy.seen["not-on-a-tuesday"]!.taste.disagreements;
+    });
+  });
+
+  test("an empty disagreement list where the field should be absent is caught", () => {
+    // Absent and empty are two different answers: one says nothing disagrees,
+    // the other says so in a payload shape the contract does not use.
+    probe("nothing disagrees, and the read says so anyway", "recommendation-isolation", (copy) => {
+      copy.seen["one-of-everything"]!.taste.disagreements = [];
+    });
+  });
+
   /* -- reading is not writing ------------------------------------------------ */
 
   test("a memory read that consumes operational state is caught", () => {

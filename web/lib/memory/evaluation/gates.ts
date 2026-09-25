@@ -80,6 +80,8 @@ export type Taste = {
   mixes: Record<string, unknown>[];
   movies: Record<string, unknown>[];
   verdicts?: Record<string, unknown>[];
+  /** Absent when nothing disagrees — never an empty list. That is the contract. */
+  disagreements?: Record<string, unknown>[];
 };
 
 /** A row as its own store holds it: the two instants persistence keeps. */
@@ -845,8 +847,37 @@ function wantedTaste(want: Expected): Record<string, string> {
         .map(standingOf)
         .sort(),
     ),
+    // Worked out from the replay's own conflicts — the ones `expected()` derived
+    // from the script — and deliberately not from `lib/precedence.ts`. A gate
+    // that asked the production resolver what to expect would reproduce its bug
+    // and agree with it.
+    //
+    // `ABSENT` rather than an empty set, because absent and empty are two
+    // different answers here and the contract is that no disagreement means no
+    // field at all.
+    disagreements:
+      want.conflicts.length === 0
+        ? ABSENT
+        : asSet(
+            want.conflicts.map((one) => ({
+              title: asSpoken(one.film.title),
+              year: one.film.year,
+              saved: one.savedState,
+              governedBy:
+                one.governing.about === "judgement"
+                  ? { judgement: one.governing.judgement }
+                  : { rejected: one.governing.reach },
+              // The scope the claim was made in, carried word for word. An
+              // evening's refusal that came back as `everywhere` would be a
+              // mood reported as a standing fact.
+              applies: one.where === "everywhere" ? "everywhere" : { occasion: one.where },
+            })),
+          ),
   };
 }
+
+/** What a read says when a field is not there at all, told apart from an empty one. */
+const ABSENT = "<field absent>";
 
 const CLOCKS = ["createdAt", "updatedAt"] as const;
 
@@ -861,6 +892,8 @@ function observedTaste(taste: Taste): Record<string, string> {
       taste.movies.map((one) => ({ ...without(one, CLOCKS), mixes: membership(one.mixes) })),
     ),
     verdicts: JSON.stringify((taste.verdicts ?? []).map((one) => canon(one)).sort()),
+    disagreements:
+      taste.disagreements === undefined ? ABSENT : asSet(taste.disagreements.map((one) => one)),
   };
 }
 
@@ -1477,7 +1510,7 @@ export function isolation(world: World): Failure[] {
 
     const wanted = wantedTaste(want);
     const got = observedTaste(seen.taste);
-    for (const part of ["genres", "mixes", "movies", "verdicts"] as const) {
+    for (const part of ["genres", "mixes", "movies", "verdicts", "disagreements"] as const) {
       if (wanted[part] !== got[part]) {
         fail(`the ${part} a recommendation reads are not the ones the history has: ${got[part]} rather than ${wanted[part]}`);
       }
