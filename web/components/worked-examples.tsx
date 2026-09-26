@@ -187,19 +187,18 @@ function Example({ example }: { example: WorkedExample }) {
         <Turn who="Tonight" lit>
           <span className="block">
             <span className="sr-only">
-              Saved {example.genres.length} genres, {spoken(example.genres)}, and the vibe they
-              make together: {example.vibe}.
+              Saved {example.genres.length} genres, {spoken(example.genres)}, and the vibe built
+              on them: {example.vibe}.
             </span>
             <span aria-hidden="true" className="block">
               <span className="flex flex-wrap items-center gap-1.5">
                 {example.genres.map((genre, position) => (
                   <span key={genre} className="flex items-center gap-1.5">
-                    {position > 0 && <span className="text-[12px] text-ink-faint">+</span>}
+                    {position > 0 && <span className="text-[12px] text-ink-faint">·</span>}
                     <Chip>{genre}</Chip>
                   </span>
                 ))}
               </span>
-              <span className="mt-2.5 block text-[13px] leading-none text-beam">↓</span>
               {/*
                 The anchor. Everything above is the working; this is the thing
                 worth keeping, and it is the only line on the card set at a size

@@ -51,7 +51,7 @@
 /**
  * The longest a name may be.
  *
- * Names are read as chips — `[SCI-FI] + [THRILLER]` — so a name that will not fit
+ * Names are read as chips — `[SCI-FI]` `[THRILLER]` — so a name that will not fit
  * on a chip is not a name, it is an instruction in the wrong field. Sixty
  * characters is far past any real genre and far short of a paragraph. The cap
  * exists because both writers here are generous: a language model asked for a

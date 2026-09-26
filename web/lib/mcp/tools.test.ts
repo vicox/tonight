@@ -405,6 +405,94 @@ test("the write tools say where persistence begins, because a host may read noth
   }
 });
 
+test("a vibe is asked for as one idea, read from the genres' instructions", async () => {
+  // The gap this closes. The contracts already said a vibe's name must not
+  // merely repeat its genres, and that its sentence must add something they do
+  // not say. Neither said the three have to mean **one thing** — so `Quiet
+  // Dread` over a `Slapstick` genre broke no stated rule, and the store took it,
+  // because the store takes anything structurally valid.
+  //
+  // Asserted against the tool descriptions rather than against behaviour,
+  // because this is a judgement and there is nothing to run: no validator, no
+  // score, no similarity. What a test can decide is whether the instruction to
+  // make the judgement is where the judgement is made.
+  const tools = await listTools(await tokenFor(someone()));
+  const describing = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+  const fieldOf = (tool: string, field: string) =>
+    ((tools.find((one) => one.name === tool)?.inputSchema.properties?.[field] ?? {}) as {
+      description?: string;
+    }).description ?? "";
+
+  const create = describing("create_vibe");
+  const update = describing("update_vibe");
+
+  // (A) The genre *instructions*, not the names. A name is a label and two
+  // people mean opposite things by the same one, so a coherence judgement made
+  // from names is not a judgement at all.
+  assert.match(create, /read what each genre's instruction actually says/iu, "create: names would do");
+  assert.match(create, /the names are labels and settle\s+nothing/iu, "create: names are not enough");
+  assert.match(
+    fieldOf("create_vibe", "instruction"),
+    /read their\s+instructions before writing this, not just their names/iu,
+    "the instruction field does not say to read the genres first",
+  );
+
+  // (B) One idea across all three parts.
+  assert.match(
+    create,
+    /a name, a sentence and some genres, and the three have to be one idea/iu,
+    "create: the three are not required to be one idea",
+  );
+
+  // (C) Adds meaning, and (the new half) contradicts nothing.
+  const instruction = fieldOf("create_vibe", "instruction");
+  assert.match(instruction, /Say something the genres do not\s+already say on their own/iu, "adds nothing");
+  assert.match(instruction, /nothing that goes against what they do say/iu, "contradiction is allowed");
+  assert.match(create, /adds what\s+the genres do not say and contradicts nothing they do/iu, "create: both halves");
+
+  // (D) Coherent is not derived — the rule this must not be mistaken for.
+  assert.match(create, /Coherent is not derived/iu, "create: coherence reads as derivation");
+  assert.match(create, /they never produce it/iu, "create: the genres are made to yield the vibe");
+  assert.match(
+    create,
+    /not whether the genres\s+give you this vibe, but whether the three could be one thing a person meant/iu,
+    "create: the test is stated as derivation",
+  );
+  // And the existing not-an-intersection rule is still where it was.
+  assert.match(instruction, /not the intersection of its genres/iu, "the intersection rule went missing");
+
+  // (E) Changing the genres is changing the vibe.
+  assert.match(update, /Every one of these changes the whole vibe/iu, "update: a field is not the object");
+  assert.match(
+    update,
+    /a new genre list\s+under a name and sentence chosen for the old one/iu,
+    "update: swapping genres is not named as the easy way to break it",
+  );
+  assert.match(update, /Replacing the genres is not a\s+bookkeeping change/iu, "update: genres are bookkeeping");
+  assert.match(
+    fieldOf("update_vibe", "genres"),
+    /changes what the vibe means/iu,
+    "the genres field reads as a list swap with no consequence",
+  );
+
+  // (F) Movies are not part of it. A vibe with nothing filed under it is as
+  // coherent as one with ten, because membership is not definition.
+  assert.match(
+    create,
+    /films filed in a vibe are no part of it/iu,
+    "create: films are allowed into the coherence judgement",
+  );
+  assert.match(create, /nothing under it is as coherent as one with ten/iu, "create: an empty vibe reads as lesser");
+
+  // And no new authority: this says how to build one, never when. The
+  // provenance rules are untouched and must stay in the same description.
+  assert.match(create, /only when the user stated the idea as lasting\s+taste, or confirmed a meaning you put to them/iu,
+    "create_vibe lost the rule about when a vibe may be written at all");
+  assert.match(update, /Never reword their instruction/iu, "update_vibe lost the rewording prohibition");
+  assert.match(update, /Changing the rest to fit is rewording their sentence by another route/iu,
+    "update: fixing incoherence by editing their words is not ruled out");
+});
+
 test("the write tools carry the rules that apply at the moment they are called", async () => {
   /**
    * Step 2 of `docs/work/phase-1-implementation.md`: the rules that are true

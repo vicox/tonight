@@ -15,13 +15,14 @@ import { recentlyAdded } from "@/lib/web/movie-summary";
  *
  *     YOUR GENRES     the reusable components
  *          ↓
- *     YOUR VIBES      what they mean in combination, each with how many
+ *     YOUR VIBES      what the user made of them, each with how many
  *                     of its films are loved and three of their titles,
  *                     and one line for the films that are in none
  *
- * Vertical rather than side by side, because the relationship is a derivation and
- * not a comparison: vibes come *from* genres, and an arrow between two stacked
- * sections says that in a way two columns cannot.
+ * Vertical rather than side by side, because the two are not peers to compare:
+ * a vibe is built on genres and says something they do not, so it belongs below
+ * them. The arrow is the reading order of a page, not a claim that the genres
+ * produce the vibe — nothing does that but the person.
  *
  * Three peers, drawn by one `Section`. Films used to float over two boxes with
  * the genres and vibes inside them, which said that those two were containers and
@@ -109,7 +110,7 @@ export function TasteView({ taste, standing }: { taste: Taste; standing: readonl
 
       <Section
         title="Your vibes"
-        note="Your genres, mixed into something of your own."
+        note="What a night should feel like, in your words — built on your genres."
         count={taste.vibes.length}
       >
         {taste.vibes.length === 0 && (

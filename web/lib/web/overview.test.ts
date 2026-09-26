@@ -840,7 +840,12 @@ test("each section keeps its own copy, and the films section stays quiet", () =>
 
   // The descriptive lines under the two headings are the ones that were there.
   assert.match(view, /note="The pieces your taste is made of\./);
-  assert.match(view, /note="Your genres, mixed into something of your own\."/);
+  // The vibes line says what a vibe *means* and where it is built, in that
+  // order. It used to say "your genres, mixed into something of your own",
+  // which read as though mixing the genres produced the vibe — the one thing
+  // the model denies. So the meaning leads and the genres follow it.
+  assert.match(view, /note="What a night should feel like, in your words — built on your genres\."/);
+  assert.doesNotMatch(view, /mixed into something/u, "the mixing metaphor came back");
 
   // The films section carries the total beside its heading and a line under it
   // saying what these films are, exactly as the other two do — three sections of

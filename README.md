@@ -16,10 +16,14 @@ both have a Genre called `Action` and mean opposite things by it.
 of their own for what the combination means to you.
 
 ```
-[SCI-FI] + [THRILLER]
-          ↓
-    SPACE TENSION
+SPACE TENSION
+  "contained settings, mystery and pressure — not superhero action"
+  built from  [SCI-FI]  [THRILLER]
 ```
+
+The Vibe comes first because that is where its meaning is. The Genres are what it is built from
+and what hold it in place; they do not add up to it, and no reading of the two would have
+produced `Space Tension`.
 
 **Movies** are the films you have told Tonight about. A Movie has a title and a release year —
 together they are its name, so `Dune / 1984` and `Dune / 2021` are two of them — and it may carry

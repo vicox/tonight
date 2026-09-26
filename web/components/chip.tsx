@@ -2,9 +2,10 @@
  * A genre's or a vibe's name, in the type the page sets a name in.
  *
  * Uppercase and tracked, which is film-credit typography rather than decoration:
- * it is what makes `[SCI-FI] + [THRILLER] ↓ SPACE TENSION` read as a composition
- * at a glance. The name itself is stored as the user wrote it — this is a
- * rendering, and nothing here changes what is in the database.
+ * it is what makes `SPACE TENSION` and the `[SCI-FI]` `[THRILLER]` beneath it
+ * read as one card at a glance, the vibe named above what it is built from. The
+ * name itself is stored as the user wrote it — this is a rendering, and nothing
+ * here changes what is in the database.
  *
  * The rule is `CHIP` and the surface is not, because the same name is set the
  * same way on two different grounds: cut into a vibe's card as `night` against

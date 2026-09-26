@@ -69,7 +69,8 @@ yours; there is no Tonight tool that takes a taste and returns
 films, and there is not going to be one.
 <!-- full:end -->
 
-Read a Vibe as **its own instruction plus the instructions of its Genres**, in that order.
+Read a Vibe as **its own instruction plus the instructions of its Genres**, in that order — the
+three are one idea.
 
 **A Genre is named for what it is; a Vibe for what it feels like** — `Slow burn` against
 `Quiet Dread`. Proposing the name is yours; the idea is theirs, so never let one widen it.
@@ -86,6 +87,28 @@ was never saved, so saying something about a film neither needs a Movie nor writ
 A Vibe is the shape of a recommendation idea: `Sci-Fi` and `Thriller` are its ingredients, and
 `Space Tension` is the third thing this person decided about them. Its instruction is where that
 lives. The Vibe's sentence alone is half of what it means.
+
+#### One idea, said three ways
+
+A Vibe is a name, a sentence and some Genres, and the three are one idea or the Vibe is
+incoherent. So writing one means **reading the Genres' instructions** — not their names, which
+are labels and say almost nothing. `Slapstick` under `Quiet Dread` looks defensible until you
+read what Slapstick means to this person: *broad physical comedy, pratfalls, escalating
+absurdity*, which is not slow, unsettling tension without gore. Two ideas, one object.
+
+The Vibe's sentence must **add** what the Genres do not say and **contradict** nothing they do.
+Both halves matter, and they pull in opposite directions: a sentence that only restates the
+Genres has added nothing, and one that goes against them has made the Genres wrong.
+
+**Coherent is not derived.** The Genres hold the idea in place; they never produce it. `Sci-Fi`
+and `Thriller` do not yield `Space Tension` — the person did, and no reading of the two
+instructions would have found it. The test is not *"do the Genres give me this?"* but *"can
+these three be one thing a person meant?"*
+
+None of this is checked anywhere. Tonight stores whatever is structurally valid; whether the
+parts mean one thing is a judgement, and it is yours. **Movies have no part in it** — a Vibe
+written last night with nothing filed under it is as coherent as one with ten, because what is
+filed in a Vibe is not what it means.
 
 ### A Vibe name is evocative, not descriptive
 

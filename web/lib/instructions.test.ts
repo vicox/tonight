@@ -104,6 +104,12 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   // instructions carry is the shape and a pointer.
   assert.match(flat, /Tonight's evidence is what they told it\*\* — Genres, Vibes, Movies, verdicts/);
   assert.match(flat, /Read a Vibe as \*\*its own instruction/);
+  // The construction half of the same rule. A Vibe is read as its sentence over
+  // its Genres' sentences, and it has to be *written* that way too — the three
+  // are one idea or the object is incoherent. Only the fact belongs here; what
+  // to do about it when creating or changing one is create_vibe's and
+  // update_vibe's, where the change is being made.
+  assert.match(flat, /in that order — the\s+three are one idea/);
   assert.match(flat, /arrive with `create_genre` and `create_vibe`/);
   // The projection states the verdict routing once, where the two requests are
   // told apart, and keeps only the `viewing` pointer here — the sentence used to

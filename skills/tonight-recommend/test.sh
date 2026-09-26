@@ -188,6 +188,33 @@ check "a vibe is read as its own instruction plus its genres" \
     "$(order_check '**its own instruction plus the instructions of its Genres**' \
         'plus the instructions of its Genres' \
         'in that order')" "True"
+check "and written the same way, as one idea across all three parts" \
+    "$(order_check 'in that order — the
+three are one idea')" "True"
+# The reasoning behind that one line, full skill only. Three claims, and the
+# third is the one most easily lost: coherence is not derivation.
+check "constructing a vibe means reading the genres own instructions, not their names" \
+    "$(order_check 'instructions** — not their names, which
+are labels and say almost nothing' \
+        '`Slapstick` under `Quiet Dread` looks defensible until you
+read what Slapstick means to this person')" "True"
+check "the vibe's sentence must add meaning and contradict none" \
+    "$(order_check 'must **add** what the Genres do not say and **contradict** nothing they do' \
+        'a sentence that only restates the
+Genres has added nothing' \
+        'one that goes against them has made the Genres wrong')" "True"
+check "coherent is not derived" \
+    "$(order_check '**Coherent is not derived.**' \
+        'The Genres hold the idea in place; they never produce it' \
+        'can
+these three be one thing a person meant?')" "True"
+check "the judgement is the model's, not the store's" \
+    "$(order_check 'None of this is checked anywhere' \
+        'whether the
+parts mean one thing is a judgement, and it is yours')" "True"
+check "movies are no part of whether a vibe is coherent" \
+    "$(order_check '**Movies have no part in it**' \
+        'nothing filed under it is as coherent as one with ten')" "True"
 check "only an exclusion is mode-dependent; everything else is evidence either way" \
     "$(order_check '**An exclusion written into a Genre' \
         'binds only when they asked for their taste' \

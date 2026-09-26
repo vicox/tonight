@@ -213,15 +213,18 @@ const vibeInstruction = z
   .describe(
     "What the combination means to the user. A vibe is not the intersection of its genres — the " +
       "genres are the ingredients and this is the meaning. Say something the genres do not " +
-      "already say on their own. Write it in the user's first person — it is their sentence " +
-      "about themselves, not a note about them.",
+      "already say on their own, and nothing that goes against what they do say: read their " +
+      "instructions before writing this, not just their names. Write it in the user's first " +
+      "person — it is their sentence about themselves, not a note about them.",
   );
 
 const vibeGenres = z
   .array(z.string())
   .describe(
     "The exact names of the user's genres this vibe is built from, at least one. Genres only — " +
-      "a vibe cannot be built from another vibe. Passing this replaces the stored list.",
+      "a vibe cannot be built from another vibe. Passing this replaces the stored list, which " +
+      "changes what the vibe means: read the incoming genres' instructions against the name and " +
+      "the sentence the vibe already has, and say so if they no longer fit together.",
   );
 
 const movieTitle = z
@@ -488,7 +491,18 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "taste, or confirmed a meaning you put to them. Wanting something tonight is not that, " +
         "and having invented a combination, used it and found films that fit is not what makes " +
         "it theirs. A confirmation covers only the meaning they were shown, and settles that " +
-        "it is theirs rather than granting permission to write.",
+        "it is theirs rather than granting permission to write.\n\n" +
+        "**A vibe is a name, a sentence and some genres, and the three have to be one idea.** " +
+        "So read what each genre's instruction actually says — the names are labels and settle " +
+        "nothing. A vibe meaning slow, unsettling tension is not built from a genre whose " +
+        "instruction is broad physical comedy, however the two are named. The sentence adds what " +
+        "the genres do not say and contradicts nothing they do.\n\n" +
+        "Coherent is not derived. The genres hold the idea in place; they never produce it, and " +
+        "no reading of them would have found the name. The question is not whether the genres " +
+        "give you this vibe, but whether the three could be one thing a person meant. Nothing " +
+        "here checks that — the store takes whatever is structurally valid, and the judgement " +
+        "is yours. The films filed in a vibe are no part of it: one written just now with " +
+        "nothing under it is as coherent as one with ten.",
       inputSchema: z.object({ name: vibeName, genres: vibeGenres, instruction: vibeInstruction }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
@@ -503,7 +517,15 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "Change a vibe's name, its meaning, or which genres it is built from. Passing genres " +
         "replaces the stored list rather than adding to it, and the list may never be empty. " +
         "Never reword their instruction: the sentence is theirs, and what it means is not " +
-        "yours to adjust.",
+        "yours to adjust.\n\n" +
+        "**Every one of these changes the whole vibe, so read the whole vibe back afterwards.** " +
+        "A name, a sentence and a set of genres are one idea or the vibe is incoherent, and each " +
+        "field can break that on its own: a new name the old sentence no longer fits, a new " +
+        "sentence that goes against the genres, or — most easily missed — a new genre list " +
+        "under a name and sentence chosen for the old one. Replacing the genres is not a " +
+        "bookkeeping change. Read the incoming genres' instructions, not their names, and if " +
+        "the result is two ideas wearing one name, say so and let the user decide which they " +
+        "meant. Changing the rest to fit is rewording their sentence by another route.",
       inputSchema: z.object({
         name: vibeName.describe("The vibe to change, by its current name."),
         new_name: vibeName.describe("Rename the vibe to this.").optional(),

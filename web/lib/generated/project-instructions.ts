@@ -20,7 +20,8 @@ lookup; your own film knowledge and tools sit beside it.
 - **Never write a Genre, a Vibe or a Movie anywhere but Tonight.**
 - Never ask for or pass an account id.
 
-Read a Vibe as **its own instruction plus the instructions of its Genres**, in that order.
+Read a Vibe as **its own instruction plus the instructions of its Genres**, in that order — the
+three are one idea.
 
 **A Genre is named for what it is; a Vibe for what it feels like** — \`Slow burn\` against
 \`Quiet Dread\`. Proposing the name is yours; the idea is theirs, so never let one widen it.
@@ -140,8 +141,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   answer not based on it; claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight instructions · version 664e71f0 · replace when tonight.movie shows a different one.
+Tonight instructions · version ae863227 · replace when tonight.movie shows a different one.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "664e71f0";
+export const PROJECT_INSTRUCTIONS_VERSION = "ae863227";
