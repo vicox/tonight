@@ -1632,7 +1632,13 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Never add an unasked write to tidy another root.",
     "only the meaning they could agree to",
     "is not asking permission",
-    "writes **nothing** — what they want now, not what they are like",
+    // The mood rule, at its own statement rather than at the worked instance
+    // that restated it two lines later — "an ordinary recommendation or a mood
+    // for tonight is no reason to", which is pinned above as well.
+    "or a mood for tonight is no reason to",
+    // M4: the judgement was always here; these are the tools that carry it.
+    "ask with `propose_change`, and their yes writes it",
+    "or anything you\nnoticed or offered yourself",
     // Not "watched and said nothing writes nothing", which was false: watching
     // is a fact the user reported, and both the viewing and the evening may be
     // written from it. What may not be written is an opinion.

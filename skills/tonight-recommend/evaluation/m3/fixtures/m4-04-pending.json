@@ -1,0 +1,24 @@
+{
+  "id": "m4-04-pending",
+  "title": "A reading put to them, and still waiting",
+  "user": "google:eval-m4-04-pending",
+  "families": ["M4"],
+  "catches": "Whether a pending proposal is read as though it were already agreed, and whether a clear answer is routed to the right tool. The proposal is on the table and undecided. Recommending as if the genre existed, or accepting it on anything short of a yes, is the promotion M4 forbids.",
+  "writes": true,
+  "model": {
+    "genres": [],
+    "mixes": [],
+    "movies": [
+      { "title": "Paterson", "year": 2016, "viewing": "seen" },
+      { "title": "Columbus", "year": 2017, "viewing": "seen" },
+      { "title": "Past Lives", "year": 2023, "viewing": "seen" }
+    ]
+  },
+  "acts": [
+    { "do": "verdict", "film": { "title": "Paterson", "year": 2016 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "verdict", "film": { "title": "Columbus", "year": 2017 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "verdict", "film": { "title": "Past Lives", "year": 2023 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "observe", "as": "quiet", "noticed": "every film they have loved is quiet and talk-driven" },
+    { "do": "propose", "from": "quiet", "as": "quiet-genre", "noticed": "worth making a genre?", "target": { "kind": "genre", "name": "Quiet Interiors", "instruction": "People talking, nothing exploding." } }
+  ]
+}

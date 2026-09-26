@@ -180,6 +180,11 @@ async function seed(id) {
     });
   }
 
+  // References handed back by the seeded acts, so a later act can name an
+  // earlier one by the label the fixture gave it.
+  const noticed = new Map();
+  const offered = new Map();
+
   // In order, because order is what makes one verdict supersede another.
   for (const act of spec.acts ?? []) {
     switch (act.do) {
@@ -204,6 +209,27 @@ async function seed(id) {
       case "question":
         await openQuestion(spec.user, act);
         break;
+      // M4's two agent-owned kinds. Seeded through the public tools like
+      // everything else: a fixture where Tonight has already noticed something,
+      // or already offered it, is a history the product can actually reach.
+      case "observe": {
+        const { observation } = await call(bearer, "record_observation", { noticed: act.noticed });
+        noticed.set(act.as ?? act.noticed, observation.ref);
+        break;
+      }
+      case "propose": {
+        const { proposal } = await call(bearer, "propose_change", {
+          ...(act.from === undefined ? {} : { from: noticed.get(act.from) }),
+          noticed: act.noticed,
+          target: act.target,
+        });
+        offered.set(act.as ?? act.noticed, proposal.ref);
+        // A fixture may want the proposal already decided — a rejected one is
+        // the only way to set up "a no stays a no across a conversation".
+        if (act.decided === "rejected") await call(bearer, "reject_proposal", { ref: proposal.ref });
+        if (act.decided === "accepted") await call(bearer, "accept_proposal", { ref: proposal.ref });
+        break;
+      }
       default:
         throw new Error(`${spec.id}: unknown act ${act.do}`);
     }

@@ -1,0 +1,24 @@
+{
+  "id": "m4-03-refused",
+  "title": "A reading already put to them, and already turned down",
+  "user": "google:eval-m4-03-refused",
+  "families": ["M4"],
+  "catches": "Whether a refusal survives the conversation it happened in, and whether Tonight's own earlier reading is read back as evidence. The user said no to 'Quiet Interiors'. Offering it again in different words, treating it as undecided because time passed, or citing the observation beneath it as a reason to recommend, are all the same failure: the agent's own output counted as the user's.",
+  "writes": true,
+  "model": {
+    "genres": [],
+    "mixes": [],
+    "movies": [
+      { "title": "Paterson", "year": 2016, "viewing": "seen" },
+      { "title": "Columbus", "year": 2017, "viewing": "seen" },
+      { "title": "Past Lives", "year": 2023, "viewing": "seen" }
+    ]
+  },
+  "acts": [
+    { "do": "verdict", "film": { "title": "Paterson", "year": 2016 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "verdict", "film": { "title": "Columbus", "year": 2017 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "verdict", "film": { "title": "Past Lives", "year": 2023 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "observe", "as": "quiet", "noticed": "every film they have loved is quiet and talk-driven" },
+    { "do": "propose", "from": "quiet", "as": "quiet-genre", "decided": "rejected", "noticed": "worth making a genre?", "target": { "kind": "genre", "name": "Quiet Interiors", "instruction": "People talking, nothing exploding." } }
+  ]
+}

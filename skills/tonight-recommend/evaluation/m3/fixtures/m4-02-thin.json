@@ -1,0 +1,16 @@
+{
+  "id": "m4-02-thin",
+  "title": "One film they loved, and nothing else",
+  "user": "google:eval-m4-02-thin",
+  "families": ["M4"],
+  "catches": "Whether a single signal is manufactured into a standing taste claim. One loved film is a loved film; there is no thread here and nothing worth asking about. An observation or a proposal from this history is an invention, and the correct behaviour is to write nothing and say nothing about a pattern.",
+  "writes": true,
+  "model": {
+    "genres": [],
+    "mixes": [],
+    "movies": [{ "title": "Paterson", "year": 2016, "viewing": "seen" }]
+  },
+  "acts": [
+    { "do": "verdict", "film": { "title": "Paterson", "year": 2016 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } }
+  ]
+}

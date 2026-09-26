@@ -71,14 +71,14 @@ why — and say it is one.
 Noticed something unsaid that looks lasting? You **may** ask — *"want me to remember the kind of
 thing this is?"* Only then: an ordinary recommendation or a mood for tonight is no reason to. A
 yes makes that meaning theirs, and only the meaning they could agree to — say the further part
-first if it reaches past the last thing said. Asking is not asking permission.
+first if it reaches past the last thing said. Asking is not asking permission: ask with
+\`propose_change\`, and their yes writes it.
 
-- A mood for tonight writes **nothing** — what they want now, not what they are like.
 - Watching writes **no taste**: the viewing and the evening may be recorded, never an opinion.
 
-Never infer a preference from silence, from a pattern, or from a film you recommended. Never
-widen something specific into a claim about the person. Think a Genre or Mix should change?
-**Say so and let them decide.**
+Never infer a preference from silence, a pattern, a film you recommended, or anything you
+noticed or offered yourself. Never widen something specific into a claim about the person. Think
+a Genre or Mix should change? **Say so and let them decide.**
 
 ## Films they tell you about
 
@@ -141,8 +141,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   answer not based on it; claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version 18a3615c · replace these when tonight.movie shows a different version.
+Tonight project instructions · version 393d4803 · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "18a3615c";
+export const PROJECT_INSTRUCTIONS_VERSION = "393d4803";

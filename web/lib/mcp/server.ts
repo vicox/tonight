@@ -1039,7 +1039,18 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "established it.\n\n" +
         "Write it in your own voice — *\"both films they loved withhold more than they show\"* — " +
         "never in theirs. If you want it to become theirs, that is `propose_change`, and it is " +
-        "theirs only once they say so.",
+        "theirs only once they say so.\n\n" +
+        "**Only what they established may found a reading.** Their verdicts, their genres and " +
+        "mixes, the films they saved and what they said about watching them. Not a film you put " +
+        "forward, not an evening that happened, not something you noticed or offered before — " +
+        "reading your own output back is how a guess comes to look like a finding. And not an " +
+        "absence: nothing follows from a film they have said nothing about.\n\n" +
+        "**One thing is not a pattern.** A single film they loved is a film they loved; two that " +
+        "happen to share a decade is a coincidence. What is worth writing down is a thread you " +
+        "could say out loud and they would recognise — and if the only way to see it is to " +
+        "squint, there is nothing here to notice yet. Nothing is lost by not writing one: an " +
+        "observation nobody needed is noise you will read back later as though it meant " +
+        "something.",
       inputSchema: z.object({ noticed: z.string().min(1).max(2_000) }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
@@ -1064,7 +1075,15 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "`record_observation` gave you. Leave it out for an offer made in the moment. `noticed` " +
         "is why you are offering it, in your words; `target` is the change itself.\n\n" +
         "Offer it once and let them answer. A second proposal of the same thing is the same " +
-        "question asked twice, and asking twice is how a no becomes a yes by attrition.",
+        "question asked twice, and asking twice is how a no becomes a yes by attrition.\n\n" +
+        "**Ask it as a question, because it is one.** *\"Maybe restrained thrillers are part of " +
+        "what works for you?\"* — something they can say no to without correcting you. Not *\"you " +
+        "like restrained thrillers\"*, which tells them what they think and leaves them arguing " +
+        "with their own taste model.\n\n" +
+        "**And it never takes over the answer.** If they asked for a film, they get the film, in " +
+        "the shape an answer takes — the offer goes at the end, in a line, or waits for a better " +
+        "moment. A recommendation that turned into a conversation about their taste model is a " +
+        "recommendation they did not get.",
       inputSchema: z.object({
         from: z.string().uuid().optional(),
         noticed: z.string().min(1).max(2_000),

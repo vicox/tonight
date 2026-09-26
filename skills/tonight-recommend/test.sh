@@ -543,7 +543,22 @@ check "both routes may create, and a bare request for tonight may not" \
 check "a recommendation with no feedback persists nothing" \
     "$(order_check 'You recommended a film. They said nothing' '**nothing**')" "True"
 check "silence, recommendations and patterns are all ruled out as evidence" \
-    "$(order_check 'infer a preference from silence, from a pattern, or from a film you recommended')" "True"
+    "$(order_check 'infer a preference from silence, from a pattern, from a film you recommended')" "True"
+# M4 adds the one an agent that reflects can reach for: its own output. A
+# reading of your own counted as evidence is how a guess becomes a finding by
+# being written down twice.
+check "and so is anything Tonight noticed or offered itself" \
+    "$(order_check 'or from
+anything you noticed or offered yourself' \
+        'a reading of your own is never evidence for another one')" "True"
+check "the lifecycle is named where the judgement is made" \
+    "$(order_check 'A reading of your own is `record_observation`' \
+        'putting it to them
+is `propose_change`' \
+        'their yes is `accept_proposal`, their no `reject_proposal`')" "True"
+check "and nothing is theirs until they say so" \
+    "$(order_check 'Nothing you notice or
+offer is theirs until they say so')" "True"
 # And the line between the two roots, which the old wording blurred: a
 # recommendation is not taste, and recording the evening it happened on is a
 # fact rather than a way of concluding something about them.

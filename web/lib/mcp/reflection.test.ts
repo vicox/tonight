@@ -209,6 +209,45 @@ describe("proposing, and the user deciding", () => {
     assert.match(reject, /not answering is not a no either/u);
   });
 
+  test("the descriptions say which evidence may found a reading", async () => {
+    // M4's first behavioural rule, at the point a reading is written down. The
+    // failure it prevents is the one an agent that reflects can reach for on
+    // its own: reading its own output back until a guess looks like a finding.
+    const observe = (someone().record_observation!.description ?? "");
+
+    assert.match(observe, /\*\*Only what they established may found a reading\.\*\*/u);
+    assert.match(observe, /Not a film you put\s+forward, not an evening that happened/u);
+    assert.match(observe, /not something you noticed or offered before/u);
+    assert.match(observe, /reading your own output back is how a guess comes to look like a finding/u);
+    assert.match(observe, /And not an\s+absence: nothing follows from a film they have said nothing about/u);
+
+    // And the pragmatic threshold, stated as judgement rather than as a number.
+    assert.match(observe, /\*\*One thing is not a pattern\.\*\*/u);
+    assert.match(observe, /a thread you\s+could say out loud and they would recognise/u);
+    assert.match(observe, /Nothing is lost by not writing one/u);
+    // No scoring crept in with it.
+    for (const invented of [/confidence/iu, /\bscore\b/iu, /\bweight\b/iu, /threshold/iu]) {
+      assert.doesNotMatch(observe, invented, `the observation rule invented a ${String(invented)}`);
+    }
+  });
+
+  test("a proposal is a question, and never takes over the answer", async () => {
+    const propose = someone().propose_change!.description ?? "";
+
+    assert.match(propose, /\*\*Ask it as a question, because it is one\.\*\*/u);
+    assert.match(propose, /something they can say no to without correcting you/u);
+    assert.match(propose, /leaves them arguing\s+with their own taste model/u);
+
+    // The recommendation is still the answer. This is the rule that stops
+    // reflection becoming the main event the moment it is available.
+    assert.match(propose, /\*\*And it never takes over the answer\.\*\*/u);
+    assert.match(propose, /If they asked for a film, they get the film/u);
+    assert.match(
+      propose,
+      /A recommendation that turned into a conversation about their taste model is a\s+recommendation they did not get/u,
+    );
+  });
+
   test("the reflection tools are five, and only the two decisions write", async () => {
     const tools = someone();
     const added = ["record_observation", "propose_change", "get_proposals", "accept_proposal", "reject_proposal"];
