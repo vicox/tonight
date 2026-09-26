@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { Mix, Movie, Viewing, Written } from "../taste/model.ts";
+import type { Vibe, Movie, Viewing, Written } from "../taste/model.ts";
 import type { Judgement } from "../verdicts/model.ts";
 import type { Shown } from "./movie-summary.ts";
 import { LOVED, selected } from "./movie-summary.ts";
-import { filmsIn, filmsUnder, inNoMix, inOrder, preview, spokenMix } from "./mixes.ts";
+import { filmsIn, filmsUnder, inNoVibe, inOrder, preview, spokenVibe } from "./vibes.ts";
 
 /**
- * What a mix card counts, and what its dialog opens.
+ * What a vibe card counts, and what its dialog opens.
  *
  * The card shows a membership count and — when there is one — how many of those
  * films are loved. Both are read off the films the page was rendered with, so a
@@ -25,7 +25,7 @@ const film = (
   year: 2000,
   imdbId: null,
   viewing,
-  mixes: ["Quiet Dread"],
+  vibes: ["Quiet Dread"],
   createdAt: null,
   updatedAt: "2024-01-01T00:00:00.000000Z",
   position: judgement === null ? undefined : { judgement },
@@ -37,10 +37,10 @@ const MOVIES: Shown[] = [
   film("Dune", null, "unseen"),
   film("Heat", null, "seen"),
   film("Nosferatu", null),
-  { ...film("Arrival", "loved"), mixes: ["Space Tension"] },
+  { ...film("Arrival", "loved"), vibes: ["Space Tension"] },
 ];
 
-const MIX: Mix = {
+const VIBE: Vibe = {
   name: "Quiet Dread",
   instruction: "Dread that arrives on foot.",
   genres: ["Mystery", "Slow Burn"],
@@ -53,14 +53,14 @@ const MIX: Mix = {
   ],
 };
 
-const loved = (mix: Mix, movies: readonly Shown[]) => selected(LOVED, filmsIn(mix, movies)).length;
+const loved = (vibe: Vibe, movies: readonly Shown[]) => selected(LOVED, filmsIn(vibe, movies)).length;
 
 test("the count is membership, whatever was said about the films", () => {
   // Two loved, one not seen, one seen and one nobody has mentioned: five films
-  // in the mix, and the count is five.
-  assert.equal(filmsIn(MIX, MOVIES).length, 5);
+  // in the vibe, and the count is five.
+  assert.equal(filmsIn(VIBE, MOVIES).length, 5);
   assert.deepEqual(
-    filmsIn(MIX, MOVIES).map((movie) => movie.position?.judgement ?? null),
+    filmsIn(VIBE, MOVIES).map((movie) => movie.position?.judgement ?? null),
     ["loved", "loved", null, null, null],
   );
 });
@@ -69,13 +69,13 @@ test("the count is membership, whatever was said about the films", () => {
  * The films a genre reaches.
  *
  * A genre holds none itself, so every one of these is the two-hop answer: the
- * mixes built from the genre, and the films in those.
+ * vibes built from the genre, and the films in those.
  */
 
 const genre = (name: string) => ({ name, instruction: `Whatever ${name} means here.` });
 
-/** Two mixes that share a genre, and one film that is in both of them. */
-const BOTH: Mix = {
+/** Two vibes that share a genre, and one film that is in both of them. */
+const BOTH: Vibe = {
   name: "Space Tension",
   instruction: "Tension with nowhere to run to.",
   genres: ["Slow Burn", "Off World"],
@@ -86,119 +86,119 @@ const BOTH: Mix = {
 };
 
 const SHARED: Shown[] = MOVIES.map((movie) =>
-  movie.title === "Solaris" ? { ...movie, mixes: ["Quiet Dread", "Space Tension"] } : movie,
+  movie.title === "Solaris" ? { ...movie, vibes: ["Quiet Dread", "Space Tension"] } : movie,
 );
 
-test("a genre reaches the films in the mixes built from it", () => {
+test("a genre reaches the films in the vibes built from it", () => {
   assert.deepEqual(
-    filmsUnder(genre("Mystery"), [MIX, BOTH], MOVIES).map((movie) => movie.title),
+    filmsUnder(genre("Mystery"), [VIBE, BOTH], MOVIES).map((movie) => movie.title),
     ["Solaris", "Stalker", "Dune", "Heat", "Nosferatu"],
   );
 
-  // And nothing from a mix that does not name it: `Off World` is only in the
-  // second mix, so it reaches what that one holds and none of the rest.
+  // And nothing from a vibe that does not name it: `Off World` is only in the
+  // second vibe, so it reaches what that one holds and none of the rest.
   assert.deepEqual(
-    filmsUnder(genre("Off World"), [MIX, BOTH], MOVIES).map((movie) => movie.title),
+    filmsUnder(genre("Off World"), [VIBE, BOTH], MOVIES).map((movie) => movie.title),
     ["Solaris", "Arrival"],
   );
 });
 
-test("a film reached through two mixes of one genre is listed once", () => {
-  // `Slow Burn` is in both mixes and `Solaris` is in both of them.
-  const reached = filmsUnder(genre("Slow Burn"), [MIX, BOTH], SHARED).map((movie) => movie.title);
+test("a film reached through two vibes of one genre is listed once", () => {
+  // `Slow Burn` is in both vibes and `Solaris` is in both of them.
+  const reached = filmsUnder(genre("Slow Burn"), [VIBE, BOTH], SHARED).map((movie) => movie.title);
   assert.deepEqual(reached, ["Solaris", "Stalker", "Dune", "Heat", "Nosferatu", "Arrival"]);
   assert.equal(new Set(reached).size, reached.length, "a film was reached twice and listed twice");
 });
 
 test("the films a genre reaches keep the collection's own order", () => {
-  // The store's order, not the mixes' — so the answer does not depend on which
-  // mix was written first, and no film moves because a mix was renamed.
+  // The store's order, not the vibes' — so the answer does not depend on which
+  // vibe was written first, and no film moves because a vibe was renamed.
   const collection = [...SHARED].reverse();
   assert.deepEqual(
-    filmsUnder(genre("Slow Burn"), [MIX, BOTH], collection).map((movie) => movie.title),
+    filmsUnder(genre("Slow Burn"), [VIBE, BOTH], collection).map((movie) => movie.title),
     collection.map((movie) => movie.title),
   );
 
   // Membership and nothing about what was said: this reorders nothing and drops
   // nothing for want of an opinion.
   assert.deepEqual(
-    filmsUnder(genre("Mystery"), [MIX], MOVIES).map((movie) => movie.position?.judgement ?? null),
+    filmsUnder(genre("Mystery"), [VIBE], MOVIES).map((movie) => movie.position?.judgement ?? null),
     ["loved", "loved", null, null, null],
   );
 });
 
-test("a genre no mix is built from reaches no films at all", () => {
+test("a genre no vibe is built from reaches no films at all", () => {
   // An ordinary state of a taste somebody is still building: a genre named and
   // not yet combined into anything.
-  assert.deepEqual(filmsUnder(genre("Noir"), [MIX, BOTH], MOVIES), []);
+  assert.deepEqual(filmsUnder(genre("Noir"), [VIBE, BOTH], MOVIES), []);
   assert.deepEqual(filmsUnder(genre("Mystery"), [], MOVIES), []);
 
-  // As is a mix with nothing in it yet.
-  assert.deepEqual(filmsUnder(genre("Mystery"), [{ ...MIX, movies: [] }], MOVIES), []);
+  // As is a vibe with nothing in it yet.
+  assert.deepEqual(filmsUnder(genre("Mystery"), [{ ...VIBE, movies: [] }], MOVIES), []);
 });
 
-test("a genre reaches films through the same lookup a mix card counts with", () => {
+test("a genre reaches films through the same lookup a vibe card counts with", () => {
   // One handle behind which there is no film, so the two would disagree if this
   // resolved membership its own way: the card drops it, and so does the genre.
-  const missing: Mix = { ...MIX, movies: [...MIX.movies, { title: "Ghost", year: 1922 }] };
+  const missing: Vibe = { ...VIBE, movies: [...VIBE.movies, { title: "Ghost", year: 1922 }] };
   assert.equal(filmsIn(missing, MOVIES).length, 5);
   assert.equal(filmsUnder(genre("Mystery"), [missing], MOVIES).length, 5);
 });
 
-test("a film in another mix is not in this one", () => {
+test("a film in another vibe is not in this one", () => {
   assert.equal(
-    filmsIn(MIX, MOVIES).some((movie) => movie.title === "Arrival"),
+    filmsIn(VIBE, MOVIES).some((movie) => movie.title === "Arrival"),
     false,
-    "a loved film from another mix was counted",
+    "a loved film from another vibe was counted",
   );
 });
 
 test("the loved signal counts exactly the loved films", () => {
-  assert.equal(loved(MIX, MOVIES), 2);
+  assert.equal(loved(VIBE, MOVIES), 2);
 });
 
 test("no loved films is nothing to show, not a zero", () => {
   const nobody = MOVIES.map((movie) =>
     movie.position?.judgement === "loved" ? { ...movie, position: undefined } : movie,
   );
-  assert.equal(loved(MIX, nobody), 0);
+  assert.equal(loved(VIBE, nobody), 0);
 });
 
 test("a new mark moves the loved count and leaves membership alone", () => {
-  // Pressed inside the dialog: the film is still in the mix, so the count after
+  // Pressed inside the dialog: the film is still in the vibe, so the count after
   // the title does not move, and the heart beside it does.
   const after = MOVIES.map((movie) =>
     movie.title === "Dune" ? { ...movie, position: { judgement: "loved" as Judgement } } : movie,
   );
-  assert.equal(filmsIn(MIX, after).length, 5, "membership changed with a verdict");
-  assert.equal(loved(MIX, after), 3);
+  assert.equal(filmsIn(VIBE, after).length, 5, "membership changed with a verdict");
+  assert.equal(loved(VIBE, after), 3);
 
   const away = MOVIES.map((movie) =>
     movie.title === "Solaris" ? { ...movie, position: { judgement: "liked" as Judgement } } : movie,
   );
-  assert.equal(filmsIn(MIX, away).length, 5, "membership changed with a state");
-  assert.equal(loved(MIX, away), 1);
+  assert.equal(filmsIn(VIBE, away).length, 5, "membership changed with a state");
+  assert.equal(loved(VIBE, away), 1);
 });
 
 test("a handle with no film behind it is not counted", () => {
   // Cannot happen from one snapshot, and the number on a card still has to be
   // the number of rows its dialog opens.
-  const missing: Mix = { ...MIX, movies: [...MIX.movies, { title: "Ghost", year: 1990 }] };
+  const missing: Vibe = { ...VIBE, movies: [...VIBE.movies, { title: "Ghost", year: 1990 }] };
   assert.equal(filmsIn(missing, MOVIES).length, 5);
 });
 
-test("an empty mix counts nothing and says so in the singular's plural", () => {
-  const empty: Mix = { ...MIX, movies: [] };
+test("an empty vibe counts nothing and says so in the singular's plural", () => {
+  const empty: Vibe = { ...VIBE, movies: [] };
   assert.equal(filmsIn(empty, MOVIES).length, 0);
-  assert.equal(spokenMix("Quiet Dread", 0, 0), "Quiet Dread: 0 films");
+  assert.equal(spokenVibe("Quiet Dread", 0, 0), "Quiet Dread: 0 films");
 });
 
-test("what a listener is given is the mix, said", () => {
+test("what a listener is given is the vibe, said", () => {
   // Including how many films are in it, which the card itself leaves out: spoken
   // it is part of one phrase rather than a second number beside the loved one.
-  assert.equal(spokenMix("Quiet Dread", 4, 3), "Quiet Dread: 4 films, 3 loved");
-  assert.equal(spokenMix("Quiet Dread", 1, 1), "Quiet Dread: 1 film, 1 loved");
-  assert.equal(spokenMix("Quiet Dread", 4, 0), "Quiet Dread: 4 films");
+  assert.equal(spokenVibe("Quiet Dread", 4, 3), "Quiet Dread: 4 films, 3 loved");
+  assert.equal(spokenVibe("Quiet Dread", 1, 1), "Quiet Dread: 1 film, 1 loved");
+  assert.equal(spokenVibe("Quiet Dread", 4, 0), "Quiet Dread: 4 films");
 });
 
 /**
@@ -206,7 +206,7 @@ test("what a listener is given is the mix, said", () => {
  *
  * Which three, and in which order — the part of the card that has a rule rather
  * than a number. Everything here is a pure function of the films the page was
- * rendered with, so what it holds is that the same mix always previews the same
+ * rendered with, so what it holds is that the same vibe always previews the same
  * way, and that nothing about the preview reaches a count or the dialog.
  */
 
@@ -220,18 +220,18 @@ const dated = (
   year: 2000,
   imdbId: null,
   viewing: judgement === null ? null : "seen",
-  mixes: ["Quiet Dread"],
+  vibes: ["Quiet Dread"],
   createdAt,
   updatedAt: "2026-01-01T00:00:00.000Z",
   position: judgement === null ? undefined : { judgement },
 });
 
-const of = (...films: Shown[]): Mix => ({
-  ...MIX,
+const of = (...films: Shown[]): Vibe => ({
+  ...VIBE,
   movies: films.map((film) => ({ title: film.title, year: film.year })),
 });
 
-/** The line a card would show for these films. Empty mixes are their own test. */
+/** The line a card would show for these films. Empty vibes are their own test. */
 function lineFor(films: Shown[]): string {
   const line = preview(filmsIn(of(...films), films));
   if (line === null) throw new Error("these films previewed as nothing");
@@ -253,7 +253,7 @@ test("what is left over is counted, and only when there is any", () => {
     dated("Memories of Murder", null, "2026-02-01T00:00:00.000Z"),
     dated("Se7en", null, "2026-01-01T00:00:00.000Z"),
   ];
-  // A preview that is the whole mix promises nothing after it, and does not say
+  // A preview that is the whole vibe promises nothing after it, and does not say
   // "and 0 more" — there is nothing to open it for.
   assert.equal(lineFor(three), "Zodiac, Memories of Murder, Se7en");
   assert.equal(/\bmore\b/.test(lineFor(three)), false, "three films of three promise a fourth");
@@ -264,7 +264,7 @@ test("what is left over is counted, and only when there is any", () => {
   const four = [...three, dated("Prisoners", null, "2025-12-01T00:00:00.000Z")];
   assert.equal(lineFor(four), "Zodiac, Memories of Murder, Se7en, and 1 more");
 
-  // And it counts the films the preview left out rather than the mix: what a
+  // And it counts the films the preview left out rather than the vibe: what a
   // reader is deciding against is what is behind the glance.
   const seven = [
     ...four,
@@ -280,7 +280,7 @@ test("what is left over is counted, and only when there is any", () => {
   }
 });
 
-test("an empty mix has no preview at all", () => {
+test("an empty vibe has no preview at all", () => {
   assert.equal(preview([]), null);
 });
 
@@ -334,20 +334,20 @@ test("two films with one date come out in one order, every time", () => {
   assert.equal(once, "Memories of Murder, Se7en, Zodiac", "the tie is not settled by the handle");
 });
 
-test("previewing a mix moves nothing that is counted", () => {
+test("previewing a vibe moves nothing that is counted", () => {
   const films = [
     dated("Solaris", "loved", "2026-01-01T00:00:00.000Z"),
     dated("Stalker", "loved", null),
     dated("Dune", null, "2026-06-01T00:00:00.000Z"),
     dated("Heat", null, "2026-05-01T00:00:00.000Z"),
   ];
-  const mix = of(...films);
-  const before = filmsIn(mix, films);
+  const vibe = of(...films);
+  const before = filmsIn(vibe, films);
 
   preview(before);
 
-  assert.equal(filmsIn(mix, films).length, 4, "membership changed");
-  assert.equal(selected(LOVED, filmsIn(mix, films)).length, 2, "the loved count changed");
+  assert.equal(filmsIn(vibe, films).length, 4, "membership changed");
+  assert.equal(selected(LOVED, filmsIn(vibe, films)).length, 2, "the loved count changed");
   assert.deepEqual(
     before.map((film) => film.title),
     ["Solaris", "Stalker", "Dune", "Heat"],
@@ -356,7 +356,7 @@ test("previewing a mix moves nothing that is counted", () => {
 });
 
 /**
- * The order the overview shows mixes in.
+ * The order the overview shows vibes in.
  *
  * Five questions asked in turn, each a tie-break of the last, so each one is
  * tested with the ones above it deliberately level and the ones below it
@@ -364,12 +364,12 @@ test("previewing a mix moves nothing that is counted", () => {
  * would still look right.
  */
 
-/** A mix with a date of its own, holding the films given. */
-function mixOf(
+/** A vibe with a date of its own, holding the films given. */
+function vibeOf(
   name: string,
   createdAt: string | null,
   films: readonly Written<Movie>[],
-): Written<Mix> {
+): Written<Vibe> {
   return {
     name,
     instruction: `What ${name} means.`,
@@ -380,9 +380,9 @@ function mixOf(
   };
 }
 
-/** A film in a named mix, with a standing judgement and a date. */
-function inMix(
-  mix: string,
+/** A film in a named vibe, with a standing judgement and a date. */
+function inVibe(
+  vibe: string,
   title: string,
   judgement: Judgement | null,
   createdAt: string | null,
@@ -392,7 +392,7 @@ function inMix(
     year: 2000,
     imdbId: null,
     viewing: judgement === null ? null : "seen",
-    mixes: [mix],
+    vibes: [vibe],
     createdAt,
     updatedAt: "2026-01-01T00:00:00.000Z",
     position: judgement === null ? undefined : { judgement },
@@ -401,130 +401,130 @@ function inMix(
 
 const JAN = "2026-01-01T00:00:00.000Z";
 const JUN = "2026-06-01T00:00:00.000Z";
-const names = (mixes: readonly Written<Mix>[]) => mixes.map((mix) => mix.name);
+const names = (vibes: readonly Written<Vibe>[]) => vibes.map((vibe) => vibe.name);
 
 test("more loved comes first, whatever else is true of the two", () => {
-  // The one with fewer loved films is newer, has more likes and a newer mix
+  // The one with fewer loved films is newer, has more likes and a newer vibe
   // date. None of that reaches the first question.
-  const loved = [inMix("Loved", "Solaris", "loved", JAN), inMix("Loved", "Stalker", "loved", JAN)];
+  const loved = [inVibe("Loved", "Solaris", "loved", JAN), inVibe("Loved", "Stalker", "loved", JAN)];
   const liked = [
-    inMix("Liked", "Arrival", "loved", JUN),
-    inMix("Liked", "Heat", "liked", JUN),
-    inMix("Liked", "Dune", "liked", JUN),
+    inVibe("Liked", "Arrival", "loved", JUN),
+    inVibe("Liked", "Heat", "liked", JUN),
+    inVibe("Liked", "Dune", "liked", JUN),
   ];
-  const mixes = [mixOf("Liked", JUN, liked), mixOf("Loved", JAN, loved)];
+  const vibes = [vibeOf("Liked", JUN, liked), vibeOf("Loved", JAN, loved)];
 
-  assert.deepEqual(names(inOrder(mixes, [...loved, ...liked])), ["Loved", "Liked"]);
+  assert.deepEqual(names(inOrder(vibes, [...loved, ...liked])), ["Loved", "Liked"]);
 });
 
 test("level on loved, more liked comes first", () => {
   // One loved film each, so the first question is level. "Two" has the second
-  // like and nothing else going for it: "One" has the newer film, the newer mix
+  // like and nothing else going for it: "One" has the newer film, the newer vibe
   // and the earlier name, so every question after this one would put "One"
   // first. Only the liked count can produce this order.
-  const one = [inMix("One", "Solaris", "loved", JUN), inMix("One", "Arrival", "liked", JUN)];
+  const one = [inVibe("One", "Solaris", "loved", JUN), inVibe("One", "Arrival", "liked", JUN)];
   const two = [
-    inMix("Two", "Stalker", "loved", JAN),
-    inMix("Two", "Heat", "liked", JAN),
-    inMix("Two", "Dune", "liked", JAN),
+    inVibe("Two", "Stalker", "loved", JAN),
+    inVibe("Two", "Heat", "liked", JAN),
+    inVibe("Two", "Dune", "liked", JAN),
   ];
-  assert.deepEqual(names(inOrder([mixOf("One", JUN, one), mixOf("Two", JAN, two)], [...one, ...two])), [
+  assert.deepEqual(names(inOrder([vibeOf("One", JUN, one), vibeOf("Two", JAN, two)], [...one, ...two])), [
     "Two",
     "One",
   ]);
 });
 
-test("level on both counts, the mix with the newer film comes first", () => {
-  const older = [inMix("Older", "Solaris", "loved", JAN)];
-  const newer = [inMix("Newer", "Stalker", "loved", JUN)];
-  // The mix dates are the other way round on purpose.
-  const mixes = [mixOf("Older", JUN, older), mixOf("Newer", JAN, newer)];
-  assert.deepEqual(names(inOrder(mixes, [...older, ...newer])), ["Newer", "Older"]);
+test("level on both counts, the vibe with the newer film comes first", () => {
+  const older = [inVibe("Older", "Solaris", "loved", JAN)];
+  const newer = [inVibe("Newer", "Stalker", "loved", JUN)];
+  // The vibe dates are the other way round on purpose.
+  const vibes = [vibeOf("Older", JUN, older), vibeOf("Newer", JAN, newer)];
+  assert.deepEqual(names(inOrder(vibes, [...older, ...newer])), ["Newer", "Older"]);
 });
 
 test("the newest film is the newest of all of them, whatever was said about it", () => {
   // Both have one loved film, dated the same. What separates them is a film
-  // nobody has an opinion on, which still counts as something added to the mix.
-  const quiet = [inMix("Quiet", "Solaris", "loved", JAN), inMix("Quiet", "Nosferatu", null, JUN)];
-  const still = [inMix("Still", "Stalker", "loved", JAN), inMix("Still", "Dune", null, JAN)];
-  const mixes = [mixOf("Still", JUN, still), mixOf("Quiet", JAN, quiet)];
-  assert.deepEqual(names(inOrder(mixes, [...quiet, ...still])), ["Quiet", "Still"]);
+  // nobody has an opinion on, which still counts as something added to the vibe.
+  const quiet = [inVibe("Quiet", "Solaris", "loved", JAN), inVibe("Quiet", "Nosferatu", null, JUN)];
+  const still = [inVibe("Still", "Stalker", "loved", JAN), inVibe("Still", "Dune", null, JAN)];
+  const vibes = [vibeOf("Still", JUN, still), vibeOf("Quiet", JAN, quiet)];
+  assert.deepEqual(names(inOrder(vibes, [...quiet, ...still])), ["Quiet", "Still"]);
 });
 
-test("a mix whose films have no dates falls behind one whose films do", () => {
-  const dated = [inMix("Dated", "Solaris", "loved", JAN)];
-  const undated = [inMix("Undated", "Stalker", "loved", null)];
-  const mixes = [mixOf("Undated", JUN, undated), mixOf("Dated", JAN, dated)];
-  assert.deepEqual(names(inOrder(mixes, [...dated, ...undated])), ["Dated", "Undated"]);
+test("a vibe whose films have no dates falls behind one whose films do", () => {
+  const dated = [inVibe("Dated", "Solaris", "loved", JAN)];
+  const undated = [inVibe("Undated", "Stalker", "loved", null)];
+  const vibes = [vibeOf("Undated", JUN, undated), vibeOf("Dated", JAN, dated)];
+  assert.deepEqual(names(inOrder(vibes, [...dated, ...undated])), ["Dated", "Undated"]);
 
-  // And so does a mix with no films at all, which has no date to offer either.
-  const empty = mixOf("Empty", JUN, []);
-  assert.deepEqual(names(inOrder([empty, mixOf("Dated", JAN, dated)], dated)), ["Dated", "Empty"]);
+  // And so does a vibe with no films at all, which has no date to offer either.
+  const empty = vibeOf("Empty", JUN, []);
+  assert.deepEqual(names(inOrder([empty, vibeOf("Dated", JAN, dated)], dated)), ["Dated", "Empty"]);
 });
 
-test("level through the films, the newer mix comes first", () => {
-  // Level on both counts and on the film dates, and both mixes have a real date
+test("level through the films, the newer vibe comes first", () => {
+  // Level on both counts and on the film dates, and both vibes have a real date
   // of their own. The winner is named "Zulu" and the loser "Alpha", so the last
-  // question — the name — would put them the other way round: only the mix's own
+  // question — the name — would put them the other way round: only the vibe's own
   // date can produce this order.
-  const alpha = [inMix("Alpha", "Solaris", "loved", JAN)];
-  const zulu = [inMix("Zulu", "Stalker", "loved", JAN)];
-  const mixes = [mixOf("Alpha", JAN, alpha), mixOf("Zulu", JUN, zulu)];
-  assert.deepEqual(names(inOrder(mixes, [...alpha, ...zulu])), ["Zulu", "Alpha"]);
+  const alpha = [inVibe("Alpha", "Solaris", "loved", JAN)];
+  const zulu = [inVibe("Zulu", "Stalker", "loved", JAN)];
+  const vibes = [vibeOf("Alpha", JAN, alpha), vibeOf("Zulu", JUN, zulu)];
+  assert.deepEqual(names(inOrder(vibes, [...alpha, ...zulu])), ["Zulu", "Alpha"]);
 });
 
-test("a mix with no date of its own falls behind one that has one", () => {
-  const one = [inMix("Undated", "Solaris", "loved", JAN)];
-  const two = [inMix("Dated", "Stalker", "loved", JAN)];
+test("a vibe with no date of its own falls behind one that has one", () => {
+  const one = [inVibe("Undated", "Solaris", "loved", JAN)];
+  const two = [inVibe("Dated", "Stalker", "loved", JAN)];
   // Alphabetically "Dated" would win anyway, so the pair is checked both ways
   // round to be sure it is the date and not the name doing the work.
   assert.deepEqual(
-    names(inOrder([mixOf("Undated", null, one), mixOf("Dated", JAN, two)], [...one, ...two])),
+    names(inOrder([vibeOf("Undated", null, one), vibeOf("Dated", JAN, two)], [...one, ...two])),
     ["Dated", "Undated"],
   );
-  const three = [inMix("Aaa", "Arrival", "loved", JAN)];
+  const three = [inVibe("Aaa", "Arrival", "loved", JAN)];
   assert.deepEqual(
-    names(inOrder([mixOf("Zzz", JAN, two), mixOf("Aaa", null, three)], [...two, ...three])),
+    names(inOrder([vibeOf("Zzz", JAN, two), vibeOf("Aaa", null, three)], [...two, ...three])),
     ["Zzz", "Aaa"],
   );
 });
 
-test("mixes that are alike in every way come out by name", () => {
+test("vibes that are alike in every way come out by name", () => {
   const films = [
-    inMix("Beta", "Solaris", "loved", JAN),
-    inMix("Alpha", "Stalker", "loved", JAN),
-    inMix("Gamma", "Arrival", "loved", JAN),
+    inVibe("Beta", "Solaris", "loved", JAN),
+    inVibe("Alpha", "Stalker", "loved", JAN),
+    inVibe("Gamma", "Arrival", "loved", JAN),
   ];
-  const mixes = [mixOf("Beta", JAN, [films[0]]), mixOf("Gamma", JAN, [films[2]]), mixOf("Alpha", JAN, [films[1]])];
-  assert.deepEqual(names(inOrder(mixes, films)), ["Alpha", "Beta", "Gamma"]);
+  const vibes = [vibeOf("Beta", JAN, [films[0]]), vibeOf("Gamma", JAN, [films[2]]), vibeOf("Alpha", JAN, [films[1]])];
+  assert.deepEqual(names(inOrder(vibes, films)), ["Alpha", "Beta", "Gamma"]);
 });
 
-test("the mixes it was given are left as they were", () => {
-  const films = [inMix("Beta", "Solaris", "loved", JAN), inMix("Alpha", "Stalker", "liked", JAN)];
-  const mixes = [mixOf("Alpha", JAN, [films[1]]), mixOf("Beta", JAN, [films[0]])];
-  const given = [...mixes];
+test("the vibes it was given are left as they were", () => {
+  const films = [inVibe("Beta", "Solaris", "loved", JAN), inVibe("Alpha", "Stalker", "liked", JAN)];
+  const vibes = [vibeOf("Alpha", JAN, [films[1]]), vibeOf("Beta", JAN, [films[0]])];
+  const given = [...vibes];
 
-  assert.deepEqual(names(inOrder(mixes, films)), ["Beta", "Alpha"], "the order is not the rule's");
-  assert.deepEqual(mixes, given, "the array it was given was sorted in place");
+  assert.deepEqual(names(inOrder(vibes, films)), ["Beta", "Alpha"], "the order is not the rule's");
+  assert.deepEqual(vibes, given, "the array it was given was sorted in place");
 });
 
-test("ordering the mixes moves nothing inside them", () => {
+test("ordering the vibes moves nothing inside them", () => {
   const films = [
-    inMix("Quiet Dread", "Solaris", "loved", JAN),
-    inMix("Quiet Dread", "Nosferatu", null, null),
-    inMix("Quiet Dread", "Stalker", "liked", JUN),
+    inVibe("Quiet Dread", "Solaris", "loved", JAN),
+    inVibe("Quiet Dread", "Nosferatu", null, null),
+    inVibe("Quiet Dread", "Stalker", "liked", JUN),
   ];
-  const mix = mixOf("Quiet Dread", JAN, films);
+  const vibe = vibeOf("Quiet Dread", JAN, films);
 
-  const membership = filmsIn(mix, films).map((film) => film.title);
-  const lovedCount = selected(LOVED, filmsIn(mix, films)).length;
-  const glance = preview(filmsIn(mix, films));
+  const membership = filmsIn(vibe, films).map((film) => film.title);
+  const lovedCount = selected(LOVED, filmsIn(vibe, films)).length;
+  const glance = preview(filmsIn(vibe, films));
 
-  inOrder([mix], films);
+  inOrder([vibe], films);
 
-  assert.deepEqual(filmsIn(mix, films).map((film) => film.title), membership, "membership moved");
-  assert.equal(selected(LOVED, filmsIn(mix, films)).length, lovedCount, "the loved count moved");
-  assert.equal(preview(filmsIn(mix, films)), glance, "the preview changed");
+  assert.deepEqual(filmsIn(vibe, films).map((film) => film.title), membership, "membership moved");
+  assert.equal(selected(LOVED, filmsIn(vibe, films)).length, lovedCount, "the loved count moved");
+  assert.equal(preview(filmsIn(vibe, films)), glance, "the preview changed");
   assert.deepEqual(
     membership,
     ["Solaris", "Nosferatu", "Stalker"],
@@ -533,7 +533,7 @@ test("ordering the mixes moves nothing inside them", () => {
 });
 
 /**
- * The films that are in no mix.
+ * The films that are in no vibe.
  *
  * Exactly which films, and in exactly the order they came — the two things a
  * filter is easy to get almost right about. The fixtures are ordered on purpose,
@@ -541,19 +541,19 @@ test("ordering the mixes moves nothing inside them", () => {
  * failures rather than as a different-looking pass.
  */
 
-test("the remainder is every film in no mix, and nothing else", () => {
+test("the remainder is every film in no vibe, and nothing else", () => {
   const movies: Shown[] = [
-    { ...dated("Loose one", "loved", JAN), mixes: [] },
-    { ...dated("Filed", null, JAN), mixes: ["Quiet Dread"] },
-    { ...dated("Loose two", null, null), mixes: [] },
-    { ...dated("Filed twice", "liked", JAN), mixes: ["Quiet Dread", "Slow Cinema"] },
-    { ...dated("Loose three", "disliked", JUN), mixes: [] },
+    { ...dated("Loose one", "loved", JAN), vibes: [] },
+    { ...dated("Filed", null, JAN), vibes: ["Quiet Dread"] },
+    { ...dated("Loose two", null, null), vibes: [] },
+    { ...dated("Filed twice", "liked", JAN), vibes: ["Quiet Dread", "Slow Cinema"] },
+    { ...dated("Loose three", "disliked", JUN), vibes: [] },
   ];
 
   assert.deepEqual(
-    inNoMix(movies).map((movie) => movie.title),
+    inNoVibe(movies).map((movie) => movie.title),
     ["Loose one", "Loose two", "Loose three"],
-    "the remainder is not exactly the films in no mix, in the order they came",
+    "the remainder is not exactly the films in no vibe, in the order they came",
   );
 });
 
@@ -561,36 +561,36 @@ test("the remainder keeps the order it was given", () => {
   // Deliberately not alphabetical and not by date, so any sort would show.
   const movies: Shown[] = ["Zulu", "Alpha", "Mike"].map((title, index) => ({
     ...dated(title, null, index === 1 ? JUN : JAN),
-    mixes: [],
+    vibes: [],
   }));
 
-  assert.deepEqual(inNoMix(movies).map((movie) => movie.title), ["Zulu", "Alpha", "Mike"]);
+  assert.deepEqual(inNoVibe(movies).map((movie) => movie.title), ["Zulu", "Alpha", "Mike"]);
 });
 
 test("every film filed somewhere, and the remainder is empty", () => {
-  const movies = [{ ...dated("Filed", null, JAN), mixes: ["Quiet Dread"] }];
-  assert.deepEqual(inNoMix(movies), []);
-  assert.deepEqual(inNoMix([]), []);
+  const movies = [{ ...dated("Filed", null, JAN), vibes: ["Quiet Dread"] }];
+  assert.deepEqual(inNoVibe(movies), []);
+  assert.deepEqual(inNoVibe([]), []);
 });
 
-test("no mixes at all, and every film is the remainder", () => {
-  // What the page looks like before anybody has made a mix: the films are all
+test("no vibes at all, and every film is the remainder", () => {
+  // What the page looks like before anybody has made a vibe: the films are all
   // in none of them, and the one way to them has to be there.
   const movies: Shown[] = ["One", "Two", "Three"].map((title) => ({
     ...dated(title, null, JAN),
-    mixes: [],
+    vibes: [],
   }));
 
-  assert.equal(inNoMix(movies).length, 3);
-  assert.deepEqual(inOrder([], movies), [], "there are no mixes to order");
+  assert.equal(inNoVibe(movies).length, 3);
+  assert.deepEqual(inOrder([], movies), [], "there are no vibes to order");
 });
 
 test("the films it was given are left as they were", () => {
   const movies: Shown[] = [
-    { ...dated("Loose", "loved", JAN), mixes: [] },
-    { ...dated("Filed", null, JAN), mixes: ["Quiet Dread"] },
+    { ...dated("Loose", "loved", JAN), vibes: [] },
+    { ...dated("Filed", null, JAN), vibes: ["Quiet Dread"] },
   ];
   const given = [...movies];
-  inNoMix(movies);
+  inNoVibe(movies);
   assert.deepEqual(movies, given, "the array it was given was changed");
 });

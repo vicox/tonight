@@ -138,11 +138,11 @@ test("every tool is discoverable, and only the intended ones", async () => {
   assert.deepEqual(tools.map((tool) => tool.name).sort(), [
     "correct_episode",
     "create_genre",
-    "create_mix",
     "create_movie",
+    "create_vibe",
     "delete_genre",
-    "delete_mix",
     "delete_movie",
+    "delete_vibe",
     "forget_episode",
     "forget_verdict",
     "get_episodes",
@@ -153,21 +153,21 @@ test("every tool is discoverable, and only the intended ones", async () => {
     "record_episode",
     "record_verdict",
     "update_genre",
-    "update_mix",
     "update_movie",
+    "update_vibe",
     "withdraw_verdict",
   ]);
 
   // Twenty, and every one of them a state operation on one of the five things
-  // Tonight persists: Movies, Genres, Mixes, Episodes, Verdicts. Product
+  // Tonight persists: Movies, Genres, Vibes, Episodes, Verdicts. Product
   // guidance ships in skills/ beside the server rather than as a runtime tool,
   // and an exhaustive list is what keeps one from creeping back.
   //
   // Eleven are the taste model's, four are M1's episodes, which write what
   // happened rather than what somebody likes, three are M2's verdicts, which
   // write what they thought of it, and two are M3's: one that explains all of it
-  // back and one that takes a single statement out of it. The sets never mix: no
-  // episode tool reads or writes a genre, a mix or a saved film, and no verdict
+  // back and one that takes a single statement out of it. The sets never vibe: no
+  // episode tool reads or writes a genre, a vibe or a saved film, and no verdict
   // tool does either — the chain from watching to liking is never closed for the
   // user. M3's pair read across all of them and write nothing but a deletion the
   // user asked for.

@@ -178,7 +178,7 @@ const someone = () => `google:user-${++users}`;
 test("a new user has an empty taste model, and gets one rather than an error", async () => {
   const token = await tokenFor(someone());
 
-  assert.deepEqual(await ok(token, "get_taste"), { genres: [], mixes: [], movies: [] });
+  assert.deepEqual(await ok(token, "get_taste"), { genres: [], vibes: [], movies: [] });
 });
 
 test("a genre can be created and read back", async () => {
@@ -208,29 +208,29 @@ test("a genre without an instruction is refused, even for a familiar name", asyn
     await refused(token, "create_genre", { name: "Action", instruction: "  " }),
     /needs an instruction/,
   );
-  assert.deepEqual(await ok(token, "get_taste"), { genres: [], mixes: [], movies: [] });
+  assert.deepEqual(await ok(token, "get_taste"), { genres: [], vibes: [], movies: [] });
 });
 
-test("a mix names the genres it is built from, and comes back with them", async () => {
+test("a vibe names the genres it is built from, and comes back with them", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
   await ok(token, "create_genre", { name: "Thriller", instruction: "Tension, not brutality." });
 
-  const created = await ok(token, "create_mix", {
+  const created = await ok(token, "create_vibe", {
     name: "Space Tension",
     genres: ["Sci-Fi", "Thriller"],
     instruction: "Contained, mysterious science fiction.",
   });
-  assert.deepEqual(created.mix.genres, ["Sci-Fi", "Thriller"]);
+  assert.deepEqual(created.vibe.genres, ["Sci-Fi", "Thriller"]);
 
   const taste = await ok(token, "get_taste");
-  assert.deepEqual(taste.mixes.map(content), [created.mix]);
+  assert.deepEqual(taste.vibes.map(content), [created.vibe]);
 });
 
-test("renaming a genre carries its mixes, in one call", async () => {
+test("renaming a genre carries its vibes, in one call", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
-  await ok(token, "create_mix", {
+  await ok(token, "create_vibe", {
     name: "My Sci-Fi",
     genres: ["Sci-Fi"],
     instruction: "Slow and strange.",
@@ -240,7 +240,7 @@ test("renaming a genre carries its mixes, in one call", async () => {
 
   const taste = await ok(token, "get_taste");
   assert.deepEqual(taste.genres.map((one: { name: string }) => one.name), ["Science fiction"]);
-  assert.deepEqual(taste.mixes[0].genres, ["Science fiction"]);
+  assert.deepEqual(taste.vibes[0].genres, ["Science fiction"]);
 });
 
 // --- refusals a client can act on -----------------------------------------
@@ -257,10 +257,10 @@ test("a refusal is a tool error carrying the reason, not a protocol failure", as
   );
 });
 
-test("deleting a genre a mix needs is refused, and names the mix", async () => {
+test("deleting a genre a vibe needs is refused, and names the vibe", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
-  await ok(token, "create_mix", {
+  await ok(token, "create_vibe", {
     name: "My Sci-Fi",
     genres: ["Sci-Fi"],
     instruction: "Slow and strange.",
@@ -269,9 +269,9 @@ test("deleting a genre a mix needs is refused, and names the mix", async () => {
   const message = await refused(token, "delete_genre", { name: "Sci-Fi" });
   assert.match(message, /"My Sci-Fi"/);
 
-  await ok(token, "delete_mix", { name: "My Sci-Fi" });
+  await ok(token, "delete_vibe", { name: "My Sci-Fi" });
   await ok(token, "delete_genre", { name: "Sci-Fi" });
-  assert.deepEqual(await ok(token, "get_taste"), { genres: [], mixes: [], movies: [] });
+  assert.deepEqual(await ok(token, "get_taste"), { genres: [], vibes: [], movies: [] });
 });
 
 // --- whose taste ----------------------------------------------------------
@@ -282,7 +282,7 @@ test("the user a tool acts for comes from the token", async () => {
 
   await ok(alice, "create_genre", { name: "Alice only", instruction: "Hers." });
 
-  assert.deepEqual(await ok(bob, "get_taste"), { genres: [], mixes: [], movies: [] });
+  assert.deepEqual(await ok(bob, "get_taste"), { genres: [], vibes: [], movies: [] });
   assert.match(await refused(bob, "delete_genre", { name: "Alice only" }), /no genre "Alice only"/);
   assert.deepEqual(
     (await ok(alice, "get_taste")).genres.map((one: { name: string }) => one.name),
@@ -317,7 +317,7 @@ test("the endpoint offers twenty tools, and a movie is addressed by title and ye
   // pair explain all of that back and take one piece of it away again.
   //
   // Every one of them writes or reads one of the five things Tonight persists —
-  // Movies, Genres, Mixes, Episodes, Verdicts. There is no tool for anything
+  // Movies, Genres, Vibes, Episodes, Verdicts. There is no tool for anything
   // Tonight itself thought, because there is nowhere for such a thing to go.
   assert.deepEqual(
     tools.map((tool) => tool.name),
@@ -327,9 +327,9 @@ test("the endpoint offers twenty tools, and a movie is addressed by title and ye
       "create_genre",
       "update_genre",
       "delete_genre",
-      "create_mix",
-      "update_mix",
-      "delete_mix",
+      "create_vibe",
+      "update_vibe",
+      "delete_vibe",
       "create_movie",
       "update_movie",
       "delete_movie",
@@ -413,7 +413,7 @@ test("the write tools carry the rules that apply at the moment they are called",
    * the Tonight skill.
    *
    * Only tool-local rules. Anything that spans two calls — consent, the
-   * classification a kept film goes through, when to propose a Mix, whether this
+   * classification a kept film goes through, when to propose a Vibe, whether this
    * conversation should be writing at all — stays in the skill, and has to,
    * because a description cannot be read before the call it describes.
    */
@@ -426,9 +426,9 @@ test("the write tools carry the rules that apply at the moment they are called",
       description?: string;
     }).description ?? "";
 
-  // A Genre's and a Mix's instruction is the user's own sentence, so it is
+  // A Genre's and a Vibe's instruction is the user's own sentence, so it is
   // written in their voice. True of the field, whichever tool is writing it.
-  for (const name of ["create_genre", "update_genre", "create_mix", "update_mix"]) {
+  for (const name of ["create_genre", "update_genre", "create_vibe", "update_vibe"]) {
     assert.match(
       fieldOf(tools, name, "instruction"),
       /first person/i,
@@ -485,27 +485,27 @@ test("the write tools carry the rules that apply at the moment they are called",
   // The user's sentence is not the agent's to adjust. What Step 2 relocated is the
   // prohibition itself — field-local, and nothing about how a change is agreed to,
   // which is workflow and stays in the skill.
-  assert.match(describing("update_mix"), /never reword their instruction/i, "update_mix: rewording");
+  assert.match(describing("update_vibe"), /never reword their instruction/i, "update_vibe: rewording");
   assert.doesNotMatch(
-    describing("update_mix"),
+    describing("update_vibe"),
     /propose the new wording|let the user agree/i,
-    "update_mix has been given the workflow half as well",
+    "update_vibe has been given the workflow half as well",
   );
 
   // The preconditions a call is refused for, where a client meets them.
   assert.match(describing("create_genre"), /instruction is required/i, "a genre with no meaning");
-  assert.match(describing("create_mix"), /cannot be built from another mix/i, "no chaining");
+  assert.match(describing("create_vibe"), /cannot be built from another vibe/i, "no chaining");
   assert.match(
-    JSON.stringify(tools.find((tool) => tool.name === "create_mix")?.inputSchema ?? {}),
+    JSON.stringify(tools.find((tool) => tool.name === "create_vibe")?.inputSchema ?? {}),
     /at least one/i,
-    "a mix built from nothing",
+    "a vibe built from nothing",
   );
 
   // And the naming test, which is a judgement made at the moment a name is chosen.
   assert.match(
-    JSON.stringify(tools.find((tool) => tool.name === "create_mix")?.inputSchema ?? {}),
+    JSON.stringify(tools.find((tool) => tool.name === "create_vibe")?.inputSchema ?? {}),
     /the name is doing no work/i,
-    "the test for a mix's name",
+    "the test for a vibe's name",
   );
 });
 
@@ -519,8 +519,8 @@ test("no cross-tool rule has been copied into a tool description", async () => {
 
   for (const [what, leaked] of [
     ["the classification ladder", /do not fit it to what is there/i],
-    ["stretching a Mix", /Never stretch a Mix/i],
-    ["proposing a Mix", /three to five other films/i],
+    ["stretching a Vibe", /Never stretch a Vibe/i],
+    ["proposing a Vibe", /three to five other films/i],
     ["when to propose one", /propose while saving, not while recommending/i],
     ["the films in a proposal", /illustration only/i],
     ["the recommend-versus-configure boundary", /configuration session/i],
@@ -552,7 +552,7 @@ test("no cross-tool rule has been copied into a tool description", async () => {
 test("a movie is saved with what the user said, and appears once in the model", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
-  await ok(token, "create_mix", {
+  await ok(token, "create_vibe", {
     name: "Space Tension",
     genres: ["Sci-Fi"],
     instruction: "Contained, and nobody is safe.",
@@ -563,19 +563,19 @@ test("a movie is saved with what the user said, and appears once in the model", 
     year: 2016,
     imdb_id: "tt2543164",
     viewing: "seen",
-    mixes: ["Space Tension"],
+    vibes: ["Space Tension"],
   });
   assert.deepEqual(created.movie, {
     title: "Arrival",
     year: 2016,
     imdbId: "tt2543164",
     viewing: "seen",
-    mixes: ["Space Tension"],
+    vibes: ["Space Tension"],
   });
 
   const taste = await ok(token, "get_taste");
 
-  // The state lives in one place. The mix carries the handle — both halves of
+  // The state lives in one place. The vibe carries the handle — both halves of
   // it — so a title that names two films still names one here.
   //
   // The create answered with the object it wrote, which is the caller's own words
@@ -587,20 +587,20 @@ test("a movie is saved with what the user said, and appears once in the model", 
     "nothing has happened to it yet",
   );
   assert.deepEqual(taste.movies.map(content), [created.movie]);
-  assert.deepEqual(taste.mixes[0].movies, [{ title: "Arrival", year: 2016 }]);
+  assert.deepEqual(taste.vibes[0].movies, [{ title: "Arrival", year: 2016 }]);
 
   // No uuid, anywhere. Asserted as the set of field names rather than by
   // searching the text, which would match the "id" inside an ordinary word.
   assert.deepEqual(Object.keys(taste.movies[0]).sort(), [
     "createdAt",
     "imdbId",
-    "mixes",
     "title",
     "updatedAt",
+    "vibes",
     "viewing",
     "year",
   ]);
-  assert.deepEqual(Object.keys(taste.mixes[0].movies[0]).sort(), ["title", "year"]);
+  assert.deepEqual(Object.keys(taste.vibes[0].movies[0]).sort(), ["title", "year"]);
 });
 
 test("when a thing was written is Tonight's answer, and not a caller's argument", async () => {
@@ -724,7 +724,7 @@ test("a handle the schema cannot make sense of never reaches the store", async (
   // And what the schema allows, the domain still judges — in the product's own
   // words, which is what a model can correct for.
   assert.match(
-    await refused(token, "create_movie", { title: "Dune", year: 2021, mixes: ["Nope"] }),
+    await refused(token, "create_movie", { title: "Dune", year: 2021, vibes: ["Nope"] }),
     /"Nope" is not one of them/,
   );
 
@@ -759,7 +759,7 @@ test("a valid IMDb id survives the boundary, spaces and all", async () => {
 test("retitling a movie keeps it the same film, filed where it was", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
-  await ok(token, "create_mix", {
+  await ok(token, "create_vibe", {
     name: "Space Tension",
     genres: ["Sci-Fi"],
     instruction: "Contained, and nobody is safe.",
@@ -768,7 +768,7 @@ test("retitling a movie keeps it the same film, filed where it was", async () =>
     title: "Dune",
     year: 1984,
     viewing: "seen",
-    mixes: ["Space Tension"],
+    vibes: ["Space Tension"],
   });
 
   const moved = await ok(token, "update_movie", {
@@ -782,15 +782,15 @@ test("retitling a movie keeps it the same film, filed where it was", async () =>
     year: 1985,
     imdbId: null,
     viewing: "seen",
-    mixes: ["Space Tension"],
+    vibes: ["Space Tension"],
   });
 
   const taste = await ok(token, "get_taste");
-  assert.deepEqual(taste.mixes[0].movies, [{ title: "Dune (Lynch)", year: 1985 }]);
+  assert.deepEqual(taste.vibes[0].movies, [{ title: "Dune (Lynch)", year: 1985 }]);
 
   const gone = await ok(token, "delete_movie", { title: "Dune (Lynch)", year: 1985 });
-  assert.deepEqual(gone.deleted.mixes, ["Space Tension"]);
-  assert.deepEqual((await ok(token, "get_taste")).mixes[0].movies, [], "the mix kept a dead handle");
+  assert.deepEqual(gone.deleted.vibes, ["Space Tension"]);
+  assert.deepEqual((await ok(token, "get_taste")).vibes[0].movies, [], "the vibe kept a dead handle");
 });
 
 test("a reference that is not one is an argument this tool refuses, in its own words", async () => {

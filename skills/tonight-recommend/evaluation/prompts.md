@@ -3,8 +3,8 @@
 One line each, said the way somebody says them. A prompt is identified by its id, and each
 fixture names the prompts it is run with.
 
-Nothing here mentions Tonight, Genres, Mixes or the taste model — except where the request is
-*about* the model, which is what `taste-explicit` and `taste-explicit-named-mix` are for. A prompt
+Nothing here mentions Tonight, Genres, Vibes or the taste model — except where the request is
+*about* the model, which is what `taste-explicit` and `taste-explicit-named-vibe` are for. A prompt
 that explains the product to the agent is not a prompt a user would say.
 
 | id | Said | Used by |
@@ -12,7 +12,7 @@ that explains the product to the agent is not a prompt a user would say.
 | `plain` | *"What should I watch tonight?"* | 01, 02, 03, 04, 08 |
 | `constrained` | *"Something funny, and under two hours."* | 01 |
 | `taste-explicit` | *"Based on my taste, what would I like?"* | 02, 03, 04, 07 |
-| `taste-explicit-named-mix` | *"Something for a Quiet Dread night."* | 05 |
+| `taste-explicit-named-vibe` | *"Something for a Quiet Dread night."* | 05 |
 | `unrelated-plain` | *"Tonight I want something really gruesome — proper nasty horror, the more brutal the better."* | 06 |
 
 ## Why these five
@@ -24,10 +24,10 @@ of an answer is decided on.
 answer to *"under two hours"* that is not under two hours is a constraint-compliance failure with
 nothing to do with taste.
 
-`taste-explicit` is the request that makes exclusions bind. It is deliberately not a named Mix, so
+`taste-explicit` is the request that makes exclusions bind. It is deliberately not a named Vibe, so
 that the agent has to decide what in the model is relevant.
 
-`taste-explicit-named-mix` names the Mix that carries the exclusion. This is the half of the
+`taste-explicit-named-vibe` names the Vibe that carries the exclusion. This is the half of the
 AC3 pair where the exclusion must bind.
 
 `unrelated-plain` is the other half, and it is the most important prompt in the set. It asks for

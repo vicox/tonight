@@ -37,12 +37,12 @@ const nextConfig: NextConfig = {
    * `dynamic = "force-dynamic"` already stops Next.js from caching these, and that
    * is not the same promise: what a page needs is that nothing *between* the
    * function and the browser keeps a copy either. A CDN, a corporate proxy or a
-   * shared browser cache holding one person's genres and mixes and handing them to the next
+   * shared browser cache holding one person's genres and vibes and handing them to the next
    * request for the same URL is the whole failure, and `private, no-store` is how a
    * response says so to all three.
    *
    * `/` is on this list because it is now both pages: a landing page for a stranger
-   * and this user's genres and mixes for whoever is signed in. Two answers at one URL is
+   * and this user's genres and vibes for whoever is signed in. Two answers at one URL is
    * exactly the shape a shared cache gets wrong.
    *
    * Declared here rather than in the page because a Server Component cannot set a

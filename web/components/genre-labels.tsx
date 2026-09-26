@@ -7,8 +7,8 @@ import { Manage } from "./manage";
 import { Films } from "./movie-row";
 import { sectionFallback } from "./section";
 import { WayOut } from "./way-out";
-import type { Genre, Mix } from "@/lib/taste/model";
-import { filmsUnder } from "@/lib/web/mixes";
+import type { Genre, Vibe } from "@/lib/taste/model";
+import { filmsUnder } from "@/lib/web/vibes";
 import type { Shown } from "@/lib/web/movie-summary";
 import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
 
@@ -17,8 +17,8 @@ import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
  *
  * A genre *is* its name: there is nothing else on one to show, so the resting
  * page is the names themselves, read across in one wrapping line — the handful
- * of pieces a taste is made of rather than a list to scroll. A mix keeps its
- * card, because a mix is a composition with films in it and has something to put
+ * of pieces a taste is made of rather than a list to scroll. A vibe keeps its
+ * card, because a vibe is a composition with films in it and has something to put
  * there.
  *
  * ## Why the meaning is a dialog and not a disclosure
@@ -44,12 +44,12 @@ import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
  */
 export function GenreLabels({
   genres,
-  mixes,
+  vibes,
   movies,
 }: {
   readonly genres: readonly Genre[];
-  /** The mixes, to reach the films: a genre has none of its own. See `filmsUnder`. */
-  readonly mixes: readonly Mix[];
+  /** The vibes, to reach the films: a genre has none of its own. See `filmsUnder`. */
+  readonly vibes: readonly Vibe[];
   readonly movies: readonly Shown[];
 }) {
   const [open, setOpen] = useState<Genre | null>(null);
@@ -166,7 +166,7 @@ export function GenreLabels({
       {open && (
         <Meaning
           genre={open}
-          films={filmsUnder(open, mixes, movies)}
+          films={filmsUnder(open, vibes, movies)}
           onClose={() => setOpen(null)}
           // Closed because the genre is gone, which is not the same as closed.
           // See `removed`.
@@ -183,16 +183,16 @@ export function GenreLabels({
 /**
  * What one genre means to this user, and what they have filed under it.
  *
- * The name, the sentence under it, then the films — the same rows a mix opens
+ * The name, the sentence under it, then the films — the same rows a vibe opens
  * and the summary opens, because a film's row is the same object wherever
- * somebody meets it. They say which mixes they are filed in, since a genre
+ * somebody meets it. They say which vibes they are filed in, since a genre
  * gathers films from several and the heading above them names none.
  *
  * Nothing else to press: a genre is renamed and rewritten at the foot of the
  * page, and a second place to do it would be a second set of rules about a name.
  *
- * No films is left as no films. A genre with mixes that are empty, or with no
- * mixes yet, is an ordinary state of a taste somebody is still building, and a
+ * No films is left as no films. A genre with vibes that are empty, or with no
+ * vibes yet, is an ordinary state of a taste somebody is still building, and a
  * line describing the gap would make it read as something gone wrong.
  */
 function Meaning({

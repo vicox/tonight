@@ -22,7 +22,7 @@
  * its digest, it is what makes "this is the data the model saw" checkable rather
  * than asserted.
  *
- * Seeds through `create_genre`, `create_mix` and `create_movie` over HTTP rather
+ * Seeds through `create_genre`, `create_vibe` and `create_movie` over HTTP rather
  * than writing rows: a fixture that cannot be expressed through the public tool
  * surface is not a fixture of this product, and the evaluation is supposed to run
  * against real tools rather than against a hand-written imitation of one.
@@ -119,11 +119,11 @@ async function call(bearer, name, args = {}) {
   return answer.result;
 }
 
-/** Empties a fixture user, so seeding is idempotent. Movies, then mixes, then genres. */
+/** Empties a fixture user, so seeding is idempotent. Movies, then vibes, then genres. */
 async function clear(bearer) {
   const taste = (await call(bearer, "get_taste")).structuredContent;
   for (const movie of taste.movies) await call(bearer, "delete_movie", { title: movie.title, year: movie.year });
-  for (const mix of taste.mixes) await call(bearer, "delete_mix", { name: mix.name });
+  for (const vibe of taste.vibes) await call(bearer, "delete_vibe", { name: vibe.name });
   for (const genre of taste.genres) await call(bearer, "delete_genre", { name: genre.name });
 
   // Verdicts too, and they are a second store: a run that began with the last
@@ -147,9 +147,9 @@ async function seed(id) {
 
   await clear(bearer);
   for (const genre of model.genres) await call(bearer, "create_genre", genre);
-  for (const mix of model.mixes) await call(bearer, "create_mix", mix);
+  for (const vibe of model.vibes) await call(bearer, "create_vibe", vibe);
   for (const movie of model.movies) {
-    const { title, year, viewing, mixes } = movie;
+    const { title, year, viewing, vibes } = movie;
     await call(bearer, "create_movie", {
       title,
       year,
@@ -157,7 +157,7 @@ async function seed(id) {
       // the field out records that Tonight was not told, which is the answer a
       // fixture means by leaving it out.
       ...(viewing === null || viewing === undefined ? {} : { viewing }),
-      ...(mixes?.length ? { mixes } : {}),
+      ...(vibes?.length ? { vibes } : {}),
     });
   }
 
@@ -201,7 +201,7 @@ if (flag("token")) {
 
   console.error(
     `Snapshot of ${spec.id} (${spec.user}) → ${where}: ` +
-      `${taste.genres.length} genres, ${taste.mixes.length} mixes, ${taste.movies.length} movies. ` +
+      `${taste.genres.length} genres, ${taste.vibes.length} vibes, ${taste.movies.length} movies. ` +
       `Nothing was seeded.`,
   );
   console.log(`sha256:${digest}`);
@@ -209,7 +209,7 @@ if (flag("token")) {
   const { spec, bearer, taste } = await seed(id);
   console.error(
     `Seeded ${spec.id} for ${spec.user}: ` +
-      `${taste.genres.length} genres, ${taste.mixes.length} mixes, ${taste.movies.length} movies.`,
+      `${taste.genres.length} genres, ${taste.vibes.length} vibes, ${taste.movies.length} movies.`,
   );
   if (flag("print-taste")) console.log(JSON.stringify(taste, null, 2));
   else console.log(bearer);

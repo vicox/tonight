@@ -46,7 +46,7 @@ type Fixture = {
     not_binding_looks_like?: string[];
   };
   prompts: string[];
-  model: { genres: unknown[]; mixes: unknown[]; movies: { viewing?: string | null }[] } | null;
+  model: { genres: unknown[]; vibes: unknown[]; movies: { viewing?: string | null }[] } | null;
   /** What they said about particular films, seeded after the model. */
   acts?: { do: string; said?: { about?: string } }[];
 };
@@ -69,7 +69,7 @@ const scorer = await import("../../skills/tonight-recommend/evaluation/score.mjs
 const run = (answer: string, header: Record<string, string> = {}) => ({
   file: "test.md",
   header: {
-    fixture: "02-new-mix",
+    fixture: "02-new-vibe",
     prompt: "plain",
     run: "01",
     side: "test",
@@ -138,10 +138,10 @@ test("the exclusion pair is one model asked two questions", () => {
   assert.equal(plain.user, explicit.user, "the two halves are seeded for different users");
 
   // The exclusion has to actually be in the instruction, or neither half tests it.
-  const mixes = explicit.model?.mixes as { instruction: string }[];
+  const vibes = explicit.model?.vibes as { instruction: string }[];
   assert.ok(
-    mixes.some((mix) => /nothing (gory|with torture)/i.test(mix.instruction)),
-    "no Mix in the pair carries an exclusion",
+    vibes.some((vibe) => /nothing (gory|with torture)/i.test(vibe.instruction)),
+    "no Vibe in the pair carries an exclusion",
   );
 
   // One binds, the other must not, and they are asked different questions.
@@ -214,7 +214,7 @@ test("a prohibition is only counted once a fixture could have broken it", () => 
   const empty = fixtures.find((one) => one.id === "01-empty");
   assert.ok(empty, "the empty-model fixture is gone");
   assert.ok(empty.exists_for.includes("AC5"), "the empty model is not used to test the anchor");
-  assert.deepEqual(empty.model, { genres: [], mixes: [], movies: [] }, "the empty model is not empty");
+  assert.deepEqual(empty.model, { genres: [], vibes: [], movies: [] }, "the empty model is not empty");
 });
 
 test("every prompt a fixture names is defined, and every defined prompt is used", () => {
@@ -631,7 +631,7 @@ test("every recorded run carries its provenance and its evidence", () => {
   }
 });
 
-test("a rerun cannot quietly mix itself into an earlier one", () => {
+test("a rerun cannot quietly vibe itself into an earlier one", () => {
   // The three files of a run only mean anything together, and the proxy appends.
   // A retry that overwrote the answer and the snapshot while leaving the log
   // would read as one run and be two.
@@ -779,7 +779,7 @@ test("AC1 asks nothing of a run that owes no recommendation", () => {
 test("AC2 flags a maximal-fit phrase and quotes where it sits", () => {
   const r = run(
     "Reading Room is about as pure a fit as exists for a night like this.",
-    { fixture: "02-new-mix", get_taste: "ok" },
+    { fixture: "02-new-vibe", get_taste: "ok" },
   );
   const [flag] = flagsOf(r, "AC2");
   assert.equal(flag.kind, "maximal-fit-claim");
@@ -789,7 +789,7 @@ test("AC2 flags a maximal-fit phrase and quotes where it sits", () => {
 });
 
 test("AC2 flags the claim without deciding what it is about", () => {
-  // Identical phrasing, one about the Mix and one about a film. The old scorer
+  // Identical phrasing, one about the Vibe and one about a film. The old scorer
   // tried to tell them apart by parsing the subject; both are now flagged and
   // the blind judge separates them.
   const shaped = (claim: string) =>
@@ -797,13 +797,13 @@ test("AC2 flags the claim without deciding what it is about", () => {
       `${claim}\n\nI'd start with **Paterson** (2016).\n\n` +
         "- **If you want more ache** — *Manchester by the Sea* (2016).\n" +
         "- **When you'd rather go stranger** — *A Ghost Story* (2017).\n",
-      { fixture: "02-new-mix", get_taste: "ok" },
+      { fixture: "02-new-vibe", get_taste: "ok" },
     );
-  const aboutMix = shaped("Reading Room is a perfect fit for the evening you described.");
+  const aboutVibe = shaped("Reading Room is a perfect fit for the evening you described.");
   const aboutFilm = shaped("*Paterson* is a perfect fit for Reading Room.");
-  assert.equal(flagsOf(aboutMix, "AC2").length, 1);
+  assert.equal(flagsOf(aboutVibe, "AC2").length, 1);
   assert.equal(flagsOf(aboutFilm, "AC2").length, 1);
-  assert.deepEqual(scorer.admissibility([aboutMix]), [], "a maximal-fit phrase became a fault");
+  assert.deepEqual(scorer.admissibility([aboutVibe]), [], "a maximal-fit phrase became a fault");
 });
 
 /* -- AC3a: provenance and applicability, containment as a flag only -------- */
@@ -811,7 +811,7 @@ test("AC2 flags the claim without deciding what it is about", () => {
 test("AC3a flags an ordinary answer that names nothing stored", () => {
   const r = {
     ...run("I'd start with **Prisoners** (2013).\n\n- **If X** — *A* (2001).\n- **If Y** — *B* (2002).\n", stateRich),
-    stored: [{ name: "Quiet Dread", kind: "mix" }],
+    stored: [{ name: "Quiet Dread", kind: "vibe" }],
   };
   const [flag] = flagsOf(r, "AC3a");
   assert.equal(flag.kind, "no-stored-name");
@@ -827,7 +827,7 @@ test("AC3a containment is a flag, never a failure — a paraphrase names nothing
         "I'd start with **Prisoners** (2013).\n\n- **If X** — *A* (2001).\n- **If Y** — *B* (2002).\n",
       stateRich,
     ),
-    stored: [{ name: "Quiet Dread", kind: "mix" }],
+    stored: [{ name: "Quiet Dread", kind: "vibe" }],
   };
   assert.equal(flagsOf(paraphrase, "AC3a").length, 1, "the paraphrase was not flagged");
   assert.deepEqual(scorer.admissibility([paraphrase]), [], "a paraphrase was failed mechanically");
@@ -840,7 +840,7 @@ test("AC3a says nothing when the request points away from the model", () => {
       prompt: "unrelated-plain",
       get_taste: "ok",
     }),
-    stored: [{ name: "Quiet Dread", kind: "mix" }],
+    stored: [{ name: "Quiet Dread", kind: "vibe" }],
   };
   assert.deepEqual(flagsOf(unrelated, "AC3a"), []);
   assert.equal(scorer.materiallyRelevant(unrelated), false);
@@ -853,7 +853,7 @@ test("AC3a says nothing when the taste read never succeeded", () => {
       prompt: "plain",
       get_taste: "failed",
     }),
-    stored: [{ name: "Quiet Dread", kind: "mix" }],
+    stored: [{ name: "Quiet Dread", kind: "vibe" }],
   };
   assert.deepEqual(flagsOf(failed, "AC3a"), []);
 });

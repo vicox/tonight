@@ -41,7 +41,7 @@ import type { AuthenticatedUser } from "../identity.ts";
  *
  * Neither table is `oauth_pending_logins`. That record carries a client, a
  * redirect URI, a code challenge and a resource, none of which a browser sign-in
- * has, and mixing them would mean one handler holding both kinds of state — where
+ * has, and vibeing them would mean one handler holding both kinds of state — where
  * the failure mode is a browser sign-in redeemed as an MCP authorization code.
  */
 

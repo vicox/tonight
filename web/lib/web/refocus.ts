@@ -16,7 +16,7 @@
  * stopped existing.
  *
  * Deliberately about positions and not about films. It is given the controls that
- * are left, so it needs to know nothing about a movie, a state or a mix, and the
+ * are left, so it needs to know nothing about a movie, a state or a vibe, and the
  * dialog does not have to keep a copy of any of them to be able to call it.
  */
 export function refocus<T>(remaining: readonly T[], at: number, fallback: T | null): T | null {

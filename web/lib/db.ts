@@ -57,7 +57,7 @@ async function open(): Promise<SqlDriver> {
 
   if (process.env.NODE_ENV === "production") {
     throw new ConfigurationError(
-      "DATABASE_URL is not set. Tonight needs durable storage in production: a restart or a second instance would otherwise invalidate every login in progress and lose every genre and mix. See web/.env.example.",
+      "DATABASE_URL is not set. Tonight needs durable storage in production: a restart or a second instance would otherwise invalidate every login in progress and lose every genre and vibe. See web/.env.example.",
     );
   }
 

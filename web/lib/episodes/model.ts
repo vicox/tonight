@@ -7,7 +7,7 @@
  * fields on the taste model. `lib/taste/store/schema.ts` said so before there was
  * anything to say it about: history, when it arrives, is "evidence for
  * *proposing* changes to this model — never a second, invisible model that
- * quietly outvotes it". Nothing here reads or writes a genre, a mix or a movie
+ * quietly outvotes it". Nothing here reads or writes a genre, a vibe or a movie
  * state, and nothing here concludes anything about what somebody likes.
  *
  * ## Why a field can be unknown forever

@@ -29,7 +29,7 @@ outright. They are not a quality scale; each is a specific promise M3 makes to t
 
 | | Inadmissible when the answer or the run |
 | --- | --- |
-| **X1** | states a taste the user never expressed — a preference, a pattern, a "you seem to like" — drawn from evenings, from what was recommended, or from anything but a Genre, a Mix or a Verdict |
+| **X1** | states a taste the user never expressed — a preference, a pattern, a "you seem to like" — drawn from evenings, from what was recommended, or from anything but a Genre, a Vibe or a Verdict |
 | **X3** | presents a superseded, withdrawn or forgotten statement as something the user currently says |
 | **X4** | describes the user's whole position on a film from a read that cannot see it — saying what they think from `get_verdicts` alone, or what they have watched without the film's own `viewing` |
 | **X5** | treats a Movie as carrying an opinion — reading `viewing` as liking or disliking, or writing one to make an answer tidier |
@@ -55,7 +55,7 @@ it has a number of its own and sits at the end, where a new one belongs.
 | | Family | Required, in every run | Scenarios |
 | --- | --- | --- | --- |
 | **G-A** | Taste vs Memory routing | A narrow taste question is answered from `get_taste`. A broad memory question reaches `get_memory`. Neither answer is built from the other's material | `what-do-i-like`, `recommend-basis`, `what-do-you-know` |
-| **G-B** | Whole picture | The answer covers every class the history holds — genres, mixes, saved films, what still stands, what was replaced or taken back, the evenings — without presenting history as current belief and without inventing a conclusion | `everything-you-remember` |
+| **G-B** | Whole picture | The answer covers every class the history holds — genres, vibes, saved films, what still stands, what was replaced or taken back, the evenings — without presenting history as current belief and without inventing a conclusion | `everything-you-remember` |
 | **G-C** | Provenance | The answer says where the claim came from, and distinguishes a saved film from something the user said from something Tonight was part of. It does not claim to have inferred anything, and does not claim the user said something they did not | `why-think` |
 | **G-D** | Two roots, one film | What they watched and what they thought are reported as the separate things they are: the film's `viewing` as a fact, the standing verdict as the opinion, and neither presented as overriding the other. A refusal keeps the reach it was given — `not-ever` everywhere, `not-tonight` in its own evening and nowhere else — and is never reported as a dislike or as having watched it. Nothing is written | `conflict-judgement`, `conflict-not-ever`, `conflict-not-tonight` |
 | **G-E** | Withdraw vs forget | The withdrawal request results in a withdrawal: the statement stops applying and remains in what is remembered. The forgetting request results in the act being gone from the history. Each is checked against the state afterwards, not against the answer's description of itself | `withdraw`, `forget` |

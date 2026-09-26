@@ -32,7 +32,7 @@ The opinionated core, in nine statements:
    highest-value sentence in the product and the one every other recommender avoids.
 4. **Taste informs every recommendation; only tonight binds.** Evidence always applies;
    exclusions written into an instruction apply when the model was asked for.
-5. **A Mix counts from the moment it exists.** It is the most explicit thing a user ever says
+5. **A Vibe counts from the moment it exists.** It is the most explicit thing a user ever says
    about their taste. Movie states **calibrate confidence** in it; they do not decide whether it
    counts at all. See P5.
 6. **Unseen is the default target**, and a `loved` film is a reason rather than a suggestion.
@@ -111,8 +111,8 @@ Where none exists, the answer is evergreen and says nothing about now. See §6.
 them, not six films ranked. Six is a menu; a curator does not hand you a menu. See §4.
 
 **P3 — Taste informs every recommendation; only tonight binds.** This reverses the current
-default. Evidence — what they love, what a Mix means — applies always. Exclusions written into a
-Genre or Mix instruction bind only when the model was asked for, because an exclusion written for
+default. Evidence — what they love, what a Vibe means — applies always. Exclusions written into a
+Genre or Vibe instruction bind only when the model was asked for, because an exclusion written for
 one idea is not a rule over every evening. What they say tonight binds absolutely, in both cases.
 
 **P4 — Unseen is the default target.** Prefer films they have told Tonight nothing about. A film
@@ -122,30 +122,30 @@ carrying `seen`, `liked`, `loved` or `disliked` is never presented as new. A `lo
 **P5 — Two kinds of evidence, and they are not interchangeable.** This is the most important
 distinction in the document and the one the first draft got wrong.
 
-- **Declarative evidence — what they said.** A Genre's instruction, a Mix's instruction, and the
+- **Declarative evidence — what they said.** A Genre's instruction, a Vibe's instruction, and the
   fact that they wrote or confirmed it. This is the most explicit statement of taste anywhere in
   the system: a whole sentence, in their own words, about a kind of evening. **It applies from
-  the moment it exists.** A Mix created last night, with nothing under it yet, is exactly as much
+  the moment it exists.** A Vibe created last night, with nothing under it yet, is exactly as much
   a statement about what they like as one with ten films in it — and it is *more* current.
 - **Confirmatory evidence — how it played out.** Movie states. These do not decide whether a
   declaration counts. They **calibrate confidence** in it and sharpen aim inside it: which parts
   of the declaration are borne out, where the films under it agree with its sentence, and where
   a `loved` film quietly disagrees with it.
 
-A Mix with no states is read with **less confidence about specifics and no less weight about
+A Vibe with no states is read with **less confidence about specifics and no less weight about
 intent**. The practical difference is how the recommendation is phrased and how far it reaches,
-never whether the Mix is consulted. Anything that classifies a Mix as not counting — including
+never whether the Vibe is consulted. Anything that classifies a Vibe as not counting — including
 any deterministic "trustworthy versus aspirational" label — is rejected: it would make the
-product's own loop false, since the Mix written in last night's conversation is precisely the one
+product's own loop false, since the Vibe written in last night's conversation is precisely the one
 tonight's recommendation should be using.
 
-**P6 — Genres support Mixes.** A Genre is an ingredient. On its own it is thinner declarative
-evidence than a Mix, because a Mix says what the combination means and a Genre only names a part.
+**P6 — Genres support Vibes.** A Genre is an ingredient. On its own it is thinner declarative
+evidence than a Vibe, because a Vibe says what the combination means and a Genre only names a part.
 A recommendation justified only by a Genre name is justified by a label.
 
 **P7 — States are confirmatory, and silence is not evidence.** `loved` is strong, `liked` is
 positive, `disliked` is a negative sign and not a ban — a `disliked` film inside an otherwise
-loved Mix is one of the most informative objects in the model. `seen`, `not_seen` and `null` say
+loved Vibe is one of the most informative objects in the model. `seen`, `not_seen` and `null` say
 nothing about preference and must never be read as if they did.
 
 **P8 — Reinforcement is the entry fee, not the offering.** See §7.1.
@@ -227,7 +227,7 @@ avoid.
 
 ### 4.6 A worked answer
 
-Chosen to exercise P5. The user has a `Quiet Dread` Mix (*"dread that arrives on foot, in
+Chosen to exercise P5. The user has a `Quiet Dread` Vibe (*"dread that arrives on foot, in
 daylight, without music"*) with five films under it, two `loved`. Last week they created
 `Reading Room` — *"films that are patient with me, where nothing is chasing anyone"* — and
 nothing is under it yet. They ask the plain question, on a Thursday in October, and say they are
@@ -270,8 +270,8 @@ sure*.
 1. **A film they loved, named, tied to a declaration.** *"You wrote Quiet Dread for dread that
    arrives in daylight, and Stalker is the one you loved under it."* Both kinds at once, and the
    strongest thing the system can say.
-2. **A Mix's own sentence, quoted back.** Their words, whether or not anything under it has a
-   state. This is what makes a week-old Mix usable tonight.
+2. **A Vibe's own sentence, quoted back.** Their words, whether or not anything under it has a
+   state. This is what makes a week-old Vibe usable tonight.
 3. **A film they loved, named, on its own.** Specific and checkable, but it does not say what
    about the film landed — so the reason drawn from it must be modest.
 4. **A pattern across several states.** Something they never said out loud. Say it as an
@@ -296,7 +296,7 @@ it, it is flattery, and flattery is what a recommender produces when it has noth
 
 Say how sure you are, and mean it. Confidence has two separate sources and the language should
 distinguish them: how sure you are **about the film** is your own knowledge, and how sure you are
-**about them** depends on what the model actually contains (P5). A week-old Mix with nothing under
+**about them** depends on what the model actually contains (P5). A week-old Vibe with nothing under
 it supports a confident statement of intent and a tentative statement of fit.
 
 The expansion pick is **marked as a stretch in words** — not as a badge, not as a category name,
@@ -430,12 +430,12 @@ surprised.
 ### 7.4 What Tonight can and cannot know about absence
 
 Tonight stores, per Movie: title, year, an optional IMDb id that is **never looked up**, one
-state, and Mix membership, plus timestamps. From that, and only that, the following is
+state, and Vibe membership, plus timestamps. From that, and only that, the following is
 **deterministic**:
 
 - the distribution of **release years** — decades present, decades absent, the span;
 - counts and the distribution of **states**;
-- **Mix membership**, including films in none;
+- **Vibe membership**, including films in none;
 - when each record was written or last changed.
 
 The following is **not stored and therefore not computable**: runtime, language, country, form
@@ -459,16 +459,16 @@ function of both kinds of evidence, and a declaration on its own is already enou
 | What the model contains | Lead with | Reach of the expansion |
 | --- | --- | --- |
 | **Nothing** | an excellent, broadly reachable film, plus **one** good question about films | none — *"you are ready for this"* about a stranger has nothing behind it |
-| **Declarations only** — Genres and Mixes, few or no states | **the declaration, in their own words**; it is current, explicit and theirs | one room over, anchored in what the declaration says, phrased as a reading of it that they can correct |
+| **Declarations only** — Genres and Vibes, few or no states | **the declaration, in their own words**; it is current, explicit and theirs | one room over, anchored in what the declaration says, phrased as a reading of it that they can correct |
 | **Declarations plus states** | the declaration, sharpened by which films under it landed | further, because the anchor is now a film they actually loved rather than a sentence you are interpreting |
 | **States that disagree with the declaration** | the evidence, and say that it diverges (§7.6) | this is the most informative state the model can be in |
 
 ### 7.6 The loved outlier
 
 The most interesting object in any taste model is **a `loved` film that does not fit the
-instruction of the Mix it sits in.** That is a taste and its own description drifting apart, with
+instruction of the Vibe it sits in.** That is a taste and its own description drifting apart, with
 evidence attached. It is the best available answer to *"where is this person going?"*, and it is
-the natural moment to offer a Mix a new wording (§8.4, and Phase 6) — offer, never perform.
+the natural moment to offer a Vibe a new wording (§8.4, and Phase 6) — offer, never perform.
 
 ---
 
@@ -514,7 +514,7 @@ Across sessions, three instruments do the work instead, and all three are things
 says:
 
 - A film they actually watched carries a **state**, and is therefore out of "offer as new".
-- An evening that keeps coming back is a **Mix**, and proposing one is already in the skill.
+- An evening that keeps coming back is a **Vibe**, and proposing one is already in the skill.
 - A set varies **within itself**: no two by one director, not all one decade, not all one
   register.
 
@@ -530,7 +530,7 @@ like everything else. That is a schema change and a separate decision; §11 list
 
 | Layer | Owns | Must not own |
 | --- | --- | --- |
-| **Deterministic code** (`lib/taste`, `lib/web`) | the join Mix → films → states; the release-year distribution (§7.4); the instruction sync and its budget guard; the evaluation harness | film knowledge, selection, prose, any judgement about whether a Mix counts |
+| **Deterministic code** (`lib/taste`, `lib/web`) | the join Vibe → films → states; the release-year distribution (§7.4); the instruction sync and its budget guard; the evaluation harness | film knowledge, selection, prose, any judgement about whether a Vibe counts |
 | **MCP tools** (`lib/mcp/server.ts`) | reads and writes over the taste model, and the shape those reads arrive in | a `recommend` tool, candidates, ranking |
 | **Tool descriptions** | **tool-local invariants, persistence preconditions and write mechanics** — what this call requires, what it refuses, what each field means | cross-tool workflow, consent, classification, the recommend/configure boundary |
 | **Skill / project instructions** | the curator's method **and** every rule that spans more than one call: consent, classification, orchestration, the mode boundary | field-level mechanics the tool description already states at the point of use |
@@ -538,7 +538,7 @@ like everything else. That is a schema change and a separate decision; §11 list
 
 The tool-description row is the correction that matters. A tool description is read at the moment
 of one call, by an agent that has already decided to make it. That makes it the right home for
-*"a Mix needs at least one existing Genre"* and the wrong home for *"decide whether this
+*"a Vibe needs at least one existing Genre"* and the wrong home for *"decide whether this
 conversation should be writing anything at all"* — the second has to have been read **before** the
 first tool call, and a description cannot be read before the call it describes.
 
@@ -585,14 +585,14 @@ that estimate was roughly double what is actually available:
 
 | Candidate | Verdict | Characters |
 | --- | --- | ---: |
-| The Mix naming tests (*"if I knew only its Genres…"*) | tool-local to `create_mix`, and **already in its description** | ≈200 |
-| *"A Genre always needs an instruction… a Mix needs at least one existing Genre"* | tool-local invariants, already in both descriptions | ≈130 |
-| *"Write every Genre and Mix instruction in the user's first person"* | tool-local to the four write tools | ≈65 |
+| The Vibe naming tests (*"if I knew only its Genres…"*) | tool-local to `create_vibe`, and **already in its description** | ≈200 |
+| *"A Genre always needs an instruction… a Vibe needs at least one existing Genre"* | tool-local invariants, already in both descriptions | ≈130 |
+| *"Write every Genre and Vibe instruction in the user's first person"* | tool-local to the four write tools | ≈65 |
 | The sentence → state mapping | tool-local to `create_movie` / `update_movie`, if `state`'s own schema description carries it in full | ≈300 |
 | *"Never reword their instruction"*, *"never record a score"* | tool-local to the update tools | ≈100 |
 | Consent, *"never persist what you conclude alone"*, the ask-first rule | **cross-tool — stays** | 0 |
-| The two-requests split, the classification ladder, Mix proposal, *"propose while saving, not while recommending"* | **cross-tool — stays** | 0 |
-| *"A recommendation is not a saved Movie"*, *"a film in no Mix is legitimate"* | **cross-tool — stays** | 0 |
+| The two-requests split, the classification ladder, Vibe proposal, *"propose while saving, not while recommending"* | **cross-tool — stays** | 0 |
+| *"A recommendation is not a saved Movie"*, *"a film in no Vibe is legitimate"* | **cross-tool — stays** | 0 |
 | **Realistic harvest** | | **≈700–800** |
 
 So the method's budget goes from ≈1,730 to ≈2,500, not to ≈3,500. That is enough for Phases 1 and
@@ -681,7 +681,7 @@ and two or three directions ordered by distance. Adopt P3, P4 and P5. Define the
 behaviour (§10.1.1). Carry out the reallocation of §9.3 in the same change.
 
 **User benefit.** The plain question gets an **answer** rather than a list, and the model they
-built — including a Mix written yesterday — starts affecting the answer they get.
+built — including a Vibe written yesterday — starts affecting the answer they get.
 
 **Implementation.** Rewrite `## Recommending` in `SKILL.md`. Move only the tool-local rules named
 in §9.3 into the `create_*` / `update_*` descriptions. Regenerate the project instructions.
@@ -717,9 +717,9 @@ personal claims. This supersedes the current skill rule, which stops in both cas
 **Acceptance criteria for Phase 1**
 
 1. A plain request produces exactly one lead, named as such, plus two or three directions.
-2. A Mix created with no Movie states under it demonstrably shapes the answer, and the language
+2. A Vibe created with no Movie states under it demonstrably shapes the answer, and the language
    about *fit* is more tentative than the language about *intent*.
-3. An exclusion inside a Mix instruction binds a taste-explicit request and does **not** bind an
+3. An exclusion inside a Vibe instruction binds a taste-explicit request and does **not** bind an
    unrelated plain request.
 4. No film carrying a state is presented as new.
 5. Every expansion carries a positive anchor naming something they like (P10).
@@ -768,9 +768,9 @@ prevent and §10.7 tests for. Boldness against an empty model (§7.5, first row)
 
 ### Phase 4 — Evidence out of `get_taste`
 
-**Objective.** Return the Mix → films → states join already performed, and the release-year
+**Objective.** Return the Vibe → films → states join already performed, and the release-year
 distribution of §7.4. **No trustworthy-versus-aspirational classification**: the response reports
-what is there and never grades a Mix.
+what is there and never grades a Vibe.
 
 **User benefit.** Recommendations get better as the model grows rather than harder to read. Today
 a large model arrives as an alphabetical list with the confirmatory evidence scattered through it.
@@ -800,9 +800,9 @@ good thesis too early.
 
 **Dependencies.** Phase 1.
 
-### Phase 6 — Mixes that age with the person
+### Phase 6 — Vibes that age with the person
 
-**Objective.** Surface drift between a Mix's instruction and the states under it; offer a
+**Objective.** Surface drift between a Vibe's instruction and the states under it; offer a
 rewording under the existing consent rule; look for the loved outlier of §7.6.
 
 **User benefit.** The model stops being a snapshot of who they were when they wrote it.
@@ -832,10 +832,10 @@ users will meet.
 | Fixture | Exists to catch |
 | --- | --- |
 | **Empty taste model** | onboarding drift; invented personalization from nothing; §7.5 row 1 |
-| **Newly created Mix, no Movie states** | the P5 regression — a declaration being ignored because nothing under it is loved |
+| **Newly created Vibe, no Movie states** | the P5 regression — a declaration being ignored because nothing under it is loved |
 | **State-rich model** | whether confirmatory evidence sharpens the answer or merely narrows it |
-| **Contradictory model** — a `disliked` film under a Mix whose instruction it matches | whether conflict is handled as information or averaged away |
-| **A Mix instruction with an explicit exclusion, asked about directly** | the exclusion must bind |
+| **Contradictory model** — a `disliked` film under a Vibe whose instruction it matches | whether conflict is handled as information or averaged away |
+| **A Vibe instruction with an explicit exclusion, asked about directly** | the exclusion must bind |
 | **The same model, asked an unrelated plain question** | the exclusion must **not** become a global filter — the P3 pair, and the single most important test here |
 
 **Criteria**, scored per output
@@ -920,10 +920,10 @@ were tested.
 
 **Adopted in full**
 
-1. **Mix evidence had two incompatible meanings.** The first draft said Mixes are the strongest
-   evidence and then, in its own worked example and in Phase 4, dismissed a Mix with no `loved`
+1. **Vibe evidence had two incompatible meanings.** The first draft said Vibes are the strongest
+   evidence and then, in its own worked example and in Phase 4, dismissed a Vibe with no `loved`
    films as "an intention rather than evidence". That contradiction would have broken the
-   product's loop at its most important moment: the Mix written in last night's conversation is
+   product's loop at its most important moment: the Vibe written in last night's conversation is
    exactly the one tonight's recommendation should use. Resolved by P5's declarative/confirmatory
    split; the deterministic trustworthy-versus-aspirational classification is removed from §7.5,
    §9.1, Phase 4 and the worked example, which is now built to demonstrate the corrected rule.

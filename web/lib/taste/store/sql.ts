@@ -6,8 +6,8 @@ import {
   byTitle,
   checkImdbId,
   checkInstruction,
-  checkMixGenres,
-  checkMovieMixes,
+  checkVibeGenres,
+  checkMovieVibes,
   checkMovieTitle,
   checkName,
   checkViewing,
@@ -15,29 +15,29 @@ import {
   genreExists,
   genreInUse,
   genreNotFound,
-  mixExists,
-  mixBusy,
-  mixGenreMissing,
-  mixNotFound,
+  vibeExists,
+  vibeBusy,
+  vibeGenreMissing,
+  vibeNotFound,
   movieExists,
   movieImdbTaken,
-  movieMixMissing,
+  movieVibeMissing,
   movieNotFound,
   normalise,
   nothingToUpdate,
   orderGenre,
   orderHandle,
-  orderMix,
+  orderVibe,
   orderMovie,
   TasteError,
   type Genre,
-  type Mix,
+  type Vibe,
   type Movie,
   type Viewing,
   type MovieHandle,
   type Written,
 } from "../model.ts";
-import type { MixDraft, GenreDraft, TasteStore } from "../store.ts";
+import type { VibeDraft, GenreDraft, TasteStore } from "../store.ts";
 import { TASTE_SCHEMA } from "./schema.ts";
 
 export { TASTE_SCHEMA };
@@ -53,16 +53,26 @@ export { TASTE_SCHEMA };
  * Anything that changes more than one row runs in a transaction, and the ones
  * that matter lean on the schema instead of doing the work themselves: renaming
  * a genre is one `UPDATE` that writes one row and no references at all, and
- * deleting one is a `DELETE` that the database refuses while a mix still needs
+ * deleting one is a `DELETE` that the database refuses while a vibe still needs
  * it. See `schema.ts` for the two identities that make that possible.
+ *
+ * ## This file speaks both words
+ *
+ * A Vibe is stored in `tonight_mixes`, and its memberships in
+ * `tonight_mix_genres` and `tonight_mix_movies`. The tables were named before
+ * the product renamed the concept and deliberately kept their names — see the
+ * note at the head of `schema.ts` for why. So the SQL below says `mix` and
+ * everything it returns says vibe, and this is the one place in the repository
+ * where both are correct at once. A `mix` reaching a type, a tool, a payload or
+ * a page from here is a leak, not a translation.
  *
  * ## Ids live here and go no further
  *
- * A genre and a mix each have a uuid, and it is the thing every reference and
+ * A genre and a vibe each have a uuid, and it is the thing every reference and
  * every mutation is addressed by. It is also invisible above this file: the
- * public `Genre` and `Mix` carry a name and no id, `TasteStore` takes names, and
+ * public `Genre` and `Vibe` carry a name and no id, `TasteStore` takes names, and
  * the MCP tools and the website speak names. The private rows below carry both,
- * and `orderGenre`/`orderMix` rebuild the public shape field by field — so an id
+ * and `orderGenre`/`orderVibe` rebuild the public shape field by field — so an id
  * cannot reach a caller by being forgotten about, only by somebody adding it on
  * purpose.
  *
@@ -76,8 +86,8 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
     async taste() {
       return driver.transaction(async (tx) => {
         // Three statements, one snapshot. Postgres' default READ COMMITTED takes a
-        // fresh snapshot per statement, so a mix written between the genre read and
-        // the mix read would come back naming a genre this answer does not contain
+        // fresh snapshot per statement, so a vibe written between the genre read and
+        // the vibe read would come back naming a genre this answer does not contain
         // — a state the store is never actually in, reported as though it were.
         // REPEATABLE READ fixes the snapshot for the whole transaction. It is safe
         // to ask for here and nowhere else: this transaction only reads, so it can
@@ -88,7 +98,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           // keeps the stored uuid out of the answer; the stamps are then put back
           // on deliberately, by the one function that may add them.
           genres: (await readGenres(tx, owner)).map((row) => written(orderGenre(row), row)),
-          mixes: await readMixes(tx, owner),
+          vibes: await readVibes(tx, owner),
           movies: await readMovies(tx, owner),
         };
       });
@@ -145,7 +155,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         });
 
         // One statement, one row. The reference table holds this genre's id and
-        // not its name, so a rename is invisible to every mix built from it —
+        // not its name, so a rename is invisible to every vibe built from it —
         // there is no cascade to run and nothing that could be caught halfway.
         let changed;
         try {
@@ -171,14 +181,14 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         const { source: entry } = await lockGenre(tx, owner, name);
         if (!entry) throw genreNotFound(name);
 
-        // Asked before deleting so the refusal can name the mixes that are in the
+        // Asked before deleting so the refusal can name the vibes that are in the
         // way — "cannot delete Sci-Fi: Space Tension is built from it" is
         // actionable, and a foreign-key error is not. The answer stays current
         // because the row is held: writing a reference to a genre takes a lock on
-        // that genre, which this one already has, so no mix can start depending on
+        // that genre, which this one already has, so no vibe can start depending on
         // it between the question and the delete.
-        const blocking = await tx.query<{ mix: string }>(
-          `SELECT DISTINCT m.name AS mix
+        const blocking = await tx.query<{ vibe: string }>(
+          `SELECT DISTINCT m.name AS vibe
              FROM tonight_mix_genres AS r
              JOIN tonight_mixes AS m ON m.user_id = r.user_id AND m.id = r.mix_id
             WHERE r.user_id = $1 AND r.genre_id = $2
@@ -186,7 +196,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           [owner, entry.id],
         );
         if (blocking.length) {
-          throw genreInUse(entry.name, blocking.map((row) => row.mix));
+          throw genreInUse(entry.name, blocking.map((row) => row.vibe));
         }
 
         const removed = await tx.query(
@@ -198,13 +208,13 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
       });
     },
 
-    async createMix(draft) {
+    async createVibe(draft) {
       return driver.transaction(async (tx) => {
         const genres = await readGenres(tx, owner);
-        const { mix: entry, references } = await validateMix(tx, draft, genres);
+        const { vibe: entry, references } = await validateVibe(tx, draft, genres);
         await holdGenres(tx, owner, references, genres);
 
-        // The id Postgres generated for this mix, taken from the statement that
+        // The id Postgres generated for this vibe, taken from the statement that
         // made it. There is no second read to go stale, and nothing above this
         // line ever sees the value.
         let created;
@@ -215,26 +225,26 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
             [owner, entry.name, entry.instruction],
           );
         } catch (error) {
-          if (isSqlState(error, UNIQUE_VIOLATION)) throw mixExists(entry.name);
+          if (isSqlState(error, UNIQUE_VIOLATION)) throw vibeExists(entry.name);
           throw error;
         }
 
-        await writeMixGenres(tx, owner, created[0]!.id, references);
+        await writeVibeGenres(tx, owner, created[0]!.id, references);
         return entry;
       });
     },
 
-    async updateMix(name, changes) {
+    async updateVibe(name, changes) {
       if (Object.values(changes).every((value) => value === undefined)) {
-        throw nothingToUpdate("mix");
+        throw nothingToUpdate("vibe");
       }
 
       return driver.transaction(async (tx) => {
-        const renamingTo = changes.name === undefined ? undefined : checkName(changes.name, "mix");
+        const renamingTo = changes.name === undefined ? undefined : checkName(changes.name, "vibe");
 
-        const { source: current, destination } = await lockMix(tx, owner, name, renamingTo);
-        if (!current) throw mixNotFound(name);
-        if (destination && destination.name !== current.name) throw mixExists(destination.name);
+        const { source: current, destination } = await lockVibe(tx, owner, name, renamingTo);
+        if (!current) throw vibeNotFound(name);
+        if (destination && destination.name !== current.name) throw vibeExists(destination.name);
 
         const core = {
           name: renamingTo === undefined ? current.name : renamingTo,
@@ -246,8 +256,8 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
          * Only a caller who named genres is changing them.
          *
          * Omitting the field means "leave the references alone", and leaving them
-         * alone now means exactly that: the rows hold this mix's id and each
-         * genre's id, and none of those can change under an update to the mix
+         * alone now means exactly that: the rows hold this vibe's id and each
+         * genre's id, and none of those can change under an update to the vibe
          * itself. The earlier version rebuilt the list from the names it had just
          * read, which was wrong twice over — it rewrote rows that were already
          * correct, and a genre renamed by another transaction in between made the
@@ -255,19 +265,19 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
          * caller had not touched and that was still perfectly valid.
          */
         let references: Reference[] | undefined;
-        let entry: Mix;
+        let entry: Vibe;
         if (changes.genres === undefined) {
-          entry = orderMix({
-            ...validateMixCore(core),
+          entry = orderVibe({
+            ...validateVibeCore(core),
             genres: current.genres,
             movies: current.movies,
           });
         } else {
           const genres = await readGenres(tx, owner);
-          const validated = await validateMix(tx, { ...core, genres: changes.genres }, genres);
-          // Changing which genres a mix is built from does not change which movies
+          const validated = await validateVibe(tx, { ...core, genres: changes.genres }, genres);
+          // Changing which genres a vibe is built from does not change which movies
           // are filed under it, so the answer keeps the ones it had.
-          entry = orderMix({ ...validated.mix, movies: current.movies });
+          entry = orderVibe({ ...validated.vibe, movies: current.movies });
           references = validated.references;
           await holdGenres(tx, owner, references, genres);
         }
@@ -281,35 +291,35 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
             [owner, current.id, entry.name, entry.instruction],
           );
         } catch (error) {
-          if (isSqlState(error, UNIQUE_VIOLATION)) throw mixExists(entry.name);
+          if (isSqlState(error, UNIQUE_VIOLATION)) throw vibeExists(entry.name);
           throw error;
         }
-        if (!changed.length) throw mixNotFound(name);
+        if (!changed.length) throw vibeNotFound(name);
 
-        // Replaced rather than merged: passing `genres` says what the mix is
-        // built from now, and the model refuses an empty list, so a mix can never
-        // be left built from nothing. Addressed by the mix's id, which the rename
+        // Replaced rather than merged: passing `genres` says what the vibe is
+        // built from now, and the model refuses an empty list, so a vibe can never
+        // be left built from nothing. Addressed by the vibe's id, which the rename
         // above did not touch.
         if (references) {
           await tx.query(`DELETE FROM tonight_mix_genres WHERE user_id = $1 AND mix_id = $2`, [
             owner,
             current.id,
           ]);
-          await writeMixGenres(tx, owner, current.id, references);
+          await writeVibeGenres(tx, owner, current.id, references);
         }
         return entry;
       });
     },
 
     /**
-     * Creates a movie, and files it under the mixes it was given.
+     * Creates a movie, and files it under the vibes it was given.
      *
-     * The order matters and is the plan's: validate, resolve the mixes **without
-     * locking**, insert the movie and take its id, *then* lock the mixes and check
-     * each is still the one that was resolved. Movie side before mix side, which
+     * The order matters and is the plan's: validate, resolve the vibes **without
+     * locking**, insert the movie and take its id, *then* lock the vibes and check
+     * each is still the one that was resolved. Movie side before vibe side, which
      * is the rule every path here obeys so the two tables cannot form a cycle.
      *
-     * Inserting before locking is safe because it is all one transaction: a mix
+     * Inserting before locking is safe because it is all one transaction: a vibe
      * that has gone or been replaced refuses the write, and the movie inserted a
      * moment earlier goes with the rollback. There is no orphan to clean up.
      */
@@ -317,11 +327,11 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
       return driver.transaction(async (tx) => {
         const entry = validateMovie(draft);
 
-        const known = await readMixRows(tx, owner);
+        const known = await readVibeRows(tx, owner);
         const filings =
-          draft.mixes === undefined
+          draft.vibes === undefined
             ? []
-            : await resolveMixes(tx, checkMovieMixes(draft.mixes), known);
+            : await resolveVibes(tx, checkMovieVibes(draft.vibes), known);
 
         const created = await orExplain(
           tx,
@@ -336,10 +346,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           () => movieConflict(tx, owner, entry),
         );
 
-        await holdMixes(tx, owner, filings, known);
-        await writeMixMovies(tx, owner, created[0]!.id, filings);
+        await holdVibes(tx, owner, filings, known);
+        await writeVibeMovies(tx, owner, created[0]!.id, filings);
 
-        return orderMovie({ ...entry, mixes: filingNames(filings) });
+        return orderMovie({ ...entry, vibes: filingNames(filings) });
       });
     },
 
@@ -386,21 +396,21 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         });
 
         /**
-         * Only a caller who named mixes is changing the filing.
+         * Only a caller who named vibes is changing the filing.
          *
          * Omitting the field means leave it alone, and here that means literally
-         * nothing: no read of the current names, no resolution, no mix lock, no
-         * delete and no reinsert. The rows hold this movie's id and each mix's,
+         * nothing: no read of the current names, no resolution, no vibe lock, no
+         * delete and no reinsert. The rows hold this movie's id and each vibe's,
          * and a retitle moves neither — so rebuilding them would rewrite rows
          * that are already right, and would fail outright if another transaction
-         * renamed one of those mixes in between. That is the `updateMix` bug,
+         * renamed one of those vibes in between. That is the `updateVibe` bug,
          * and it is not being repeated here.
          */
         let filings: Reference[] | undefined;
-        if (changes.mixes !== undefined) {
-          const known = await readMixRows(tx, owner);
-          filings = await resolveMixes(tx, checkMovieMixes(changes.mixes), known);
-          await holdMixes(tx, owner, filings, known);
+        if (changes.vibes !== undefined) {
+          const known = await readVibeRows(tx, owner);
+          filings = await resolveVibes(tx, checkMovieVibes(changes.vibes), known);
+          await holdVibes(tx, owner, filings, known);
         }
 
         const changed = await orExplain(
@@ -423,12 +433,12 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
             owner,
             current.id,
           ]);
-          await writeMixMovies(tx, owner, current.id, filings);
+          await writeVibeMovies(tx, owner, current.id, filings);
         }
 
         return orderMovie({
           ...entry,
-          mixes: filings ? filingNames(filings) : await filedUnder(tx, owner, current.id),
+          vibes: filings ? filingNames(filings) : await filedUnder(tx, owner, current.id),
         });
       });
     },
@@ -443,7 +453,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
 
         // What it was filed under, read before the rows cascade away, so the
         // answer describes the movie that existed a moment ago.
-        const mixes = await filedUnder(tx, owner, entry.id);
+        const vibes = await filedUnder(tx, owner, entry.id);
 
         const removed = await tx.query(
           `DELETE FROM tonight_movies WHERE user_id = $1 AND id = $2 RETURNING id`,
@@ -451,14 +461,14 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         );
         if (!removed.length) throw movieNotFound(title, year);
 
-        return orderMovie({ ...entry, mixes });
+        return orderMovie({ ...entry, vibes });
       });
     },
 
     /**
-     * Removes a mix, and with it the filing of every movie that was in one.
+     * Removes a vibe, and with it the filing of every movie that was in one.
      *
-     * Which movies get dated is not decided here. Deleting the mix cascades its
+     * Which movies get dated is not decided here. Deleting the vibe cascades its
      * reference rows away and the schema's own trigger writes each movie whose
      * membership actually went — so a movie filed or unfiled a moment earlier is
      * counted correctly without this code having to have seen it.
@@ -466,28 +476,28 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
      * What *is* decided here is the order the locks are taken in, and it is the
      * whole shape of the method:
      *
-     *     resolve the mix                  by name, unlocked, to an id
+     *     resolve the vibe                  by name, unlocked, to an id
      *     read what is filed under it      ids and handles together
      *     hold exactly those movies        canonical order, each id confirmed
-     *     hold the mix                     and confirm it is still that id
+     *     hold the vibe                     and confirm it is still that id
      *     read what is filed again         and confirm the set is the same
      *     delete by the id                 never by the name
      *
      * The rule it exists for is one sentence: **never reach for a movie while
-     * holding the mix.** An `updateMovie` filing a film into this mix holds the
-     * film and waits for the mix; a deletion that held the mix and waited for a
+     * holding the vibe.** An `updateMovie` filing a film into this vibe holds the
+     * film and waits for the vibe; a deletion that held the vibe and waited for a
      * film would close that cycle, and Postgres would break it by aborting one of
-     * them. So every movie this needs is held before the mix is, and if the set
+     * them. So every movie this needs is held before the vibe is, and if the set
      * turns out to have changed the answer is to let go of everything and start
      * again — never to take one more lock from here.
      */
-    async deleteMix(name) {
+    async deleteVibe(name) {
       for (let attempt = 1; ; attempt += 1) {
-        const outcome = await driver.transaction<Mix | typeof AGAIN>(async (tx) => {
+        const outcome = await driver.transaction<Vibe | typeof AGAIN>(async (tx) => {
           // Unlocked, and nothing is decided from it: it says which movies to
-          // hold, and the mix is confirmed by this id under a lock below.
-          const found = await findMix(tx, owner, name);
-          if (!found) throw mixNotFound(name);
+          // hold, and the vibe is confirmed by this id under a lock below.
+          const found = await findVibe(tx, owner, name);
+          if (!found) throw vibeNotFound(name);
 
           // Ids and handles together. The handle is how a movie is locked; the id
           // is how it is recognised, because a handle can be somebody else's by
@@ -495,41 +505,41 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           const filed = await filedMovies(tx, owner, found.id);
           if (!(await holdFiledMovies(tx, owner, filed))) return AGAIN;
 
-          const { source: entry } = await lockMix(tx, owner, name);
+          const { source: entry } = await lockVibe(tx, owner, name);
 
           // Not merely "is it still there". Between the resolve above and this
-          // lock the mix could have been deleted and a new one given the same
-          // name, and that new mix is not the one whose movies are held —
-          // deleting it would remove a mix nobody asked about and date films that
-          // were never in it. The name no longer reaches the mix they meant,
-          // which is what "no mix" says.
-          if (!entry || entry.id !== found.id) throw mixNotFound(name);
+          // lock the vibe could have been deleted and a new one given the same
+          // name, and that new vibe is not the one whose movies are held —
+          // deleting it would remove a vibe nobody asked about and date films that
+          // were never in it. The name no longer reaches the vibe they meant,
+          // which is what "no vibe" says.
+          if (!entry || entry.id !== found.id) throw vibeNotFound(name);
 
           // Nothing can be filed under it from here on: writing a reference row
-          // takes a KEY SHARE on the mix, which this FOR UPDATE excludes. So this
+          // takes a KEY SHARE on the vibe, which this FOR UPDATE excludes. So this
           // read settles the set for good — and if it disagrees with what is held,
           // the difference arrived while the movies were being locked. Starting
           // again is the only move: the alternative is another movie lock from
-          // inside the mix lock, which is the deadlock this method is shaped to
+          // inside the vibe lock, which is the deadlock this method is shaped to
           // avoid.
           if (!same(filed, await filedMovies(tx, owner, found.id))) return AGAIN;
 
           // The genre list goes with it — the reference rows cascade on delete —
-          // and the genres themselves are untouched. Deleting a mix is never
-          // blocked: nothing in this model is built from a mix.
+          // and the genres themselves are untouched. Deleting a vibe is never
+          // blocked: nothing in this model is built from a vibe.
           const removed = await tx.query(
             `DELETE FROM tonight_mixes WHERE user_id = $1 AND id = $2 RETURNING name`,
             [owner, found.id],
           );
-          if (!removed.length) throw mixNotFound(name);
-          return orderMix(entry);
+          if (!removed.length) throw vibeNotFound(name);
+          return orderVibe(entry);
         });
 
         if (outcome !== AGAIN) return outcome;
         // Each attempt lets go of everything first, so a retry is a fresh look
         // rather than a longer hold. What it races with has to commit to win, so
         // a few of these settle anything that is not a caller in a loop.
-        if (attempt === DELETION_ATTEMPTS) throw mixBusy(name);
+        if (attempt === DELETION_ATTEMPTS) throw vibeBusy(name);
       }
     },
   };
@@ -563,14 +573,14 @@ function written<T>(object: T, from: { createdAt: string | null; updatedAt: stri
 }
 
 /**
- * One mix by name, resolved and not held.
+ * One vibe by name, resolved and not held.
  *
  * Folded by Postgres on both sides, like every other name comparison here: the
- * unique index is on `lower(name)`, and nothing else decides what one mix is.
+ * unique index is on `lower(name)`, and nothing else decides what one vibe is.
  * What it gives back is an id, which is the only thing worth carrying — a name
  * can be somebody else's a moment later, an id cannot.
  */
-async function findMix(
+async function findVibe(
   sql: Transaction,
   owner: string,
   name: string,
@@ -586,7 +596,7 @@ async function findMix(
  * How many times a deletion looks again before it gives up.
  *
  * Three, because what it retries on is another transaction having committed a
- * change to the same mix's filing while this one was taking locks. That is a
+ * change to the same vibe's filing while this one was taking locks. That is a
  * race a competing writer has to *win* to cause, not a state to wait out, so a
  * fourth attempt says something is repeatedly beating this one rather than that
  * it needs longer.
@@ -600,22 +610,22 @@ const AGAIN = Symbol("look again");
 type Filed = { id: string; title: string; year: number };
 
 /**
- * The movies filed under one mix — by id, and by the handle each is locked under.
+ * The movies filed under one vibe — by id, and by the handle each is locked under.
  *
- * Addressed by the mix's id, never by its name: this is called before the mix is
- * locked, and a name resolved twice can resolve to two different mixes.
+ * Addressed by the vibe's id, never by its name: this is called before the vibe is
+ * locked, and a name resolved twice can resolve to two different vibes.
  *
  * The title comes back as the canonical name the column holds, which is what the unique
  * index and `lockMovies` use. Nothing about which two spellings are one movie is
  * decided here.
  */
-async function filedMovies(sql: Transaction, owner: string, mixId: string): Promise<Filed[]> {
+async function filedMovies(sql: Transaction, owner: string, vibeId: string): Promise<Filed[]> {
   return sql.query<Filed>(
     `SELECT v.id, v.canonical_title AS title, v.year
        FROM tonight_mix_movies AS r
        JOIN tonight_movies AS v ON v.user_id = r.user_id AND v.id = r.movie_id
       WHERE r.user_id = $1 AND r.mix_id = $2`,
-    [owner, mixId],
+    [owner, vibeId],
   );
 }
 
@@ -669,13 +679,13 @@ async function holdFiledMovies(
 
 /**
  * A row as the store holds it: the public object, plus the identity it is stored
- * under. Never returned — `orderGenre` and `orderMix` are what a caller sees, and
+ * under. Never returned — `orderGenre` and `orderVibe` are what a caller sees, and
  * they rebuild from the public fields.
  */
 type Stored<T> = T & { id: string };
 
 /**
- * A genre a mix is about to be built from: the id the reference row will hold,
+ * A genre a vibe is about to be built from: the id the reference row will hold,
  * and the spelling a caller will be shown.
  *
  * Both halves travel together from the moment a name is resolved, so nothing
@@ -798,21 +808,21 @@ async function lockGenre(
   };
 }
 
-/** The same for a mix, with the genres it is currently built from. */
-async function lockMix(
+/** The same for a vibe, with the genres it is currently built from. */
+async function lockVibe(
   sql: Transaction,
   owner: string,
   name: string,
   renamingTo?: string,
-): Promise<{ source?: Stored<Mix>; destination?: Stored<Mix> }> {
+): Promise<{ source?: Stored<Vibe>; destination?: Stored<Vibe> }> {
   const { source, destination } = await lockNames(sql, "tonight_mixes", owner, name, renamingTo);
-  const empty = (row: NamedRow): Stored<Mix> => ({
-    ...orderMix({ ...row, genres: [], movies: [] }),
+  const empty = (row: NamedRow): Stored<Vibe> => ({
+    ...orderVibe({ ...row, genres: [], movies: [] }),
     id: row.id,
   });
   if (!source) return { destination: destination && empty(destination) };
 
-  // Addressed by the mix's id and joined for the genres' names: the reference
+  // Addressed by the vibe's id and joined for the genres' names: the reference
   // rows hold ids, and what a caller is shown is the spelling each genre is
   // stored under.
   const references = await sql.query<{ genre: string }>(
@@ -823,7 +833,7 @@ async function lockMix(
       ORDER BY r.position`,
     [owner, source.id],
   );
-  // Its movies too, so what a delete or an update answers with is the mix as it
+  // Its movies too, so what a delete or an update answers with is the vibe as it
   // actually stood. Handles, because a title alone does not identify a film.
   const filed = await sql.query<{ title: string; year: number }>(
     `SELECT v.title, v.year
@@ -836,7 +846,7 @@ async function lockMix(
 
   return {
     source: {
-      ...orderMix({
+      ...orderVibe({
         name: source.name,
         instruction: source.instruction,
         genres: references.map((reference) => reference.genre),
@@ -849,18 +859,18 @@ async function lockMix(
 }
 
 /**
- * Holds the genres a mix is about to be built from, and refuses if one has gone.
+ * Holds the genres a vibe is about to be built from, and refuses if one has gone.
  *
  * `FOR KEY SHARE` is the lock writing a reference row would take anyway, taken a
- * moment earlier and by name. Between validating a mix's genres and writing its
+ * moment earlier and by name. Between validating a vibe's genres and writing its
  * reference rows, another request can delete or rename one of them; without this
  * the insert fails on a foreign key and the caller gets a constraint name instead
- * of a sentence. Several mixes may hold the same genre at once — the lock is
+ * of a sentence. Several vibes may hold the same genre at once — the lock is
  * shared — so this serialises nothing that was not already in conflict.
  *
  * One statement per genre, in `inLockOrder`, which is the same order a rename
  * takes its two rows in. A single `= ANY(...)` would leave the sequence to the
- * planner, and that is enough to deadlock against a rename: a mix locking `B`
+ * planner, and that is enough to deadlock against a rename: a vibe locking `B`
  * then waiting for `A` while `A → B` holds `A` and waits for `B` is a cycle, and
  * Postgres breaks it by aborting one of them. Sharing the order removes the
  * cycle — whichever session reaches the first key waits, rather than each holding
@@ -873,7 +883,7 @@ async function lockMix(
  * name. A name is not stable: between resolving one and reaching here another
  * transaction can rename that genre away and rename a second one into the name
  * it left. Matching on the name alone would then hold the wrong row and build
- * the mix out of a genre nobody asked for. Comparing ids costs a column.
+ * the vibe out of a genre nobody asked for. Comparing ids costs a column.
  */
 async function holdGenres(
   sql: Transaction,
@@ -899,7 +909,7 @@ async function holdGenres(
   // the genre they named is not there to build from.
   for (const [index, reference] of wanted.entries()) {
     if (held.get(keys[index]!) !== reference.id) {
-      throw mixGenreMissing(reference.name, known.map((genre) => genre.name));
+      throw vibeGenreMissing(reference.name, known.map((genre) => genre.name));
     }
   }
 }
@@ -992,48 +1002,48 @@ async function lockMovies(
 }
 
 /**
- * Matches the mix names a movie was filed under against the mixes that exist.
+ * Matches the vibe names a movie was filed under against the vibes that exist.
  *
  * The twin of `resolveGenres`: both sides folded by the database in one round
  * trip, duplicates collapsed on the database's key rather than the caller's
  * spelling, and what comes back is the **stored** name with the id beside it.
  */
-async function resolveMixes(
+async function resolveVibes(
   sql: Transaction,
   wanted: readonly string[],
-  mixes: readonly Reference[],
+  vibes: readonly Reference[],
 ): Promise<Reference[]> {
   if (!wanted.length) return [];
 
-  const keys = await fold(sql, [...wanted, ...mixes.map((mix) => mix.name)]);
-  const existing = new Map(keys.slice(wanted.length).map((key, index) => [key, mixes[index]!]));
+  const keys = await fold(sql, [...wanted, ...vibes.map((vibe) => vibe.name)]);
+  const existing = new Map(keys.slice(wanted.length).map((key, index) => [key, vibes[index]!]));
 
   const resolved: Reference[] = [];
   const taken = new Set<string>();
   for (const [index, name] of wanted.entries()) {
     const key = keys[index]!;
-    const mix = existing.get(key);
-    if (!mix) throw movieMixMissing(name, mixes.map((one) => one.name));
+    const vibe = existing.get(key);
+    if (!vibe) throw movieVibeMissing(name, vibes.map((one) => one.name));
     if (taken.has(key)) continue;
     taken.add(key);
-    resolved.push({ id: mix.id, name: mix.name });
+    resolved.push({ id: vibe.id, name: vibe.name });
   }
   return resolved;
 }
 
 /**
- * Holds the mixes a movie is about to be filed under, and refuses if one has gone.
+ * Holds the vibes a movie is about to be filed under, and refuses if one has gone.
  *
- * `FOR KEY SHARE` in `inLockOrder`, which is deliberately the **same** order a mix
- * rename takes its rows in — a filing that locked mixes in a different sequence
+ * `FOR KEY SHARE` in `inLockOrder`, which is deliberately the **same** order a vibe
+ * rename takes its rows in — a filing that locked vibes in a different sequence
  * would form exactly the cycle `holdGenres` was written to avoid.
  *
- * It compares ids, not only names. Between resolving a mix and reaching here
- * another transaction can rename that mix away and rename a second one into the
- * name it left; matching on the name alone would then file the movie under a mix
+ * It compares ids, not only names. Between resolving a vibe and reaching here
+ * another transaction can rename that vibe away and rename a second one into the
+ * name it left; matching on the name alone would then file the movie under a vibe
  * nobody asked for.
  */
-async function holdMixes(
+async function holdVibes(
   sql: Transaction,
   owner: string,
   wanted: readonly Reference[],
@@ -1055,7 +1065,7 @@ async function holdMixes(
 
   for (const [index, reference] of wanted.entries()) {
     if (held.get(keys[index]!) !== reference.id) {
-      throw movieMixMissing(reference.name, known.map((mix) => mix.name));
+      throw movieVibeMissing(reference.name, known.map((vibe) => vibe.name));
     }
   }
 }
@@ -1084,13 +1094,13 @@ async function readGenres(sql: Transaction, owner: string): Promise<Stored<Writt
 }
 
 /**
- * Every mix this user has, with its genre list filled in.
+ * Every vibe this user has, with its genre list filled in.
  *
- * Two queries rather than a join, because a join would repeat each mix once per
+ * Two queries rather than a join, because a join would repeat each vibe once per
  * genre and the assembly is clearer than the de-duplication. Both are scoped by
  * `user_id`, which is the only scoping there is.
  */
-async function readMixes(sql: Transaction, owner: string): Promise<Written<Mix>[]> {
+async function readVibes(sql: Transaction, owner: string): Promise<Written<Vibe>[]> {
   const rows = await sql.query<{
     id: string;
     name: string;
@@ -1101,7 +1111,7 @@ async function readMixes(sql: Transaction, owner: string): Promise<Written<Mix>[
     `SELECT id, name, instruction, ${WRITTEN_AT} FROM tonight_mixes WHERE user_id = $1`,
     [owner],
   );
-  // Grouped by the mix's id and joined for each genre's stored spelling. The ids
+  // Grouped by the vibe's id and joined for each genre's stored spelling. The ids
   // never leave this function; what is assembled from them is names.
   const references = await sql.query<{ mix_id: string; genre: string }>(
     `SELECT r.mix_id, g.name AS genre
@@ -1112,7 +1122,7 @@ async function readMixes(sql: Transaction, owner: string): Promise<Written<Mix>[
     [owner],
   );
 
-  // The movies filed under each mix, as handles. A title alone could not tell one
+  // The movies filed under each vibe, as handles. A title alone could not tell one
   // Dune from the other, which is the whole reason the handle is a pair.
   const filed = await sql.query<{ mix_id: string; title: string; year: number }>(
     `SELECT r.mix_id, v.title, v.year
@@ -1123,7 +1133,7 @@ async function readMixes(sql: Transaction, owner: string): Promise<Written<Mix>[
     [owner],
   );
 
-  const mixes = rows.map((row) => ({
+  const vibes = rows.map((row) => ({
     id: row.id,
     name: row.name,
     instruction: row.instruction,
@@ -1132,17 +1142,17 @@ async function readMixes(sql: Transaction, owner: string): Promise<Written<Mix>[
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
-  const byId = new Map(mixes.map((mix) => [mix.id, mix]));
+  const byId = new Map(vibes.map((vibe) => [vibe.id, vibe]));
   for (const row of references) byId.get(row.mix_id)?.genres.push(row.genre);
   for (const row of filed) {
     byId.get(row.mix_id)?.movies.push(orderHandle({ title: row.title, year: row.year }));
   }
 
-  return byName(mixes).map((mix) => written(orderMix(mix), mix));
+  return byName(vibes).map((vibe) => written(orderVibe(vibe), vibe));
 }
 
-/** Every mix this user has, as `{id, name}` — enough to resolve a filing against. */
-async function readMixRows(sql: Transaction, owner: string): Promise<Reference[]> {
+/** Every vibe this user has, as `{id, name}` — enough to resolve a filing against. */
+async function readVibeRows(sql: Transaction, owner: string): Promise<Reference[]> {
   const rows = await sql.query<{ id: string; name: string }>(
     `SELECT id, name FROM tonight_mixes WHERE user_id = $1`,
     [owner],
@@ -1151,10 +1161,10 @@ async function readMixRows(sql: Transaction, owner: string): Promise<Reference[]
 }
 
 /**
- * Every movie this user has, with the mixes each is filed under.
+ * Every movie this user has, with the vibes each is filed under.
  *
- * The canonical list: a movie appears here exactly once however many mixes name
- * it, so its state has one home and two copies cannot disagree. A movie in no mix
+ * The canonical list: a movie appears here exactly once however many vibes name
+ * it, so its state has one home and two copies cannot disagree. A movie in no vibe
  * is here too, which is what keeps it reachable at all.
  */
 async function readMovies(sql: Transaction, owner: string): Promise<Written<Movie>[]> {
@@ -1172,8 +1182,8 @@ async function readMovies(sql: Transaction, owner: string): Promise<Written<Movi
     [owner],
   );
 
-  const filed = await sql.query<{ movie_id: string; mix: string }>(
-    `SELECT r.movie_id, m.name AS mix
+  const filed = await sql.query<{ movie_id: string; vibe: string }>(
+    `SELECT r.movie_id, m.name AS vibe
        FROM tonight_mix_movies AS r
        JOIN tonight_mixes AS m ON m.user_id = r.user_id AND m.id = r.mix_id
       WHERE r.user_id = $1
@@ -1187,12 +1197,12 @@ async function readMovies(sql: Transaction, owner: string): Promise<Written<Movi
     year: row.year,
     imdbId: row.imdb_id,
     viewing: row.viewing,
-    mixes: [] as string[],
+    vibes: [] as string[],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
   const byId = new Map(movies.map((movie) => [movie.id, movie]));
-  for (const row of filed) byId.get(row.movie_id)?.mixes.push(row.mix);
+  for (const row of filed) byId.get(row.movie_id)?.vibes.push(row.vibe);
 
   return byTitle(movies).map((movie) => written(orderMovie(movie), movie));
 }
@@ -1213,7 +1223,7 @@ function validateMovie(draft: {
   year: unknown;
   imdbId?: unknown;
   viewing?: unknown;
-}): Omit<Movie, "mixes"> {
+}): Omit<Movie, "vibes"> {
   return {
     title: checkMovieTitle(draft.title),
     year: checkYear(draft.year),
@@ -1288,7 +1298,7 @@ async function orExplain<T>(
 async function movieConflict(
   sql: Transaction,
   owner: string,
-  entry: Omit<Movie, "mixes">,
+  entry: Omit<Movie, "vibes">,
   except?: string,
 ): Promise<TasteError> {
   if (entry.imdbId !== null) {
@@ -1303,45 +1313,45 @@ async function movieConflict(
 }
 
 /**
- * The names of the mixes just written, in the order a later read will show them.
+ * The names of the vibes just written, in the order a later read will show them.
  *
  * A caller who files a movie under `["Zulu", "Alpha"]` and then reads the model
  * back would otherwise see the two lists disagree about order for no reason. The
  * database sorts by `lower(name)`; so does this.
  */
-function filingNames(mixes: readonly Reference[]): string[] {
-  return byName([...mixes]).map((mix) => mix.name);
+function filingNames(vibes: readonly Reference[]): string[] {
+  return byName([...vibes]).map((vibe) => vibe.name);
 }
 
-/** The names of the mixes a movie is filed under, in reading order. */
+/** The names of the vibes a movie is filed under, in reading order. */
 async function filedUnder(sql: Transaction, owner: string, movieId: string): Promise<string[]> {
-  const rows = await sql.query<{ mix: string }>(
-    `SELECT m.name AS mix
+  const rows = await sql.query<{ vibe: string }>(
+    `SELECT m.name AS vibe
        FROM tonight_mix_movies AS r
        JOIN tonight_mixes AS m ON m.user_id = r.user_id AND m.id = r.mix_id
       WHERE r.user_id = $1 AND r.movie_id = $2
       ORDER BY lower(m.name)`,
     [owner, movieId],
   );
-  return rows.map((row) => row.mix);
+  return rows.map((row) => row.vibe);
 }
 
 /**
  * Writes a movie's filing rows, by id on both sides.
  *
- * No position column and none needed: a mix's genres are a composition the user
+ * No position column and none needed: a vibe's genres are a composition the user
  * authored in an order, its movies are a set. They come back sorted by title.
  */
-async function writeMixMovies(
+async function writeVibeMovies(
   sql: Transaction,
   owner: string,
   movieId: string,
-  mixes: readonly Reference[],
+  vibes: readonly Reference[],
 ): Promise<void> {
-  for (const mix of mixes) {
+  for (const vibe of vibes) {
     await sql.query(
       `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id) VALUES ($1, $2, $3)`,
-      [owner, mix.id, movieId],
+      [owner, vibe.id, movieId],
     );
   }
 }
@@ -1368,25 +1378,25 @@ function validateGenre(draft: GenreDraft): Genre {
 }
 
 /**
- * Validates a complete mix against the genres this user actually has.
+ * Validates a complete vibe against the genres this user actually has.
  *
  * The rules that need only the value live in `model.ts`; the one here is the one
  * that needs to know what else exists — that every named genre is a genre of
- * theirs. A name that is not is refused rather than dropped, because a mix
- * quietly built from fewer genres than the user asked for is a mix that means
+ * theirs. A name that is not is refused rather than dropped, because a vibe
+ * quietly built from fewer genres than the user asked for is a vibe that means
  * something other than what they said.
  */
-async function validateMix(
+async function validateVibe(
   sql: Transaction,
-  draft: MixDraft,
+  draft: VibeDraft,
   genres: readonly Stored<Genre>[],
-): Promise<{ mix: Mix; references: Reference[] }> {
-  const references = await resolveGenres(sql, checkMixGenres(draft.genres), genres);
+): Promise<{ vibe: Vibe; references: Reference[] }> {
+  const references = await resolveGenres(sql, checkVibeGenres(draft.genres), genres);
   return {
-    mix: orderMix({
-      ...validateMixCore(draft),
+    vibe: orderVibe({
+      ...validateVibeCore(draft),
       genres: references.map((one) => one.name),
-      // Creating a mix files no movies, and updating its genres does not change
+      // Creating a vibe files no movies, and updating its genres does not change
       // which are filed under it — the caller supplies the real list.
       movies: [],
     }),
@@ -1395,24 +1405,24 @@ async function validateMix(
 }
 
 /**
- * The parts of a mix that can be judged without knowing what else exists.
+ * The parts of a vibe that can be judged without knowing what else exists.
  *
  * Split out because an update that does not mention genres has nothing to
  * resolve: its references are already correct, and asking about them again is
  * what this fixes.
  */
-function validateMixCore(draft: { name: unknown; instruction: unknown }): {
+function validateVibeCore(draft: { name: unknown; instruction: unknown }): {
   name: string;
   instruction: string;
 } {
   return {
-    name: checkName(draft.name, "mix"),
-    instruction: checkInstruction(draft.instruction, "mix"),
+    name: checkName(draft.name, "vibe"),
+    instruction: checkInstruction(draft.instruction, "vibe"),
   };
 }
 
 /**
- * Matches the genre names a mix was given against the genres that exist.
+ * Matches the genre names a vibe was given against the genres that exist.
  *
  * Both sides are folded by the database, because the database is what decides
  * whether two spellings are one genre: the unique index is on `lower(name)`, so a
@@ -1427,7 +1437,7 @@ function validateMixCore(draft: { name: unknown; instruction: unknown }): {
  *
  * Duplicates collapse on the database's key rather than on the caller's spelling,
  * so asking for `İ` and `i` together is one reference and not two. First mention
- * wins the position: a mix's genres are a set, but the order they were given in
+ * wins the position: a vibe's genres are a set, but the order they were given in
  * is what the page shows.
  */
 async function resolveGenres(
@@ -1445,7 +1455,7 @@ async function resolveGenres(
   for (const [index, name] of wanted.entries()) {
     const key = keys[index]!;
     const genre = existing.get(key);
-    if (!genre) throw mixGenreMissing(name, genres.map((one) => one.name));
+    if (!genre) throw vibeGenreMissing(name, genres.map((one) => one.name));
     if (taken.has(key)) continue;
     taken.add(key);
     resolved.push({ id: genre.id, name: genre.name });
@@ -1454,23 +1464,23 @@ async function resolveGenres(
 }
 
 /**
- * Writes a mix's genre rows, in the order they were given.
+ * Writes a vibe's genre rows, in the order they were given.
  *
- * By id on both sides. The mix's comes from the statement that created or located
+ * By id on both sides. The vibe's comes from the statement that created or located
  * it; each genre's comes from `holdGenres`, which is holding that row. Neither
  * name appears, which is what makes a later rename cost this table nothing.
  */
-async function writeMixGenres(
+async function writeVibeGenres(
   sql: Transaction,
   owner: string,
-  mixId: string,
+  vibeId: string,
   references: readonly Reference[],
 ): Promise<void> {
   for (const [position, reference] of references.entries()) {
     await sql.query(
       `INSERT INTO tonight_mix_genres (user_id, mix_id, genre_id, position)
        VALUES ($1, $2, $3, $4)`,
-      [owner, mixId, reference.id, position],
+      [owner, vibeId, reference.id, position],
     );
   }
 }

@@ -47,7 +47,7 @@ description of itself.
 
 Every fixture here is seeded through the public tools, with nothing reaching past them. There
 used to be one exception — a pending Verdict question, which no tool could open — and it went
-when the questions did: Tonight persists product memory only as Movies, Genres, Mixes, Episodes
+when the questions did: Tonight persists product memory only as Movies, Genres, Vibes, Episodes
 and Verdicts, and all five are reachable from the surface an agent uses.
 
 Two fixtures went with it. `m3-03-pending` was a person with a question waiting against them and

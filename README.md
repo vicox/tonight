@@ -12,7 +12,7 @@ There are four things in it.
 and the instruction is the genre: `Action` means whatever you say Action means. Two people can
 both have a Genre called `Action` and mean opposite things by it.
 
-**Mixes** combine one or more of your Genres into something personal, and carry an instruction
+**Vibes** combine one or more of your Genres into something personal, and carry an instruction
 of their own for what the combination means to you.
 
 ```
@@ -25,7 +25,7 @@ of their own for what the combination means to you.
 together they are its name, so `Dune / 1984` and `Dune / 2021` are two of them — and it may carry
 an IMDb id and a **viewing**: seen, not seen, or nothing said either way, which is not the same
 as not seen. That is the whole of what a Movie says about you, and it is a fact about watching
-rather than an opinion. A Movie may be in no Mix, one, or several, and it is yours in its own
+rather than an opinion. A Movie may be in no Vibe, one, or several, and it is yours in its own
 right either way: nothing is looked up, and no film is here unless you put it there.
 
 **Verdicts** are what you thought. One film, one thing said: `liked`, `loved` or `disliked`, or
@@ -36,19 +36,19 @@ verdict out of what stands — in the scope it was given in, so withdrawing an e
 `not-tonight` leaves a global judgement standing — and forgetting one removes it. Nothing else
 anywhere holds an opinion.
 
-A Mix is not the intersection of its Genres. `Sci-Fi` and `Thriller` are the ingredients; what
+A Vibe is not the intersection of its Genres. `Sci-Fi` and `Thriller` are the ingredients; what
 you meant by putting them together — contained settings, mystery and pressure rather than
-superhero action — is the Mix's own instruction, and nothing derives it for you.
+superhero action — is the Vibe's own instruction, and nothing derives it for you.
 
 Their names work differently too, and this is the distinction the product turns on. **A Genre is
-named for what it is; a Mix for what it feels like.** `Clever thriller` and `Slow burn` are
+named for what it is; a Vibe for what it feels like.** `Clever thriller` and `Slow burn` are
 Genres — plain, reusable, boring on purpose. `Space Tension`, `Popcorn Chaos`, `Small Town
-Secrets` and `Quiet Dread` are Mixes: the name of a shelf in a good video shop rather than a
+Secrets` and `Quiet Dread` are Vibes: the name of a shelf in a good video shop rather than a
 filter you applied.
 
-`Smart, not heavy` is not a Mix name. It is the Genres said again in one line, and the test is
+`Smart, not heavy` is not a Vibe name. It is the Genres said again in one line, and the test is
 one question — *if knowing only the Genres already tells you the name, the name is doing no
-work*. A Mix earns its keep by being something you would ask for again: *"something like Quiet
+work*. A Vibe earns its keep by being something you would ask for again: *"something like Quiet
 Dread, but shorter"* is a sentence people say. Nothing enforces this, because it is a judgement
 rather than a rule; the skill asks for it and the MCP tool descriptions say it again at the
 moment a name is being chosen.
@@ -60,7 +60,7 @@ moment a name is being chosen.
      │
     host agent  (Claude, ChatGPT, any MCP host)
      ├── Tonight skills      how to read, model and recommend from a taste model
-     ├── Tonight MCP         your Genres, Mixes and Movies, and the rules over them
+     ├── Tonight MCP         your Genres, Vibes and Movies, and the rules over them
      └── its own knowledge, and whatever film or search tools it has
 ```
 
@@ -68,12 +68,12 @@ moment a name is being chosen.
 
 Tonight is a store with strong invariants and a small deterministic MCP surface over it. It has
 no model inside it: no LLM client, no prompts, no reasoning. Interpreting "action and sci-fi,
-but nothing too grim" into Genres, suggesting that two Genres would make a good Mix, and
-choosing films for a Mix are all done by the host agent, guided by the skills in
+but nothing too grim" into Genres, suggesting that two Genres would make a good Vibe, and
+choosing films for a Vibe are all done by the host agent, guided by the skills in
 [`skills/`](skills).
 
 It also owns no film catalogue. Tonight holds the films a user told it about — a title, a year,
-an optional IMDb id, whether they said they watched it, and which of their Mixes it is in —
+an optional IMDb id, whether they said they watched it, and which of their Vibes it is in —
 plus, kept separately, whatever they have said about it. Nothing else: no film exists here until
 somebody names one, and nothing about it is
 ever looked up. Catalogues, search, streaming availability and current releases are independent
@@ -98,11 +98,11 @@ want to watch  →  recommend  →  the model grows  →  better context next ti
 
 An empty taste model is the normal first state and is answered with a question about films, not
 with onboarding. What the person says along the way — *"a clever thriller, but nothing too
-bleak"* — becomes the Mix the recommendation was made for and the Genres under it. The model is
+bleak"* — becomes the Vibe the recommendation was made for and the Genres under it. The model is
 the residue of real conversations rather than something anybody fills in first.
 
 The semantic behaviour lives here: the MCP server is persisted state and deterministic
-operations over it, nothing else. The skill is what knows that a Mix is the shape of a
+operations over it, nothing else. The skill is what knows that a Vibe is the shape of a
 recommendation idea, that a good one is called `Popcorn Chaos` rather than `Action Comedy`, and
 — the rule the product rests on — that what may be written down is durable taste the
 user stated, or a meaning they confirmed when the agent asked — never what the agent concluded
@@ -130,28 +130,28 @@ may be terser; it may not mean anything else.
 ## The MCP tools
 
 Twenty, all deterministic, and all of them operations on the five things Tonight persists:
-Movies, Genres, Mixes, Episodes and Verdicts. There is no tool for anything Tonight itself
+Movies, Genres, Vibes, Episodes and Verdicts. There is no tool for anything Tonight itself
 thought — a question it meant to ask, something it noticed, a change it was about to suggest —
 because there is nowhere for such a thing to go. What it thinks while it is talking to somebody
 is the conversation's, and it ends with the conversation. None interprets a sentence, invents a
 Genre or chooses a film. A tool description carries the rules for using that
-tool and nothing else — what a Mix's name has to earn belongs to `create_mix`, which is where it
+tool and nothing else — what a Vibe's name has to earn belongs to `create_vibe`, which is where it
 is read at the moment a name is chosen. Everything true across more than one call is method, and
 method ships in the skill beside the server rather than as a runtime tool.
 
 | Tool | What it does |
 | --- | --- |
 | `get_server_info` | reachable, authenticated, and which opaque user this session is |
-| `get_taste` | what to write from: the Genres, the Mixes, the Movies, and the verdicts that currently stand |
+| `get_taste` | what to write from: the Genres, the Vibes, the Movies, and the verdicts that currently stand |
 | `create_genre` | a Genre, with the instruction that says what it means to this user |
-| `update_genre` | reword or rename. A rename rewrites every Mix built from it |
-| `delete_genre` | refused while a Mix is built from it, and the refusal names the Mixes |
-| `create_mix` | a Mix over one or more existing Genres |
-| `update_mix` | reword, rename, or replace the Genres it is built from |
-| `delete_mix` | always allowed; the Genres it combined are untouched |
+| `update_genre` | reword or rename. A rename rewrites every Vibe built from it |
+| `delete_genre` | refused while a Vibe is built from it, and the refusal names the Vibes |
+| `create_vibe` | a Vibe over one or more existing Genres |
+| `update_vibe` | reword, rename, or replace the Genres it is built from |
+| `delete_vibe` | always allowed; the Genres it combined are untouched |
 | `create_movie` | a film the user named, and whether they said they watched it |
-| `update_movie` | retitle, correct the year, change its viewing, or change which Mixes it is in |
-| `delete_movie` | removes the film they asked to remove; the Mixes it was in are untouched |
+| `update_movie` | retitle, correct the year, change its viewing, or change which Vibes it is in |
+| `delete_movie` | removes the film they asked to remove; the Vibes it was in are untouched |
 | `record_verdict` | what they said about one film: a judgement, or a refusal with its reach |
 | `withdraw_verdict` | they no longer stand by it. The claim stops applying; that they said it stays |
 | `forget_verdict` | one act removed outright, by the reference `get_memory` gave it |
@@ -173,20 +173,20 @@ split: **every object has a private uuid, and a public name the user may change.
 what relationships point at and it never leaves the store; the name is how everything is
 addressed from outside, and there is no id in any tool schema or any answer.
 
-- **Genre and Mix names are unique per user, ignoring case.** `Sci-Fi` and `sci-fi` are one
+- **Genre and Vibe names are unique per user, ignoring case.** `Sci-Fi` and `sci-fi` are one
   Genre; two users may of course both have an `Action`. PostgreSQL's `lower()` decides that, in
   a unique index — never JavaScript, which folds `İ` differently.
-- **Renaming a Genre writes one row and no others.** A Mix holds the Genre's uuid rather than
-  its name, so there is nothing to cascade and no window in which a Mix points at a name that is
+- **Renaming a Genre writes one row and no others.** A Vibe holds the Genre's uuid rather than
+  its name, so there is nothing to cascade and no window in which a Vibe points at a name that is
   gone.
-- **Deleting a Genre a Mix needs is refused.** `ON DELETE RESTRICT`, with a pre-check so the
-  refusal can name the Mixes in the way.
-- **A Mix references Genres only.** The reference row's foreign key points at the Genres table,
-  so a Mix built from another Mix is not expressible.
+- **Deleting a Genre a Vibe needs is refused.** `ON DELETE RESTRICT`, with a pre-check so the
+  refusal can name the Vibes in the way.
+- **A Vibe references Genres only.** The reference row's foreign key points at the Genres table,
+  so a Vibe built from another Vibe is not expressible.
 - **Every relation is keyed `(user_id, id)`.** A uuid being unguessable is a fact about
   collisions, not an authorization rule, so each foreign key carries the tenant with it and one
   user's row cannot reference another's however it is constructed.
-- **A Mix names at least one Genre**, and passing a new list replaces the old one.
+- **A Vibe names at least one Genre**, and passing a new list replaces the old one.
 - **A Genre always needs an instruction**, and the store supplies none. What `Action` means to
   a particular person is the one thing it cannot work out, so a Genre arriving without one is
   refused — the instruction is written from what that person actually said.
@@ -200,7 +200,7 @@ addressed from outside, and there is no id in any tool schema or any answer.
   Movie to put one. Taking a Verdict back removes that act from what stands and reaches exactly
   as far as the act did: no weaker opinion is revealed underneath it in that scope, and a
   withdrawn evening's `not-tonight` leaves a global judgement applying where it was.
-- **Deleting a Movie is always allowed**, and takes only its Mix memberships with it. A Mix is
+- **Deleting a Movie is always allowed**, and takes only its Vibe memberships with it. A Vibe is
   *defined by* its Genres and merely *holds* Movies, which is why one restricts and the other
   cascades.
 
@@ -210,15 +210,15 @@ addressed from outside, and there is no id in any tool schema or any answer.
 and — for whoever is signed in — their own taste model, read and managed through the same store
 the MCP tools use. There is no second surface and no second copy of the rules.
 
-The website shows a Mix-oriented view of the model and edits part of it: Genres and Mixes are
+The website shows a Vibe-oriented view of the model and edits part of it: Genres and Vibes are
 managed there, whether a film has been seen and what the user thought of it can be set there, and
 everything else about a Movie is done through an assistant. It does not recommend, and it has no
 model inside it to recommend with: the panel at the foot of the page names the sentence to take
 to your assistant. It is *a* place to manage the model rather than the only one — an assistant
-asked outright to rename a Genre or delete a Mix uses the same tools and does it there and then.
+asked outright to rename a Genre or delete a Vibe uses the same tools and does it there and then.
 
-The page is organised around Mixes, and a Movie in no Mix is listed under *Other movies* beneath
-them — recording that somebody watched a film makes one, and so does deleting the last Mix it was
+The page is organised around Vibes, and a Movie in no Vibe is listed under *Other movies* beneath
+them — recording that somebody watched a film makes one, and so does deleting the last Vibe it was
 in. `get_taste` returns the same model in one piece: the website is a view of it, not the
 definition of it.
 
@@ -278,10 +278,10 @@ skills/tonight-recommend/test.sh
 - **Recommendations joined to what caused them.** An Episode already records an evening — what
   was asked for, the films put forward, and what the user said they did with one — so what was
   recommended is written down. What is not here is the join: an offered film names no Genre or
-  Mix as its reason. The model is designed for it — the reference would be by uuid, the way every
+  Vibe as its reason. The model is designed for it — the reference would be by uuid, the way every
   relation here does it, so a later rename would cost nothing — but behavioural history must stay
   *evidence for proposing changes* to the explicit model, never a second invisible model that
   outvotes it.
 - **Self-service account deletion.** `/privacy`, `/terms` and `/impressum` are published, and a
-  user can delete their own Genres and Mixes — but removing an account and everything belonging
+  user can delete their own Genres and Vibes — but removing an account and everything belonging
   to it is done by hand on request rather than by a button in the product.

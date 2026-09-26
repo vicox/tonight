@@ -280,7 +280,7 @@ describe("what recommendation work is handed", () => {
     });
     assert.deepEqual(await about(other), [], "a refusal of one film reached another");
     assert.equal((await taste()).movies?.find((m) => m.title === other.title)?.viewing, "seen");
-    // Nothing categorical is derived anywhere: no genre, no mix, no rule.
+    // Nothing categorical is derived anywhere: no genre, no vibe, no rule.
     const model = await taste();
     assert.equal(
       JSON.stringify(model.verdicts).includes("genre") || JSON.stringify(model.verdicts).includes("similar"),
@@ -293,7 +293,7 @@ describe("what recommendation work is handed", () => {
 
   test("a user with nothing said reads exactly as they did before verdicts existed", async () => {
     const model = await taste(toolsFor("google:quiet"));
-    assert.deepEqual(Object.keys(model).sort(), ["genres", "mixes", "movies"]);
+    assert.deepEqual(Object.keys(model).sort(), ["genres", "movies", "vibes"]);
     assert.equal("verdicts" in model, false, "an empty list was handed over where there is nothing to say");
   });
 

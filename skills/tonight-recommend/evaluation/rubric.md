@@ -53,7 +53,7 @@ offered. In every case the question the flag cannot answer is the one you answer
 | AC | Required evidence | Fixtures | Passes when |
 | --- | --- | --- | --- |
 | **1** | One film leads, is **named** as the lead, followed by two or three alternative directions, each introduced by the condition under which it wins | 01, 02, 03, 04, 08 | every such run |
-| **2** | The state-free Mix visibly shapes the answer, and the answer never claims the user is known to like a film, or that one is confirmed or settled for them, while no Movie carries a state. Describing how well a film answers the Mix's own written criteria is allowed, however warmly | 02 | every run |
+| **2** | The state-free Vibe visibly shapes the answer, and the answer never claims the user is known to like a film, or that one is confirmed or settled for them, while no Movie carries a state. Describing how well a film answers the Vibe's own written criteria is allowed, however warmly | 02 | every run |
 | **3a** | Taste evidence informs an **ordinary** request, unasked | 02, 03, 06 | every run |
 | **3b** | The exclusion **binds** in 05, and **does not bind and is not mentioned** in 06 | 05, 06 | every run of both |
 | **4** | No film carrying a state is offered as new | 03, 04 | no run offers one |

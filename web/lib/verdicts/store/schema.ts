@@ -8,7 +8,7 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * model nor history, and separate modules mean any of them can move without
  * renumbering the others.
  *
- * Nothing here references a genre, a mix, a movie row or an episode. A film is
+ * Nothing here references a genre, a vibe, a movie row or an episode. A film is
  * named by title and year as text, exactly as an offer is in the episode schema,
  * because pointing a verdict at a Movie row would make saying *"I loved it"* a
  * way of editing the taste model. This table is the only place an opinion

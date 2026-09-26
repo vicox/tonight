@@ -4,7 +4,7 @@
  * Three objects and two relationships between them:
  *
  *     Genre   a reusable piece of what this person likes, in their own words
- *     Mix     one or more Genres, plus what the combination means to them
+ *     Vibe     one or more Genres, plus what the combination means to them
  *     Movie   a film this person told us about, and whether they watched it
  *
  * A Genre is not a row from a movie database. `Action` here is whatever this
@@ -13,14 +13,14 @@
  * and a long silence. The instruction is the genre; the name is only how it is
  * referred to.
  *
- * A Mix is not an intersection either. `Sci-Fi` and `Thriller` are its
+ * A Vibe is not an intersection either. `Sci-Fi` and `Thriller` are its
  * ingredients, but `Space Tension` is a third thing the user decided about them,
- * and that decision lives in the Mix's own instruction. Nothing here computes a
- * Mix's meaning from its Genres, because a Mix's meaning is not derivable.
+ * and that decision lives in the Vibe's own instruction. Nothing here computes a
+ * Vibe's meaning from its Genres, because a Vibe's meaning is not derivable.
  *
  * Their names say so too, and the difference is a product decision rather than a
- * convention: a Genre is named for what it is — `Clever thriller` — and a Mix for
- * what it feels like — `Space Tension`, `Quiet Dread`. A Mix called
+ * convention: a Genre is named for what it is — `Clever thriller` — and a Vibe for
+ * what it feels like — `Space Tension`, `Quiet Dread`. A Vibe called
  * `Clever thriller, but light` is its own ingredient list read aloud. Nothing in
  * this file enforces that, because it is a judgement and not a rule a string can
  * be checked against; it is stated here because this is where the two objects are
@@ -99,25 +99,25 @@ export type Genre = {
   instruction: string;
 };
 
-/** A mix: named genres, and what the user means by having combined them. */
-export type Mix = {
+/** A vibe: named genres, and what the user means by having combined them. */
+export type Vibe = {
   name: string;
   /** What the combination means. Not derived from the genres, and never empty. */
   instruction: string;
   /**
-   * The genres this mix is built from, in the order they were given.
+   * The genres this vibe is built from, in the order they were given.
    *
-   * Always at least one, always genres this user has, and never another mix:
+   * Always at least one, always genres this user has, and never another vibe:
    * there is no chaining, and the schema cannot express one.
    */
   genres: string[];
   /**
-   * The movies in this mix, as handles.
+   * The movies in this vibe, as handles.
    *
    * Handles rather than names, because a title alone cannot tell `Dune / 1984`
    * from `Dune / 2021`. The films themselves — with what the user said about
    * them — are in `Taste.movies`; this is the list of which ones belong here, and
-   * it is changed from the movie's side with `update_movie`, never from the mix's.
+   * it is changed from the movie's side with `update_movie`, never from the vibe's.
    */
   movies: MovieHandle[];
 };
@@ -168,8 +168,8 @@ export type Movie = {
   imdbId: string | null;
   /** Whether they watched it, or `null` when they have not said. */
   viewing: Viewing | null;
-  /** The mixes it is in, by name. May be empty. */
-  mixes: string[];
+  /** The vibes it is in, by name. May be empty. */
+  vibes: string[];
 };
 
 /**
@@ -177,7 +177,7 @@ export type Movie = {
  *
  * The timestamps are the database's, and they are the only fields here that did
  * not come from the user. That is why they are a wrapper rather than two more
- * fields on `Genre`, `Mix` and `Movie`: those three types are what the user said,
+ * fields on `Genre`, `Vibe` and `Movie`: those three types are what the user said,
  * and every one of them is validated, refused and rewritten from a caller's
  * words. Nothing about `createdAt` is. Keeping the two apart is what makes
  * "a caller cannot supply a timestamp" a shape instead of a rule — there is no
@@ -195,12 +195,12 @@ export type Written<T> = T & {
    * the answer: it is a film saved before Tonight recorded creation times at all.
    * Nobody wrote that moment down, so nothing is put in its place — a value there
    * would be indistinguishable from a real one and wrong. Only Movies can have
-   * it; genres and mixes have been dated since the first schema.
+   * it; genres and vibes have been dated since the first schema.
    */
   createdAt: string | null;
   /**
    * ISO 8601 in UTC. Moved whenever the object changed — its own fields, and the
-   * memberships that are part of what it is: a Mix's genres, a Movie's mixes.
+   * memberships that are part of what it is: a Vibe's genres, a Movie's vibes.
    *
    * Never `null`, because the use of it is comparison, and a reader would have to
    * decide for itself what a missing one meant. For a Movie that predates the
@@ -216,7 +216,7 @@ export type Written<T> = T & {
 /** One user's whole explicit taste model, which is all Tonight knows about them. */
 export type Taste = {
   genres: Written<Genre>[];
-  mixes: Written<Mix>[];
+  vibes: Written<Vibe>[];
   movies: Written<Movie>[];
 };
 
@@ -285,11 +285,11 @@ function text(value: unknown, absent: string, wrong: (kind: string) => string): 
 /**
  * Checks a name, returning it normalised.
  *
- * `what` is the word the message uses — "genre" or "mix" — because the same rule
+ * `what` is the word the message uses — "genre" or "vibe" — because the same rule
  * is being applied to two different things and a complaint that does not say
  * which is being complained about is half a message.
  */
-export function checkName(value: unknown, what: "genre" | "mix"): string {
+export function checkName(value: unknown, what: "genre" | "vibe"): string {
   const name = normalise(
     text(
       value,
@@ -309,12 +309,12 @@ export function checkName(value: unknown, what: "genre" | "mix"): string {
 }
 
 /** Checks an instruction, which neither object may leave empty. */
-export function checkInstruction(value: unknown, what: "genre" | "mix"): string {
+export function checkInstruction(value: unknown, what: "genre" | "vibe"): string {
   const missing =
     what === "genre"
       ? "a genre needs an instruction saying what it means to you — a name on its own " +
         "is a movie-database tag, not a taste"
-      : "a mix needs an instruction saying what the combination means to you — the genres " +
+      : "a vibe needs an instruction saying what the combination means to you — the genres " +
         "are its ingredients, not its meaning";
 
   const instruction = text(
@@ -333,7 +333,7 @@ export function checkInstruction(value: unknown, what: "genre" | "mix"): string 
 }
 
 /**
- * Reads the genre names a mix was given, normalised, deduplicated, in order.
+ * Reads the genre names a vibe was given, normalised, deduplicated, in order.
  *
  * Only the shape is decided here. Whether each name is a genre this user has is
  * the store's question, because it is the only thing that knows.
@@ -344,17 +344,17 @@ export function checkInstruction(value: unknown, what: "genre" | "mix"): string 
  * while resolving them against the rows that exist.
  *
  * An empty entry or an entry that is not text does complain: both mean the caller
- * sent something it did not mean to, and skipping one would build a mix out of
+ * sent something it did not mean to, and skipping one would build a vibe out of
  * fewer genres than they asked for without saying so. An empty list complains too
- * — a mix of nothing is not a mix.
+ * — a vibe of nothing is not a vibe.
  */
-export function checkMixGenres(value: unknown): string[] {
+export function checkVibeGenres(value: unknown): string[] {
   if (!Array.isArray(value)) {
     if (value === undefined || value === null) {
-      throw new TasteError("a mix combines at least one genre — name the genres it is built from");
+      throw new TasteError("a vibe combines at least one genre — name the genres it is built from");
     }
     throw new TasteError(
-      "a mix's genres must be a list of genre names, not " +
+      "a vibe's genres must be a list of genre names, not " +
         (typeof value === "string" ? "a single name" : kindOf(value)),
     );
   }
@@ -364,19 +364,19 @@ export function checkMixGenres(value: unknown): string[] {
     const name = normalise(
       text(
         entry,
-        `a mix's genres must all be names, and entry ${index + 1} is empty`,
-        (kind) => `a mix's genres must all be text, and entry ${index + 1} is ${kind}`,
+        `a vibe's genres must all be names, and entry ${index + 1} is empty`,
+        (kind) => `a vibe's genres must all be text, and entry ${index + 1} is ${kind}`,
       ),
     );
     if (!name) {
-      throw new TasteError(`a mix's genres must all be names, and entry ${index + 1} is empty`);
+      throw new TasteError(`a vibe's genres must all be names, and entry ${index + 1} is empty`);
     }
     wanted.push(name);
   }
 
   if (!wanted.length) {
     throw new TasteError(
-      "a mix combines at least one genre — name the genres it is built from",
+      "a vibe combines at least one genre — name the genres it is built from",
     );
   }
   return wanted;
@@ -516,17 +516,17 @@ export function checkViewing(value: unknown): Viewing | null {
 }
 
 /**
- * Reads the mixes a movie is being put in.
+ * Reads the vibes a movie is being put in.
  *
- * Unlike a mix's genres, an empty list is allowed and means something: a movie
- * belonging to no mix is ordinary, and passing `[]` is how a caller says "take it
- * out of all of them". Shape only — whether each name is a mix this user has is
+ * Unlike a vibe's genres, an empty list is allowed and means something: a movie
+ * belonging to no vibe is ordinary, and passing `[]` is how a caller says "take it
+ * out of all of them". Shape only — whether each name is a vibe this user has is
  * the store's question.
  */
-export function checkMovieMixes(value: unknown): string[] {
+export function checkMovieVibes(value: unknown): string[] {
   if (!Array.isArray(value)) {
     throw new TasteError(
-      "a movie's mixes must be a list of mix names, not " +
+      "a movie's vibes must be a list of vibe names, not " +
         (typeof value === "string" ? "a single name" : kindOf(value)),
     );
   }
@@ -536,12 +536,12 @@ export function checkMovieMixes(value: unknown): string[] {
     const name = normalise(
       text(
         entry,
-        `a movie's mixes must all be names, and entry ${index + 1} is empty`,
-        (kind) => `a movie's mixes must all be text, and entry ${index + 1} is ${kind}`,
+        `a movie's vibes must all be names, and entry ${index + 1} is empty`,
+        (kind) => `a movie's vibes must all be text, and entry ${index + 1} is ${kind}`,
       ),
     );
     if (!name) {
-      throw new TasteError(`a movie's mixes must all be names, and entry ${index + 1} is empty`);
+      throw new TasteError(`a movie's vibes must all be names, and entry ${index + 1} is empty`);
     }
     wanted.push(name);
   }
@@ -555,20 +555,20 @@ export function orderGenre(genre: Genre): Genre {
   return { name: genre.name, instruction: genre.instruction };
 }
 
-/** The same for a mix: name, instruction, its genres, then its movies. */
-export function orderMix(mix: Mix): Mix {
+/** The same for a vibe: name, instruction, its genres, then its movies. */
+export function orderVibe(vibe: Vibe): Vibe {
   return {
-    name: mix.name,
-    instruction: mix.instruction,
-    genres: [...mix.genres],
-    movies: mix.movies.map(orderHandle),
+    name: vibe.name,
+    instruction: vibe.instruction,
+    genres: [...vibe.genres],
+    movies: vibe.movies.map(orderHandle),
   };
 }
 
 /**
  * A movie with its fields in the order the product documents them.
  *
- * Rebuilt field by field, like `orderGenre` and `orderMix`, and for the same
+ * Rebuilt field by field, like `orderGenre` and `orderVibe`, and for the same
  * reason: the store's own row carries a uuid, and building the public object by
  * naming its fields is what stops that uuid reaching a caller by being forgotten
  * about. Adding one would have to be deliberate.
@@ -579,7 +579,7 @@ export function orderMovie(movie: Movie): Movie {
     year: movie.year,
     imdbId: movie.imdbId,
     viewing: movie.viewing,
-    mixes: [...movie.mixes],
+    vibes: [...movie.vibes],
   };
 }
 
@@ -618,22 +618,22 @@ export function genreNotFound(name: string): TasteError {
   return new TasteError(`no genre "${normalise(name)}" (use get_taste to see them)`);
 }
 
-export function mixNotFound(name: string): TasteError {
-  return new TasteError(`no mix "${normalise(name)}" (use get_taste to see them)`);
+export function vibeNotFound(name: string): TasteError {
+  return new TasteError(`no vibe "${normalise(name)}" (use get_taste to see them)`);
 }
 
 /**
- * A mix that kept changing underneath a deletion.
+ * A vibe that kept changing underneath a deletion.
  *
- * Deleting one has to hold every film in it before it holds the mix, so that it
- * never waits for a film while something else waits for the mix. When the list
+ * Deleting one has to hold every film in it before it holds the vibe, so that it
+ * never waits for a film while something else waits for the vibe. When the list
  * changes between those two moments the only safe move is to let go of
- * everything and look again — holding the mix and reaching for a film it has
+ * everything and look again — holding the vibe and reaching for a film it has
  * just gained is the one order this store does not take. A few attempts settle
  * it; this is what is said when they do not, and it is a "try again" rather than
  * a "that is wrong".
  */
-export function mixBusy(name: string): TasteError {
+export function vibeBusy(name: string): TasteError {
   return new TasteError(
     `"${normalise(name)}" was being changed while it was being deleted — try again`,
   );
@@ -645,47 +645,47 @@ export function genreExists(existing: string): TasteError {
   );
 }
 
-export function mixExists(existing: string): TasteError {
+export function vibeExists(existing: string): TasteError {
   return new TasteError(
-    `a mix called "${existing}" already exists — mixes are unique, ignoring case`,
+    `a vibe called "${existing}" already exists — vibes are unique, ignoring case`,
   );
 }
 
 /**
- * A mix naming something that is not one of this user's genres.
+ * A vibe naming something that is not one of this user's genres.
  *
  * The existing genres are listed because the usual cause is a near miss — a
  * plural, a hyphen, a genre the user has not created yet — and the list is the
  * shortest way to say which of those it was.
  */
-export function mixGenreMissing(wanted: string, genres: readonly string[]): TasteError {
+export function vibeGenreMissing(wanted: string, genres: readonly string[]): TasteError {
   return new TasteError(
-    `a mix may only combine genres you have, and "${wanted}" is not one of them — ` +
+    `a vibe may only combine genres you have, and "${wanted}" is not one of them — ` +
       `your genres: ${genres.length ? genres.map((one) => `"${one}"`).join(", ") : "none yet"}. ` +
-      "A mix cannot be built from another mix.",
+      "A vibe cannot be built from another vibe.",
   );
 }
 
-/** A genre a mix still depends on. Named, so the refusal says what to do next. */
-export function genreInUse(genre: string, mixes: readonly string[]): TasteError {
+/** A genre a vibe still depends on. Named, so the refusal says what to do next. */
+export function genreInUse(genre: string, vibes: readonly string[]): TasteError {
   return new TasteError(
-    `cannot delete genre "${genre}": ${mixes.length === 1 ? "the mix" : "the mixes"} ` +
-      `${mixes.map((one) => `"${one}"`).join(", ")} ${mixes.length === 1 ? "is" : "are"} ` +
+    `cannot delete genre "${genre}": ${vibes.length === 1 ? "the vibe" : "the vibes"} ` +
+      `${vibes.map((one) => `"${one}"`).join(", ")} ${vibes.length === 1 ? "is" : "are"} ` +
       "built from it — change or delete it first",
   );
 }
 
-export function nothingToUpdate(what: "genre" | "mix" | "movie"): TasteError {
+export function nothingToUpdate(what: "genre" | "vibe" | "movie"): TasteError {
   switch (what) {
     case "genre":
       return new TasteError("nothing to update: pass a new name or a new instruction");
-    case "mix":
+    case "vibe":
       return new TasteError(
         "nothing to update: pass a new name, a new instruction, or new genres",
       );
     default:
       return new TasteError(
-        "nothing to update: pass a new title or year, an IMDb id, a viewing, or new mixes",
+        "nothing to update: pass a new title or year, an IMDb id, a viewing, or new vibes",
       );
   }
 }
@@ -720,10 +720,10 @@ export function movieImdbTaken(imdbId: string, title: string, year: number): Tas
   );
 }
 
-/** A movie put into something that is not one of this user's mixes. */
-export function movieMixMissing(wanted: string, mixes: readonly string[]): TasteError {
+/** A movie put into something that is not one of this user's vibes. */
+export function movieVibeMissing(wanted: string, vibes: readonly string[]): TasteError {
   return new TasteError(
-    `a movie can only go in mixes you have, and "${wanted}" is not one of them — ` +
-      `your mixes: ${mixes.length ? mixes.map((one) => `"${one}"`).join(", ") : "none yet"}`,
+    `a movie can only go in vibes you have, and "${wanted}" is not one of them — ` +
+      `your vibes: ${vibes.length ? vibes.map((one) => `"${one}"`).join(", ") : "none yet"}`,
   );
 }

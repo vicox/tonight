@@ -281,7 +281,7 @@ export function MovieMark<T>({
           className={[
             "flex size-7 cursor-pointer items-center justify-center rounded-md transition-colors",
             // A wash rather than a named surface: a row is read on the page, on a
-            // mix's card and in the summary's dialog, and `screen` — which the
+            // vibe's card and in the summary's dialog, and `screen` — which the
             // last two are — is a hover nobody can see on two of the three.
             "hover:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2",
             "focus-visible:outline-beam aria-disabled:cursor-default aria-disabled:opacity-60",

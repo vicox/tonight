@@ -100,7 +100,7 @@ describe("the verdict tools", () => {
     );
     assert.match(
       said,
-      /(genre|mix|evening)[^.]*unless they separately ask/iu,
+      /(genre|vibe|evening)[^.]*unless they separately ask/iu,
       "the boundary names only the film, not the other roots",
     );
     // Why the film is left, stated as a consequence of the model rather than as
@@ -140,7 +140,7 @@ describe("the verdict tools", () => {
 
     // (B) And the other typed roots, so this is stated as a general limit on a
     // partial read rather than one exception about Movies.
-    for (const root of ["genre", "mix", "evening"]) {
+    for (const root of ["genre", "vibe", "evening"]) {
       assert.match(
         said,
         new RegExp(`cannot (see|tell)[^.]*\\b${root}`, "iu"),

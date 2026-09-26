@@ -30,7 +30,7 @@ import type { Film, Offer, Step, Trajectory, Viewing } from "./trajectories.ts";
  *
  * ## Why the comparison is a signature and not a count
  *
- * A count passes while two roots swap places, while a mix keeps its name and
+ * A count passes while two roots swap places, while a vibe keeps its name and
  * loses its meaning, while a verdict keeps its film and changes its words. So
  * every gate below compares **complete semantic signatures** as multisets:
  * everything about a root that the script can predict, in one canonical string.
@@ -71,7 +71,7 @@ export type Taste = {
   /** Never present any more. Read so that its return is a failure, not a silence. */
   disagreements?: Record<string, unknown>[];
   genres: Record<string, unknown>[];
-  mixes: Record<string, unknown>[];
+  vibes: Record<string, unknown>[];
   movies: Record<string, unknown>[];
   verdicts?: Record<string, unknown>[];
 };
@@ -94,7 +94,7 @@ export type Stamped = {
  * itself can say whether that is true.
  */
 export type Stores = {
-  taste: { genres: Stamped[]; mixes: Stamped[]; movies: Stamped[] };
+  taste: { genres: Stamped[]; vibes: Stamped[]; movies: Stamped[] };
   acts: unknown;
   episodes: { id: string; recordedAt: string }[];
 };
@@ -201,7 +201,7 @@ export type ExpectedEvening = {
 };
 
 
-export type ExpectedMix = {
+export type ExpectedVibe = {
   name: string;
   genres: string[];
   instruction: string;
@@ -213,12 +213,12 @@ export type ExpectedMovie = {
   film: Film;
   viewing: Viewing | null;
   imdbId: string | null;
-  mixes: string[];
+  vibes: string[];
 };
 
 export type Expected = {
   genres: { name: string; instruction: string }[];
-  mixes: ExpectedMix[];
+  vibes: ExpectedVibe[];
   movies: ExpectedMovie[];
   acts: ExpectedAct[];
   evenings: ExpectedEvening[];
@@ -257,7 +257,7 @@ const stated = (value: unknown): Established => ({ known: true, value, source: "
  */
 export function expected(steps: readonly Step[]): Expected {
   const genres = new Map<string, { name: string; instruction: string }>();
-  const mixes = new Map<string, ExpectedMix>();
+  const vibes = new Map<string, ExpectedVibe>();
   const movies = new Map<string, ExpectedMovie>();
   const evenings: ExpectedEvening[] = [];
   const refusals: number[] = [];
@@ -272,12 +272,12 @@ export function expected(steps: readonly Step[]): Expected {
       case "genre":
         genres.set(step.name, { name: step.name, instruction: step.instruction });
         break;
-      case "mix":
-        mixes.set(step.name, {
+      case "vibe":
+        vibes.set(step.name, {
           name: step.name,
           genres: step.genres,
           instruction: step.instruction,
-          // Filled in below: a mix's films arrive from the films' side, so they
+          // Filled in below: a vibe's films arrive from the films' side, so they
           // are not known until every film in the history has been filed.
           films: [],
         });
@@ -287,7 +287,7 @@ export function expected(steps: readonly Step[]): Expected {
           film: step.film,
           viewing: step.viewing,
           imdbId: step.imdbId ?? null,
-          mixes: step.mixes ?? [],
+          vibes: step.vibes ?? [],
         });
         break;
       case "verdict":
@@ -358,12 +358,12 @@ export function expected(steps: readonly Step[]): Expected {
     }
   });
 
-  // A mix holds the films that named it. Membership is written from the film's
-  // side — `update_movie` takes the mixes, `create_mix` does not take the films
+  // A vibe holds the films that named it. Membership is written from the film's
+  // side — `update_movie` takes the vibes, `create_vibe` does not take the films
   // — so it can only be worked out once every film in the history is filed.
-  for (const mix of mixes.values()) {
-    mix.films = [...movies.values()]
-      .filter((movie) => movie.mixes.includes(mix.name))
+  for (const vibe of vibes.values()) {
+    vibe.films = [...movies.values()]
+      .filter((movie) => movie.vibes.includes(vibe.name))
       .map((movie) => ({ title: asFiled(movie.film.title), year: movie.film.year }));
   }
 
@@ -391,7 +391,7 @@ export function expected(steps: readonly Step[]): Expected {
 
   return {
     genres: [...genres.values()],
-    mixes: [...mixes.values()],
+    vibes: [...vibes.values()],
     movies: [...movies.values()],
     acts: living.map(({ alive, ...act }) => {
       void alive;
@@ -494,7 +494,7 @@ const asSet = (values: readonly unknown[]): string => JSON.stringify([...values]
 /**
  * A list compared as a set, for the two memberships whose order nobody promises.
  *
- * A mix's films and a film's mixes are both read back through a join, and
+ * A vibe's films and a film's vibes are both read back through a join, and
  * neither the product nor the script says which comes first. Everything else in
  * a signature keeps its order — an evening's offers above all, where position is
  * part of what was offered.
@@ -603,7 +603,7 @@ function observedRoot(root: Root): string {
   switch (root.of) {
     case "genre":
       return canon({ ...shared, name: root.name, instruction: root.instruction });
-    case "mix":
+    case "vibe":
       return canon({
         ...shared,
         name: root.name,
@@ -622,7 +622,7 @@ function observedRoot(root: Root): string {
         year: (root.film as Film).year,
         viewing: root.viewing ?? null,
         imdbId: root.imdbId ?? null,
-        mixes: membership(root.mixes),
+        vibes: membership(root.vibes),
       });
     case "verdict": {
       const act = actOf(root);
@@ -661,9 +661,9 @@ function observedRoot(root: Root): string {
 const wantedGenre = (one: { name: string; instruction: string }) =>
   canon({ of: "genre", placement: "held", from: "saved", name: one.name, instruction: one.instruction });
 
-const wantedMix = (one: ExpectedMix) =>
+const wantedVibe = (one: ExpectedVibe) =>
   canon({
-    of: "mix",
+    of: "vibe",
     placement: "held",
     from: "saved",
     name: one.name,
@@ -682,7 +682,7 @@ const wantedMovie = (one: ExpectedMovie) =>
     year: one.film.year,
     viewing: one.viewing,
     imdbId: one.imdbId,
-    mixes: membership(one.mixes),
+    vibes: membership(one.vibes),
   });
 
 const wantedAct = (act: ExpectedAct) =>
@@ -719,7 +719,7 @@ const wantedEvening = (night: ExpectedEvening) =>
 function wantedRoots(want: Expected): string[] {
   return [
     ...want.genres.map(wantedGenre),
-    ...want.mixes.map(wantedMix),
+    ...want.vibes.map(wantedVibe),
     ...want.movies.map(wantedMovie),
     ...want.acts.map(wantedAct),
     ...want.evenings.map(wantedEvening),
@@ -731,7 +731,7 @@ function wantedByPlacement(want: Expected): { held: string[]; remembered: string
   return {
     held: [
       ...want.genres.map(wantedGenre),
-      ...want.mixes.map(wantedMix),
+      ...want.vibes.map(wantedVibe),
       ...want.movies.map(wantedMovie),
       ...want.acts.filter((act) => act.placement === "held").map(wantedAct),
     ],
@@ -791,8 +791,8 @@ function wantedTaste(want: Expected): Record<string, string> {
 
   return {
     genres: asSet(want.genres.map((one) => ({ name: one.name, instruction: one.instruction }))),
-    mixes: asSet(
-      want.mixes.map((one) => ({
+    vibes: asSet(
+      want.vibes.map((one) => ({
         name: one.name,
         instruction: one.instruction,
         genres: one.genres,
@@ -805,7 +805,7 @@ function wantedTaste(want: Expected): Record<string, string> {
         year: one.film.year,
         viewing: one.viewing,
         imdbId: one.imdbId,
-        mixes: membership(one.mixes),
+        vibes: membership(one.vibes),
       })),
     ),
     verdicts: JSON.stringify(
@@ -831,11 +831,11 @@ const CLOCKS = ["createdAt", "updatedAt"] as const;
 function observedTaste(taste: Taste): Record<string, string> {
   return {
     genres: asSet(taste.genres.map((one) => without(one, CLOCKS))),
-    mixes: asSet(
-      taste.mixes.map((one) => ({ ...without(one, CLOCKS), movies: membership(one.movies) })),
+    vibes: asSet(
+      taste.vibes.map((one) => ({ ...without(one, CLOCKS), movies: membership(one.movies) })),
     ),
     movies: asSet(
-      taste.movies.map((one) => ({ ...without(one, CLOCKS), mixes: membership(one.mixes) })),
+      taste.movies.map((one) => ({ ...without(one, CLOCKS), vibes: membership(one.vibes) })),
     ),
     verdicts: JSON.stringify((taste.verdicts ?? []).map((one) => canon(one)).sort()),
     // Read rather than assumed, so a projection reappearing is a difference
@@ -881,7 +881,7 @@ function invented(value: unknown, path: string, found: (where: string) => void):
  * Fidelity: every root the user made is there, once, whole, and nothing else is.
  *
  * A bijection over complete semantic signatures rather than a count, because
- * the failures that matter keep the count: a mix that holds its name and loses
+ * the failures that matter keep the count: a vibe that holds its name and loses
  * its meaning, a verdict that holds its film and changes its words, an evening
  * that holds its request and loses its offers, one root swapped for another of
  * the same kind. Counted per kind as well, because a whole class going missing
@@ -897,7 +897,7 @@ export function fidelity(world: World): Failure[] {
 
     const counted: [string, number, number][] = [
       ["genre", of(all, "genre").length, want.genres.length],
-      ["mix", of(all, "mix").length, want.mixes.length],
+      ["vibe", of(all, "vibe").length, want.vibes.length],
       ["movie", of(all, "movie").length, want.movies.length],
       ["verdict", of(all, "verdict").length, want.acts.length],
       ["evening", of(all, "evening").length, want.evenings.length],
@@ -956,7 +956,7 @@ export function placement(world: World): Failure[] {
     }
     for (const root of seen.memory.remembered) {
       if (root.placement !== "remembered") fail(`a remembered root says it is ${String(root.placement)}`);
-      if (["genre", "mix", "movie"].includes(root.of)) fail(`a saved ${root.of} was demoted to remembered`);
+      if (["genre", "vibe", "movie"].includes(root.of)) fail(`a saved ${root.of} was demoted to remembered`);
     }
 
     failures.push(...fail.failures);
@@ -992,7 +992,7 @@ export function traceability(world: World): Failure[] {
 
     for (const root of all) {
       const basis = root.basis;
-      if (["genre", "mix", "movie"].includes(root.of)) {
+      if (["genre", "vibe", "movie"].includes(root.of)) {
         if (basis.kind !== "saved") fail(`a ${root.of} says it was ${String(basis.kind)}`);
         if (!("savedAt" in basis) || !("changedAt" in basis)) fail(`a ${root.of} lost its stored times`);
         if (typeof basis.changedAt !== "string") fail(`a ${root.of} has no change time`);
@@ -1044,13 +1044,13 @@ export function traceability(world: World): Failure[] {
     const stored = seen.after.taste;
     for (const root of all) {
       const basis = root.basis;
-      if (["genre", "mix", "movie"].includes(root.of)) {
+      if (["genre", "vibe", "movie"].includes(root.of)) {
         const row =
           root.of === "movie"
             ? stored.movies.find(
                 (one) => filmKey({ title: String(one.title), year: Number(one.year) }) === filmKey(root.film as Film),
               )
-            : (root.of === "genre" ? stored.genres : stored.mixes).find((one) => one.name === root.name);
+            : (root.of === "genre" ? stored.genres : stored.vibes).find((one) => one.name === root.name);
         if (!row) {
           fail(`a ${root.of} in the view is not in the taste model at all`);
           continue;
@@ -1322,7 +1322,7 @@ export function forgetting(world: World): Failure[] {
     if (gap) fail(`what is left does not read as it should — ${gap}`);
 
     // The saved film came through **whole**, and whole means whole: identity,
-    // state, IMDb id, mix membership, both stored instants and the handle a
+    // state, IMDb id, vibe membership, both stored instants and the handle a
     // correction reaches it by. Compared as complete roots rather than as
     // signatures, because a signature leaves out exactly the timestamps and the
     // handle a regression here would move. The only thing forgetting an act may
@@ -1411,7 +1411,7 @@ export function correcting(world: World): Failure[] {
  * view and none of them may be in what a recommendation reads.
  *
  * Proved by building the taste model the script says a recommendation should be
- * handed — from the scripted genres, mixes and films, and from the
+ * handed — from the scripted genres, vibes and films, and from the
  * independently determined standing verdicts — and comparing it whole. A key
  * search cannot do this: an evening that changed a saved film leaves no
  * episode-shaped key behind, and a superseded reason copied onto a current
@@ -1426,7 +1426,7 @@ export function isolation(world: World): Failure[] {
 
     const wanted = wantedTaste(want);
     const got = observedTaste(seen.taste);
-    for (const part of ["genres", "mixes", "movies", "verdicts", "disagreements"] as const) {
+    for (const part of ["genres", "vibes", "movies", "verdicts", "disagreements"] as const) {
       if (wanted[part] !== got[part]) {
         fail(`the ${part} a recommendation reads are not the ones the history has: ${got[part]} rather than ${wanted[part]}`);
       }
@@ -1649,7 +1649,7 @@ export function handles(world: World): Failure[] {
   const failures: Failure[] = [];
   const expects: Record<string, string> = {
     genre: "name",
-    mix: "name",
+    vibe: "name",
     movie: "film",
     verdict: "ref",
     evening: "id",
@@ -1673,7 +1673,7 @@ export function handles(world: World): Failure[] {
       // The handle names *this* root, not merely a root.
       switch (root.of) {
         case "genre":
-        case "mix":
+        case "vibe":
           if (root.handle.name !== root.name) {
             fail(`a ${root.of} called ${String(root.name)} is corrected by the name ${String(root.handle.name)}`);
           }
@@ -1811,7 +1811,7 @@ export function wholePicture(world: World): Failure[] {
     (seen.taste.verdicts ?? []).length +
     seen.taste.movies.length +
     seen.taste.genres.length +
-    seen.taste.mixes.length;
+    seen.taste.vibes.length;
   if (taste >= all.length) {
     fail(`the taste model carries ${String(taste)} things and memory ${String(all.length)}; memory is not the broader view`);
   }

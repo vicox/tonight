@@ -547,7 +547,7 @@ test("there is no route from something that happened to something they think", a
   // And the one it may reach brings nothing else with it.
   const identity = readFileSync(new URL("../films/identity.ts", import.meta.url), "utf8");
   assert.equal(/^\s*import /mu.test(identity), false, "the shared film identity reached for something");
-  for (const owned of ["Episode", "episode", "offered", "MovieState", "genre", "mix", "recommend"]) {
+  for (const owned of ["Episode", "episode", "offered", "MovieState", "genre", "vibe", "recommend"]) {
     assert.equal(
       new RegExp(`\\b${owned}`, "u").test(code),
       false,

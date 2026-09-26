@@ -19,8 +19,8 @@ import { filedUnder, type Shown } from "@/lib/web/movie-summary";
  *
  * ## One list, in two places
  *
- * The overview renders it inside a mix, where the mix is the heading above it;
- * the summary tiles open it in a dialog, where the films come from every mix
+ * The overview renders it inside a vibe, where the vibe is the heading above it;
+ * the summary tiles open it in a dialog, where the films come from every vibe
  * there is. That difference is `filed`, and it is the whole difference — the same
  * markup, the same marks and the same keyboard, because a film's row is the same
  * object wherever somebody meets it.
@@ -34,8 +34,8 @@ export function Films({
   /**
    * Whether each row says where its film is filed.
    *
-   * On in the dialog, where a row has no mix above it to say so. Off inside a
-   * mix, where naming it again on every row would repeat the heading twenty
+   * On in the dialog, where a row has no vibe above it to say so. Off inside a
+   * vibe, where naming it again on every row would repeat the heading twenty
    * times.
    */
   filed = false,
@@ -59,7 +59,7 @@ export function Films({
           {/*
             The words, as one thing that gives way: it takes the room the mark
             does not want and wraps inside itself when a long title and three
-            long mix names need two lines. The mark is its sibling rather than
+            long vibe names need two lines. The mark is its sibling rather than
             its last item, which is what keeps it on the right of the row's
             first line instead of being pushed under it — and the reading order
             is unchanged, because the words still come first.
@@ -92,14 +92,14 @@ export function Films({
 }
 
 /**
- * Which mixes a film is in, as secondary information.
+ * Which vibes a film is in, as secondary information.
  *
  * Between the name and the mark, quieter than both: what somebody scanning this
  * list wants is the films and what they said about them, and where each one is
  * filed is the answer to a question they ask about one row in particular.
  *
- * Plain text rather than the uppercase chips the overview gives a mix. A chip is
- * how a mix appears when it is the subject — here it is a footnote to a film, and
+ * Plain text rather than the uppercase chips the overview gives a vibe. A chip is
+ * how a vibe appears when it is the subject — here it is a footnote to a film, and
  * three chips on a row would out-shout the film's own name.
  */
 function Filed({ movie }: { movie: Shown }) {

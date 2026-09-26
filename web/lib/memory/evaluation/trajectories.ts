@@ -46,18 +46,18 @@ export type Which = "first" | "last" | "withdrawal" | "all";
 export type Step =
   /** A genre the user wrote. */
   | { act: "genre"; name: string; instruction: string }
-  /** A mix over genres they already have. */
-  | { act: "mix"; name: string; genres: string[]; instruction: string }
+  /** A vibe over genres they already have. */
+  | { act: "vibe"; name: string; genres: string[]; instruction: string }
   /**
    * A film filed under a Phase-1 state, with whatever else they filed about it.
    *
-   * `imdbId` and `mixes` are the two things a saved film carries beyond its
+   * `imdbId` and `vibes` are the two things a saved film carries beyond its
    * name and its state, and both are here so that a history can hold a film
-   * that is not empty. A film's mixes are set from the film's side, which is
-   * also how a mix comes to have films in it — so one scripted movie with a
-   * mix name in it is what gives that mix a non-empty membership.
+   * that is not empty. A film's vibes are set from the film's side, which is
+   * also how a vibe comes to have films in it — so one scripted movie with a
+   * vibe name in it is what gives that vibe a non-empty membership.
    */
-  | { act: "movie"; film: Film; viewing: Viewing | null; imdbId?: string; mixes?: string[] }
+  | { act: "movie"; film: Film; viewing: Viewing | null; imdbId?: string; vibes?: string[] }
   /** Something they said about a film. */
   | {
       act: "verdict";
@@ -136,11 +136,11 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     steps: [
       { act: "genre", name: "Slow Burn", instruction: "takes its time" },
       { act: "genre", name: "Heist", instruction: "a crew and a plan" },
-      { act: "mix", name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" },
+      { act: "vibe", name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" },
       // One film with everything a film can carry, and one with none of it, so
       // that empty membership and empty identifiers are proved to be empty
       // rather than assumed.
-      { act: "movie", film: heat95, viewing: "seen", imdbId: "tt0113277", mixes: ["Long Nights"] },
+      { act: "movie", film: heat95, viewing: "seen", imdbId: "tt0113277", vibes: ["Long Nights"] },
       { act: "movie", film: zodiac, viewing: "seen" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved", because: "the tension never lets up" },
       { act: "evening", request: "something tense", offered: [offer(heat95, true), offer(zodiac)] },
@@ -337,7 +337,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     steps: [
       { act: "genre", name: "Slow Burn", instruction: "takes its time" },
       { act: "genre", name: "Bleak Procedural", instruction: "hard work, at a cost" },
-      { act: "mix", name: "Quiet Dread", genres: ["Slow Burn", "Bleak Procedural"], instruction: "dread that arrives on foot" },
+      { act: "vibe", name: "Quiet Dread", genres: ["Slow Burn", "Bleak Procedural"], instruction: "dread that arrives on foot" },
       { act: "movie", film: heat95, viewing: "seen" },
       { act: "movie", film: zodiac, viewing: "seen" },
       { act: "movie", film: blackBag, viewing: "seen" },

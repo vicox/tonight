@@ -1,24 +1,24 @@
 /**
- * Deleting a genre or a mix: the request, and what its answer means.
+ * Deleting a genre or a vibe: the request, and what its answer means.
  *
  * The one write the website makes to the taste model itself, and the only part
  * of the confirmation dialog that is not a rendering decision — so it is here,
  * where a test can press the button without a browser. The dialog is then three
  * lines of glue: ask this, show what comes back, and re-render.
  *
- * It decides nothing about the model. Whether a genre a mix is built from may be
+ * It decides nothing about the model. Whether a genre a vibe is built from may be
  * deleted at all is the store's, reached through the same endpoint an assistant
  * uses; what comes back is what this reports.
  */
 
 /** Which endpoint a kind is deleted through. Two words, one decision. */
-const WHERE = { genre: "genres", mix: "mixes" } as const;
+const WHERE = { genre: "genres", vibe: "vibes" } as const;
 
 /**
  * What a delete can leave behind: nothing, or a sentence for the reader.
  *
  * Not an exception, because a refusal is an ordinary answer here — the store
- * declining to remove a genre two mixes are built from is the system working —
+ * declining to remove a genre two vibes are built from is the system working —
  * and a caller has to render it either way.
  */
 export type Removal = { removed: true } | { removed: false; problem: string };
@@ -42,7 +42,7 @@ export function endpoint(kind: keyof typeof WHERE, name: string): string {
 }
 
 /**
- * Asks for one genre or mix to be deleted.
+ * Asks for one genre or vibe to be deleted.
  *
  * `send` is the browser's `fetch` in the page and a stand-in under test, which
  * is the whole reason this is a function and not four statements inside a click

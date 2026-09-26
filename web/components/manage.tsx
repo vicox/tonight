@@ -8,10 +8,10 @@ import { HEADER_CONTROL } from "./way-out";
 import { remove as ask } from "@/lib/web/manage";
 
 /**
- * The one thing you can do to a genre or a mix from the website: delete it.
+ * The one thing you can do to a genre or a vibe from the website: delete it.
  *
  * Tonight is a conversation, and the taste model grows out of one — so the
- * website is a page you read, and naming a genre or composing a mix is said to
+ * website is a page you read, and naming a genre or composing a vibe is said to
  * an assistant rather than typed into a form. Deleting is the exception, and it
  * is the exception for a reason that has nothing to do with convenience: a model
  * you cannot take something out of without asking an assistant to do it for you
@@ -26,7 +26,7 @@ import { remove as ask } from "@/lib/web/manage";
  * ## Two presses, and the second one names what it is destroying
  *
  * A menu behind `…`, and `Delete` in the menu opens a question rather than doing
- * anything. Deleting a mix is the only act on this website that cannot be
+ * anything. Deleting a vibe is the only act on this website that cannot be
  * undone by saying the opposite — the composition is gone, though its films are
  * not — so the last press is one somebody makes on purpose, against a sentence
  * that says the name back to them.
@@ -57,7 +57,7 @@ import { remove as ask } from "@/lib/web/manage";
  * The write itself is `lib/web/manage.ts`, so that pressing the red button is
  * something a test can do without a browser. It goes to the same endpoint and
  * the same store rules an assistant's would, and nothing about deletion is
- * decided here — a genre that a mix is built from is the store's business to
+ * decided here — a genre that a vibe is built from is the store's business to
  * refuse or allow, and this shows whatever it says.
  *
  * On success the page is re-rendered from the store and `onRemoved` closes the
@@ -72,7 +72,7 @@ export function Manage({
   name,
   onRemoved,
 }: {
-  kind: "genre" | "mix";
+  kind: "genre" | "vibe";
   /** The name as the store holds it: what is shown, and what addresses the row. */
   name: string;
   /** Called once the deletion has landed, to close the dialog that described it. */
@@ -227,7 +227,7 @@ function Confirm({
   onCancel,
   onRemoved,
 }: {
-  kind: "genre" | "mix";
+  kind: "genre" | "vibe";
   name: string;
   onCancel: () => void;
   onRemoved: () => void;
@@ -310,7 +310,7 @@ function Confirm({
         <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
           {kind === "genre"
             ? "The genre and what it means to you are removed from your taste model. Your films stay where they are."
-            : "The mix and what it means to you are removed from your taste model. The films in it stay in your collection."}
+            : "The vibe and what it means to you are removed from your taste model. The films in it stay in your collection."}
         </p>
 
         {problem !== null && (

@@ -184,7 +184,7 @@ async function run(fixture, prompt, said, index) {
   if (already.length && !FORCE) {
     throw new Error(
       `${name} already has ${already.length} of its 3 files. Re-run with --force to recreate the ` +
-        `whole triple, or move the existing run aside — a partial overwrite mixes two runs.`,
+        `whole triple, or move the existing run aside — a partial overwrite vibes two runs.`,
     );
   }
   for (const part of already) rmSync(part, { force: true });

@@ -1,5 +1,5 @@
 /**
- * A genre's or a mix's name, in the type the page sets a name in.
+ * A genre's or a vibe's name, in the type the page sets a name in.
  *
  * Uppercase and tracked, which is film-credit typography rather than decoration:
  * it is what makes `[SCI-FI] + [THRILLER] ↓ SPACE TENSION` read as a composition
@@ -7,13 +7,13 @@
  * rendering, and nothing here changes what is in the database.
  *
  * The rule is `CHIP` and the surface is not, because the same name is set the
- * same way on two different grounds: cut into a mix's card as `night` against
+ * same way on two different grounds: cut into a vibe's card as `night` against
  * its `screen`, and raised off the page as `screen` where a genre labels itself.
  * A name has no fill of its own to lose — it shows whatever is behind it, and
  * when that is the surface it sits on the shape stops being a chip and becomes a
  * rectangle drawn around some words.
  *
- * Its own file so that both can have it: the page renders the chip inside a mix
+ * Its own file so that both can have it: the page renders the chip inside a vibe
  * on the server, and a genre's label is a client component, so a rule they share
  * cannot live in either of them.
  */

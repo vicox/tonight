@@ -8,7 +8,7 @@ import { WORKED_EXAMPLES, type WorkedExample } from "@/lib/worked-examples";
  * Six evenings, one at a time, browsable.
  *
  * The thing a stranger has to understand is not that Tonight remembers a
- * preference — one example says that — but that a Mix is a reusable name for a
+ * preference — one example says that — but that a Vibe is a reusable name for a
  * *kind of night*, and that somebody has several. `Quiet Dread` and
  * `Popcorn Chaos` are different Fridays for the same person. That is an argument
  * made by seeing two or three of them, so the page moves through them slowly and
@@ -128,10 +128,10 @@ export function WorkedExamples({
       <div className="grid" aria-live={held ? "polite" : "off"}>
         {examples.map((example, position) => (
           <div
-            key={example.mix}
+            key={example.vibe}
             role="group"
             aria-roledescription="slide"
-            aria-label={`${position + 1} of ${count}: ${example.mix}`}
+            aria-label={`${position + 1} of ${count}: ${example.vibe}`}
             aria-hidden={position !== index}
             inert={position !== index}
             style={{ gridArea: "1 / 1" }}
@@ -187,8 +187,8 @@ function Example({ example }: { example: WorkedExample }) {
         <Turn who="Tonight" lit>
           <span className="block">
             <span className="sr-only">
-              Saved {example.genres.length} genres, {spoken(example.genres)}, and the mix they
-              make together: {example.mix}.
+              Saved {example.genres.length} genres, {spoken(example.genres)}, and the vibe they
+              make together: {example.vibe}.
             </span>
             <span aria-hidden="true" className="block">
               <span className="flex flex-wrap items-center gap-1.5">
@@ -213,7 +213,7 @@ function Example({ example }: { example: WorkedExample }) {
               <span className="mt-2.5 flex items-center gap-3">
                 <span className="text-[24px] leading-none sm:text-[27px]">{example.mark}</span>
                 <span className="font-display text-[26px] leading-tight text-ink sm:text-[30px]">
-                  {example.mix}
+                  {example.vibe}
                 </span>
               </span>
             </span>
@@ -228,7 +228,7 @@ function Example({ example }: { example: WorkedExample }) {
       */}
       <p className="mt-6 text-[12.5px] leading-relaxed text-ink-faint">
         <span className="text-ink-soft">Next Friday the whole request is</span> “something like{" "}
-        {example.mix}, {example.followUp}” <span className="text-ink-soft">— and it knows.</span>
+        {example.vibe}, {example.followUp}” <span className="text-ink-soft">— and it knows.</span>
       </p>
     </>
   );
@@ -255,10 +255,10 @@ function Controls({
       <div className="flex items-center gap-1.5">
         {examples.map((example, position) => (
           <button
-            key={example.mix}
+            key={example.vibe}
             type="button"
             onClick={() => go(position)}
-            aria-label={example.mix}
+            aria-label={example.vibe}
             aria-current={position === index ? "true" : undefined}
             className={[
               "group cursor-pointer rounded-full",

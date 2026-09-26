@@ -84,7 +84,7 @@ export const WEDNESDAY = "evening-wednesday";
 /**
  * What every trajectory starts from, before its own steps run.
  *
- * Genres, a mix, an unrelated film and an opinion about it, given to every user
+ * Genres, a vibe, an unrelated film and an opinion about it, given to every user
  * in the evaluation. They exist so that *"nothing else moved"* is a claim with
  * something behind it: a rejection that generalised into a category would have
  * to land somewhere, and without a category in the model there is nowhere for a
@@ -107,7 +107,7 @@ export const BASELINE = {
     { name: "Slow Burn", instruction: "takes its time" },
     { name: "Heist", instruction: "a crew, a plan, a complication" },
   ],
-  mixes: [
+  vibes: [
     { name: "Long Nights", genres: ["Slow Burn"], instruction: "when there is room to let it unfold" },
   ],
   movies: [{ ...heat, viewing: "seen" as const }],

@@ -86,7 +86,7 @@ export function google(): IdentityProvider {
         // chosen for it, and the person at the keyboard is never told which. The
         // symptom is not an error: they arrive signed in, or connect a
         // client, as an identity they did not pick, and the only sign is that
-        // their genres and mixes appear to be missing. That confusion is cheap to
+        // their genres and vibes appear to be missing. That confusion is cheap to
         // prevent and expensive to diagnose.
         //
         // Unconditional rather than a per-flow option, because there is no flow

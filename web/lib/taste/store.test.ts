@@ -6,11 +6,11 @@ import { migrate } from "../db/migrate.ts";
 import { embeddedDriver } from "../db/pglite.ts";
 import {
   orderGenre,
-  orderMix,
+  orderVibe,
   orderMovie,
   TasteError,
   type Genre,
-  type Mix,
+  type Vibe,
   type Movie,
   type Taste,
   type Written,
@@ -29,8 +29,8 @@ import type { TasteStore } from "./store.ts";
  *
  * Two themes run through it. One is that a user's taste is theirs: every read is
  * scoped, and the store takes no argument that could say otherwise. The other is
- * reference integrity — a mix names genres, and neither renaming one nor deleting
- * one may leave a mix pointing at something that is not there.
+ * reference integrity — a vibe names genres, and neither renaming one nor deleting
+ * one may leave a vibe pointing at something that is not there.
  */
 
 const ALICE = { id: "google:alice" };
@@ -69,9 +69,9 @@ async function genreOf(store: TasteStore, name: string): Promise<Written<Genre> 
   return (await store.taste()).genres.find((one) => one.name === name);
 }
 
-/** The same for a mix. */
-async function mixOf(store: TasteStore, name: string): Promise<Written<Mix> | undefined> {
-  return (await store.taste()).mixes.find((one) => one.name === name);
+/** The same for a vibe. */
+async function vibeOf(store: TasteStore, name: string): Promise<Written<Vibe> | undefined> {
+  return (await store.taste()).vibes.find((one) => one.name === name);
 }
 
 /** The same for a movie, addressed the way the product addresses one. */
@@ -89,14 +89,14 @@ async function movieOf(
  * Most assertions here are about what the user said, and the two stamps are the
  * only fields in an answer they did not say — a wall-clock value cannot be
  * written into a `deepEqual` anyway. Stripped with the domain's own field-order
- * functions rather than by deleting keys, so a field added to `Genre`, `Mix` or
+ * functions rather than by deleting keys, so a field added to `Genre`, `Vibe` or
  * `Movie` shows up in these comparisons instead of being quietly dropped from
  * them. What the stamps do is asserted on its own, further down.
  */
-function content(taste: Taste): { genres: Genre[]; mixes: Mix[]; movies: Movie[] } {
+function content(taste: Taste): { genres: Genre[]; vibes: Vibe[]; movies: Movie[] } {
   return {
     genres: taste.genres.map(orderGenre),
-    mixes: taste.mixes.map(orderMix),
+    vibes: taste.vibes.map(orderVibe),
     movies: taste.movies.map(orderMovie),
   };
 }
@@ -144,10 +144,10 @@ for (const driver of drivers) {
     const genre = (store: TasteStore, name: string) =>
       store.createGenre({ name, instruction: `what ${name} means to me` });
 
-    /** A mix, with a genre of its own, since a mix cannot be built from nothing. */
-    const mix = async (store: TasteStore, name: string) => {
+    /** A vibe, with a genre of its own, since a vibe cannot be built from nothing. */
+    const vibe = async (store: TasteStore, name: string) => {
       await genre(store, `${name} feeling`);
-      return store.createMix({
+      return store.createVibe({
         name,
         instruction: `what ${name} is for`,
         genres: [`${name} feeling`],
@@ -159,7 +159,7 @@ for (const driver of drivers) {
     test("a new user starts with nothing, and is not seeded with examples", async () => {
       const { alice } = await fresh();
 
-      assert.deepEqual(await alice.taste(), { genres: [], mixes: [], movies: [] });
+      assert.deepEqual(await alice.taste(), { genres: [], vibes: [], movies: [] });
     });
 
     // --- isolation --------------------------------------------------------
@@ -177,27 +177,27 @@ for (const driver of drivers) {
     test("user A cannot see user B's taste", async () => {
       const { alice, bob } = await fresh();
       await genre(bob, "Bob only");
-      await bob.createMix({ name: "Bob's mix", genres: ["Bob only"], instruction: "Bob's." });
+      await bob.createVibe({ name: "Bob's vibe", genres: ["Bob only"], instruction: "Bob's." });
 
-      assert.deepEqual(await alice.taste(), { genres: [], mixes: [], movies: [] });
+      assert.deepEqual(await alice.taste(), { genres: [], vibes: [], movies: [] });
       // Asked through the operations that address one by name, which is where a
       // leak would actually show: neither can reach the other tenant's row.
       assert.match(await refusal(alice.deleteGenre("Bob only")), /^no genre "Bob only"/);
-      assert.match(await refusal(alice.deleteMix("Bob's mix")), /^no mix "Bob's mix"/);
+      assert.match(await refusal(alice.deleteVibe("Bob's vibe")), /^no vibe "Bob's vibe"/);
     });
 
-    test("a mix cannot be built from another user's genre", async () => {
+    test("a vibe cannot be built from another user's genre", async () => {
       const { alice, bob } = await fresh();
       await genre(bob, "Bob only");
       await genre(alice, "Sci-Fi");
 
       assert.match(
         await refusal(
-          alice.createMix({ name: "Borrowed", genres: ["Sci-Fi", "Bob only"], instruction: "No." }),
+          alice.createVibe({ name: "Borrowed", genres: ["Sci-Fi", "Bob only"], instruction: "No." }),
         ),
         /"Bob only" is not one of them/,
       );
-      assert.deepEqual((await alice.taste()).mixes, [], "and nothing was half-written");
+      assert.deepEqual((await alice.taste()).vibes, [], "and nothing was half-written");
     });
 
     // --- identity ---------------------------------------------------------
@@ -218,18 +218,18 @@ for (const driver of drivers) {
       );
     });
 
-    test("mixes are unique ignoring case, separately from genres", async () => {
+    test("vibes are unique ignoring case, separately from genres", async () => {
       const { alice } = await fresh();
       await genre(alice, "Noir");
 
-      // A genre and a mix may share a name: they are separate namespaces, asked
+      // A genre and a vibe may share a name: they are separate namespaces, asked
       // for by separate parameters, so nothing can resolve one as the other.
-      await alice.createMix({ name: "Noir", genres: ["Noir"], instruction: "My kind of noir." });
+      await alice.createVibe({ name: "Noir", genres: ["Noir"], instruction: "My kind of noir." });
       assert.equal((await genreOf(alice, "Noir"))?.name, "Noir");
-      assert.equal((await mixOf(alice, "Noir"))?.name, "Noir");
+      assert.equal((await vibeOf(alice, "Noir"))?.name, "Noir");
 
       assert.match(
-        await refusal(alice.createMix({ name: "NOIR", genres: ["Noir"], instruction: "Again." })),
+        await refusal(alice.createVibe({ name: "NOIR", genres: ["Noir"], instruction: "Again." })),
         /already exists/,
       );
     });
@@ -243,7 +243,7 @@ for (const driver of drivers) {
       assert.equal(stored.instruction, "Takes its time.");
     });
 
-    test("genres and mixes read back alphabetically, ignoring case", async () => {
+    test("genres and vibes read back alphabetically, ignoring case", async () => {
       const { alice } = await fresh();
       for (const name of ["thriller", "Action", "sci-fi"]) await genre(alice, name);
 
@@ -293,27 +293,27 @@ for (const driver of drivers) {
       );
       assert.match(
         await refusal(
-          alice.createMix({ name: "Bad", instruction: "Mixed.", genres: ["Sci-Fi", 123] }),
+          alice.createVibe({ name: "Bad", instruction: "Mixed.", genres: ["Sci-Fi", 123] }),
         ),
         /genres must all be text, and entry 2 is a number/,
       );
       assert.match(
-        await refusal(alice.createMix({ name: "Bad", instruction: "Mixed.", genres: "Sci-Fi" })),
+        await refusal(alice.createVibe({ name: "Bad", instruction: "Mixed.", genres: "Sci-Fi" })),
         /must be a list of genre names, not a single name/,
       );
 
       // An entry that is text but says nothing is refused too: quietly dropping it
-      // would build a mix from fewer genres than was asked for.
+      // would build a vibe from fewer genres than was asked for.
       assert.match(
         await refusal(
-          alice.createMix({ name: "Bad", instruction: "Mixed.", genres: ["Sci-Fi", "  "] }),
+          alice.createVibe({ name: "Bad", instruction: "Mixed.", genres: ["Sci-Fi", "  "] }),
         ),
         /entry 2 is empty/,
       );
 
       assert.deepEqual(content(await alice.taste()), {
         genres: [{ name: "Sci-Fi", instruction: "what Sci-Fi means to me" }],
-        mixes: [],
+        vibes: [],
         movies: [],
       });
     });
@@ -322,14 +322,14 @@ for (const driver of drivers) {
       const { alice, sql } = await fresh();
       await genre(alice, "Sci-Fi");
       await genre(alice, "Thriller");
-      await alice.createMix({
+      await alice.createVibe({
         name: "Space Tension",
         genres: ["Sci-Fi", "Thriller"],
         instruction: "Tense.",
       });
 
       const genreAt = await touchedAt(sql, "tonight_genres", "Sci-Fi");
-      const mixAt = await touchedAt(sql, "tonight_mixes", "Space Tension");
+      const vibeAt = await touchedAt(sql, "tonight_mixes", "Space Tension");
 
       // `??` would read every one of these as "the caller said nothing", which is
       // the difference between refusing a malformed request and silently keeping
@@ -339,13 +339,13 @@ for (const driver of drivers) {
         await refusal(alice.updateGenre("Sci-Fi", { instruction: null })),
         /needs an instruction/,
       );
-      assert.match(await refusal(alice.updateMix("Space Tension", { name: null })), /needs a name/);
+      assert.match(await refusal(alice.updateVibe("Space Tension", { name: null })), /needs a name/);
       assert.match(
-        await refusal(alice.updateMix("Space Tension", { instruction: null })),
+        await refusal(alice.updateVibe("Space Tension", { instruction: null })),
         /needs an instruction/,
       );
       assert.match(
-        await refusal(alice.updateMix("Space Tension", { genres: null })),
+        await refusal(alice.updateVibe("Space Tension", { genres: null })),
         /at least one genre/,
       );
       // And a wrong type is refused by the same route as a wrong type anywhere.
@@ -360,7 +360,7 @@ for (const driver of drivers) {
           { name: "Sci-Fi", instruction: "what Sci-Fi means to me" },
           { name: "Thriller", instruction: "what Thriller means to me" },
         ],
-        mixes: [
+        vibes: [
           {
             name: "Space Tension",
             instruction: "Tense.",
@@ -371,7 +371,7 @@ for (const driver of drivers) {
         movies: [],
       });
       assert.equal(await touchedAt(sql, "tonight_genres", "Sci-Fi"), genreAt);
-      assert.equal(await touchedAt(sql, "tonight_mixes", "Space Tension"), mixAt);
+      assert.equal(await touchedAt(sql, "tonight_mixes", "Space Tension"), vibeAt);
 
       // A value that *is* valid still applies, so none of the above is a blanket
       // refusal to update.
@@ -381,17 +381,17 @@ for (const driver of drivers) {
       );
     });
 
-    test("renaming onto a name that is taken is a conflict, for a genre and a mix", async () => {
+    test("renaming onto a name that is taken is a conflict, for a genre and a vibe", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await genre(alice, "Thriller");
-      await alice.createMix({ name: "One", genres: ["Sci-Fi"], instruction: "First." });
-      await alice.createMix({ name: "Two", genres: ["Thriller"], instruction: "Second." });
+      await alice.createVibe({ name: "One", genres: ["Sci-Fi"], instruction: "First." });
+      await alice.createVibe({ name: "Two", genres: ["Thriller"], instruction: "Second." });
 
       // Both rows are held before either is written, so the answer is the
       // product's conflict rather than whatever the unique index would have said.
       assert.match(await refusal(alice.updateGenre("Sci-Fi", { name: "thriller" })), /already exists/);
-      assert.match(await refusal(alice.updateMix("One", { name: "TWO" })), /already exists/);
+      assert.match(await refusal(alice.updateVibe("One", { name: "TWO" })), /already exists/);
 
       // Changing a name's case is not a rename onto another row, and is allowed.
       assert.equal((await alice.updateGenre("Sci-Fi", { name: "SCI-FI" })).name, "SCI-FI");
@@ -417,31 +417,31 @@ for (const driver of drivers) {
         "Reworded.",
       );
 
-      await alice.createMix({ name: `${DOTTED_I} mix`, genres: [DOTTED_I], instruction: "On it." });
+      await alice.createVibe({ name: `${DOTTED_I} vibe`, genres: [DOTTED_I], instruction: "On it." });
       assert.equal(
-        (await alice.updateMix(`${DOTTED_I} mix`, { instruction: "Rewritten." })).instruction,
+        (await alice.updateVibe(`${DOTTED_I} vibe`, { instruction: "Rewritten." })).instruction,
         "Rewritten.",
       );
 
-      // The reference held: the mix resolved the genre, and the genre cannot go
-      // while the mix needs it.
+      // The reference held: the vibe resolved the genre, and the genre cannot go
+      // while the vibe needs it.
       assert.match(await refusal(alice.deleteGenre(DOTTED_I)), /built from it/);
 
       // And the stored spelling is untouched by any of it — folding is a lookup
       // key, never something written back.
       assert.deepEqual((await alice.taste()).genres.map((one) => one.name), [DOTTED_I]);
 
-      await alice.deleteMix(`${DOTTED_I} mix`);
+      await alice.deleteVibe(`${DOTTED_I} vibe`);
       await alice.deleteGenre(DOTTED_I);
-      assert.deepEqual(await alice.taste(), { genres: [], mixes: [], movies: [] });
+      assert.deepEqual(await alice.taste(), { genres: [], vibes: [], movies: [] });
     });
 
-    test("a mix resolves its genres by the database's identity, not JavaScript's", async () => {
+    test("a vibe resolves its genres by the database's identity, not JavaScript's", async () => {
       const { alice, sql } = await fresh();
       await alice.createGenre({ name: DOTTED_I, instruction: "Dotted capital I." });
 
       // The premise, asked of the database rather than assumed: it considers these
-      // two spellings one genre. JavaScript does not, which is what made a mix
+      // two spellings one genre. JavaScript does not, which is what made a vibe
       // reject a reference to a genre that plainly existed.
       const [folding] = await sql.query<{ same: boolean }>(
         "SELECT lower($1) = lower($2) AS same",
@@ -451,26 +451,26 @@ for (const driver of drivers) {
 
       // Asking for `i` reaches the genre stored as `İ`, and the reference is kept
       // under the stored spelling so the foreign key holds.
-      const created = await alice.createMix({
-        name: "Mix",
+      const created = await alice.createVibe({
+        name: "Vibe",
         genres: ["i"],
         instruction: "Built on it.",
       });
       assert.deepEqual(created.genres, [DOTTED_I]);
 
-      // The same resolver serves updateMix, and spellings the database considers
+      // The same resolver serves updateVibe, and spellings the database considers
       // one genre collapse to one reference rather than repeating it.
-      const updated = await alice.updateMix("Mix", { genres: [DOTTED_I, "i", "I"] });
+      const updated = await alice.updateVibe("Vibe", { genres: [DOTTED_I, "i", "I"] });
       assert.deepEqual(updated.genres, [DOTTED_I]);
 
-      assert.deepEqual((await alice.taste()).mixes[0]!.genres, [DOTTED_I]);
+      assert.deepEqual((await alice.taste()).vibes[0]!.genres, [DOTTED_I]);
       assert.deepEqual(
         (await alice.taste()).genres.map((one) => one.name),
         [DOTTED_I],
         "and nothing folded was written back over the stored name",
       );
 
-      // The reference is real: the genre cannot be deleted while the mix needs it.
+      // The reference is real: the genre cannot be deleted while the vibe needs it.
       assert.match(await refusal(alice.deleteGenre("i")), /built from it/);
     });
 
@@ -528,77 +528,77 @@ for (const driver of drivers) {
       assert.equal(renamed.instruction, "Dread, not gore.");
     });
 
-    // --- what a mix is ----------------------------------------------------
+    // --- what a vibe is ----------------------------------------------------
 
-    test("a mix must combine at least one genre", async () => {
+    test("a vibe must combine at least one genre", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
 
       assert.match(
-        await refusal(alice.createMix({ name: "Nothing", genres: [], instruction: "Empty." })),
+        await refusal(alice.createVibe({ name: "Nothing", genres: [], instruction: "Empty." })),
         /at least one genre/,
       );
     });
 
-    test("a mix needs an instruction of its own", async () => {
+    test("a vibe needs an instruction of its own", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
 
-      // The genres are the ingredients; the instruction is the meaning. A mix
+      // The genres are the ingredients; the instruction is the meaning. A vibe
       // without one has not said anything its genres did not already say.
       assert.match(
-        await refusal(alice.createMix({ name: "Bare", genres: ["Sci-Fi"], instruction: "" })),
+        await refusal(alice.createVibe({ name: "Bare", genres: ["Sci-Fi"], instruction: "" })),
         /what the combination means/,
       );
     });
 
-    test("a mix cannot be built from another mix", async () => {
+    test("a vibe cannot be built from another vibe", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await genre(alice, "Thriller");
-      await alice.createMix({
+      await alice.createVibe({
         name: "Space Tension",
         genres: ["Sci-Fi", "Thriller"],
         instruction: "Contained and tense.",
       });
 
-      // There is no chaining. A mix's genre list can only ever name genres, and
+      // There is no chaining. A vibe's genre list can only ever name genres, and
       // the schema is what makes that true rather than a check here.
       assert.match(
         await refusal(
-          alice.createMix({
+          alice.createVibe({
             name: "Deeper",
             genres: ["Space Tension"],
-            instruction: "A mix of a mix.",
+            instruction: "A vibe of a vibe.",
           }),
         ),
         /"Space Tension" is not one of them/,
       );
     });
 
-    test("a mix's genres keep their order, collapse duplicates and take the stored spelling", async () => {
+    test("a vibe's genres keep their order, collapse duplicates and take the stored spelling", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await genre(alice, "Thriller");
 
-      const mix = await alice.createMix({
+      const vibe = await alice.createVibe({
         name: "Space Tension",
         genres: ["thriller", "SCI-FI", "Thriller"],
         instruction: "Tense.",
       });
-      assert.deepEqual(mix.genres, ["Thriller", "Sci-Fi"]);
+      assert.deepEqual(vibe.genres, ["Thriller", "Sci-Fi"]);
     });
 
     test("passing genres on an update replaces the list rather than adding to it", async () => {
       const { alice } = await fresh();
       for (const name of ["Sci-Fi", "Thriller", "Slow burn"]) await genre(alice, name);
-      await alice.createMix({
+      await alice.createVibe({
         name: "Space Tension",
         genres: ["Sci-Fi", "Thriller"],
         instruction: "Tense.",
       });
 
-      const updated = await alice.updateMix("Space Tension", { genres: ["Slow burn"] });
+      const updated = await alice.updateVibe("Space Tension", { genres: ["Slow burn"] });
       assert.deepEqual(updated.genres, ["Slow burn"]);
     });
 
@@ -606,7 +606,7 @@ for (const driver of drivers) {
       const { alice, sql } = await fresh();
       await genre(alice, "Sci-Fi");
       await genre(alice, "Thriller");
-      await alice.createMix({
+      await alice.createVibe({
         name: "Space Tension",
         genres: ["Sci-Fi", "Thriller"],
         instruction: "Tense.",
@@ -626,14 +626,14 @@ for (const driver of drivers) {
       const before = await rows();
       assert.equal(before.length, 2);
 
-      await alice.updateMix("Space Tension", { instruction: "Tense, and contained." });
+      await alice.updateVibe("Space Tension", { instruction: "Tense, and contained." });
       assert.deepEqual(await rows(), before, "an instruction change rewrote the reference rows");
 
-      await alice.updateMix("Space Tension", { name: "Quiet Dread" });
+      await alice.updateVibe("Space Tension", { name: "Quiet Dread" });
       assert.deepEqual(await rows(), before, "a rename rewrote the reference rows");
 
       // Untouched, and still saying the same thing.
-      assert.deepEqual((await mixOf(alice, "Quiet Dread"))?.genres, ["Sci-Fi", "Thriller"]);
+      assert.deepEqual((await vibeOf(alice, "Quiet Dread"))?.genres, ["Sci-Fi", "Thriller"]);
 
       // And the other half, so the assertions above cannot pass by the signal
       // being blind. Naming the *same* genres is the sharpest control available:
@@ -641,7 +641,7 @@ for (const driver of drivers) {
       // ids must match exactly — and `xmin` must move anyway, because passing
       // `genres` replaces the rows whatever they said. A signal that held still
       // here would be one that could not have detected a rewrite above either.
-      await alice.updateMix("Quiet Dread", { genres: ["Sci-Fi", "Thriller"] });
+      await alice.updateVibe("Quiet Dread", { genres: ["Sci-Fi", "Thriller"] });
       const rewritten = await rows();
 
       assert.deepEqual(
@@ -660,7 +660,7 @@ for (const driver of drivers) {
 
     // --- reference integrity ---------------------------------------------
 
-    test("renaming a genre carries every mix built from it", async () => {
+    test("renaming a genre carries every vibe built from it", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await genre(alice, "Thriller");
@@ -668,18 +668,18 @@ for (const driver of drivers) {
         ["Space Tension", ["Sci-Fi", "Thriller"]],
         ["My Sci-Fi", ["Sci-Fi"]],
       ] as const) {
-        await alice.createMix({ name, genres: [...genres], instruction: `${name} means this.` });
+        await alice.createVibe({ name, genres: [...genres], instruction: `${name} means this.` });
       }
 
       await alice.updateGenre("Sci-Fi", { name: "Science fiction" });
 
       // The reference rows hold the genre's id, so this rename wrote one row and
-      // touched none of them. There is no moment in which a mix points at a name
-      // that is gone, because no mix ever pointed at a name.
-      const { genres, mixes } = await alice.taste();
+      // touched none of them. There is no moment in which a vibe points at a name
+      // that is gone, because no vibe ever pointed at a name.
+      const { genres, vibes } = await alice.taste();
       assert.deepEqual(genres.map((one) => one.name), ["Science fiction", "Thriller"]);
       assert.deepEqual(
-        mixes.map((one) => one.genres),
+        vibes.map((one) => one.genres),
         [["Science fiction"], ["Science fiction", "Thriller"]],
       );
     });
@@ -707,7 +707,7 @@ for (const driver of drivers) {
     test("renaming a genre does not write the rows that reference it", async () => {
       const { alice, sql } = await fresh();
       await genre(alice, "Sci-Fi");
-      await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+      await alice.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
 
       // `xmin` is the transaction that last wrote the row, so it is the one
       // signal that says a row was left alone. Comparing the ids would prove
@@ -721,7 +721,7 @@ for (const driver of drivers) {
         ).map((row) => row.v);
 
       const before = await versions();
-      assert.equal(before.length, 1, "the mix should have exactly one reference row");
+      assert.equal(before.length, 1, "the vibe should have exactly one reference row");
 
       await alice.updateGenre("Sci-Fi", { name: "Science fiction" });
 
@@ -729,16 +729,16 @@ for (const driver of drivers) {
       // would fail honestly: the foreign key carried ON UPDATE CASCADE, so a
       // rename rewrote every reference row.
       assert.deepEqual(await versions(), before, "the rename rewrote a reference row");
-      assert.deepEqual((await mixOf(alice, "Space Tension"))?.genres, ["Science fiction"]);
+      assert.deepEqual((await vibeOf(alice, "Space Tension"))?.genres, ["Science fiction"]);
     });
 
-    test("the database refuses a mix of one user built from another user's genre", async () => {
+    test("the database refuses a vibe of one user built from another user's genre", async () => {
       const { alice, bob, sql } = await fresh();
       await genre(bob, "Bob only");
       await genre(alice, "Sci-Fi");
-      await alice.createMix({ name: "Mine", genres: ["Sci-Fi"], instruction: "Mine alone." });
+      await alice.createVibe({ name: "Mine", genres: ["Sci-Fi"], instruction: "Mine alone." });
 
-      const [mix] = await sql.query<{ id: string }>(
+      const [vibe] = await sql.query<{ id: string }>(
         `SELECT id FROM tonight_mixes WHERE user_id = $1`,
         [ALICE.id],
       );
@@ -747,7 +747,7 @@ for (const driver of drivers) {
         [BOB.id],
       );
 
-      // Deliberately not through the store: `createMix` takes names and resolves
+      // Deliberately not through the store: `createVibe` takes names and resolves
       // them within one user, so it refuses this long before the database is
       // asked. That refusal is worth having and is tested elsewhere — it is not
       // evidence that the schema would refuse it too, and a single-column
@@ -755,7 +755,7 @@ for (const driver of drivers) {
       const forged = sql.query(
         `INSERT INTO tonight_mix_genres (user_id, mix_id, genre_id, position)
          VALUES ($1, $2, $3, 0)`,
-        [ALICE.id, mix!.id, theirs!.id],
+        [ALICE.id, vibe!.id, theirs!.id],
       );
 
       await assert.rejects(forged, (error: unknown) => {
@@ -778,11 +778,11 @@ for (const driver of drivers) {
       );
     });
 
-    test("a genre a mix is built from cannot be deleted, and the refusal names the mix", async () => {
+    test("a genre a vibe is built from cannot be deleted, and the refusal names the vibe", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await genre(alice, "Thriller");
-      await alice.createMix({
+      await alice.createVibe({
         name: "Space Tension",
         genres: ["Sci-Fi", "Thriller"],
         instruction: "Tense.",
@@ -794,32 +794,32 @@ for (const driver of drivers) {
       assert.ok(await genreOf(alice, "Sci-Fi"), "and it is still there");
     });
 
-    test("deleting the mix frees the genre", async () => {
+    test("deleting the vibe frees the genre", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
-      await alice.createMix({ name: "My Sci-Fi", genres: ["Sci-Fi"], instruction: "Mine." });
+      await alice.createVibe({ name: "My Sci-Fi", genres: ["Sci-Fi"], instruction: "Mine." });
 
-      await alice.deleteMix("My Sci-Fi");
+      await alice.deleteVibe("My Sci-Fi");
       await alice.deleteGenre("Sci-Fi");
 
-      assert.deepEqual(await alice.taste(), { genres: [], mixes: [], movies: [] });
+      assert.deepEqual(await alice.taste(), { genres: [], vibes: [], movies: [] });
     });
 
-    test("deleting a mix leaves the genres it was built from", async () => {
+    test("deleting a vibe leaves the genres it was built from", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await genre(alice, "Thriller");
-      await alice.createMix({
+      await alice.createVibe({
         name: "Space Tension",
         genres: ["Sci-Fi", "Thriller"],
         instruction: "Tense.",
       });
 
-      await alice.deleteMix("Space Tension");
+      await alice.deleteVibe("Space Tension");
 
-      const { genres, mixes } = await alice.taste();
+      const { genres, vibes } = await alice.taste();
       assert.deepEqual(genres.map((one) => one.name), ["Sci-Fi", "Thriller"]);
-      assert.deepEqual(mixes, []);
+      assert.deepEqual(vibes, []);
     });
 
     test("the aggregate read takes one snapshot rather than one per statement", async () => {
@@ -857,11 +857,11 @@ for (const driver of drivers) {
       assert.equal(
         issued.filter((statement) => /^\s*SELECT/.test(statement)).length,
         6,
-        "genres, mixes, movies and the references between them, all inside it",
+        "genres, vibes, movies and the references between them, all inside it",
       );
     });
 
-    test("renames and mix references take genre locks in one shared order", async () => {
+    test("renames and vibe references take genre locks in one shared order", async () => {
       // What this can prove locally is the order: that both paths lock the same
       // rows in the same sequence, whatever order the caller listed them in. What
       // it cannot prove is that the sequence prevents a deadlock, because one
@@ -893,16 +893,16 @@ for (const driver of drivers) {
         return taken;
       };
 
-      // A mix over the same three genres, listed two different ways round.
+      // A vibe over the same three genres, listed two different ways round.
       const one = await locking((store) =>
-        store.createMix({
+        store.createVibe({
           name: "One",
           genres: ["Thriller", "Action", "Sci-Fi"],
           instruction: "First.",
         }),
       );
       const other = await locking((store) =>
-        store.createMix({
+        store.createVibe({
           name: "Two",
           genres: ["Sci-Fi", "Thriller", "Action"],
           instruction: "Second.",
@@ -931,7 +931,7 @@ for (const driver of drivers) {
         year: 2016,
         imdbId: null,
         viewing: null,
-        mixes: [],
+        vibes: [],
       });
 
       // The identity the row is keyed by never reaches a caller. Asserted as the
@@ -942,9 +942,9 @@ for (const driver of drivers) {
       assert.deepEqual(Object.keys(movies[0]!).sort(), [
         "createdAt",
         "imdbId",
-        "mixes",
         "title",
         "updatedAt",
+        "vibes",
         "viewing",
         "year",
       ]);
@@ -1089,8 +1089,8 @@ for (const driver of drivers) {
 
     test("changing the handle leaves the object it was, and its filings untouched", async () => {
       const { alice, sql } = await fresh();
-      await mix(alice, "Space Tension");
-      await alice.createMovie({ title: "Dune", year: 1984, mixes: ["Space Tension"] });
+      await vibe(alice, "Space Tension");
+      await alice.createMovie({ title: "Dune", year: 1984, vibes: ["Space Tension"] });
 
       const identity = async () =>
         (
@@ -1110,7 +1110,7 @@ for (const driver of drivers) {
 
       const was = await identity();
       const before = await filings();
-      assert.equal(before.length, 1, "the movie should be filed under exactly one mix");
+      assert.equal(before.length, 1, "the movie should be filed under exactly one vibe");
 
       await alice.updateMovie("Dune", 1984, { year: 2021 });
       assert.equal(await identity(), was, "changing the year made a different movie");
@@ -1123,18 +1123,18 @@ for (const driver of drivers) {
       await alice.updateMovie("Dune: Part One", 2021, { viewing: "seen" });
       assert.deepEqual(await filings(), before, "a state change rewrote a filing row");
 
-      assert.deepEqual((await movieOf(alice, "Dune: Part One", 2021))?.mixes, ["Space Tension"]);
+      assert.deepEqual((await movieOf(alice, "Dune: Part One", 2021))?.vibes, ["Space Tension"]);
 
       // The other half, so none of the above can pass by the signal being blind.
-      // Naming the same mix again is the sharpest control there is: the filing is
+      // Naming the same vibe again is the sharpest control there is: the filing is
       // identical afterwards, so the movie id must match — and `xmin` must move
-      // anyway, because passing `mixes` replaces the rows whatever they said.
-      await alice.updateMovie("Dune: Part One", 2021, { mixes: ["Space Tension"] });
+      // anyway, because passing `vibes` replaces the rows whatever they said.
+      await alice.updateMovie("Dune: Part One", 2021, { vibes: ["Space Tension"] });
       const rewritten = await filings();
       assert.deepEqual(
         rewritten.map((row) => row.movie_id),
         before.map((row) => row.movie_id),
-        "the same mix should still be the same filing",
+        "the same vibe should still be the same filing",
       );
       assert.notEqual(
         rewritten[0]!.v,
@@ -1269,12 +1269,12 @@ for (const driver of drivers) {
 
     test("nothing infers a viewing: not saving a movie, not filing one", async () => {
       const { alice, sql } = await fresh();
-      await mix(alice, "Space Tension");
+      await vibe(alice, "Space Tension");
 
       const created = await alice.createMovie({ title: "Arrival", year: 2016 });
       assert.equal(created.viewing, null);
 
-      await alice.updateMovie("Arrival", 2016, { mixes: ["Space Tension"] });
+      await alice.updateMovie("Arrival", 2016, { vibes: ["Space Tension"] });
       const filed = await movieOf(alice, "Arrival", 2016);
       assert.equal(filed?.viewing, null, "filing a movie decided something about it");
 
@@ -1288,31 +1288,31 @@ for (const driver of drivers) {
       assert.equal(row!.viewing, null);
     });
 
-    test("a movie is filed under none, one or several mixes, and listed once", async () => {
+    test("a movie is filed under none, one or several vibes, and listed once", async () => {
       const { alice } = await fresh();
-      await mix(alice, "Space Tension");
-      await mix(alice, "Quiet Dread");
+      await vibe(alice, "Space Tension");
+      await vibe(alice, "Quiet Dread");
 
-      assert.deepEqual((await alice.createMovie({ title: "Arrival", year: 2016 })).mixes, []);
+      assert.deepEqual((await alice.createMovie({ title: "Arrival", year: 2016 })).vibes, []);
       const both = await alice.createMovie({
         title: "Under the Skin",
         year: 2013,
-        mixes: ["Quiet Dread", "Space Tension"],
+        vibes: ["Quiet Dread", "Space Tension"],
       });
-      assert.deepEqual(both.mixes, ["Quiet Dread", "Space Tension"]);
+      assert.deepEqual(both.vibes, ["Quiet Dread", "Space Tension"]);
 
-      const { mixes, movies } = await alice.taste();
+      const { vibes, movies } = await alice.taste();
 
       // Once, whatever it is filed under: the state has one home, so two copies
       // cannot come to disagree about whether it was watched.
       assert.equal(movies.filter((one) => one.title === "Under the Skin").length, 1);
 
-      // And a movie in no mix is here too, which is the only thing keeping it
+      // And a movie in no vibe is here too, which is the only thing keeping it
       // reachable at all.
-      assert.ok(movies.some((one) => one.title === "Arrival" && one.mixes.length === 0));
+      assert.ok(movies.some((one) => one.title === "Arrival" && one.vibes.length === 0));
 
       assert.deepEqual(
-        mixes.map((one) => [one.name, one.movies]),
+        vibes.map((one) => [one.name, one.movies]),
         [
           ["Quiet Dread", [{ title: "Under the Skin", year: 2013 }]],
           ["Space Tension", [{ title: "Under the Skin", year: 2013 }]],
@@ -1320,63 +1320,63 @@ for (const driver of drivers) {
       );
     });
 
-    test("passing mixes replaces the filing exactly, and an empty list empties it", async () => {
+    test("passing vibes replaces the filing exactly, and an empty list empties it", async () => {
       const { alice } = await fresh();
-      for (const name of ["Space Tension", "Quiet Dread", "Popcorn Chaos"]) await mix(alice, name);
+      for (const name of ["Space Tension", "Quiet Dread", "Popcorn Chaos"]) await vibe(alice, name);
       await alice.createMovie({
         title: "Under the Skin",
         year: 2013,
-        mixes: ["Space Tension", "Quiet Dread"],
+        vibes: ["Space Tension", "Quiet Dread"],
       });
 
       const filed = await alice.updateMovie("Under the Skin", 2013, {
-        mixes: ["Popcorn Chaos", "Quiet Dread"],
+        vibes: ["Popcorn Chaos", "Quiet Dread"],
       });
-      assert.deepEqual(filed.mixes, ["Popcorn Chaos", "Quiet Dread"], "the list was added to");
+      assert.deepEqual(filed.vibes, ["Popcorn Chaos", "Quiet Dread"], "the list was added to");
 
-      const loose = await alice.updateMovie("Under the Skin", 2013, { mixes: [] });
-      assert.deepEqual(loose.mixes, []);
+      const loose = await alice.updateMovie("Under the Skin", 2013, { vibes: [] });
+      assert.deepEqual(loose.vibes, []);
       assert.deepEqual(
-        (await alice.taste()).mixes.flatMap((one) => one.movies),
+        (await alice.taste()).vibes.flatMap((one) => one.movies),
         [],
-        "a mix still names a movie that was taken out of it",
+        "a vibe still names a movie that was taken out of it",
       );
     });
 
-    test("a movie can only be filed under mixes this user has", async () => {
+    test("a movie can only be filed under vibes this user has", async () => {
       const { alice, bob } = await fresh();
-      await mix(bob, "Theirs");
-      await mix(alice, "Mine");
+      await vibe(bob, "Theirs");
+      await vibe(alice, "Mine");
 
       assert.match(
-        await refusal(alice.createMovie({ title: "Arrival", year: 2016, mixes: ["Theirs"] })),
+        await refusal(alice.createMovie({ title: "Arrival", year: 2016, vibes: ["Theirs"] })),
         /"Theirs" is not one of them/,
       );
       assert.deepEqual((await alice.taste()).movies, [], "the refused create left a movie behind");
     });
 
-    test("deleting a mix leaves its movies, and deleting a movie leaves its mixes", async () => {
+    test("deleting a vibe leaves its movies, and deleting a movie leaves its vibes", async () => {
       const { alice } = await fresh();
-      await mix(alice, "Space Tension");
-      await mix(alice, "Quiet Dread");
+      await vibe(alice, "Space Tension");
+      await vibe(alice, "Quiet Dread");
       await alice.createMovie({
         title: "Under the Skin",
         year: 2013,
         viewing: "seen",
-        mixes: ["Space Tension", "Quiet Dread"],
+        vibes: ["Space Tension", "Quiet Dread"],
       });
 
-      await alice.deleteMix("Space Tension");
+      await alice.deleteVibe("Space Tension");
       const survivor = await movieOf(alice, "Under the Skin", 2013);
-      assert.equal(survivor?.viewing, "seen", "the movie went with the mix");
-      assert.deepEqual(survivor?.mixes, ["Quiet Dread"], "it kept a filing that no longer exists");
+      assert.equal(survivor?.viewing, "seen", "the movie went with the vibe");
+      assert.deepEqual(survivor?.vibes, ["Quiet Dread"], "it kept a filing that no longer exists");
 
       const removed = await alice.deleteMovie("Under the Skin", 2013);
-      assert.deepEqual(removed.mixes, ["Quiet Dread"], "the answer forgot where it had been filed");
+      assert.deepEqual(removed.vibes, ["Quiet Dread"], "the answer forgot where it had been filed");
       assert.deepEqual(
-        (await alice.taste()).mixes.map((one) => one.name),
+        (await alice.taste()).vibes.map((one) => one.name),
         ["Quiet Dread"],
-        "deleting a movie took a mix with it",
+        "deleting a movie took a vibe with it",
       );
       assert.deepEqual((await alice.taste()).movies, []);
 
@@ -1444,7 +1444,7 @@ for (const driver of drivers) {
 
     test("the handle addresses a movie; it never restyles the one that is stored", async () => {
       const { alice } = await fresh();
-      await alice.createMovie({ title: "DUNE", year: 1984, mixes: [] });
+      await alice.createMovie({ title: "DUNE", year: 1984, vibes: [] });
 
       // Addressed in the wrong case on purpose. The handle is matched ignoring
       // case, so this reaches the row — and changing only the year must leave the
@@ -1476,10 +1476,10 @@ for (const driver of drivers) {
 
     test("the database refuses a filing that crosses users, from either side", async () => {
       const { alice, bob, sql } = await fresh();
-      await mix(alice, "Mine");
-      await mix(bob, "Theirs");
-      await alice.createMovie({ title: "Arrival", year: 2016, mixes: ["Mine"] });
-      await bob.createMovie({ title: "Arrival", year: 2016, mixes: ["Theirs"] });
+      await vibe(alice, "Mine");
+      await vibe(bob, "Theirs");
+      await alice.createMovie({ title: "Arrival", year: 2016, vibes: ["Mine"] });
+      await bob.createMovie({ title: "Arrival", year: 2016, vibes: ["Theirs"] });
 
       const idOf = async (table: string, owner: string) =>
         (
@@ -1487,11 +1487,11 @@ for (const driver of drivers) {
         )[0]!.id;
 
       const mine = {
-        mix: await idOf("tonight_mixes", ALICE.id),
+        vibe: await idOf("tonight_mixes", ALICE.id),
         movie: await idOf("tonight_movies", ALICE.id),
       };
       const theirs = {
-        mix: await idOf("tonight_mixes", BOB.id),
+        vibe: await idOf("tonight_mixes", BOB.id),
         movie: await idOf("tonight_movies", BOB.id),
       };
 
@@ -1500,14 +1500,14 @@ for (const driver of drivers) {
       // foreign key, because each key is a separate promise: a uuid being
       // unguessable is a fact about collisions, not an authorisation rule, and
       // only `user_id` inside the key makes the other tenant unreachable.
-      for (const [what, mixId, movieId] of [
-        ["another user's mix", theirs.mix, mine.movie],
-        ["another user's movie", mine.mix, theirs.movie],
+      for (const [what, vibeId, movieId] of [
+        ["another user's vibe", theirs.vibe, mine.movie],
+        ["another user's movie", mine.vibe, theirs.movie],
       ] as const) {
         await assert.rejects(
           sql.query(
             `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id) VALUES ($1, $2, $3)`,
-            [ALICE.id, mixId, movieId],
+            [ALICE.id, vibeId, movieId],
           ),
           (error: unknown) => {
             // 23503 — foreign key violation. Alice's tenant has no such row to
@@ -1520,17 +1520,17 @@ for (const driver of drivers) {
       }
     });
 
-    test("a mix renamed away between resolving and locking is refused, never swapped", async () => {
+    test("a vibe renamed away between resolving and locking is refused, never swapped", async () => {
       // One embedded database is one session, so the substitution is performed
       // from inside the transaction rather than by a second connection. What that
-      // exercises is the check itself: `holdMixes` compares the id it resolved
+      // exercises is the check itself: `holdVibes` compares the id it resolved
       // against the id it locked, because a name is not an identity. Another
-      // transaction can rename a mix away and rename a second one into the name
-      // it left, and matching on the name alone would file the movie under a mix
+      // transaction can rename a vibe away and rename a second one into the name
+      // it left, and matching on the name alone would file the movie under a vibe
       // nobody asked for.
       const { alice, sql } = await fresh();
-      await mix(alice, "One");
-      await mix(alice, "Two");
+      await vibe(alice, "One");
+      await vibe(alice, "Two");
 
       let swapped = false;
       const watched: SqlDriver = {
@@ -1554,7 +1554,7 @@ for (const driver of drivers) {
 
       const store = sqlTasteStore(watched, ALICE);
       assert.match(
-        await refusal(store.createMovie({ title: "Arrival", year: 2016, mixes: ["One"] })),
+        await refusal(store.createMovie({ title: "Arrival", year: 2016, vibes: ["One"] })),
         /is not one of them/,
       );
       assert.ok(swapped, "the hold never ran, so nothing was proved");
@@ -1675,78 +1675,78 @@ for (const driver of drivers) {
 
     test("the whole model comes back with each movie once and every state intact", async () => {
       const { alice } = await fresh();
-      await mix(alice, "Space Tension");
-      await mix(alice, "Quiet Dread");
+      await vibe(alice, "Space Tension");
+      await vibe(alice, "Quiet Dread");
       await alice.createMovie({
         title: "Dune",
         year: 1984,
         viewing: "seen",
-        mixes: ["Space Tension"],
+        vibes: ["Space Tension"],
       });
       await alice.createMovie({
         title: "Dune",
         year: 2021,
         viewing: "seen",
         imdbId: "tt1160419",
-        mixes: ["Space Tension", "Quiet Dread"],
+        vibes: ["Space Tension", "Quiet Dread"],
       });
       await alice.createMovie({ title: "Arrival", year: 2016 });
 
-      const { mixes, movies } = await alice.taste();
+      const { vibes, movies } = await alice.taste();
 
       assert.deepEqual(movies.map(orderMovie), [
-        { title: "Arrival", year: 2016, imdbId: null, viewing: null, mixes: [] },
+        { title: "Arrival", year: 2016, imdbId: null, viewing: null, vibes: [] },
         {
           title: "Dune",
           year: 1984,
           imdbId: null,
           viewing: "seen",
-          mixes: ["Space Tension"],
+          vibes: ["Space Tension"],
         },
         {
           title: "Dune",
           year: 2021,
           imdbId: "tt1160419",
           viewing: "seen",
-          mixes: ["Quiet Dread", "Space Tension"],
+          vibes: ["Quiet Dread", "Space Tension"],
         },
       ]);
 
-      // A mix names the whole handle. A title alone could not tell one Dune from
-      // the other, and the mix would be pointing at a film nobody put there.
-      assert.deepEqual(mixes.find((one) => one.name === "Space Tension")?.movies, [
+      // A vibe names the whole handle. A title alone could not tell one Dune from
+      // the other, and the vibe would be pointing at a film nobody put there.
+      assert.deepEqual(vibes.find((one) => one.name === "Space Tension")?.movies, [
         { title: "Dune", year: 1984 },
         { title: "Dune", year: 2021 },
       ]);
-      assert.deepEqual(mixes.find((one) => one.name === "Quiet Dread")?.movies, [
+      assert.deepEqual(vibes.find((one) => one.name === "Quiet Dread")?.movies, [
         { title: "Dune", year: 2021 },
       ]);
     });
 
-    test("no mix ever names a genre that is not in the same answer", async () => {
+    test("no vibe ever names a genre that is not in the same answer", async () => {
       // The invariant every reference rule above exists to protect, asserted over
       // the whole model rather than over one operation: whatever has been done to
       // it, `taste()` never comes back internally inconsistent.
       const { alice } = await fresh();
       for (const name of ["Sci-Fi", "Thriller", "Comedy"]) await genre(alice, name);
-      await alice.createMix({
+      await alice.createVibe({
         name: "Space Tension",
         genres: ["Sci-Fi", "Thriller"],
         instruction: "Tense.",
       });
-      await alice.createMix({ name: "Weird Fun", genres: ["Sci-Fi", "Comedy"], instruction: "Odd." });
+      await alice.createVibe({ name: "Weird Fun", genres: ["Sci-Fi", "Comedy"], instruction: "Odd." });
 
       await alice.updateGenre("Sci-Fi", { name: "Science fiction" });
-      await alice.updateMix("Weird Fun", { name: "Weird Future Fun", genres: ["Comedy"] });
-      await alice.deleteMix("Space Tension");
+      await alice.updateVibe("Weird Fun", { name: "Weird Future Fun", genres: ["Comedy"] });
+      await alice.deleteVibe("Space Tension");
       await alice.deleteGenre("Thriller");
 
-      const { genres, mixes } = await alice.taste();
+      const { genres, vibes } = await alice.taste();
       const known = new Set(genres.map((one) => one.name));
-      for (const mix of mixes) {
-        assert.ok(mix.genres.length > 0, `${mix.name} is built from nothing`);
-        for (const name of mix.genres) {
-          assert.ok(known.has(name), `${mix.name} names "${name}", which is not a genre`);
+      for (const vibe of vibes) {
+        assert.ok(vibe.genres.length > 0, `${vibe.name} is built from nothing`);
+        for (const name of vibe.genres) {
+          assert.ok(known.has(name), `${vibe.name} names "${name}", which is not a genre`);
         }
       }
     });
@@ -1756,7 +1756,7 @@ for (const driver of drivers) {
      *
      * Two stamps, and the interesting one is `updatedAt`: the question it answers
      * is "has this changed since I last looked", so what counts as a change is
-     * the whole of its meaning. A Mix's genre list and a Movie's filing are part
+     * the whole of its meaning. A Vibe's genre list and a Movie's filing are part
      * of what those objects *are* — an assertion for each, because both are
      * changes that leave the object's own columns alone and would be the ones to
      * go unnoticed.
@@ -1778,8 +1778,8 @@ for (const driver of drivers) {
           (await store.taste()).movies.map((one) => [`${one.title} ${one.year}`, one.updatedAt]),
         );
 
-      const mixStamps = async (store: TasteStore, name: string) => {
-        const one = await mixOf(store, name);
+      const vibeStamps = async (store: TasteStore, name: string) => {
+        const one = await vibeOf(store, name);
         return { createdAt: one!.createdAt, updatedAt: one!.updatedAt };
       };
 
@@ -1818,11 +1818,11 @@ for (const driver of drivers) {
       test("creating anything stamps it, both stamps the same and both real", async () => {
         const { alice } = await fresh();
         await genre(alice, "Sci-Fi");
-        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
         await alice.createMovie({ title: "Arrival", year: 2016 });
 
         const taste = await alice.taste();
-        const written = [...taste.genres, ...taste.mixes, ...taste.movies];
+        const written = [...taste.genres, ...taste.vibes, ...taste.movies];
         assert.equal(written.length, 3);
 
         for (const one of written) {
@@ -1838,18 +1838,18 @@ for (const driver of drivers) {
       });
 
       test("being created with memberships is still just being created", async () => {
-        // A mix cannot exist without genres and a film may be filed as it is
+        // A vibe cannot exist without genres and a film may be filed as it is
         // saved, so both are written and then have reference rows added. Neither
         // is a change *to* the object, and its stamps must not say it was: equal
         // stamps are how a reader asks "has anything happened to this since I
         // made it", and an answer that is always yes answers nothing.
         const { alice } = await fresh();
         await genre(alice, "Sci-Fi");
-        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
-        await alice.createMovie({ title: "Arrival", year: 2016, mixes: ["Space Tension"] });
+        await alice.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createMovie({ title: "Arrival", year: 2016, vibes: ["Space Tension"] });
 
         for (const one of [
-          await mixStamps(alice, "Space Tension"),
+          await vibeStamps(alice, "Space Tension"),
           await movieStamps(alice, "Arrival", 2016),
         ]) {
           assert.equal(one.updatedAt, one.createdAt);
@@ -1865,17 +1865,17 @@ for (const driver of drivers) {
         const { alice } = await fresh();
         await genre(alice, "Sci-Fi");
         await genre(alice, "Thriller");
-        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
         await alice.createMovie({ title: "Arrival", year: 2016 });
 
-        const mixWas = await mixStamps(alice, "Space Tension");
-        await alice.updateMix("Space Tension", { genres: ["Sci-Fi", "Thriller"] });
-        after((await mixStamps(alice, "Space Tension")).updatedAt, mixWas.updatedAt, "genre added");
+        const vibeWas = await vibeStamps(alice, "Space Tension");
+        await alice.updateVibe("Space Tension", { genres: ["Sci-Fi", "Thriller"] });
+        after((await vibeStamps(alice, "Space Tension")).updatedAt, vibeWas.updatedAt, "genre added");
 
         // A film with no filings at all: the delete half of the replacement
         // matches nothing, so only the movie's own write can date it.
         const movieWas = await movieStamps(alice, "Arrival", 2016);
-        await alice.updateMovie("Arrival", 2016, { mixes: ["Space Tension"] });
+        await alice.updateMovie("Arrival", 2016, { vibes: ["Space Tension"] });
         after(
           (await movieStamps(alice, "Arrival", 2016)).updatedAt,
           movieWas.updatedAt,
@@ -1886,28 +1886,28 @@ for (const driver of drivers) {
       test("a field changing moves updatedAt and leaves createdAt alone", async () => {
         const { alice } = await fresh();
         await genre(alice, "Sci-Fi");
-        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
         await alice.createMovie({ title: "Arrival", year: 2016 });
 
         const genreWas = await genreStamps(alice, "Sci-Fi");
-        const mixWas = await mixStamps(alice, "Space Tension");
+        const vibeWas = await vibeStamps(alice, "Space Tension");
         const movieWas = await movieStamps(alice, "Arrival", 2016);
 
         await alice.updateGenre("Sci-Fi", { instruction: "Ideas over spectacle." });
-        await alice.updateMix("Space Tension", { instruction: "The danger is in the room." });
+        await alice.updateVibe("Space Tension", { instruction: "The danger is in the room." });
         await alice.updateMovie("Arrival", 2016, { viewing: "seen" });
 
         const genreNow = await genreStamps(alice, "Sci-Fi");
-        const mixNow = await mixStamps(alice, "Space Tension");
+        const vibeNow = await vibeStamps(alice, "Space Tension");
         const movieNow = await movieStamps(alice, "Arrival", 2016);
 
         after(genreNow.updatedAt, genreWas.updatedAt, "genre instruction");
-        after(mixNow.updatedAt, mixWas.updatedAt, "mix instruction");
+        after(vibeNow.updatedAt, vibeWas.updatedAt, "vibe instruction");
         after(movieNow.updatedAt, movieWas.updatedAt, "movie viewing");
 
         // Creation happened once. Nothing an update does is allowed to restate it.
         assert.equal(genreNow.createdAt, genreWas.createdAt);
-        assert.equal(mixNow.createdAt, mixWas.createdAt);
+        assert.equal(vibeNow.createdAt, vibeWas.createdAt);
         assert.equal(movieNow.createdAt, movieWas.createdAt);
       });
 
@@ -1931,53 +1931,53 @@ for (const driver of drivers) {
         assert.equal(movieNow.createdAt, movieWas.createdAt);
       });
 
-      test("changing which genres a mix is built from is a change to the mix", async () => {
+      test("changing which genres a vibe is built from is a change to the vibe", async () => {
         const { alice } = await fresh();
         await genre(alice, "Sci-Fi");
         await genre(alice, "Thriller");
-        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
 
-        const was = await mixStamps(alice, "Space Tension");
+        const was = await vibeStamps(alice, "Space Tension");
         // Only the membership. Name and instruction are left exactly as they
-        // were, so nothing in the mix's own columns has a new value to write.
-        await alice.updateMix("Space Tension", { genres: ["Sci-Fi", "Thriller"] });
+        // were, so nothing in the vibe's own columns has a new value to write.
+        await alice.updateVibe("Space Tension", { genres: ["Sci-Fi", "Thriller"] });
 
-        const now = await mixStamps(alice, "Space Tension");
-        after(now.updatedAt, was.updatedAt, "mix genre membership");
+        const now = await vibeStamps(alice, "Space Tension");
+        after(now.updatedAt, was.updatedAt, "vibe genre membership");
         assert.equal(now.createdAt, was.createdAt);
       });
 
-      test("changing which mixes a movie is in is a change to the movie", async () => {
+      test("changing which vibes a movie is in is a change to the movie", async () => {
         const { alice } = await fresh();
         await genre(alice, "Sci-Fi");
-        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
         await alice.createMovie({ title: "Arrival", year: 2016 });
 
         const was = await movieStamps(alice, "Arrival", 2016);
         // Again only the membership: same title, same year, same state.
-        await alice.updateMovie("Arrival", 2016, { mixes: ["Space Tension"] });
+        await alice.updateMovie("Arrival", 2016, { vibes: ["Space Tension"] });
 
         const filed = await movieStamps(alice, "Arrival", 2016);
         after(filed.updatedAt, was.updatedAt, "movie filed");
         assert.equal(filed.createdAt, was.createdAt);
 
         // And taking it out again, which is the same change in the other
-        // direction and the one an implementation keyed on "has a mix" misses.
-        await alice.updateMovie("Arrival", 2016, { mixes: [] });
+        // direction and the one an implementation keyed on "has a vibe" misses.
+        await alice.updateMovie("Arrival", 2016, { vibes: [] });
         const loose = await movieStamps(alice, "Arrival", 2016);
         after(loose.updatedAt, filed.updatedAt, "movie unfiled");
         assert.equal(loose.createdAt, was.createdAt);
       });
 
-      test("deleting a mix is a change to every movie that was in it", async () => {
+      test("deleting a vibe is a change to every movie that was in it", async () => {
         const { alice } = await fresh();
         await genre(alice, "Sci-Fi");
-        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
         await alice.createMovie({
           title: "Arrival",
           year: 2016,
           viewing: "seen",
-          mixes: ["Space Tension"],
+          vibes: ["Space Tension"],
         });
         await alice.createMovie({ title: "Moon", year: 2009 });
 
@@ -1985,9 +1985,9 @@ for (const driver of drivers) {
         const looseWas = await movieStamps(alice, "Moon", 2009);
 
         // The film is not deleted and not edited. What changed is that it is now
-        // in one fewer mix — which the movie's own row is never told about,
+        // in one fewer vibe — which the movie's own row is never told about,
         // because the reference rows cascade away underneath it.
-        await alice.deleteMix("Space Tension");
+        await alice.deleteVibe("Space Tension");
 
         const filedNow = await movieStamps(alice, "Arrival", 2016);
         // The whole film, not just its filing: dating a row means writing it, and
@@ -1999,7 +1999,7 @@ for (const driver of drivers) {
           year: 2016,
           imdbId: null,
           viewing: "seen",
-          mixes: [],
+          vibes: [],
         });
         after(filedNow.updatedAt, filedWas.updatedAt, "movie unfiled by a deletion");
         assert.equal(filedNow.createdAt, filedWas.createdAt);
@@ -2008,18 +2008,18 @@ for (const driver of drivers) {
         assert.deepEqual(await movieStamps(alice, "Moon", 2009), looseWas);
       });
 
-      test("filing a movie is not a change to the mix it is filed under", async () => {
-        // The asymmetry is deliberate and is v4's reasoning: a mix is defined by
+      test("filing a movie is not a change to the vibe it is filed under", async () => {
+        // The asymmetry is deliberate and is v4's reasoning: a vibe is defined by
         // its genres and its instruction, and a film is one of the things the user
-        // keeps in it. One more does not change what the mix means.
+        // keeps in it. One more does not change what the vibe means.
         const { alice } = await fresh();
         await genre(alice, "Sci-Fi");
-        await alice.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+        await alice.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
 
-        const was = await mixStamps(alice, "Space Tension");
-        await alice.createMovie({ title: "Arrival", year: 2016, mixes: ["Space Tension"] });
+        const was = await vibeStamps(alice, "Space Tension");
+        await alice.createMovie({ title: "Arrival", year: 2016, vibes: ["Space Tension"] });
 
-        assert.deepEqual(await mixStamps(alice, "Space Tension"), was);
+        assert.deepEqual(await vibeStamps(alice, "Space Tension"), was);
       });
 
       test("a caller cannot supply either stamp, on create or on update", async () => {

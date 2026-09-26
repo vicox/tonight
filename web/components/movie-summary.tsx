@@ -20,16 +20,16 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  * How many films there are, and — one press in — which ones.
  *
  * The films section of the page, and one of its three peers: the same `Section`
- * heading as the genres and the mixes, with the same count beside it — the number
+ * heading as the genres and the vibes, with the same count beside it — the number
  * of films there are, every one of them, including the ones nobody has said
  * anything about. The heading lives here rather than on the page because this is
  * what knows whether there is anything to count.
  *
- * Under it, a few lines of text over a page that files films by mix. The page
- * answers "what is in this mix"; these answer "how many have I loved", which the
- * page cannot, because the loved ones are spread across every mix on it. Pressing
+ * Under it, a few lines of text over a page that files films by vibe. The page
+ * answers "what is in this vibe"; these answer "how many have I loved", which the
+ * page cannot, because the loved ones are spread across every vibe on it. Pressing
  * one opens the films it counted, which is the only place on the website where a
- * film can be met outside the mix it happens to be in.
+ * film can be met outside the vibe it happens to be in.
  *
  * ## One line, and two answers rather than one
  *

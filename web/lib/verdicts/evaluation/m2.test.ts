@@ -45,7 +45,7 @@ import {
  * no such notes now, and the exception went with them.
  *
  * Each trajectory runs as its own user, starting from `BASELINE`: the same
- * genres, mix and unrelated film for everybody. A verdict history is
+ * genres, vibe and unrelated film for everybody. A verdict history is
  * append-only, so there is no forgetting between runs the way M1 had; a fresh
  * slate is a fresh person. That also makes the paired gates honest — the two
  * halves of a pair are two people who did different things, not one person at
@@ -124,12 +124,12 @@ describe("M2 — only what they said", () => {
     };
     const taste = async (): Promise<Taste> => (await call("get_taste")) as unknown as Taste;
 
-    // The taste everybody starts from. Genres and a mix are here so that a
+    // The taste everybody starts from. Genres and a vibe are here so that a
     // rejection generalising into a category has somewhere to land where a gate
     // can see it; without them "nothing else moved" would be a claim about an
     // empty room.
     for (const genre of BASELINE.genres) await call("create_genre", { ...genre });
-    for (const mix of BASELINE.mixes) await call("create_mix", { ...mix });
+    for (const vibe of BASELINE.vibes) await call("create_vibe", { ...vibe });
     for (const movie of BASELINE.movies) await call("create_movie", { ...movie });
     // The baseline opinion, as an opinion is written now. It used to be a field
     // on the film above; when it stopped being one, the tool dropped it in
@@ -450,17 +450,17 @@ describe("M2 — only what they said", () => {
     });
   });
 
-  test("a not-ever leaking into a mix is caught", () => {
-    probe("a refusal becomes a mix exclusion", "scope", (copy) => {
+  test("a not-ever leaking into a vibe is caught", () => {
+    probe("a refusal becomes a vibe exclusion", "scope", (copy) => {
       const seen = copy.seen["not-ever-one-film"]!;
-      seen.after.mixes = [
-        ...seen.after.mixes,
+      seen.after.vibes = [
+        ...seen.after.vibes,
         { name: "Not For Them", genres: ["Slow Burn"], instruction: "avoid the long ones" },
       ];
     });
   });
 
-  test("a not-tonight leaking into a genre and a mix is caught", () => {
+  test("a not-tonight leaking into a genre and a vibe is caught", () => {
     // The same category failure as the permanent refusal's, and the likelier of
     // the two: "too long for tonight" sounds enough like a preference that a
     // system might file it as one. The film's own standing stays exactly right.
@@ -471,8 +471,8 @@ describe("M2 — only what they said", () => {
           ? { ...genre, instruction: `${genre.instruction} — not on a weeknight` }
           : genre,
       );
-      seen.after.mixes = [
-        ...seen.after.mixes,
+      seen.after.vibes = [
+        ...seen.after.vibes,
         { name: "Short Evenings", genres: ["Heist"], instruction: "nothing that runs long" },
       ];
     });

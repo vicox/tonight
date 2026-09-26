@@ -157,7 +157,7 @@ check "the good and bad questions are shown side by side" \
 check "the database question is named as the wrong one" \
     "$(grep -c 'What Genres should I save?' "$SKILL")" "1"
 check "nobody has to understand the data model to get a film" \
-    "$(order_check 'never make somebody learn Genres and Mixes to get a film')" "True"
+    "$(order_check 'never make somebody learn Genres and Vibes to get a film')" "True"
 
 echo
 echo "--- the tool-orchestration boundary ---"
@@ -171,7 +171,7 @@ check "film knowledge and film tools sit beside Tonight, not inside it" \
         'sit beside it')" "True"
 check "never look in Tonight for films to recommend, and never write the model elsewhere" \
     "$(order_check 'Never look in Tonight for films to recommend' \
-        'Never write a Genre, a Mix or a Movie anywhere but Tonight' \
+        'Never write a Genre, a Vibe or a Movie anywhere but Tonight' \
         'no Tonight tool that takes a taste and returns films')" "True"
 check "there is no Tonight tool that chooses films, and none is planned" \
     "$(order_check 'The choosing is yours' \
@@ -179,12 +179,12 @@ check "there is no Tonight tool that chooses films, and none is planned" \
         'not going to be one')" "True"
 
 echo
-echo "--- a Mix is the recommendation idea ---"
+echo "--- a Vibe is the recommendation idea ---"
 
-check "genre and mix are defined as component and combination" \
+check "genre and vibe are defined as component and combination" \
     "$(order_check 'A **Genre** is a reusable component of what they like' \
-        'a **Mix** is Genres plus what the')" "True"
-check "a mix is read as its own instruction plus its genres" \
+        'a **Vibe** is Genres plus what the')" "True"
+check "a vibe is read as its own instruction plus its genres" \
     "$(order_check '**its own instruction plus the instructions of its Genres**' \
         'plus the instructions of its Genres' \
         'in that order')" "True"
@@ -220,7 +220,7 @@ check "and the positive preference that shaped it is recognisable in the answer"
 # user would recognise is enough. A closed list would forbid the paraphrase and
 # would also have omitted `liked`.
 check "naming a stored object is offered as one way, not required" \
-    "$(order_check 'Naming the Mix, the Genre or a film they liked or loved is one' \
+    "$(order_check 'Naming the Vibe, the Genre or a film they liked or loved is one' \
         'way to do that and not the only one' \
         'a paraphrase they would recognise as their own is enough')" "True"
 check "and the visibility rule is about positive evidence, not any mention" \
@@ -234,19 +234,19 @@ check "and an instruction is still a constraint, not a preference to trade off" 
     "$(order_check 'worse than none')" "True"
 
 echo
-echo "--- a Mix is evidence; its films calibrate ---"
+echo "--- a Vibe is evidence; its films calibrate ---"
 
-# Step 6, adopting P5. The rule replaced here said a Genre or Mix existing is not
+# Step 6, adopting P5. The rule replaced here said a Genre or Vibe existing is not
 # evidence they like it, and that film states are what make one trustworthy. That is a
-# gate: no states, no weight — and it denies the product's own loop, since the Mix
+# gate: no states, no weight — and it denies the product's own loop, since the Vibe
 # written in last night's conversation is exactly the one tonight's answer should use.
-check "a matching Mix is a reason the recommendation fits" \
-    "$(order_check 'a Mix that matches is a reason' 'the recommendation fits')" "True"
+check "a matching Vibe is a reason the recommendation fits" \
+    "$(order_check 'a Vibe that matches is a reason' 'the recommendation fits')" "True"
 check "and it counts from the moment it exists, with nothing under it" \
     "$(order_check 'counts from' 'the moment it exists' \
         'nothing under it yet says as much about what' \
         'they like as one with ten films under it')" "True"
-check "a Genre is thinner than a Mix, and a Genre name alone justifies nothing" \
+check "a Genre is thinner than a Vibe, and a Genre name alone justifies nothing" \
     "$(order_check 'A Genre is an ingredient and' \
         'thinner on its own' \
         'justified only by a Genre name is justified by a label')" "True"
@@ -264,13 +264,13 @@ check "a saved film carries a fact about watching and never an opinion" \
         'fact, never a sign for or against' \
         'no opinion' \
         'not the same as having said nothing about')" "True"
-check "an empty Mix changes how you speak, not whether you use it" \
+check "an empty Vibe changes how you speak, not whether you use it" \
     "$(order_check 'less confidence about specifics and just as' \
         'much about intent' \
         'never whether you use it' \
         'Say how sure you are')" "True"
 
-# R4. A Mix with nothing under it says what they meant, and nothing about what they
+# R4. A Vibe with nothing under it says what they meant, and nothing about what they
 # made of any film. The rule is about that missing verdict, not about how warmly a
 # match may be described: two sweeps failed on the wording while the behaviour —
 # claiming a film was settled for somebody who had never rated one — was what mattered.
@@ -278,8 +278,8 @@ check "the doubt lands on the film's fit, not on what they meant" \
     "$(order_check 'put the doubt where it belongs' \
         '**what' \
         'they meant is not in question, and no particular film has been confirmed to fit it yet**')" "True"
-check "describing how well a film answers the Mix stays allowed" \
-    "$(order_check 'say how well a film answers what the Mix asks for as plainly as it deserves' \
+check "describing how well a film answers the Vibe stays allowed" \
+    "$(order_check 'say how well a film answers what the Vibe asks for as plainly as it deserves' \
         'you can both see it')" "True"
 check "what is refused is a verdict they have not given" \
     "$(order_check 'What you may not say is that' \
@@ -288,13 +288,13 @@ check "and their verdict is what they said, of which there is none yet" \
     "$(order_check 'their verdict is what they said' \
         'about the film, and there is none yet')" "True"
 # None of the rejected mechanisms may come back with it.
-check "no Mix is graded as provisional" \
+check "no Vibe is graded as provisional" \
     "$(grep -ciE 'aspirational|untested|unproven|provisional' "$SKILL")" "0"
 
 # The gate, in every form the strategy rejects.
 check "the pre-P5 gate is gone" \
-    "$(grep -ciE 'A Genre or Mix existing is not evidence|What makes one trustworthy is the film' "$SKILL")" "0"
-check "and no word grades a Mix as provisional" \
+    "$(grep -ciE 'A Genre or Vibe existing is not evidence|What makes one trustworthy is the film' "$SKILL")" "0"
+check "and no word grades a Vibe as provisional" \
     "$(grep -ciE 'aspirational|untested|unproven|provisional' "$SKILL")" "0"
 
 # P3's replaced half: nothing persisted used to bind, which meant the model was not
@@ -450,27 +450,27 @@ check "the question survives; only its power to replace the answer is gone" \
 check "the recommendation-against-configuration guard survived the rewrite" \
     "$(order_check 'ask **one question about films**' \
         'never *"what genres do you like?"*' \
-        'never make somebody learn Genres and Mixes' \
+        'never make somebody learn Genres and Vibes' \
         'Never print the taste model while recommending')" "True"
 
 echo
-echo "--- a Mix is named, not labelled ---"
+echo "--- a Vibe is named, not labelled ---"
 
-# The distinguishing product idea. A Genre is named for what it is and a Mix for
+# The distinguishing product idea. A Genre is named for what it is and a Vibe for
 # what it feels like, and the failure is always in the same direction: a helpful
 # assistant restating the ingredients. Both halves are pinned — the rule, and
 # examples of each kind — because the rule alone reads as a matter of taste until
 # `Popcorn Chaos` and `Funny action` are sitting next to each other.
 check "the two kinds of name are distinguished, in that order" \
-    "$(order_check 'A Mix name is evocative, not descriptive' \
+    "$(order_check 'A Vibe name is evocative, not descriptive' \
         'A **Genre** is named for what it is' \
-        'A **Mix** is named for what it *feels* like')" "True"
+        'A **Vibe** is named for what it *feels* like')" "True"
 check "evocative names are shown, not just asked for" \
     "$(order_check 'Space Tension' 'Popcorn Chaos' 'Quiet Dread')" "True"
 check "descriptive names are shown as the failure they are" \
-    "$(order_check '`Funny action`' '**not Mix names**' 'it has been' 'labelled')" "True"
+    "$(order_check '`Funny action`' '**not Vibe names**' 'it has been' 'labelled')" "True"
 check "the test for a name is pointed at, not restated" \
-    "$(order_check '`create_mix` carries the test for that in its own description' \
+    "$(order_check '`create_vibe` carries the test for that in its own description' \
         'at the moment a name is being chosen')" "True"
 check "naming is the assistant's to do, and may not widen the idea" \
     "$(order_check 'Proposing the name is yours' \
@@ -479,20 +479,20 @@ check "naming is the assistant's to do, and may not widen the idea" \
 echo
 echo "--- the model grows from what was said ---"
 
-check "the idea just used is the Mix, and its parts are the Genres" \
-    "$(order_check 'The idea you just used' '**is** a Mix' \
+check "the idea just used is the Vibe, and its parts are the Genres" \
+    "$(order_check 'The idea you just used' '**is** a Vibe' \
         'Writing them down is how Tonight gets better at this')" "True"
 check "a Genre is reused before it is created, and near-duplicates are called out" \
     "$(order_check 'Reuse the Genres that genuinely fit' \
         'create one for anything no Genre covers' \
         'do not add `Slow-paced`')" "True"
-check "a Mix is reused when it fits and made new when it does not" \
+check "a Vibe is reused when it fits and made new when it does not" \
     "$(order_check 'One genuinely fits' \
-        'Never stretch a Mix to avoid making one' \
-        'a different evening is a different Mix')" "True"
+        'Never stretch a Vibe to avoid making one' \
+        'a different evening is a different Vibe')" "True"
 check "the write constraints point at the tools that state them" \
-    "$(order_check "What a Mix's name has to earn" \
-        'arrive with `create_genre` and `create_mix`')" "True"
+    "$(order_check "What a Vibe's name has to earn" \
+        'arrive with `create_genre` and `create_vibe`')" "True"
 
 echo
 echo "--- persistence: expressed, never inferred ---"
@@ -744,7 +744,7 @@ echo "--- a Movie is the user's own object ---"
 check "a Movie is the saved, filed, viewing root, and theirs" \
     "$(order_check 'a film in their library: one they asked Tonight to keep, or' \
         'one they told it they had watched' \
-        'A Movie is theirs, the same way a Genre or a Mix is' \
+        'A Movie is theirs, the same way a Genre or a Vibe is' \
         'never an entry from a catalogue')" "True"
 # The independence the split introduced, in the direction that is easy to get
 # wrong: a Verdict is its own root, so an opinion does not need a Movie under it
@@ -755,12 +755,12 @@ check "a Verdict stands on its own root, with no Movie under it" \
 check "saying something about a film neither needs a Movie nor writes one" \
     "$(order_check 'saying something about a film neither needs a Movie nor writes one')" "True"
 check "and the write flow says it where a verdict is recorded" \
-    "$(order_check 'No Mix is needed for one and none may be invented to hold it' \
+    "$(order_check 'No Vibe is needed for one and none may be invented to hold it' \
         'no Movie either' \
         'a film nobody' \
         'has saved may still carry one')" "True"
 check "the projection carries the same independence" \
-    "$(tr '\n' ' ' < "$CANONICAL" | grep -coE 'no Mix and no +Movie is needed or +invented to hold one')" "1"
+    "$(tr '\n' ' ' < "$CANONICAL" | grep -coE 'no Vibe and no +Movie is needed or +invented to hold one')" "1"
 # And the false rule is gone rather than reworded.
 check "a Movie no longer comes into being because somebody said something" \
     "$(grep -ciE 'asked for it to be kept, or said something about it' "$CANONICAL")" "0"
@@ -788,54 +788,54 @@ check "the handle is settled before a write, and asking which film is not ceremo
 
 check "keeping a film and saying something about one are different requests" \
     "$(order_check 'Two requests about a film, and they differ')" "True"
-check "a film the user asks to keep goes into a Mix, and they need not know that" \
-    "$(order_check 'Keeping a film goes into a Mix' \
-        'Never write a Movie this way without at least one Mix')" "True"
-check "a verdict is recorded through its own tool, without inventing a Mix for it" \
+check "a film the user asks to keep goes into a Vibe, and they need not know that" \
+    "$(order_check 'Keeping a film goes into a Vibe' \
+        'Never write a Movie this way without at least one Vibe')" "True"
+check "a verdict is recorded through its own tool, without inventing a Vibe for it" \
     "$(order_check 'What they said about a film does not' \
         'it goes to `record_verdict`' \
         'none may be invented to hold it' \
-        'a later request to keep the film takes a Mix')" "True"
-check "a Mix that genuinely fits is used, and nothing further is asked" \
+        'a later request to keep the film takes a Vibe')" "True"
+check "a Vibe that genuinely fits is used, and nothing further is asked" \
     "$(order_check 'One genuinely fits' \
         'ask nothing further')" "True"
-check "an existing Mix is not a bucket, and its meaning is never widened to fit" \
+check "an existing Vibe is not a bucket, and its meaning is never widened to fit" \
     "$(order_check 'One nearly fits' \
         'not a bucket' \
-        'a different evening is a different Mix')" "True"
-check "with no good fit the film waits, and a Mix is devised rather than asked for" \
+        'a different evening is a different Vibe')" "True"
+check "with no good fit the film waits, and a Vibe is devised rather than asked for" \
     "$(order_check 'None fits' \
         'do not save the film yet' \
-        'Never ask which Mix they want' \
+        'Never ask which Vibe they want' \
         'that judgement is yours')" "True"
-check "the Mix is proposed conversationally, named and explained, then asked about" \
+check "the Vibe is proposed conversationally, named and explained, then asked about" \
     "$(order_check 'say what you noticed, name it, say what it means' \
         'Then ask' \
         'Shall I make it?')" "True"
-check "a proposed Mix is shown as an idea: other films in it, other names for it" \
+check "a proposed Vibe is shown as an idea: other films in it, other names for it" \
     "$(order_check 'make the idea concrete' \
         'three to five other films that would belong in it' \
         'two or three names it could have instead')" "True"
 check "those films illustrate the idea and are never part of the save" \
     "$(order_check 'Those films are illustration only' \
-        'never written, never in the Mix' \
+        'never written, never in the Vibe' \
         'never given a viewing or a verdict' \
         'Only the film they asked to keep is being saved')" "True"
-check "a Mix that already fits is still saved without any of that" \
+check "a Vibe that already fits is still saved without any of that" \
     "$(order_check 'One genuinely fits' \
         'ask nothing further' \
-        'a Mix that genuinely fits needs none of this')" "True"
-check "one yes creates the Mix and saves the film, with no second save question" \
+        'a Vibe that genuinely fits needs none of this')" "True"
+check "one yes creates the Vibe and saves the film, with no second save question" \
     "$(order_check 'A yes is the whole of the permission' \
-        'any Genre it needs, then the Mix' \
+        'any Genre it needs, then the Vibe' \
         'never ask a second time')" "True"
 check "a no settles it, and never becomes a film saved loose" \
     "$(order_check 'A no settles it' \
         'never saving the film loose')" "True"
-check "proposing a Mix belongs to saving, not to recommending" \
+check "proposing a Vibe belongs to saving, not to recommending" \
     "$(order_check 'Propose while saving, not while recommending')" "True"
-check "a film in no Mix is a legitimate state, listed and left alone" \
-    "$(order_check 'A film in no Mix is legitimate' \
+check "a film in no Vibe is a legitimate state, listed and left alone" \
+    "$(order_check 'A film in no Vibe is legitimate' \
         'lists them under **Other movies**' \
         'Do not sort them' \
         'when they ask you to **keep** a film')" "True"
@@ -870,24 +870,24 @@ check "the instruction's voice lives only on the tool" \
 check "the rewording prohibition lives only on the update tools" \
     "$(grep -ciE 'reword' "$SKILL")" "0"
 check "the write invariants live only on the create tools" \
-    "$(grep -ciE 'always needs an instruction|at least one existing Genre|built from Genres only|built from another Mix|no chaining' "$SKILL")" \
+    "$(grep -ciE 'always needs an instruction|at least one existing Genre|built from Genres only|built from another Vibe|no chaining' "$SKILL")" \
     "0"
-# The criterion has two halves, and each has a home on the tool: `create_mix` asks
-# whether they would ask for it by name in a month, `mixName` asks whether knowing the
+# The criterion has two halves, and each has a home on the tool: `create_vibe` asks
+# whether they would ask for it by name in a month, `vibeName` asks whether knowing the
 # Genres already gives you the name. The skill restated both in its own words, so the
 # pattern covers the idea rather than the sentence.
 #
-# What the skill may still say is deliberately outside it: that a Mix name is evocative
-# and a Genre name descriptive, the examples of each, and that a labelled Mix is "the
+# What the skill may still say is deliberately outside it: that a Vibe name is evocative
+# and a Genre name descriptive, the examples of each, and that a labelled Vibe is "the
 # Genres said again in one line".
-mix_name_rule='what would I get wrong|already tells you the name|the instruction test'
-mix_name_rule="$mix_name_rule|ask for it by name|can ask for it|by name in a month"
-mix_name_rule="$mix_name_rule|a month later|ask for the Mix by|doing no work"
-mix_name_rule="$mix_name_rule|adds? (nothing|something|anything) to its Genres"
-mix_name_rule="$mix_name_rule|(beyond|more than) its Genres|pair of Genres"
-mix_name_rule="$mix_name_rule|earns? its( own)? name"
-check "the Mix naming test lives only on create_mix" \
-    "$(grep -ciE "$mix_name_rule" "$SKILL")" "0"
+vibe_name_rule='what would I get wrong|already tells you the name|the instruction test'
+vibe_name_rule="$vibe_name_rule|ask for it by name|can ask for it|by name in a month"
+vibe_name_rule="$vibe_name_rule|a month later|ask for the Vibe by|doing no work"
+vibe_name_rule="$vibe_name_rule|adds? (nothing|something|anything) to its Genres"
+vibe_name_rule="$vibe_name_rule|(beyond|more than) its Genres|pair of Genres"
+vibe_name_rule="$vibe_name_rule|earns? its( own)? name"
+check "the Vibe naming test lives only on create_vibe" \
+    "$(grep -ciE "$vibe_name_rule" "$SKILL")" "0"
 check "the score prohibition lives only on the viewing field" \
     "$(grep -ciE 'score or star rating|never a score' "$SKILL")" "0"
 

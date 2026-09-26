@@ -50,7 +50,7 @@ export { filmKey };
  * ## What this slice deliberately cannot do
  *
  * Nothing here persists, asks, or answers. A verdict does not reach a Movie
- * state, does not touch a Mix, and does not change what gets recommended —
+ * state, does not touch a Vibe, and does not change what gets recommended —
  * confidence is not modelled at all, because §2 says it is derived and never
  * stored, and M2's non-goals say not yet. Situations and companions, which would
  * give scopes richer than one occasion, are later milestones. Those arrive

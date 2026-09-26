@@ -6,7 +6,7 @@ import { authorized, given } from "../../../lib/web/api.ts";
  *
  * ## Why the handle is in the body rather than the path
  *
- * Genres and mixes are addressed by a name, so their routes carry it as a path
+ * Genres and vibes are addressed by a name, so their routes carry it as a path
  * segment. A movie is addressed by a *pair*, and one half of it is a film title —
  * `Face/Off`, `Who Framed Roger Rabbit?`, `#Alive` — which is exactly the kind of
  * string a path segment is worst at carrying. Sending the whole handle as the
@@ -16,7 +16,7 @@ import { authorized, given } from "../../../lib/web/api.ts";
  *
  * ## The answer is the outcome, not the model
  *
- * A successful press answers `{}` with a 200. The genre and mix routes hand back
+ * A successful press answers `{}` with a 200. The genre and vibe routes hand back
  * the whole taste model, which their callers ignore in favour of re-rendering
  * from the store; nothing here needs it either. The control looks at the status
  * and, when something went wrong, at the message — so reading the model back
@@ -34,7 +34,7 @@ import { authorized, given } from "../../../lib/web/api.ts";
  * apart is the whole point of the split: a press on "Seen" says they watched it
  * and says nothing about whether they liked it.
  *
- * A title, a year, an IMDb id and mix membership are all things the store can
+ * A title, a year, an IMDb id and vibe membership are all things the store can
  * change and nothing on the website asks for — an endpoint that accepted them
  * would be capability with no caller, and the assistant already reaches all of
  * it through `update_movie`.

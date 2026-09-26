@@ -69,7 +69,7 @@ re-detected twice. → **MOVE TO BLIND** (AC1's "named as the lead" half; rubric
 case. → **KEEP, as a flag** (see *Flags* below)
 
 **AC2 — `governingSubject` and friends** — strips copulas, detects relative clauses, splits on
-clause boundaries, then decides whether the claim's subject is a Mix, a Genre, an intent phrase or
+clause boundaries, then decides whether the claim's subject is a Vibe, a Genre, an intent phrase or
 a film. This is a miniature parser, and it needed two consecutive corrections during R5 for exactly
 that reason. The question it answers — *is this confidence about what they meant, or about whether
 a film fits?* — is semantic. → **MOVE TO BLIND**, **REMOVE** the machinery
@@ -78,7 +78,7 @@ a film fits?* — is semantic. → **MOVE TO BLIND**, **REMOVE** the machinery
 deciding whether a mention of a stored name *supports* the recommendation, using four regex banks,
 a ±130-character window, and a co-occurrence rule (possession counts only alongside use). It has
 already been wrong in both directions on real output: it failed four runs that plainly cited the
-Mix, and it passed nothing it should have failed only because the criterion was then narrowed.
+Vibe, and it passed nothing it should have failed only because the criterion was then narrowed.
 *"Does this citation convince?"* is rubric criterion *Justified personalization*. → **MOVE TO
 BLIND**. Keep containment — **does the answer name anything stored at all** — as a **flag only**.
 It cannot be a failure: R3 accepts a paraphrase the user would recognise as their own, and a
@@ -108,7 +108,7 @@ Check facts about artifacts. Never read a sentence for meaning.
    of those open on a condition. Counted and flagged; never read as whether the shape is right.
 5. **Prohibited literal claims** — a fixed idiom list, matched verbatim.
 6. **Snapshot contradictions** — the answer asserts something the bound snapshot denies.
-7. **Containment** — whether the answer names any stored Genre, Mix or Movie, where the fixture
+7. **Containment** — whether the answer names any stored Genre, Vibe or Movie, where the fixture
    holds one. This is a **flag, never a failure**: R3 allows "a paraphrase they would recognise as
    their own", which names nothing and satisfies AC3a.
 

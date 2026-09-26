@@ -190,7 +190,7 @@ async function signIn(identity: VerifiedIdentity, alsoHolding?: string): Promise
  * instead.
  *
  * The taste model comes from one store opened once, which is what the page does:
- * there is only one `user` in this expression for the genres or the mixes to be
+ * there is only one `user` in this expression for the genres or the vibes to be
  * read against.
  */
 async function home(cookieValue: string | null): Promise<{ email: string; taste: Taste } | null> {
@@ -539,7 +539,7 @@ test("one Google account is one owner, whether it arrives by MCP or by browser",
   const SUB = "parity";
   await mcp(`google:${SUB}`, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
   await mcp(`google:${SUB}`, "create_genre", { name: "Thriller", instruction: "Tension, not gore." });
-  await mcp(`google:${SUB}`, "create_mix", {
+  await mcp(`google:${SUB}`, "create_vibe", {
     name: "Space Tension",
     genres: ["Sci-Fi", "Thriller"],
     instruction: "Contained, mysterious science fiction.",
@@ -553,13 +553,13 @@ test("one Google account is one owner, whether it arrives by MCP or by browser",
   // resolves to the same provider-qualified subject the access token carries.
   assert.deepEqual(fromWeb?.taste, fromMcp);
   assert.equal(fromWeb?.taste.genres.length, 2);
-  assert.deepEqual(fromWeb?.taste.mixes[0]?.genres, ["Sci-Fi", "Thriller"]);
+  assert.deepEqual(fromWeb?.taste.vibes[0]?.genres, ["Sci-Fi", "Thriller"]);
 });
 
 test("a Google account with no taste reaches an empty home page, not somebody else's", async () => {
   const shown = await home(await signIn(account("newcomer", "newcomer@example.com")));
 
-  assert.deepEqual(shown?.taste, { genres: [], mixes: [], movies: [] });
+  assert.deepEqual(shown?.taste, { genres: [], vibes: [], movies: [] });
   assert.equal(shown?.email, "newcomer@example.com");
 });
 
@@ -831,7 +831,7 @@ test("loading the signed-in page creates nothing", async () => {
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const shown = await home(session);
-    assert.deepEqual(shown?.taste, { genres: [], mixes: [], movies: [] }, "no starter genres appeared");
+    assert.deepEqual(shown?.taste, { genres: [], vibes: [], movies: [] }, "no starter genres appeared");
   }
 });
 
@@ -855,18 +855,18 @@ test("the signed-in page opens one store, for the session owner, and writes noth
   // And nothing that would change the account by looking at it.
   for (const mutation of [
     "createGenre", "updateGenre", "deleteGenre",
-    "createMix", "updateMix", "deleteMix",
+    "createVibe", "updateVibe", "deleteVibe",
   ]) {
     assert.equal(page.includes(mutation), false, `the page calls ${mutation}`);
   }
 });
 
 test("no source reads a taste model from anywhere but the store", async () => {
-  // One canonical source for a user's genres and mixes. A fixture file, a second
+  // One canonical source for a user's genres and vibes. A fixture file, a second
   // endpoint or a local cache would each be a second thing to keep true about an
   // account, and the first place the website and the MCP tools could disagree.
   const offenders = productSources().filter(([, source]) =>
-    /readFileSync|data\/genres|data\/mixes/.test(source),
+    /readFileSync|data\/genres|data\/vibes/.test(source),
   );
   assert.deepEqual(offenders.map(([name]) => name), []);
 });

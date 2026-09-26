@@ -79,18 +79,18 @@ describe("the memory composer", () => {
 
   test("everything the user saved or currently says is held", async () => {
     // The expected picture is written here, not read back from the composer:
-    // two genres, one mix, two films and one standing verdict.
+    // two genres, one vibe, two films and one standing verdict.
     const her = someone();
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
     await her.taste.createGenre({ name: "Heist", instruction: "a crew and a plan" });
-    await her.taste.createMix({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" });
+    await her.taste.createVibe({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" });
     await her.taste.createMovie({ ...HEAT_1995, viewing: "seen" });
     await her.taste.createMovie({ ...BLACK_BAG, viewing: null });
     await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z", "the tension"));
 
     const { held } = await her.memory();
     assert.deepEqual(of(held, "genre").map((root) => root.of === "genre" && root.name).sort(), ["Heist", "Slow Burn"]);
-    assert.deepEqual(of(held, "mix").map((root) => root.of === "mix" && root.name), ["Long Nights"]);
+    assert.deepEqual(of(held, "vibe").map((root) => root.of === "vibe" && root.name), ["Long Nights"]);
     assert.deepEqual(
       of(held, "movie").map((root) => (root.of === "movie" ? `${root.film.title} ${String(root.film.year)}` : "")).sort(),
       ["Black Bag 2025", "Heat 1995"],
@@ -99,18 +99,18 @@ describe("the memory composer", () => {
     for (const root of held) assert.equal(root.placement, "held");
   });
 
-  test("a held mix carries what it is made of and what is in it", async () => {
+  test("a held vibe carries what it is made of and what is in it", async () => {
     const her = someone();
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
     await her.taste.createMovie({ ...HEAT_1995, viewing: "seen" });
-    await her.taste.createMix({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" });
-    await her.taste.updateMovie(HEAT_1995.title, HEAT_1995.year, { mixes: ["Long Nights"] });
+    await her.taste.createVibe({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" });
+    await her.taste.updateMovie(HEAT_1995.title, HEAT_1995.year, { vibes: ["Long Nights"] });
 
-    const [mix] = of((await her.memory()).held, "mix");
-    assert.ok(mix && mix.of === "mix");
-    assert.deepEqual([...mix.genres], ["Slow Burn"]);
-    assert.deepEqual([...mix.films], [HEAT_1995]);
-    assert.equal(mix.instruction, "room to unfold");
+    const [vibe] = of((await her.memory()).held, "vibe");
+    assert.ok(vibe && vibe.of === "vibe");
+    assert.deepEqual([...vibe.genres], ["Slow Burn"]);
+    assert.deepEqual([...vibe.films], [HEAT_1995]);
+    assert.equal(vibe.instruction, "room to unfold");
   });
 
   /* ------------------------------------------------ remembered completeness */
@@ -321,7 +321,7 @@ describe("the memory composer", () => {
 
   test("forgetting the standing verdict leaves nothing evaluative, and no hidden opinion", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen", mixes: [] });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen", vibes: [] });
     const act = await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     assert.equal(of((await her.memory()).held, "verdict").length, 1);
 
@@ -560,15 +560,15 @@ describe("the memory composer", () => {
     // thinks is another. No verdict operation may reach across.
     const her = someone();
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
-    await her.taste.createMix({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room" });
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "unseen", mixes: ["Long Nights"] });
+    await her.taste.createVibe({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "unseen", vibes: ["Long Nights"] });
 
     const film = async () => {
       const [movie] = of((await her.memory()).held, "movie");
-      return movie?.of === "movie" ? { viewing: movie.viewing, mixes: [...movie.mixes] } : null;
+      return movie?.of === "movie" ? { viewing: movie.viewing, vibes: [...movie.vibes] } : null;
     };
     const before = await film();
-    assert.deepEqual(before, { viewing: "unseen", mixes: ["Long Nights"] });
+    assert.deepEqual(before, { viewing: "unseen", vibes: ["Long Nights"] });
 
     const act = await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
     assert.deepEqual(await film(), before, "recording a verdict changed the film");

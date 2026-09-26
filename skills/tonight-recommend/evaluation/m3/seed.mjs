@@ -9,7 +9,7 @@
  *
  * ## What is different from the Phase-1 seeder, and why
  *
- * Phase 1's fixtures are a taste model: genres, mixes and films, and the rule
+ * Phase 1's fixtures are a taste model: genres, vibes and films, and the rule
  * there is **seed once**, because a reseed between two runs makes every earlier
  * recording describe rows that no longer exist.
  *
@@ -24,7 +24,7 @@
  * ## Why through the tools
  *
  * Because a history that cannot be expressed through the public tool surface is
- * not a history of this product. Every genre, mix, film, verdict, withdrawal,
+ * not a history of this product. Every genre, vibe, film, verdict, withdrawal,
  * evening and correction below goes through the same MCP endpoint an agent uses,
  * with no exception: there is no store-level seam here, because there is no
  * state left that the tools cannot reach.
@@ -115,13 +115,13 @@ async function call(bearer, name, args = {}) {
  *
  * Every store, because a history reaches all of them and a half-cleared user is
  * a different fixture wearing the right name. All five of them are reachable
- * from the tools: films, mixes and genres are deleted, evenings forgotten, and
+ * from the tools: films, vibes and genres are deleted, evenings forgotten, and
  * each verdict act forgotten by the reference `get_memory` gives it.
  */
 async function clear(bearer, user) {
   const taste = await call(bearer, "get_taste");
   for (const movie of taste.movies) await call(bearer, "delete_movie", { title: movie.title, year: movie.year });
-  for (const mix of taste.mixes) await call(bearer, "delete_mix", { name: mix.name });
+  for (const vibe of taste.vibes) await call(bearer, "delete_vibe", { name: vibe.name });
   for (const genre of taste.genres) await call(bearer, "delete_genre", { name: genre.name });
 
   const { episodes } = await call(bearer, "get_episodes");
@@ -140,14 +140,14 @@ async function seed(id) {
   await clear(bearer, spec.user);
 
   for (const genre of spec.model.genres) await call(bearer, "create_genre", genre);
-  for (const mix of spec.model.mixes) await call(bearer, "create_mix", mix);
+  for (const vibe of spec.model.vibes) await call(bearer, "create_vibe", vibe);
   for (const movie of spec.model.movies) {
-    const { title, year, viewing, mixes, imdbId } = movie;
+    const { title, year, viewing, vibes, imdbId } = movie;
     await call(bearer, "create_movie", {
       title,
       year,
       ...(viewing === null || viewing === undefined ? {} : { viewing }),
-      ...(mixes?.length ? { mixes } : {}),
+      ...(vibes?.length ? { vibes } : {}),
       ...(imdbId ? { imdb_id: imdbId } : {}),
     });
   }
@@ -224,7 +224,7 @@ if (flag("token")) {
   const taken = await snapshot(bearer);
   console.error(
     `Seeded ${spec.id} for ${spec.user}: ${taken.taste.genres.length} genres, ` +
-      `${taken.taste.mixes.length} mixes, ${taken.taste.movies.length} movies, ` +
+      `${taken.taste.vibes.length} vibes, ${taken.taste.movies.length} movies, ` +
       `${taken.memory.held.length} held, ${taken.memory.remembered.length} remembered.`,
   );
   if (flag("print")) console.log(JSON.stringify(taken, null, 2));

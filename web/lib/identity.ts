@@ -7,7 +7,7 @@ import { createHmac } from "node:crypto";
  * else. Everything the OAuth layer learns about a person while authenticating
  * them — their email address, their profile, every claim in the identity
  * provider's token — stops at that layer. What crosses into Tonight is
- * the single field that decides whose genres and mixes are whose,
+ * the single field that decides whose genres and vibes are whose,
  * so it is the field that has to be stable across sessions and must never name
  * two different people.
  *

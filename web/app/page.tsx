@@ -166,7 +166,7 @@ async function Yours({ visitor }: { visitor: SignedInVisitor }) {
 }
 
 /**
- * This user's genres and mixes, through the same store `get_taste` reads.
+ * This user's genres and vibes, through the same store `get_taste` reads.
  *
  * Not through the MCP endpoint. That would mean this server holding an access
  * token for its own visitor and talking to itself over HTTP to read tables it is

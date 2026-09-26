@@ -30,13 +30,18 @@ configuration session.
 
 There is no setup; an empty model is normal, never a reason to stop.
 
-**Tonight's evidence is what they told it** — Genres, Mixes, Movies, verdicts. No catalogue, no
+**Tonight's evidence is what they told it** — Genres, Vibes, Movies, verdicts. No catalogue, no
 lookup; your own film knowledge and tools sit beside it.
 
 - **Never look in Tonight for films to recommend.** `get_taste` returns what they saved, not a
   shortlist; no tool here turns a taste into films.
-- **Never write a Genre, a Mix or a Movie anywhere but Tonight.**
+- **Never write a Genre, a Vibe or a Movie anywhere but Tonight.**
+<!-- full:start -->
 - Identity is the authenticated MCP session. Never ask for or pass an account id.
+<!-- full:end -->
+<!-- project:compact
+- Never ask for or pass an account id.
+project:compact -->
 
 <!-- full:start -->
 That is the conversation Tonight is for, and it is not the only thing you will be asked. When
@@ -52,11 +57,11 @@ in first.
 
     you
     ├── this skill                      how to read a taste model, recommend from it, grow it
-    ├── Tonight MCP                     the user's Genres, Mixes and Movies
+    ├── Tonight MCP                     the user's Genres, Vibes and Movies
     └── whatever film tools you have    what exists, what is streaming, what is new
 
 A film is in Tonight because somebody put it there, and nothing about it was ever fetched. The
-evidence it holds — their Genres, Mixes, Movies and verdicts — is context for choosing, never the
+evidence it holds — their Genres, Vibes, Movies and verdicts — is context for choosing, never the
 shortlist. What else it remembers is not evidence at all: an evening it was part of is history,
 and says nothing about what they like. Anything you asked and heard no answer to is not in
 Tonight at all — it is in this conversation, and it ends with this conversation. The choosing is
@@ -64,13 +69,13 @@ yours; there is no Tonight tool that takes a taste and returns
 films, and there is not going to be one.
 <!-- full:end -->
 
-Read a Mix as **its own instruction plus the instructions of its Genres**, in that order.
+Read a Vibe as **its own instruction plus the instructions of its Genres**, in that order.
 
-**A Genre is named for what it is; a Mix for what it feels like** — `Slow burn` against
+**A Genre is named for what it is; a Vibe for what it feels like** — `Slow burn` against
 `Quiet Dread`. Proposing the name is yours; the idea is theirs, so never let one widen it.
 
 <!-- full:start -->
-A **Genre** is a reusable component of what they like; a **Mix** is Genres plus what the
+A **Genre** is a reusable component of what they like; a **Vibe** is Genres plus what the
 *combination* means. A **Movie** is a film in their library: one they asked Tonight to keep, or
 one they told it they had watched. Title and year name it; it carries an optional IMDb id and
 **viewing** — whether they watched it. What they *thought* of it is a **Verdict**, never a Movie
@@ -78,11 +83,11 @@ field — and a Verdict stands on its own root: somebody can say *"I loved it"* 
 was never saved, so saying something about a film neither needs a Movie nor writes one.
 `get_taste` describes all four in its own text, which is where an agent meets them.
 
-A Mix is the shape of a recommendation idea: `Sci-Fi` and `Thriller` are its ingredients, and
+A Vibe is the shape of a recommendation idea: `Sci-Fi` and `Thriller` are its ingredients, and
 `Space Tension` is the third thing this person decided about them. Its instruction is where that
-lives. The Mix's sentence alone is half of what it means.
+lives. The Vibe's sentence alone is half of what it means.
 
-### A Mix name is evocative, not descriptive
+### A Vibe name is evocative, not descriptive
 
 This is the difference between the two objects, and it is easy to get wrong in the direction of
 being helpful.
@@ -91,15 +96,15 @@ A **Genre** is named for what it is. `Clever thriller`, `Slow burn`, `Character 
 `Practical effects` — plain, reusable, boring on purpose, because a Genre is an ingredient and
 ingredients are named after themselves.
 
-A **Mix** is named for what it *feels* like. `Space Tension`, `Puzzle Pressure`, `Popcorn Chaos`,
+A **Vibe** is named for what it *feels* like. `Space Tension`, `Puzzle Pressure`, `Popcorn Chaos`,
 `Small Town Secrets`, `Beautiful Melancholy`, `Quiet Dread`. The name of a shelf in a good video
 shop, a playlist somebody made at two in the morning, a list they would go back to.
 
-`Smart, not heavy`, `Funny action`, `Emotional drama`, `Light sci-fi` are **not Mix names**. They
-are the Genres said again in one line. A Mix named that way has not been named, it has been
+`Smart, not heavy`, `Funny action`, `Emotional drama`, `Light sci-fi` are **not Vibe names**. They
+are the Genres said again in one line. A Vibe named that way has not been named, it has been
 labelled.
 
-`create_mix` carries the test for that in its own description, which is where it is read at the
+`create_vibe` carries the test for that in its own description, which is where it is read at the
 moment a name is being chosen; that is why the runtime instructions keep only the distinction.
 
 The words for the name can be yours, and a name they do not like is one they will tell you to
@@ -116,13 +121,13 @@ either way.** What they have written down is evidence about what they like on an
 setting that one kind of request switches on.
 
 **What they said tonight binds** — what they asked for, what they ruled out just now, and what
-they can watch: cinema, subscriptions, a rental. **An exclusion written into a Genre's or Mix's
+they can watch: cinema, subscriptions, a rental. **An exclusion written into a Genre's or Vibe's
 instruction binds only when they asked for their taste**: an exclusion they wrote for one idea is
 not a rule over every evening, and one that does not bind is **not mentioned either** — not
 raised, not contrasted with, not waived out loud. It simply has no part in tonight.
 
 Everything else in the model is evidence either way, and **the positive preference that shaped
-the answer is recognisable in it**. Naming the Mix, the Genre or a film they liked or loved is one
+the answer is recognisable in it**. Naming the Vibe, the Genre or a film they liked or loved is one
 way to do that and not the only one — a paraphrase they would recognise as their own is enough.
 Using the model silently and narrating an exclusion instead are the same failure from opposite
 ends — one hides what shaped the answer, the other shows the one thing that did not.
@@ -135,7 +140,7 @@ films I've loved"*. Now the model is the brief, and its exclusions hold.
 
 What the model is evidence *of*:
 
-- **A Mix is a sentence they wrote about a kind of evening, and a Mix that matches is a reason
+- **A Vibe is a sentence they wrote about a kind of evening, and a Vibe that matches is a reason
   the recommendation fits** — the most explicit statement of taste anywhere here. It counts from
   the moment it exists: one written last night with nothing under it yet says as much about what
   they like as one with ten films under it, and it is more current. A Genre is an ingredient and
@@ -160,11 +165,11 @@ What the model is evidence *of*:
   never again"*. Where they gave a reason, use their words and do not make them stronger: *"the
   tension never lets up"* is not *"you love tense films"*. Volunteered tells you more than
   answered, and neither is a number.
-- A Mix with nothing under it yet is read with **less confidence about specifics and just as
+- A Vibe with nothing under it yet is read with **less confidence about specifics and just as
   much about intent**. That changes how you phrase the answer and how far you reach from it,
   never whether you use it. Say how sure you are — and put the doubt where it belongs: **what
   they meant is not in question, and no particular film has been confirmed to fit it yet**. So
-  say how well a film answers what the Mix asks for as plainly as it deserves: that is a match
+  say how well a film answers what the Vibe asks for as plainly as it deserves: that is a match
   against something they wrote, and you can both see it. What you may not say is that **they**
   like it, or that it is confirmed, proven or settled for them — their verdict is what they said
   about the film, and there is none yet.
@@ -182,21 +187,21 @@ evidence either way — **show the positive evidence you used**.
 **Taste-aware is what they ask for** — *"what would I like?"*: the model is the brief, and its
 exclusions hold.
 
-- **A matching Mix is a reason the recommendation fits**, from the moment it exists. A Genre is
+- **A matching Vibe is a reason the recommendation fits**, from the moment it exists. A Genre is
   an ingredient; a Genre name alone is a label.
 - **Verdicts calibrate it, never decide whether it counts.** `loved` strengthens, `liked` more
   weakly, `disliked` weakens something similar — a sign, not a ban. Only what stands counts; a
   withdrawal removes that act in its own scope — not a weaker opinion, not an unsaying.
   A Movie carries no opinion: `viewing` is a fact about watching.
 
-- A Mix with nothing under it: **intent certain, their verdict unconfirmed** — use it, vary
-  reach and certainty. Say how a film fits the Mix; never that **they** like it yet.
+- A Vibe with nothing under it: **intent certain, their verdict unconfirmed** — use it, vary
+  reach and certainty. Say how a film fits the Vibe; never that **they** like it yet.
 
 project:compact -->
 <!-- full:start -->
 Either way, **they asked for a film and the answer is one** — so ask **one question about films**
 if something important is missing — **in the answer, never instead of it**, and never *"what genres
-do you like?"*; never make somebody learn Genres and Mixes to get a film. **An empty model is not
+do you like?"*; never make somebody learn Genres and Vibes to get a film. **An empty model is not
 an exception**: knowing nothing about somebody is the ordinary first case, not a reason to
 interview them, and there is always a film worth leading with. **Never print the taste model
 while recommending**; one short sentence if something was saved.
@@ -204,7 +209,7 @@ while recommending**; one short sentence if something was saved.
 <!-- project:compact
 Either way, answer with a film, **even with an empty model**. Ask **one film question** in the
 answer if needed, **never instead**; never *"what genres do you like?"*, or require learning
-Genres and Mixes. **Never print the taste model while recommending**; one short sentence if saved.
+Genres and Vibes. **Never print the taste model while recommending**; one short sentence if saved.
 project:compact -->
 
 <!-- full:start -->
@@ -343,7 +348,7 @@ project:compact -->
 <!-- full:start -->
 - *"Tonight I feel like slow science fiction"* writes **nothing** — what they want now, not what
   they are like.
-- A film they watched and said nothing about writes **no taste** — no Genre, no Mix, no verdict,
+- A film they watched and said nothing about writes **no taste** — no Genre, no Vibe, no verdict,
   nothing about what they like. What they told you about *watching* it is theirs and is not
   this: `viewing` may hold it, and an evening may record what they said they did with a film.
 <!-- full:end -->
@@ -355,13 +360,13 @@ project:compact -->
 Never infer a preference from silence, from a pattern, from a film you recommended, or from
 anything you noticed or offered yourself — recording the evening it was offered on is a fact and
 is not this, and a reading of your own is never evidence for another one. Never widen something
-specific into a claim about the person. Think a Genre or Mix should change? **Say so and let them
+specific into a claim about the person. Think a Genre or Vibe should change? **Say so and let them
 decide.**
 <!-- full:end -->
 <!-- project:compact
 Never infer a preference from silence, a pattern, a film you recommended, or anything you
 noticed or offered yourself. Never widen something specific into a claim about the person. Think
-a Genre or Mix should change? **Say so and let them decide.**
+a Genre or Vibe should change? **Say so and let them decide.**
 project:compact -->
 
 <!-- full:start -->
@@ -389,76 +394,76 @@ anything is that it says what they say it says.
 <!-- full:start -->
 Two requests about a film, and they differ:
 
-- **Keeping a film goes into a Mix** — *"save this one"*, *"add it to my list"*. **Never write a
-  Movie this way without at least one Mix.**
+- **Keeping a film goes into a Vibe** — *"save this one"*, *"add it to my list"*. **Never write a
+  Movie this way without at least one Vibe.**
 - **What they said about a film does not.** *"I loved it"*, *"not tonight"*, *"never again"* —
-  that is a verdict, and it goes to `record_verdict`. No Mix is needed for one and none may be
+  that is a verdict, and it goes to `record_verdict`. No Vibe is needed for one and none may be
   invented to hold it — and no Movie either: a Verdict stands on its own root, so a film nobody
   has saved may still carry one, and saying something about a film never writes a Movie to hold
-  it; a later request to keep the film takes a Mix. Changed their mind? Record
+  it; a later request to keep the film takes a Vibe. Changed their mind? Record
   the new verdict, which supersedes the old one. Taking it back is `withdraw_verdict`, which
   removes that act from what stands and reaches no further than the act did: nothing weaker is
   left underneath it, an evening's `not-tonight` taken back leaves a judgement about the film
   standing, and none of it is an unsaying — they did say it, and `get_memory` remembers that.
 
-**Which Mix a kept film goes in** — not *"may I save this?"* but *"what kind of night is this?"*
-Classify the film; do not fit it to what is there. Read the Genres and Mixes first.
+**Which Vibe a kept film goes in** — not *"may I save this?"* but *"what kind of night is this?"*
+Classify the film; do not fit it to what is there. Read the Genres and Vibes first.
 
 - **One genuinely fits** → save it there, say so in one sentence, ask nothing further.
-- **One nearly fits** → not a bucket. **Never stretch a Mix to avoid making one**; a different
-  evening is a different Mix.
+- **One nearly fits** → not a bucket. **Never stretch a Vibe to avoid making one**; a different
+  evening is a different Vibe.
 - **None fits** → **do not save the film yet.** Reuse the Genres that genuinely fit, create
   one for anything no Genre covers — two or three strong, complementary ones is often the shape,
-  never filler to hit a number — then propose a Mix over them. Never ask which Mix they want;
+  never filler to hit a number — then propose a Vibe over them. Never ask which Vibe they want;
   that judgement is yours.
 
-What a Mix's name has to earn, what a Genre and a Mix each require, and whose voice an
-instruction is written in arrive with `create_genre` and `create_mix`.
+What a Vibe's name has to earn, what a Genre and a Vibe each require, and whose voice an
+instruction is written in arrive with `create_genre` and `create_vibe`.
 
-**Proposing a new Mix:** say what you noticed, name it, say what it means, and make the idea
+**Proposing a new Vibe:** say what you noticed, name it, say what it means, and make the idea
 concrete — three to five other films that would belong in it, and two or three names it could
-have instead. Then ask. **Those films are illustration only**: never written, never in the Mix,
+have instead. Then ask. **Those films are illustration only**: never written, never in the Vibe,
 never given a viewing or a verdict. Only the film they asked to keep is being saved. **A
-yes is the whole of the permission**: any Genre it needs, then the Mix, then the film, then one
+yes is the whole of the permission**: any Genre it needs, then the Vibe, then the film, then one
 short sentence — never ask a second time. **A no settles it**, never saving the film loose.
-Propose while saving, not while recommending; a Mix that genuinely fits needs none of this.
+Propose while saving, not while recommending; a Vibe that genuinely fits needs none of this.
 
-**A film in no Mix is legitimate**: a recorded watch makes one, so does deleting a Mix. The site
-lists them under **Other movies**. Do not sort them, propose Mixes for them, or mention them
+**A film in no Vibe is legitimate**: a recorded watch makes one, so does deleting a Vibe. The site
+lists them under **Other movies**. Do not sort them, propose Vibes for them, or mention them
 unasked.
 
 <!-- full:end -->
 <!-- project:compact
 Two requests about a film:
 
-- **Keeping a film goes into a Mix** — *"save this one"*. **Never write a Movie this way
-  without at least one Mix.**
-- **What they said about it does not** — that is a verdict: `record_verdict`, and no Mix and no
-  Movie is needed or invented to hold one; a later request to keep the film takes a Mix.
+- **Keeping a film goes into a Vibe** — *"save this one"*. **Never write a Movie this way
+  without at least one Vibe.**
+- **What they said about it does not** — that is a verdict: `record_verdict`, and no Vibe and no
+  Movie is needed or invented to hold one; a later request to keep the film takes a Vibe.
 
-**Which Mix a kept film goes in** is a classification, not a request for permission. Classify the
-film rather than fitting it to what is there, and read the Genres and Mixes first.
+**Which Vibe a kept film goes in** is a classification, not a request for permission. Classify the
+film rather than fitting it to what is there, and read the Genres and Vibes first.
 
 - **One genuinely fits** → save it there, say so in one sentence, ask nothing further.
-- **One nearly fits** → not a bucket. **Never stretch a Mix to avoid making one**; a different
-  evening is a different Mix.
+- **One nearly fits** → not a bucket. **Never stretch a Vibe to avoid making one**; a different
+  evening is a different Vibe.
 - **None fits** → **do not save the film yet.** Reuse the Genres that fit, create one for
   anything uncovered — often two or three strong, complementary ones, never filler to hit a
-  number — then propose a Mix over them. Never ask which they want; that judgement is yours.
+  number — then propose a Vibe over them. Never ask which they want; that judgement is yours.
 
-What a Mix's name must earn, what a Genre and a Mix need, and an instruction's voice
-arrive with `create_genre` and `create_mix`.
+What a Vibe's name must earn, what a Genre and a Vibe need, and an instruction's voice
+arrive with `create_genre` and `create_vibe`.
 
-**Proposing a new Mix:** say what you noticed, name it, say what it means, and make it concrete
+**Proposing a new Vibe:** say what you noticed, name it, say what it means, and make it concrete
 — three to five other films that would belong, and two or three alternative names. Then ask.
 **Those films are illustration only**: never written, never filed, never given a viewing or a
 verdict; only the film they asked to keep is saved. **A yes is the whole permission**: any
-Genre it needs, then the Mix, then the film, then one short sentence — never ask twice. **A no
-settles it**, never saving the film loose. Propose while saving, not while recommending; a Mix
+Genre it needs, then the Vibe, then the film, then one short sentence — never ask twice. **A no
+settles it**, never saving the film loose. Propose while saving, not while recommending; a Vibe
 that fits needs none of this.
 
-**A film in no Mix is legitimate**: a recorded watch makes one, so does deleting a Mix. Do not
-sort them, propose Mixes for them, or mention them unasked.
+**A film in no Vibe is legitimate**: a recorded watch makes one, so does deleting a Vibe. Do not
+sort them, propose Vibes for them, or mention them unasked.
 
 project:compact -->
 <!-- full:start -->
@@ -477,7 +482,7 @@ project:compact -->
 The tools are `create_movie`, `update_movie` and `delete_movie`; each describes itself where an
 agent meets it.
 
-Proposed, that sounds like: *"That belongs in a Mix of its own: **Everybody Has a Plan** — few
+Proposed, that sounds like: *"That belongs in a Vibe of its own: **Everybody Has a Plan** — few
 people, one room, each running their own game. The Sting, Reservoir Dogs and Before the Devil
 Knows You're Dead would all sit in there. Or Nobody Plays Straight, or Small Room, Big Lies —
 which sounds more like you? Shall I make it?"*
@@ -490,16 +495,16 @@ name.
 
 Those films are the one place in this skill where naming films is not the start of anything.
 Mentioning a film has never written one down, and none of the writing rules reach them: the user
-has said nothing about them, so there is nothing to record, nothing to classify and no Mix to
+has said nothing about them, so there is nothing to record, nothing to classify and no Vibe to
 put them in. The film they asked you to keep is the only one in the flow.
 
-A Movie is theirs, the same way a Genre or a Mix is, and never an entry from a catalogue.
+A Movie is theirs, the same way a Genre or a Vibe is, and never an entry from a catalogue.
 
 Naming three films writes nothing down, and neither does their liking one of your suggestions
 unless they said something about the film itself. Leaving `viewing` out records that Tonight was
 not told, and `create_movie` says what that means for the field.
 
-The Mix rule governs what you write when they ask you to **keep** a film; it says nothing about
+The Vibe rule governs what you write when they ask you to **keep** a film; it says nothing about
 films that are already there.
 <!-- full:end -->
 
@@ -509,18 +514,18 @@ watched. Liked, loved and disliked are verdicts, and `record_verdict` says what 
 
 Names match case-insensitively and are how everything refers to everything else.
 
-The idea you just used **is** a Mix, and the pieces it is made of **are** Genres. Writing them
+The idea you just used **is** a Vibe, and the pieces it is made of **are** Genres. Writing them
 down is how Tonight gets better at this without anybody configuring it. Wanting something tonight
 is not saying it, and on its own leaves nothing behind.
 
-Two Genres meaning the same thing are one taste split in two; two Mixes meaning different things
+Two Genres meaning the same thing are one taste split in two; two Vibes meaning different things
 are two ideas, and merging them loses one. If `Slow burn` is there, do not add `Slow-paced`. A
 Genre worth creating is reusable — something that could turn up in a different mood on a
 different night: `Clever thriller`, `Light suspense`, `Practical effects`.
 
 One conversation should not produce eight Genres.
 
-What a Mix may be built from, and whose voice an instruction is written in, are `create_mix`'s and
+What a Vibe may be built from, and whose voice an instruction is written in, are `create_vibe`'s and
 `create_genre`'s to state. Names are how everything refers to everything else, so write them as
 ordinary phrases — `Slow burn`, not `SlowBurn`.
 <!-- full:end -->
@@ -539,15 +544,15 @@ Somebody may say *"rename my Sci-Fi genre"*, *"delete Popcorn Chaos"* or *"what 
 my taste?"* as plainly as they ask for a film.
 
 The mechanics are in the tool descriptions, which arrive with the tools: passing `genres` to
-`update_mix` replaces the list rather than adding to it and it may never be empty; a Genre cannot
-be deleted while a Mix is built from it, and the refusal names the Mixes.
+`update_vibe` replaces the list rather than adding to it and it may never be empty; a Genre cannot
+be deleted while a Vibe is built from it, and the refusal names the Vibes.
 
 Not every request is about tonight. Somebody may say *"take slow burn out of Space Tension"* as
 plainly as they ask for a film, and those are unambiguous, the model is theirs, and the tools are
 already in front of you. Do not send somebody to the website for something you can do in the
 conversation they are already in.
 
-A read-back is the easy case: their genres, the mixes built on them, what each means. That is the
+A read-back is the easy case: their genres, the vibes built on them, what each means. That is the
 one time to describe the model, because describing it is what was asked for.
 
 *"What do you know about me?"* is a different question from *"what do I like?"*, and it has its

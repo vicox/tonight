@@ -11,7 +11,7 @@ import { refocus } from "@/lib/web/refocus";
  * How a way into the collection is set, wherever one appears.
  *
  * A count and a word that open a list of films: the summary has seven of them,
- * the mixes section has one for the films in no mix. One rule for all of them,
+ * the vibes section has one for the films in no vibe. One rule for all of them,
  * because they are one kind of thing and a reader should not have to work out
  * whether two of them behave the same.
  *
@@ -52,7 +52,7 @@ const MARK = '[aria-haspopup="menu"]';
 /**
  * The films behind one selection.
  *
- * The same heading treatment as a panel on the page and the same rows as a mix,
+ * The same heading treatment as a panel on the page and the same rows as a vibe,
  * so what opens is the page's own list in front of it rather than a second way of
  * showing a film. Compact: the films, and a way out.
  *

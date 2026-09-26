@@ -131,15 +131,15 @@ describe("M3 — explains itself, and can be corrected", () => {
         case "genre":
           await call("create_genre", { name: step.name, instruction: step.instruction });
           break;
-        case "mix":
-          await call("create_mix", { name: step.name, genres: step.genres, instruction: step.instruction });
+        case "vibe":
+          await call("create_vibe", { name: step.name, genres: step.genres, instruction: step.instruction });
           break;
         case "movie":
           await call("create_movie", {
             ...step.film,
             viewing: step.viewing,
             ...(step.imdbId === undefined ? {} : { imdb_id: step.imdbId }),
-            ...(step.mixes === undefined ? {} : { mixes: step.mixes }),
+            ...(step.vibes === undefined ? {} : { vibes: step.vibes }),
           });
           break;
         case "verdict":
@@ -465,7 +465,7 @@ describe("M3 — explains itself, and can be corrected", () => {
   test("the histories between them exercise every root and every fate", () => {
     // A gate set that never drives a case cannot fail on it.
     const steps = TRAJECTORIES.flatMap((one) => one.steps);
-    for (const act of ["genre", "mix", "movie", "verdict", "withdraw", "evening", "outcome", "amend", "forget"]) {
+    for (const act of ["genre", "vibe", "movie", "verdict", "withdraw", "evening", "outcome", "amend", "forget"]) {
       assert.ok(steps.some((step) => step.act === act), `no history ever performs ${act}`);
     }
     const verdicts = steps.filter((step) => step.act === "verdict");
@@ -636,17 +636,17 @@ describe("M3 — explains itself, and can be corrected", () => {
 
   /* -- a root that keeps its count and loses its content --------------------- */
 
-  test("a mix that keeps its name and loses its meaning is caught", () => {
+  test("a vibe that keeps its name and loses its meaning is caught", () => {
     probe("a root's content drifts under an unchanged count", "fidelity", (copy) => {
-      const mix = copy.seen["one-of-everything"]!.memory.held.find((root) => root.of === "mix")!;
-      mix.instruction = "whatever the recommender felt like";
+      const vibe = copy.seen["one-of-everything"]!.memory.held.find((root) => root.of === "vibe")!;
+      vibe.instruction = "whatever the recommender felt like";
     });
   });
 
-  test("a mix that loses the films in it is caught", () => {
-    probe("mix membership is dropped on the way out", "fidelity", (copy) => {
-      const mix = copy.seen["one-of-everything"]!.memory.held.find((root) => root.of === "mix")!;
-      mix.films = [];
+  test("a vibe that loses the films in it is caught", () => {
+    probe("vibe membership is dropped on the way out", "fidelity", (copy) => {
+      const vibe = copy.seen["one-of-everything"]!.memory.held.find((root) => root.of === "vibe")!;
+      vibe.films = [];
     });
   });
 
@@ -659,12 +659,12 @@ describe("M3 — explains itself, and can be corrected", () => {
     });
   });
 
-  test("a film that loses the mixes it is in is caught", () => {
-    probe("a film's mix membership is dropped", "fidelity", (copy) => {
+  test("a film that loses the vibes it is in is caught", () => {
+    probe("a film's vibe membership is dropped", "fidelity", (copy) => {
       const movie = copy.seen["one-of-everything"]!.memory.held.find(
-        (root) => root.of === "movie" && (root.mixes as string[]).length > 0,
+        (root) => root.of === "movie" && (root.vibes as string[]).length > 0,
       )!;
-      movie.mixes = [];
+      movie.vibes = [];
     });
   });
 
@@ -951,7 +951,7 @@ describe("M3 — explains itself, and can be corrected", () => {
     // whole defect with nothing else to explain it.
     probe("an evening files a film nobody saved", "recommendation-isolation", (copy) => {
       const seen = copy.seen["many-evenings"]!;
-      seen.taste.movies = [...seen.taste.movies, { title: "Heat", year: 1995, viewing: "seen", mixes: [] }];
+      seen.taste.movies = [...seen.taste.movies, { title: "Heat", year: 1995, viewing: "seen", vibes: [] }];
     });
   });
 
@@ -1113,8 +1113,8 @@ describe("M3 — explains itself, and can be corrected", () => {
   /* -- the whole picture ------------------------------------------------------ */
 
   test("a thinner whole picture is caught", () => {
-    probe("the long history loses its mixes", "whole-picture", (copy) => {
-      drop(copy.seen["a-long-history"]!.memory, "mix");
+    probe("the long history loses its vibes", "whole-picture", (copy) => {
+      drop(copy.seen["a-long-history"]!.memory, "vibe");
     });
   });
 

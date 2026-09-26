@@ -1,122 +1,122 @@
-import type { Genre, Mix, Movie, Written } from "../taste/model.ts";
+import type { Genre, Vibe, Movie, Written } from "../taste/model.ts";
 import type { Judgement } from "../verdicts/model.ts";
 import { LIKED, LOVED, selected, type Shown } from "./movie-summary.ts";
 
 /**
- * What a mix is worth saying on a card, and the films behind it.
+ * What a vibe is worth saying on a card, and the films behind it.
  *
- * A mix carries handles — `{title, year}` — and a film's record lives once, in
+ * A vibe carries handles — `{title, year}` — and a film's record lives once, in
  * `Taste.movies`. So the join belongs somewhere both the card and its dialog can
  * ask, because the number on the card and the list inside it are the same
  * question at two levels of detail and must not be able to disagree.
  */
 
 /**
- * The films in a mix, as the whole records rather than the handles.
+ * The films in a vibe, as the whole records rather than the handles.
  *
  * Both halves come out of one database snapshot, which is what makes a plain
- * lookup safe: there is no read here that could see a film the mix's handle no
+ * lookup safe: there is no read here that could see a film the vibe's handle no
  * longer describes. A handle with nothing behind it is dropped rather than
  * counted, so a card's number is always the number of rows its dialog opens.
  *
- * Membership, and nothing else: a film in a mix is in it whether it has been
+ * Membership, and nothing else: a film in a vibe is in it whether it has been
  * watched, loved or never mentioned.
  */
-export function filmsIn<T extends Movie>(mix: Mix, movies: readonly T[]): T[] {
+export function filmsIn<T extends Movie>(vibe: Vibe, movies: readonly T[]): T[] {
   // Keyed year-first, so the space that separates the two is unambiguous: a year
   // is digits, and the first space is therefore always the separator however the
   // title is spelled.
   const known = new Map(movies.map((movie) => [`${movie.year} ${movie.title}`, movie]));
-  return mix.movies.flatMap((handle) => known.get(`${handle.year} ${handle.title}`) ?? []);
+  return vibe.movies.flatMap((handle) => known.get(`${handle.year} ${handle.title}`) ?? []);
 }
 
 /**
- * The films a genre reaches, through the mixes built from it.
+ * The films a genre reaches, through the vibes built from it.
  *
  * A genre has no films of its own — it is a name and what it means to this user,
- * and the films are kept in mixes. So "what have I actually filed under this
- * idea" is a question one hop away: the mixes that name this genre, and then the
+ * and the films are kept in vibes. So "what have I actually filed under this
+ * idea" is a question one hop away: the vibes that name this genre, and then the
  * films in those.
  *
- * Membership comes through `filmsIn`, so a genre's dialog and a mix's card
- * cannot disagree about what is in a mix. The order is the collection's own and
+ * Membership comes through `filmsIn`, so a genre's dialog and a vibe's card
+ * cannot disagree about what is in a vibe. The order is the collection's own and
  * the filter runs over it once, which both keeps the answer stable and settles
- * the film that arrives through two mixes of the same genre: it is one film, so
+ * the film that arrives through two vibes of the same genre: it is one film, so
  * it appears once, where it always was.
  */
 export function filmsUnder<T extends Movie>(
   genre: Genre,
-  mixes: readonly Mix[],
+  vibes: readonly Vibe[],
   movies: readonly T[],
 ): T[] {
   const reached = new Set(
-    mixes.filter((mix) => mix.genres.includes(genre.name)).flatMap((mix) => filmsIn(mix, movies)),
+    vibes.filter((vibe) => vibe.genres.includes(genre.name)).flatMap((vibe) => filmsIn(vibe, movies)),
   );
   return movies.filter((movie) => reached.has(movie));
 }
 
 /**
- * The films that are in no mix at all.
+ * The films that are in no vibe at all.
  *
- * The mixes' own remainder. A film gets here by ordinary means — saying "I've
- * seen that" records a film without filing it anywhere, and deleting a mix
+ * The vibes' own remainder. A film gets here by ordinary means — saying "I've
+ * seen that" records a film without filing it anywhere, and deleting a vibe
  * leaves its films behind — so this is not a queue to work through but the rest
  * of the collection, reached from under the cards.
  *
  * Membership and nothing else: the order is the one it was given, which is the
  * store's, and no film is dropped, added or moved. Written here rather than in
- * the component so that "exactly the films in no mix, in the order they came"
+ * the component so that "exactly the films in no vibe, in the order they came"
  * is something a test can hold rather than something a reader has to trust.
  */
-export function inNoMix<T extends Movie>(movies: readonly T[]): T[] {
-  return movies.filter((movie) => movie.mixes.length === 0);
+export function inNoVibe<T extends Movie>(movies: readonly T[]): T[] {
+  return movies.filter((movie) => movie.vibes.length === 0);
 }
 
 /**
- * A mix as a listener is given it: the name, how many films, how many loved.
+ * A vibe as a listener is given it: the name, how many films, how many loved.
  *
  * The card reads as `Quiet Dread ♥3` — the name and a heart nobody can hear.
- * This is the mix said the way somebody would say it, and it is the button's
+ * This is the vibe said the way somebody would say it, and it is the button's
  * whole accessible name. It keeps the number of films, which the card leaves
  * out: on the card that was a second number beside the loved one and read as
  * half of a score, while spoken it is simply part of the phrase.
  *
  * The loved half is absent at nought rather than said as "0 loved": on the card
- * there is nothing there to describe, and a listener should meet the same mix a
+ * there is nothing there to describe, and a listener should meet the same vibe a
  * reader does.
  */
-export function spokenMix(name: string, films: number, loved: number): string {
+export function spokenVibe(name: string, films: number, loved: number): string {
   const counted = `${films} ${films === 1 ? "film" : "films"}`;
   return loved > 0 ? `${name}: ${counted}, ${loved} loved` : `${name}: ${counted}`;
 }
 
 /**
- * The most a card can say about what is in a mix: up to three titles.
+ * The most a card can say about what is in a vibe: up to three titles.
  *
- * A name tells somebody which mix this is, and then they have to open it to find
+ * A name tells somebody which vibe this is, and then they have to open it to find
  * out whether it is the one they meant. Three titles usually settle that without
- * a press — the films are what a mix is
+ * a press — the films are what a vibe is
  * *for*, and reading three of them is how anybody recognises their own shelf.
  *
  * Titles only. No year, no mark, no link: this is a line to glance at, and
  * anything else on it would be the card growing back into the rows it stopped
  * being.
  *
- * `null` when the mix is empty, because there is nothing to glance at and a line
+ * `null` when the vibe is empty, because there is nothing to glance at and a line
  * saying so would be an empty shelf described.
  *
  * How many are left over is said rather than implied — `and 2 more` rather than
  * `and more`. It is the same word count and it answers what "and more" only
- * raised: a reader deciding whether to open this mix is deciding against what is
- * behind the glance, and four films left is a different mix from forty. It is
+ * raised: a reader deciding whether to open this vibe is deciding against what is
+ * behind the glance, and four films left is a different vibe from forty. It is
  * also the closest a card comes to the count it stopped showing, and it earns
- * its place by being about *these* titles rather than a measurement of the mix.
+ * its place by being about *these* titles rather than a measurement of the vibe.
  *
  * ## Which three
  *
  * The ones most likely to be recognised: loved first, then liked, then
  * everything else — and inside each of those, the most recently saved first,
- * because a mix somebody is using is a mix they have just added to.
+ * because a vibe somebody is using is a vibe they have just added to.
  *
  * A film saved before Tonight recorded creation times has no date, and no date
  * is not "old": it is unknown. So those come after the dated films of the same
@@ -124,7 +124,7 @@ export function spokenMix(name: string, films: number, loved: number): string {
  * the handle, which makes the answer the same on every render and on every
  * machine.
  *
- * It orders a glance and nothing else. The dialog lists the mix in the order the
+ * It orders a glance and nothing else. The dialog lists the vibe in the order the
  * store holds it, membership is untouched, and no film is reordered anywhere a
  * count is taken.
  */
@@ -146,7 +146,7 @@ export function preview(films: readonly Shown[]): string | null {
  * A row saved before Tonight recorded creation times has `null` there, and that
  * is not "old": nobody wrote the moment down. Sorting it as the earliest would
  * be inventing the answer, so it waits behind everything that can say when it
- * arrived. Used for a film's date and for a mix's, which is why it is one
+ * arrived. Used for a film's date and for a vibe's, which is why it is one
  * function rather than the same three lines twice.
  */
 function newestFirst(one: string | null, two: string | null): number {
@@ -176,36 +176,36 @@ function recognisable(one: Shown, two: Shown): number {
 }
 
 /**
- * The mixes in the order the overview shows them: the liveliest first.
+ * The vibes in the order the overview shows them: the liveliest first.
  *
- * A taste model accumulates mixes, and the section is a list somebody scans for
+ * A taste model accumulates vibes, and the section is a list somebody scans for
  * the one they want tonight. Alphabetical says nothing, and the order the store
  * happens to hold them in says only which was made first — so the ones with the
- * most in them that the user actually loves come first, and a mix nobody has put
+ * most in them that the user actually loves come first, and a vibe nobody has put
  * anything in for months sinks.
  *
  * Five questions, asked in order and each one a tie-break of the last. No score:
  * loved and liked are separate rungs rather than terms in a sum, because a
  * weighting would be a claim about how many likes a love is worth, and there is
  * no such number. And nothing about `updatedAt`, which moves when a name is
- * corrected: a mix does not become livelier because its wording was fixed.
+ * corrected: a vibe does not become livelier because its wording was fixed.
  *
  *   1. how many of its films are loved
  *   2. how many are liked
  *   3. how recently a film was added to it — any film, whatever was said about it
- *   4. how recently the mix itself was made
- *   5. its name, so that two identical mixes always come out the same way round
+ *   4. how recently the vibe itself was made
+ *   5. its name, so that two identical vibes always come out the same way round
  *
  * Presentation only. It answers with a new array, the one it was given is left
  * alone, and nothing here is written down: the store's own order is untouched,
  * and so is the order of the films inside any card, preview or dialog.
  */
-export function inOrder(mixes: readonly Written<Mix>[], movies: readonly Shown[]): Written<Mix>[] {
-  /** What the five questions are asked of, worked out once per mix. */
-  const standings = mixes.map((mix) => {
-    const films = filmsIn(mix, movies);
+export function inOrder(vibes: readonly Written<Vibe>[], movies: readonly Shown[]): Written<Vibe>[] {
+  /** What the five questions are asked of, worked out once per vibe. */
+  const standings = vibes.map((vibe) => {
+    const films = filmsIn(vibe, movies);
     return {
-      mix,
+      vibe,
       loved: selected(LOVED, films).length,
       liked: selected(LIKED, films).length,
       newestFilm: films.reduce<string | null>(
@@ -215,10 +215,10 @@ export function inOrder(mixes: readonly Written<Mix>[], movies: readonly Shown[]
     };
   });
 
-  return standings.sort(liveliest).map((one) => one.mix);
+  return standings.sort(liveliest).map((one) => one.vibe);
 }
 
-type Liveliness = { mix: Written<Mix>; loved: number; liked: number; newestFilm: string | null };
+type Liveliness = { vibe: Written<Vibe>; loved: number; liked: number; newestFilm: string | null };
 
 function liveliest(one: Liveliness, two: Liveliness): number {
   if (one.loved !== two.loved) return two.loved - one.loved;
@@ -227,8 +227,8 @@ function liveliest(one: Liveliness, two: Liveliness): number {
   const byFilm = newestFirst(one.newestFilm, two.newestFilm);
   if (byFilm !== 0) return byFilm;
 
-  const byMix = newestFirst(one.mix.createdAt, two.mix.createdAt);
-  if (byMix !== 0) return byMix;
+  const byVibe = newestFirst(one.vibe.createdAt, two.vibe.createdAt);
+  if (byVibe !== 0) return byVibe;
 
-  return one.mix.name < two.mix.name ? -1 : one.mix.name > two.mix.name ? 1 : 0;
+  return one.vibe.name < two.vibe.name ? -1 : one.vibe.name > two.vibe.name ? 1 : 0;
 }

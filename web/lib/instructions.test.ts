@@ -99,12 +99,12 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   assert.match(flat, /no tool here turns a taste into films/);
   assert.equal(flat.includes("No tool here returns films"), false);
 
-  // Instructions belong to Genres and Mixes; a Movie carries state. What each of
+  // Instructions belong to Genres and Vibes; a Movie carries state. What each of
   // those requires is now stated by the tool that writes it, so what the
   // instructions carry is the shape and a pointer.
-  assert.match(flat, /Tonight's evidence is what they told it\*\* — Genres, Mixes, Movies, verdicts/);
-  assert.match(flat, /Read a Mix as \*\*its own instruction/);
-  assert.match(flat, /arrive with `create_genre` and `create_mix`/);
+  assert.match(flat, /Tonight's evidence is what they told it\*\* — Genres, Vibes, Movies, verdicts/);
+  assert.match(flat, /Read a Vibe as \*\*its own instruction/);
+  assert.match(flat, /arrive with `create_genre` and `create_vibe`/);
   // The projection states the verdict routing once, where the two requests are
   // told apart, and keeps only the `viewing` pointer here — the sentence used to
   // carry both and said the first of them twice.
@@ -141,10 +141,10 @@ test("what moved to the tools is no longer stated here as well", () => {
     ["the rewording prohibition", /reword/i],
     [
       "the write invariants",
-      /always needs an instruction|at least one existing Genre|built from Genres only|built from another Mix|no chaining/i,
+      /always needs an instruction|at least one existing Genre|built from Genres only|built from another Vibe|no chaining/i,
     ],
     ["the score prohibition", /score/i],
-    ["the Mix naming test", /already tells you the name|what would I get wrong|the instruction test/i],
+    ["the Vibe naming test", /already tells you the name|what would I get wrong|the instruction test/i],
     // `unseen` itself stays: the instructions still say what a *stored* answer
     // means when recommending. What moved is what *saving* does to the field.
     [
@@ -157,7 +157,7 @@ test("what moved to the tools is no longer stated here as well", () => {
 
   // And a pointer is left where the skill still has to refer to the behaviour,
   // so a reader is sent somewhere rather than left with a gap.
-  assert.match(flat, /arrive with `create_genre` and `create_mix`/, "no pointer for the write rules");
+  assert.match(flat, /arrive with `create_genre` and `create_vibe`/, "no pointer for the write rules");
   assert.match(
     flat,
     /`create_movie` carries `viewing` and no opinion/,
@@ -187,7 +187,7 @@ test("both kinds of request read the model; only an exclusion is mode-dependent"
    *
    * It used to be that nothing persisted bound a plain request — the model was not
    * read at all unless somebody asked for it. That protected a new user from having
-   * two Genres narrowed into a filter, and it also meant the Mix written last night
+   * two Genres narrowed into a filter, and it also meant the Vibe written last night
    * had no effect on tonight's answer, which makes the product's own loop false.
    *
    * What replaces it is narrower and stronger: the model is evidence on any night,
@@ -242,7 +242,7 @@ test("both kinds of request read the model; only an exclusion is mode-dependent"
   // mandating a name would rule out a paraphrase the user would recognise as
   // their own, which the approved behaviour allows.
   assert.match(exclusion, /positive/i, "the visibility rule does not require positive evidence");
-  assert.doesNotMatch(exclusion, /\b(must|always) name\b|\bname (the|a) (Mix|Genre)\b/i,
+  assert.doesNotMatch(exclusion, /\b(must|always) name\b|\bname (the|a) (Vibe|Genre)\b/i,
     "the projection makes literal naming mandatory");
 
   // And the silence rule is about the exclusion, never about the model: an
@@ -258,28 +258,28 @@ test("both kinds of request read the model; only an exclusion is mode-dependent"
   assert.doesNotMatch(flat, /Read it with `get_taste` and weigh it/i);
 });
 
-test("a Mix is evidence, and the states under it calibrate rather than gate", () => {
+test("a Vibe is evidence, and the states under it calibrate rather than gate", () => {
   /**
    * Step 6, adopting P5 — the highest-risk change in Phase 1.
    *
-   * The rule this replaces said a Genre or Mix existing is not evidence they like
+   * The rule this replaces said a Genre or Vibe existing is not evidence they like
    * it, and that what makes one trustworthy is the film states under it. That reads
    * as a gate: no states, no weight. It is also the product's own loop denied — the
-   * Mix written in last night's conversation is exactly the one tonight's answer
+   * Vibe written in last night's conversation is exactly the one tonight's answer
    * should be using, and it is the most current thing the user has said.
    *
-   * So: a Mix is declarative evidence from the moment it exists, and states are
-   * confirmatory — they move confidence, never eligibility. A Mix with nothing
+   * So: a Vibe is declarative evidence from the moment it exists, and states are
+   * confirmatory — they move confidence, never eligibility. A Vibe with nothing
    * under it is less certain about specifics and no less weighty about intent.
    */
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
   for (const [what, rule] of [
-    ["that a matching Mix is a reason, not a filter",
-      /A matching Mix is a reason the recommendation fits/],
+    ["that a matching Vibe is a reason, not a filter",
+      /A matching Vibe is a reason the recommendation fits/],
     ["that it counts immediately", /from the moment it exists/],
-    ["that an empty Mix says as much as a full one",
-      /A Mix with nothing under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
+    ["that an empty Vibe says as much as a full one",
+      /A Vibe with nothing under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
     ["that a Genre is thinner", /A Genre is an ingredient/],
     ["that a Genre name alone justifies nothing", /a Genre name alone is a label/],
     ["that verdicts calibrate", /Verdicts calibrate it, never decide whether it counts/],
@@ -293,58 +293,58 @@ test("a Mix is evidence, and the states under it calibrate rather than gate", ()
     ["what a withdrawal removes", /a\s*withdrawal removes that act in its own scope/],
     ["that a withdrawal is not an unsaying", /not a weaker opinion, not an unsaying/],
     ["that viewing is a fact and not taste", /`viewing` is a fact about watching/],
-    ["how an empty Mix is read", /intent certain, their verdict unconfirmed/],
-    ["that describing the match stays allowed", /Say how a film fits the Mix/],
+    ["how an empty Vibe is read", /intent certain, their verdict unconfirmed/],
+    ["that describing the match stays allowed", /Say how a film fits the Vibe/],
     ["that their verdict may not be claimed", /never that \*\*they\*\* like it yet/],
     ["that this changes reach, not eligibility", /use it, vary\s+reach and certainty/],
   ] as [string, RegExp][]) {
     assert.match(flat, rule, `the agent is never told ${what}`);
   }
 
-  // The gate, in every form the strategy names. A Mix is never classified as
+  // The gate, in every form the strategy names. A Vibe is never classified as
   // counting or not counting, and no word grades one as provisional.
-  assert.doesNotMatch(flat, /A Genre or Mix existing is not evidence they like it/i,
+  assert.doesNotMatch(flat, /A Genre or Vibe existing is not evidence they like it/i,
     "the pre-P5 rule is still here");
   assert.doesNotMatch(flat, /What makes one trustworthy is the film states under it/i);
   assert.doesNotMatch(flat, /\b(aspirational|untested|unproven|provisional)\b/i,
-    "a Mix is graded by a label the strategy rejects");
-  assert.doesNotMatch(flat, /(Mix|Genre)[^.]{0,40}\b(does not count|doesn't count|no weight)\b/i,
-    "something in the text classifies a Mix as not counting");
+    "a Vibe is graded by a label the strategy rejects");
+  assert.doesNotMatch(flat, /(Vibe|Genre)[^.]{0,40}\b(does not count|doesn't count|no weight)\b/i,
+    "something in the text classifies a Vibe as not counting");
 });
 
-test("an unconfirmed Mix bounds the claim about a film, never the Mix itself", () => {
+test("an unconfirmed Vibe bounds the claim about a film, never the Vibe itself", () => {
   /**
    * R4 of `docs/work/phase-1-repairs.md`. The candidate produced *"about as pure
-   * a fit for Reading Room as exists"* for a Mix with nothing under it — maximal
+   * a fit for Reading Room as exists"* for a Vibe with nothing under it — maximal
    * certainty that a **particular film** matched, while nothing had yet confirmed
    * that anything did.
    *
    * The repair is to the language of the recommendation, not to the standing of
-   * the Mix. P5 is untouched: the Mix counts fully and immediately, states
+   * the Vibe. P5 is untouched: the Vibe counts fully and immediately, states
    * calibrate rather than gate, and confidence about what the user *meant* is
    * never reduced — only confidence that this film is the thing they meant.
    */
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
   const bullet = flat.slice(
-    flat.indexOf("A Mix with nothing under it"),
+    flat.indexOf("A Vibe with nothing under it"),
     flat.indexOf("Either way"),
   );
-  assert.ok(bullet.length > 60, "the unconfirmed-Mix rule could not be found");
+  assert.ok(bullet.length > 60, "the unconfirmed-Vibe rule could not be found");
 
   // Intent is certain; what they made of any film is what is not.
   assert.match(bullet, /intent certain/i, "confidence about intent was reduced");
   assert.match(bullet, /verdict unconfirmed/i, "the missing verdict is not named");
-  // Describing the match is the thing a written Mix makes checkable, so it stays allowed.
-  assert.match(bullet, /Say how a film fits the Mix/i, "describing the match was forbidden");
+  // Describing the match is the thing a written Vibe makes checkable, so it stays allowed.
+  assert.match(bullet, /Say how a film fits the Vibe/i, "describing the match was forbidden");
   // What is refused is a verdict they never gave. Two sweeps failed while the rule chased
   // phrasing instead; the projection now names the claim rather than the words.
   assert.match(bullet, /never that \*\*they\*\* like it yet/i, "their verdict may still be claimed");
-  // The Mix still counts: this changes how you speak, not whether you use it.
-  assert.match(bullet, /use it, vary/i, "an unconfirmed Mix stopped counting");
+  // The Vibe still counts: this changes how you speak, not whether you use it.
+  assert.match(bullet, /use it, vary/i, "an unconfirmed Vibe stopped counting");
 
   // None of the rejected mechanisms came back with it.
-  assert.doesNotMatch(flat, /\b(aspirational|untested|unproven|provisional|tentative Mix)\b/i,
-    "a Mix is graded by a label the strategy rejects");
+  assert.doesNotMatch(flat, /\b(aspirational|untested|unproven|provisional|tentative Vibe)\b/i,
+    "a Vibe is graded by a label the strategy rejects");
   assert.doesNotMatch(bullet, /\b(score|weight|threshold|points?|at least \d+|\d+ or more)\b/i,
     "the rule acquired arithmetic");
 });
@@ -354,7 +354,7 @@ test("taste is read qualitatively — no score, no threshold, no count", () => {
    * The rules in this passage describe evidence getting stronger or weaker. They
    * must not turn into arithmetic: a weight, a points scheme or a minimum number of
    * films would be a second taste model, kept in the agent's head, that nobody can
-   * read or correct — and a count of states deciding whether a Mix counts is the
+   * read or correct — and a count of states deciding whether a Vibe counts is the
    * exact P5 regression Step 6 exists to remove.
    *
    * Checked on **both** artifacts, independently. The specification and the
@@ -537,15 +537,15 @@ test("a film they have seen or judged is not offered as a new one", () => {
  *
  * Bound to the action rather than to the sentence. A negation governs the
  * action when it precedes it in the same clause-run with nothing contrastive in
- * between: "never ask X, or require learning Genres and Mixes" forbids both,
+ * between: "never ask X, or require learning Genres and Vibes" forbids both,
  * because `or` continues the negation; "never ask X, but require learning
- * Genres and Mixes" forbids only the first, because `but` turns against it.
+ * Genres and Vibes" forbids only the first, because `but` turns against it.
  *
  * No spelling of the negation is privileged — "never", "do not" and "don't" are
  * the same rule, and pinning one of them would fail valid wording.
  */
 const LEARN_THE_MODEL =
-  /\b(?:mak(?:e|es|ing)\s+\S+\s+learn|requir(?:e|es|ing)\s+learning|teach(?:ing)?)\s+Genres and Mixes/i;
+  /\b(?:mak(?:e|es|ing)\s+\S+\s+learn|requir(?:e|es|ing)\s+learning|teach(?:ing)?)\s+Genres and Vibes/i;
 const NEGATION = /\b(?:never|not|no|cannot|can'?t|don'?t|doesn'?t|won'?t)\b/gi;
 const CONTRASTIVE = /\b(?:but|however|yet|though|although|except|whereas|instead)\b/i;
 
@@ -593,22 +593,22 @@ test("the data-model prohibition is read as a prohibition, in any wording", () =
   // what stops the guard being satisfied by a sentence that merely contains the
   // word "never", and what stops it rejecting a valid "do not".
   for (const negative of [
-    "never make somebody learn Genres and Mixes",
-    "never require learning Genres and Mixes",
-    "do not require learning Genres and Mixes",
-    "don't make somebody learn Genres and Mixes",
-    'never *"what genres do you like?"*, or require learning Genres and Mixes.',
-    "never ask about genres, and never require learning Genres and Mixes",
+    "never make somebody learn Genres and Vibes",
+    "never require learning Genres and Vibes",
+    "do not require learning Genres and Vibes",
+    "don't make somebody learn Genres and Vibes",
+    'never *"what genres do you like?"*, or require learning Genres and Vibes.',
+    "never ask about genres, and never require learning Genres and Vibes",
   ]) {
     assert.ok(forbidsLearningTheModel(negative), `a valid prohibition was rejected: ${negative}`);
   }
 
   for (const affirmative of [
-    "require learning Genres and Mixes",
-    "make somebody learn Genres and Mixes",
-    "never ask what genres they like, but require learning Genres and Mixes",
-    "never print the taste model. Require learning Genres and Mixes.",
-    "never print the taste model; require learning Genres and Mixes.",
+    "require learning Genres and Vibes",
+    "make somebody learn Genres and Vibes",
+    "never ask what genres they like, but require learning Genres and Vibes",
+    "never print the taste model. Require learning Genres and Vibes.",
+    "never print the taste model; require learning Genres and Vibes.",
     "ask one question about films",
   ]) {
     assert.ok(!forbidsLearningTheModel(affirmative), `an affirmative form passed: ${affirmative}`);
@@ -635,7 +635,7 @@ test("a request for a film is still not a configuration session", () => {
   // Matching the phrase alone would be satisfied by an instruction that
   // *required* learning the model, and requiring the word "never" somewhere in
   // the sentence is barely better: "never ask X, but require learning Genres
-  // and Mixes" contains it and forbids nothing. What has to hold is that the
+  // and Vibes" contains it and forbids nothing. What has to hold is that the
   // action is governed by a negation — which survives a coordinator that
   // continues the negation ("never X, or Y") and does not survive one that
   // contrasts with it ("never X, but Y").
@@ -658,29 +658,29 @@ test("saving a film classifies it, and may grow the model rather than bend it", 
 
   for (const [what, rule] of [
     ["to classify rather than fit", /Classify the film rather than fitting it to what is there/],
-    ["to look before deciding", /read the Genres and Mixes first/i],
+    ["to look before deciding", /read the Genres and Vibes first/i],
     ["to reuse a Genre that fits", /Reuse the Genres that (genuinely )?fit/],
     ["to create one when none covers it", /create one for anything (no Genre covers|uncovered)/],
     ["how many, as guidance rather than a quota",
       /\b(often|usually|commonly|typically)\b[^.—]{0,30}two or three strong, complementary ones/],
     ["and never to pad", /never filler to hit a number/],
-    ["not to stretch a Mix", /Never stretch a Mix to avoid making one/],
+    ["not to stretch a Vibe", /Never stretch a Vibe to avoid making one/],
   ] as [string, RegExp][]) {
     assert.match(flat, rule, `the agent is never told ${what}`);
   }
 });
 
-test("a proposed Mix is made tangible before it is agreed to", () => {
+test("a proposed Vibe is made tangible before it is agreed to", () => {
   /**
    * A name and a sentence are thin things to agree to. Somebody saying yes to
    * "Everybody Has a Plan" has agreed to a label; somebody who has also seen three
-   * films that would sit under it has agreed to the idea — which is what the Mix
+   * films that would sit under it has agreed to the idea — which is what the Vibe
    * has to be worth in a month, when they ask for it by name.
    *
    * The films are the whole risk of this rule. They are named, and everything else
    * in the skill treats a named film as the start of something, so the boundary is
    * pinned here as hard as the behaviour is: illustration, no write, no state, no
-   * Mix, no classification. Only the film they asked to keep is in the flow.
+   * Vibe, no classification. Only the film they asked to keep is in the flow.
    */
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
@@ -690,10 +690,10 @@ test("a proposed Mix is made tangible before it is agreed to", () => {
     ["to offer other names for it", /two or three (names it could have instead|alternative names)/],
     ["that the asking still comes last", /Then ask/],
     ["that the films are illustration", /Those films are illustration only/],
-    ["that they are not written and not filed", /never written, never (in a Mix|filed)/],
+    ["that they are not written and not filed", /never written, never (in a Vibe|filed)/],
     ["that they get no viewing and no verdict", /never given a viewing or a\s+verdict/],
     ["what is actually being saved", /only the film they asked to keep is (being )?saved/i],
-    ["that a fitting Mix skips all of it", /a Mix that (genuinely )?fits needs none of this/],
+    ["that a fitting Vibe skips all of it", /a Vibe that (genuinely )?fits needs none of this/],
   ] as [string, RegExp][]) {
     assert.match(flat, rule, `the agent is never told ${what}`);
   }
@@ -701,8 +701,8 @@ test("a proposed Mix is made tangible before it is agreed to", () => {
   // The illustration must not acquire the vocabulary of the persistence flow: no
   // state named against those films, no count of them to store, no second save.
   const proposal = flat.slice(
-    flat.indexOf("**Proposing a new Mix:**"),
-    flat.indexOf("**A film in no Mix is legitimate**"),
+    flat.indexOf("**Proposing a new Vibe:**"),
+    flat.indexOf("**A film in no Vibe is legitimate**"),
   );
 
   assert.ok(proposal.length > 200, "the proposal passage could not be found");
@@ -1232,26 +1232,26 @@ test("the compact projection of the write flow says the same thing the skill doe
     ["and the viewing and the evening may still be written",
       /`viewing` may hold it, and an evening may record what they said they did/,
       /the viewing and the evening may be recorded/],
-    ["keeping a film needs a Mix",
-      /Never write a Movie this way without at least one Mix/,
-      /Never write a Movie this way without at least one Mix/],
-    ["a verdict never invents a Mix",
-      /No Mix is needed for one and none may be invented to hold it/,
-      /no Mix and no Movie is needed or\s+invented to hold one/],
+    ["keeping a film needs a Vibe",
+      /Never write a Movie this way without at least one Vibe/,
+      /Never write a Movie this way without at least one Vibe/],
+    ["a verdict never invents a Vibe",
+      /No Vibe is needed for one and none may be invented to hold it/,
+      /no Vibe and no Movie is needed or\s+invented to hold one/],
     ["a verdict never invents a Movie either",
       /a Verdict stands on its own root/,
-      /no Mix and no Movie is needed or\s+invented to hold one/],
-    ["a later keep still takes a Mix", /a later request to keep the film takes a Mix/,
-      /a later request to keep the film takes a Mix/],
-    ["the Mix question is classification, not permission",
+      /no Vibe and no Movie is needed or\s+invented to hold one/],
+    ["a later keep still takes a Vibe", /a later request to keep the film takes a Vibe/,
+      /a later request to keep the film takes a Vibe/],
+    ["the Vibe question is classification, not permission",
       /not \*"may I save this\?"\* but \*"what kind of night is this\?"\*/,
       /is a classification, not a request for permission/],
     ["classify rather than fit", /Classify the film/, /Classify the film/],
-    ["read first", /Read the Genres and Mixes first/i, /read the Genres and Mixes first/i],
+    ["read first", /Read the Genres and Vibes first/i, /read the Genres and Vibes first/i],
     ["one that fits is just saved", /save it there, say so in one sentence, ask nothing further/,
       /save it there, say so in one sentence, ask nothing further/],
-    ["never stretch a Mix", /Never stretch a Mix to avoid making one/,
-      /Never stretch a Mix to avoid making one/],
+    ["never stretch a Vibe", /Never stretch a Vibe to avoid making one/,
+      /Never stretch a Vibe to avoid making one/],
     ["none fitting means not yet", /do not save the film yet/, /do not save the film yet/],
     ["reuse what fits", /Reuse the Genres that genuinely fit/, /Reuse the Genres that fit/],
     ["create for what is uncovered", /create one for anything no Genre covers/,
@@ -1264,7 +1264,7 @@ test("the compact projection of the write flow says the same thing the skill doe
       /often two or three strong, complementary ones/],
     ["and padding is still forbidden",
       /never filler to hit a number/, /never filler to hit a number/],
-    ["the Mix choice is yours", /Never ask which Mix they want; that judgement is yours/,
+    ["the Vibe choice is yours", /Never ask which Vibe they want; that judgement is yours/,
       /Never ask which they want; that judgement is yours/],
     ["a proposal is made concrete", /make the idea concrete/, /make it concrete/],
     ["with three to five films", /three to five other films that would belong in it/,
@@ -1273,7 +1273,7 @@ test("the compact projection of the write flow says the same thing the skill doe
       /two or three alternative names/],
     ["those films are illustration only", /Those films are illustration only/,
       /Those films are illustration only/],
-    ["never written, never filed", /never written, never in the Mix/, /never written, never filed/],
+    ["never written, never filed", /never written, never in the Vibe/, /never written, never filed/],
     ["no viewing, no verdict", /never given a viewing or a verdict/,
       /never given a viewing or a\s+verdict/],
     ["only the asked-for film is saved", /Only the film they asked to keep is being saved/,
@@ -1285,11 +1285,11 @@ test("the compact projection of the write flow says the same thing the skill doe
       /A no settles it\*\*, never saving the film loose/],
     ["propose while saving", /Propose while saving, not while recommending/,
       /Propose while saving, not while recommending/],
-    ["a fitting Mix skips it", /a Mix that (genuinely )?fits needs none of this/,
-      /a Mix that (genuinely )?fits needs none of this/],
-    ["a film in no Mix is fine", /A film in no Mix is legitimate/, /A film in no Mix is legitimate/],
-    ["and is left alone", /Do not sort them, propose Mixes for them, or mention them\s*unasked/,
-      /Do not sort them, propose Mixes for them, or mention them\s*unasked/],
+    ["a fitting Vibe skips it", /a Vibe that (genuinely )?fits needs none of this/,
+      /a Vibe that (genuinely )?fits needs none of this/],
+    ["a film in no Vibe is fine", /A film in no Vibe is legitimate/, /A film in no Vibe is legitimate/],
+    ["and is left alone", /Do not sort them, propose Vibes for them, or mention them\s*unasked/,
+      /Do not sort them, propose Vibes for them, or mention them\s*unasked/],
   ];
 
   for (const [what, inSkill, inProjection] of behaviours) {
@@ -1313,13 +1313,13 @@ test("the compact projection of the write flow says the same thing the skill doe
   assert.doesNotMatch(projected, /Two requests write a Movie, and they differ/,
     "both wordings of the write flow reached the projection");
   assert.doesNotMatch(projected, /may I save this/,
-    "the canonical framing of the Mix question reached the projection");
+    "the canonical framing of the Vibe question reached the projection");
 });
 
 test("the compact projection of the taste model says the same thing the skill does", () => {
   /**
    * Strategy 9.5, third use of the mechanism. P3 and P5 are the semantics most
-   * likely to be lost in a shorter wording, because the losses are quiet: a Mix
+   * likely to be lost in a shorter wording, because the losses are quiet: a Vibe
    * described in fewer words easily reads as a filter again, and states described
    * in fewer words easily read as a gate.
    */
@@ -1345,15 +1345,15 @@ test("the compact projection of the taste model says the same thing the skill do
       /what they have written is where you explore from/, /you are exploring, from what they wrote/],
     ["taste-aware makes the model the brief",
       /Now the model is the brief, and its exclusions hold/, /the model is the brief, and its\s*exclusions hold/],
-    ["a matching Mix is a reason",
-      /a Mix that matches is a reason\s*the recommendation fits/,
-      /A matching Mix is a reason the recommendation fits/],
+    ["a matching Vibe is a reason",
+      /a Vibe that matches is a reason\s*the recommendation fits/,
+      /A matching Vibe is a reason the recommendation fits/],
     ["it counts immediately", /counts from\s*the moment it exists/, /from the moment it exists/],
-    ["an empty Mix says as much as a full one",
+    ["an empty Vibe says as much as a full one",
       /nothing under it yet says as much about what\s*they like as one with ten films under it/,
       // The projection carries the consequence rather than the illustration:
-      // an empty Mix is used, with reach and certainty varied.
-      /A Mix with nothing under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
+      // an empty Vibe is used, with reach and certainty varied.
+      /A Vibe with nothing under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
     ["a Genre is thinner", /A Genre is an ingredient/, /A Genre is an ingredient/],
     ["verdicts calibrate rather than gate",
       /Verdicts calibrate that evidence. They never decide whether it counts/,
@@ -1364,14 +1364,14 @@ test("the compact projection of the taste model says the same thing the skill do
     ["a Movie carries no opinion at all",
       /`viewing` says whether they watched it and that is a\s*fact, never a sign for or against/,
       /A Movie carries no opinion: `viewing` is a fact about watching/],
-    ["an empty Mix changes reach, not eligibility",
+    ["an empty Vibe changes reach, not eligibility",
       /never whether you use it/, /use it, vary\s+reach and certainty/],
     ["intent stays certain while the fit does not",
       /what\s+they meant is not in question/, /intent certain/],
     ["no film is confirmed to fit it yet",
       /no particular film has been confirmed to fit it yet/, /verdict unconfirmed/],
     ["that describing the match stays allowed",
-      /say how well a film answers what the Mix asks for/, /Say how a film fits the Mix/],
+      /say how well a film answers what the Vibe asks for/, /Say how a film fits the Vibe/],
     ["to say how sure it is", /Say how sure you are/, /vary\s+reach and certainty/],
     ["that their verdict may not be claimed",
       /it is confirmed, proven or settled for them/, /never that \*\*they\*\* like it yet/],
@@ -1580,7 +1580,7 @@ test("nothing marked full-skill-only reaches the agent", () => {
 
   for (const onlyInTheSkill of [
     "want to watch  →  recommend",
-    "A Mix name is evocative, not descriptive",
+    "A Vibe name is evocative, not descriptive",
     "playlist somebody made at two in the morning",
     "Knives Out",
     "| Ask this | Not this |",
@@ -1610,12 +1610,12 @@ test("every rule the agent cannot work out for itself is in the text it is given
     // scope and boundaries
     "There is no setup",
     "Never look in Tonight for films to recommend",
-    "Never write a Genre, a Mix or a Movie anywhere but Tonight",
+    "Never write a Genre, a Vibe or a Movie anywhere but Tonight",
     "Never ask for or pass an account id",
     // reading and recommending
     "Read `get_taste` either",
     "binds only when they asked for their taste",
-    "A matching Mix is a reason the recommendation fits",
+    "A matching Vibe is a reason the recommendation fits",
     "Verdicts calibrate it, never decide whether it counts",
     "exclusions hold",
     "Never print the taste model while",
@@ -1652,24 +1652,24 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "the viewing and the evening may be recorded",
     "Never infer a preference from silence",
     "Say so and let them decide",
-    // genre against mix
-    "A Genre is named for what it is; a Mix for what it feels like",
-    "Never stretch a Mix to avoid making one",
+    // genre against vibe
+    "A Genre is named for what it is; a Vibe for what it feels like",
+    "Never stretch a Vibe to avoid making one",
     // movies
-    "Never write a Movie this way without at least one Mix",
-    "no Mix and no Movie",
+    "Never write a Movie this way without at least one Vibe",
+    "no Vibe and no Movie",
     "not a bucket",
     "do not save the film yet",
     "Never ask which they want",
     "Those films are illustration only",
     "A yes is the whole permission",
     "never ask twice",
-    "A film in no Mix is legitimate",
-    "Do not sort them, propose Mixes for them, or mention them unasked",
+    "A film in no Vibe is legitimate",
+    "Do not sort them, propose Vibes for them, or mention them unasked",
     "A recommendation is not a saved Movie",
     "ever ask for what their sentence gave you",
     "that is a verdict: `record_verdict`",
-    "arrive with `create_genre` and `create_mix`",
+    "arrive with `create_genre` and `create_vibe`",
     "Settle title and year first",
     // what Tonight is and is not — the boundary, stated so neither half is lost
     "get_taste` returns what they saved, not a shortlist",

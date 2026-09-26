@@ -142,11 +142,16 @@ export function versionOf(body) {
  * metadata inside a document of instructions, and that is the price of a pasted
  * copy that can say how old it is. Says what to do about being out of date,
  * because a version somebody cannot act on is trivia.
+ *
+ * Worded as tightly as the job allows, because it is charged against the same
+ * cap as the instructions themselves: every character here is a character the
+ * rules cannot have. It still carries the whole mechanism — which document,
+ * which version, and what to do when the site shows another.
  */
 export function markerFor(version) {
   return (
-    `Tonight project instructions · version ${version} · ` +
-    `replace these when tonight.movie shows a different version.`
+    `Tonight instructions · version ${version} · ` +
+    `replace when tonight.movie shows a different one.`
   );
 }
 

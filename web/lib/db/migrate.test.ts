@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
 import { ConfigurationError } from "../oauth/config.ts";
-import { orderGenre, orderMix, orderMovie } from "../taste/model.ts";
-import { RECONCILE_MIX_GENRES, TASTE_SCHEMA } from "../taste/store/schema.ts";
+import { orderGenre, orderVibe, orderMovie } from "../taste/model.ts";
+import { RECONCILE_VIBE_GENRES, TASTE_SCHEMA } from "../taste/store/schema.ts";
 import { sqlTasteStore } from "../taste/store/sql.ts";
 import { VERDICTS_SCHEMA, } from "../verdicts/store/schema.ts";
 import { sqlVerdictStore } from "../verdicts/store/sql.ts";
@@ -296,7 +296,7 @@ test("v2 gives every row an id and points every reference at one", async () => {
 
   // Every reference now carries the id of the row its name names — which is the
   // whole of the backfill, and the thing the contract migration will trust.
-  const rows = await sql.query<{ mix: string; genre: string; ok: boolean }>(
+  const rows = await sql.query<{ vibe: string; genre: string; ok: boolean }>(
     `SELECT r.mix, r.genre,
             (r.mix_id = m.id AND r.genre_id = g.id) AS ok
        FROM tonight_mix_genres AS r
@@ -346,7 +346,7 @@ test("reconciliation repairs a reference an old instance wrote after the backfil
 
   assert.equal(await nulls(), 1, "the old-style write should have left ids null");
 
-  await sql.exec(RECONCILE_MIX_GENRES);
+  await sql.exec(RECONCILE_VIBE_GENRES);
 
   assert.equal(await nulls(), 0, "reconciliation left a row unrepaired");
   const [repaired] = await sql.query<{ ok: boolean }>(
@@ -368,7 +368,7 @@ test("v4 stands beside what is there rather than rewriting any of it", async () 
   // speaks — and what has to survive is a user's model, not a row layout.
   const store = sqlTasteStore(sql, { id: ALICE });
   await store.createGenre({ name: "Sci-Fi", instruction: "I like ideas over spectacle." });
-  await store.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+  await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
 
   // `xmin` is the transaction that last wrote each row. An additive migration
   // has to leave all three untouched; a backfill, a rewritten default or a
@@ -384,17 +384,17 @@ test("v4 stands beside what is there rather than rewriting any of it", async () 
     );
 
   const before = await versions();
-  assert.equal(before.length, 3, "one genre, one mix and the reference between them");
+  assert.equal(before.length, 3, "one genre, one vibe and the reference between them");
 
   await migrate(sql, TASTE_SCHEMA);
 
   assert.deepEqual(await versions(), before, "v4 rewrote a row it should only stand beside");
 
   // And the movie tables arrive empty: nobody gains a film they never mentioned.
-  const { genres, mixes, movies } = await store.taste();
+  const { genres, vibes, movies } = await store.taste();
   assert.deepEqual(movies, []);
   assert.deepEqual(genres.map((one) => one.name), ["Sci-Fi"]);
-  assert.deepEqual(mixes[0]?.movies, [], "a mix arrived already naming something");
+  assert.deepEqual(vibes[0]?.movies, [], "a vibe arrived already naming something");
 });
 
 /**
@@ -599,19 +599,19 @@ test("v1 data survives the whole migration with its meaning intact", async () =>
   await migrate(sql, TASTE_SCHEMA);
 
   // Read back through the store, because "unchanged" means unchanged to a
-  // caller: the same genres, the same mix, the same genres under it, in the
+  // caller: the same genres, the same vibe, the same genres under it, in the
   // same order, spelled the way they were typed.
   const taste = await sqlTasteStore(sql, { id: ALICE }).taste();
   assert.deepEqual({
     genres: taste.genres.map(orderGenre),
-    mixes: taste.mixes.map(orderMix),
+    vibes: taste.vibes.map(orderVibe),
     movies: taste.movies.map(orderMovie),
   }, {
     genres: [
       { name: "Sci-Fi", instruction: "I like ideas over spectacle." },
       { name: "Thriller", instruction: "I like being kept on edge." },
     ],
-    mixes: [
+    vibes: [
       {
         name: "Space Tension",
         instruction: "Contained, and nobody is safe.",
@@ -627,7 +627,7 @@ test("v1 data survives the whole migration with its meaning intact", async () =>
   // property most easily lost by accident and least likely to be noticed.
   const fields = new Set([
     ...taste.genres.flatMap(Object.keys),
-    ...taste.mixes.flatMap(Object.keys),
+    ...taste.vibes.flatMap(Object.keys),
   ]);
   assert.deepEqual([...fields].sort(), [
     "createdAt",
@@ -644,13 +644,13 @@ test("v1 data survives the whole migration with its meaning intact", async () =>
  *
  * Not a paraphrase: these are the statements from `git show HEAD` — the movie
  * update naming four columns and no stamp, the filing replaced by deleting every
- * reference row and writing the new ones, and the mix deleted by id. What the
+ * reference row and writing the new ones, and the vibe deleted by id. What the
  * tests below assert is that a build which has never heard of `updated_at` keeps
  * it correct anyway, because migrating and deploying are not one instant and a
  * rolling deploy runs both builds at once on purpose.
  */
 const oldCode = {
-  async createMovie(sql: SqlDriver, title: string, mixes: string[] = []): Promise<string> {
+  async createMovie(sql: SqlDriver, title: string, vibes: string[] = []): Promise<string> {
     // This fixture is run against two eras of the schema — before v6, and all
     // the way up — so it asks which one it is in rather than naming a column
     // that may not exist yet. `canonical_title` arrives in v8 and is required
@@ -674,11 +674,11 @@ const oldCode = {
            VALUES ($1, $2, 2016, NULL) RETURNING id`,
       [ALICE, title],
     );
-    for (const mix of mixes) {
+    for (const vibe of vibes) {
       await sql.query(
         `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id)
          SELECT $1, m.id, $3 FROM tonight_mixes AS m WHERE m.user_id = $1 AND m.name = $2`,
-        [ALICE, mix, movie!.id],
+        [ALICE, vibe, movie!.id],
       );
     }
     return movie!.id;
@@ -695,32 +695,32 @@ const oldCode = {
   },
 
   /** The old filing replacement: delete the lot, write what is left. */
-  async refile(sql: SqlDriver, id: string, mixes: string[]): Promise<void> {
+  async refile(sql: SqlDriver, id: string, vibes: string[]): Promise<void> {
     await sql.query(`DELETE FROM tonight_mix_movies WHERE user_id = $1 AND movie_id = $2`, [
       ALICE,
       id,
     ]);
-    for (const mix of mixes) {
+    for (const vibe of vibes) {
       await sql.query(
         `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id)
          SELECT $1, m.id, $3 FROM tonight_mixes AS m WHERE m.user_id = $1 AND m.name = $2`,
-        [ALICE, mix, id],
+        [ALICE, vibe, id],
       );
     }
   },
 
-  /** The old `deleteMix`: by id, and nothing said about the films in it. */
-  async deleteMix(sql: SqlDriver, name: string): Promise<void> {
+  /** The old `deleteVibe`: by id, and nothing said about the films in it. */
+  async deleteVibe(sql: SqlDriver, name: string): Promise<void> {
     await sql.query(`DELETE FROM tonight_mixes WHERE user_id = $1 AND name = $2`, [ALICE, name]);
   },
 
-  async createMix(sql: SqlDriver, name: string, genre: string): Promise<void> {
+  async createVibe(sql: SqlDriver, name: string, genre: string): Promise<void> {
     await sql.query(
       `INSERT INTO tonight_genres (user_id, name, instruction) VALUES ($1, $2, 'Mine.')
        ON CONFLICT DO NOTHING`,
       [ALICE, genre],
     );
-    const [mix] = await sql.query<{ id: string }>(
+    const [vibe] = await sql.query<{ id: string }>(
       `INSERT INTO tonight_mixes (user_id, name, instruction) VALUES ($1, $2, 'Tense.')
        RETURNING id`,
       [ALICE, name],
@@ -728,7 +728,7 @@ const oldCode = {
     await sql.query(
       `INSERT INTO tonight_mix_genres (user_id, mix_id, genre_id, position)
        SELECT $1, $2, g.id, 0 FROM tonight_genres AS g WHERE g.user_id = $1 AND g.name = $3`,
-      [ALICE, mix!.id, genre],
+      [ALICE, vibe!.id, genre],
     );
   },
 };
@@ -817,12 +817,12 @@ test("the old build still dates a movie it edits, without naming the column", as
 test("the old build still dates a movie whose filing it replaces", async () => {
   const sql = await fresh();
   await migrate(sql, upTo(5));
-  await oldCode.createMix(sql, "Space Tension", "Sci-Fi");
+  await oldCode.createVibe(sql, "Space Tension", "Sci-Fi");
   const id = await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
   await migrate(sql, TASTE_SCHEMA);
   const was = await stamps(sql, "Arrival");
 
-  // Taken out of every mix, by a build that writes no timestamp and does not
+  // Taken out of every vibe, by a build that writes no timestamp and does not
   // touch the movie's own row on this path at all.
   await oldCode.refile(sql, id, []);
 
@@ -830,10 +830,10 @@ test("the old build still dates a movie whose filing it replaces", async () => {
   assert.ok(now.updated > was.updated, `old-build refile: ${now.updated} is not after ${was.updated}`);
 });
 
-test("the old build deleting a mix still dates the films that were in it", async () => {
+test("the old build deleting a vibe still dates the films that were in it", async () => {
   const sql = await fresh();
   await migrate(sql, upTo(5));
-  await oldCode.createMix(sql, "Space Tension", "Sci-Fi");
+  await oldCode.createVibe(sql, "Space Tension", "Sci-Fi");
   await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
   await oldCode.createMovie(sql, "Moon");
   await migrate(sql, TASTE_SCHEMA);
@@ -842,13 +842,13 @@ test("the old build deleting a mix still dates the films that were in it", async
   const looseWas = await stamps(sql, "Moon");
 
   // The films are neither named nor written by this statement. Their reference
-  // rows go with the mix, and that is the only thing the database sees.
-  await oldCode.deleteMix(sql, "Space Tension");
+  // rows go with the vibe, and that is the only thing the database sees.
+  await oldCode.deleteVibe(sql, "Space Tension");
 
   const filedNow = await stamps(sql, "Arrival");
   assert.ok(
     filedNow.updated > filedWas.updated,
-    `old-build mix deletion: ${filedNow.updated} is not after ${filedWas.updated}`,
+    `old-build vibe deletion: ${filedNow.updated} is not after ${filedWas.updated}`,
   );
   assert.equal(filedNow.created, filedWas.created);
   // A film that was not in it did not change, and its stamp says so.
@@ -906,14 +906,14 @@ test("the taste store requires its own migrations before it can serve", async ()
 
 test("everything before film identity still deploys ahead of its migration", async () => {
   // The guarantee above is given up for one migration, not for the habit. The
-  // v6 rollout's ordering is still real and still tested: the current mix
+  // v6 rollout's ordering is still real and still tested: the current vibe
   // deletion runs against the schema as it was before the stamps existed, which
   // is what stopped an old-build deletion from crossing an updateMovie while
   // both were live.
   const sql = await fresh();
   await migrate(sql, upTo(5));
 
-  await oldCode.createMix(sql, "Space Tension", "Sci-Fi");
+  await oldCode.createVibe(sql, "Space Tension", "Sci-Fi");
   await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
   await oldCode.createMovie(sql, "Moon");
 
@@ -930,7 +930,7 @@ test("everything before film identity still deploys ahead of its migration", asy
     `SELECT count(*) AS count FROM tonight_movies WHERE user_id = $1`,
     [ALICE],
   );
-  assert.equal(Number(count), 2, "deleting a mix took the films with it");
+  assert.equal(Number(count), 2, "deleting a vibe took the films with it");
 
   // And the rest of the list still applies cleanly on top of that database.
   const remaining = TASTE_SCHEMA.migrations.filter((one) => one.version > 5).length;
@@ -1244,7 +1244,7 @@ test("every legacy state becomes the viewing it implied, and nothing else moves"
   ]);
 });
 
-test("a film's mixes and its IMDb id are untouched by the conversion", async () => {
+test("a film's vibes and its IMDb id are untouched by the conversion", async () => {
   const sql = await beforeTheSplit();
   await sql.query(
     `INSERT INTO tonight_genres (user_id, name, instruction) VALUES ($1, 'Slow', 'takes its time')`,
@@ -1270,7 +1270,7 @@ test("a film's mixes and its IMDb id are untouched by the conversion", async () 
 
   const { movies } = await sqlTasteStore(sql, { id: ALICE }).taste();
   assert.deepEqual(
-    movies.map((one) => [one.title, one.year, one.imdbId, one.viewing, one.mixes]),
+    movies.map((one) => [one.title, one.year, one.imdbId, one.viewing, one.vibes]),
     [["Heat", 1995, "tt0113277", "seen", ["Long Nights"]]],
   );
 });

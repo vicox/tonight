@@ -28,8 +28,8 @@ export default function Terms() {
         <h2>What Tonight does, and what it does not</h2>
         <p>
           Tonight keeps a <strong>taste model that belongs to you</strong>: genres, each with an
-          instruction saying what that genre means to you, mixes that combine them and say what the
-          combination means, the films you have told it about, in whichever of your mixes you
+          instruction saying what that genre means to you, vibes that combine them and say what the
+          combination means, the films you have told it about, in whichever of your vibes you
           put them or in none, and what you thought of a film — that you liked, loved or disliked
           it, or that you turned it down — which is kept separately from the film and is the only
           place an opinion is stored. It also records the evenings it took part in. It stores all
@@ -48,7 +48,7 @@ export default function Terms() {
           <strong>Tonight does not choose films for you.</strong> It contains no recommendation engine,
           no language model and no film database — the films it holds are the ones you put there,
           and nothing about them is looked up. Recommending happens in whatever MCP client you
-          connect — it reads what you have written down, which is your genres and mixes, the films
+          connect — it reads what you have written down, which is your genres and vibes, the films
           you saved, and the verdicts that currently stand; the evenings Tonight recorded are
           history and are read separately, if at all. It brings its own knowledge of films and
           whatever other tools it has. Anything it tells you about a film comes from it, not from Tonight, and
@@ -96,7 +96,7 @@ export default function Terms() {
       <section>
         <h2>The instruction field</h2>
         <p>
-          A genre and a mix each carry an <code>instruction</code> — free text in which you describe
+          A genre and a vibe each carry an <code>instruction</code> — free text in which you describe
           what it means to you. It is stored as you wrote it, apart from surrounding whitespace.
         </p>
         <p>
@@ -115,7 +115,7 @@ export default function Terms() {
         <h2>Your data</h2>
         <p>
           What is processed, and for how long, is described in the{" "}
-          <a href="/privacy">Privacy Policy</a>. In short: Tonight stores your genres, your mixes,
+          <a href="/privacy">Privacy Policy</a>. In short: Tonight stores your genres, your vibes,
           the films you told it about — including whether you have said you watched each — and
           what you have said about particular films. It also records the
           evenings it took part in: what you asked for, what it offered, and whatever you said you
@@ -127,7 +127,7 @@ export default function Terms() {
           and none of it is here the next time.
           Everything you create is intended to be kept until the closed beta ends and deleted by
           the operator then, or earlier on request. That means each of these, kept in its own
-          right: your genres; your mixes; the films you saved, with whether you said you watched
+          right: your genres; your vibes; the films you saved, with whether you said you watched
           each; every verdict you gave, <strong>whether or not the film it is about is one you
           saved</strong>; and the evenings Tonight recorded. That list is the whole of it.
         </p>
@@ -137,8 +137,8 @@ export default function Terms() {
         <h2>Ending it</h2>
         <p>
           You can stop using Tonight whenever you like and ask for your data to be deleted. You can
-          delete any mix yourself, and any genre no mix is built from — a genre a mix refers to stays
-          until you take it out of that mix or delete the mix. For a film, the website lets you
+          delete any vibe yourself, and any genre no vibe is built from — a genre a vibe refers to stays
+          until you take it out of that vibe or delete the vibe. For a film, the website lets you
           say whether you have seen it and what you thought of it; adding or removing one is done
           through your assistant, which does it on request. The operator may withdraw access at any time, in
           particular if these terms are not respected or when the closed beta ends.

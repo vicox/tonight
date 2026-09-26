@@ -1,16 +1,35 @@
 import type { SchemaModule } from "../../db/migrate.ts";
 
 /**
- * The taste model in Postgres: genres, mixes, and which genres a mix is built
+ * The taste model in Postgres: genres, vibes, and which genres a vibe is built
  * from.
+ *
+ * ## The tables say `mix`, and that is deliberate
+ *
+ * A Vibe was called a Mix until the product renamed it, and **the tables kept
+ * their original names**: `tonight_mixes`, `tonight_mix_genres`,
+ * `tonight_mix_movies`, the `mix_id` columns, and every constraint, index and
+ * trigger built on them. They store Vibes. Nothing else does.
+ *
+ * The rename was a change of domain language, not of data — a Vibe is exactly
+ * what a Mix was, the same rows with the same membership — so renaming the
+ * tables would have moved nothing a user or a model can see, at the price of a
+ * migration against live production data. It is not free either: the membership
+ * triggers below call functions whose bodies name `tonight_mixes` directly, and
+ * plpgsql resolves that at execution time, so a rename that missed them would
+ * migrate cleanly and then fail on the first membership change in production.
+ *
+ * So the domain language stops at this boundary. Everything above the store
+ * says Vibe; the SQL below says mix; `sql.ts` is where the two meet, and it is
+ * the only place in the repository that needs to know both words.
  *
  * ## Why a name is a handle and an id is the identity
  *
  * v1 made the name the key, and said so at length: no surrogate id, because one
  * would invent an identity the product did not have. That was true of a model
- * whose only relation was mix-to-genre, where `ON UPDATE CASCADE` made a rename
+ * whose only relation was vibe-to-genre, where `ON UPDATE CASCADE` made a rename
  * fall out of the schema for free. It stops being true as soon as anything else
- * refers to a mix, because then a rename rewrites every reference to it — and
+ * refers to a vibe, because then a rename rewrites every reference to it — and
  * `docs/work/taste-model-uuid-identity.md` is the review that decided to make the
  * change before that happens rather than after.
  *
@@ -23,7 +42,7 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * The reference table holds ids. A rename is one `UPDATE` that writes one row and
  * touches no reference at all; the cascade is gone because there is nothing left
  * to cascade. Deletion is unchanged — `ON DELETE RESTRICT` still refuses while a
- * mix is built from a genre.
+ * vibe is built from a genre.
  *
  * Three keys, doing three jobs that used to be conflated:
  *
@@ -40,17 +59,17 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * id except the `user_id` inside the foreign key, which is why both foreign keys
  * are composite.
  *
- * ## Why genres and mixes are two tables and not one with a kind column
+ * ## Why genres and vibes are two tables and not one with a kind column
  *
- * Because the rule that matters is "a mix is built from genres, never from
- * another mix", and two tables make that a foreign key instead of a check
+ * Because the rule that matters is "a vibe is built from genres, never from
+ * another vibe", and two tables make that a foreign key instead of a check
  * somebody has to remember to write. `tonight_mix_genres.genre` references
- * `tonight_genres`; there is no column it could point at a mix with, so chaining
+ * `tonight_genres`; there is no column it could point at a vibe with, so chaining
  * is not something this schema can express. One table with a kind column would
  * make every reference syntactically legal and push the whole invariant into
  * application code.
  *
- * The cost is that a genre and a mix may share a name — they are separate
+ * The cost is that a genre and a vibe may share a name — they are separate
  * namespaces. That is the right trade: the two are shown in separate sections and
  * asked for by separate parameters, so there is nowhere the ambiguity could be
  * resolved wrongly, and nothing anywhere resolves a bare name against both.
@@ -91,7 +110,7 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * Only meaningful against the expanded schema: v3 drops the name columns it
  * reads, so there is nothing left to reconcile from afterwards.
  */
-export const RECONCILE_MIX_GENRES = `
+export const RECONCILE_VIBE_GENRES = `
   UPDATE tonight_mix_genres AS r SET mix_id = m.id
     FROM tonight_mixes AS m
    WHERE m.user_id = r.user_id AND m.name = r.mix AND r.mix_id IS NULL;
@@ -141,14 +160,14 @@ export const TASTE_SCHEMA: SchemaModule = {
           PRIMARY KEY (user_id, name),
 
           CONSTRAINT tonight_mixes_name CHECK (btrim(name) <> ''),
-          -- A mix's instruction is the whole reason a mix is not an intersection.
+          -- A vibe's instruction is the whole reason a vibe is not an intersection.
           CONSTRAINT tonight_mixes_instruction CHECK (btrim(instruction) <> '')
         );
 
         CREATE UNIQUE INDEX tonight_mixes_identity
           ON tonight_mixes (user_id, lower(name));
 
-        -- Which genres a mix is built from, one row each, ordered so the list
+        -- Which genres a vibe is built from, one row each, ordered so the list
         -- comes back the way it was given: [Sci-Fi] + [Thriller] reads in the
         -- order the user wrote it.
         CREATE TABLE tonight_mix_genres (
@@ -159,25 +178,25 @@ export const TASTE_SCHEMA: SchemaModule = {
 
           PRIMARY KEY (user_id, mix, genre),
 
-          -- Renaming the mix carries its genre list with it; deleting the mix
+          -- Renaming the vibe carries its genre list with it; deleting the vibe
           -- takes the list too, because a list belonging to nothing is nothing.
           CONSTRAINT tonight_mix_genres_mix
             FOREIGN KEY (user_id, mix) REFERENCES tonight_mixes (user_id, name)
             ON UPDATE CASCADE ON DELETE CASCADE,
 
-          -- Renaming a genre rewrites every mix built from it, and deleting one
-          -- is refused while a mix still is. Both rules are stated in prose in
+          -- Renaming a genre rewrites every vibe built from it, and deleting one
+          -- is refused while a vibe still is. Both rules are stated in prose in
           -- the MCP tool descriptions; here they are the schema, so neither can
           -- be forgotten.
           --
-          -- This column is also the whole of "no mix-to-mix chaining": it can
+          -- This column is also the whole of "no vibe-to-vibe chaining": it can
           -- only ever hold a genre, because that is the only table it points at.
           CONSTRAINT tonight_mix_genres_genre
             FOREIGN KEY (user_id, genre) REFERENCES tonight_genres (user_id, name)
             ON UPDATE CASCADE ON DELETE RESTRICT
         );
 
-        -- Answering "which mixes are built from this genre" without a scan, which
+        -- Answering "which vibes are built from this genre" without a scan, which
         -- is what a delete has to ask before it is allowed to proceed.
         CREATE INDEX tonight_mix_genres_genre_index
           ON tonight_mix_genres (user_id, genre);
@@ -188,7 +207,7 @@ export const TASTE_SCHEMA: SchemaModule = {
      * EXPAND. Additive only: every statement here leaves v1 working.
      *
      * An instance deployed before this migration keeps inserting
-     * `(user_id, mix, genre, position)` and reading by name, and must keep
+     * `(user_id, vibe, genre, position)` and reading by name, and must keep
      * succeeding — which is why the two id columns on the reference table are
      * nullable and why nothing old is dropped. See the plan's EXPAND phase.
      */
@@ -220,7 +239,7 @@ export const TASTE_SCHEMA: SchemaModule = {
           ADD COLUMN mix_id   uuid,
           ADD COLUMN genre_id uuid;
 
-        ${RECONCILE_MIX_GENRES}
+        ${RECONCILE_VIBE_GENRES}
 
         -- Composite on user_id, which is the whole of tenant safety here. They
         -- permit NULL while the columns are nullable, so old writers stay legal.
@@ -243,7 +262,7 @@ export const TASTE_SCHEMA: SchemaModule = {
      * columns this drops, and nothing in this repository can prove one is not.
      *
      * It opens by reconciling, which is belt and braces rather than the real
-     * mechanism — the operator runs `reconcileMixGenres` after the drain and
+     * mechanism — the operator runs `reconcileVibeGenres` after the drain and
      * checks the gate. Repeating it here means a row written by an old instance
      * between that check and this migration is repaired rather than turning
      * `SET NOT NULL` into a failed deploy.
@@ -251,7 +270,7 @@ export const TASTE_SCHEMA: SchemaModule = {
     {
       version: 3,
       sql: `
-        ${RECONCILE_MIX_GENRES}
+        ${RECONCILE_VIBE_GENRES}
 
         -- The name-based foreign keys go first: the primary keys below cannot be
         -- dropped while they are pointing at them.
@@ -281,7 +300,7 @@ export const TASTE_SCHEMA: SchemaModule = {
     },
 
     /**
-     * Movies: the films the user told us about, and which mixes they are filed
+     * Movies: the films the user told us about, and which vibes they are filed
      * under. Purely additive — two new tables and nothing else touched, so a
      * build from before this migration keeps working and never names either.
      *
@@ -311,10 +330,10 @@ export const TASTE_SCHEMA: SchemaModule = {
      *
      * ## Why a Movie cascades where a Genre restricts
      *
-     * A Mix is *defined by* its genres: take one away and the mix means something
-     * else, so deleting a genre a mix needs is refused. A Movie is its own object
-     * and a mix is one of the places the user keeps it — one fewer does not change
-     * what the mix's instruction says. Deleting a Movie therefore takes its
+     * A Vibe is *defined by* its genres: take one away and the vibe means something
+     * else, so deleting a genre a vibe needs is refused. A Movie is its own object
+     * and a vibe is one of the places the user keeps it — one fewer does not change
+     * what the vibe's instruction says. Deleting a Movie therefore takes its
      * memberships with it rather than being blocked by them.
      */
     {
@@ -360,8 +379,8 @@ export const TASTE_SCHEMA: SchemaModule = {
         CREATE UNIQUE INDEX tonight_movies_imdb_index
           ON tonight_movies (user_id, imdb_id) WHERE imdb_id IS NOT NULL;
 
-        -- Which mixes a movie is in. Identity only: no state, no order, no
-        -- timestamp. A mix's genres are authored in an order the user chose; its
+        -- Which vibes a movie is in. Identity only: no state, no order, no
+        -- timestamp. A vibe's genres are authored in an order the user chose; its
         -- movies are a set, and are read back by title.
         CREATE TABLE tonight_mix_movies (
           user_id  text NOT NULL,
@@ -372,7 +391,7 @@ export const TASTE_SCHEMA: SchemaModule = {
 
           -- Composite on user_id, both of them. A uuid being unique says something
           -- about collisions and nothing about permission: the user_id inside the
-          -- key is the whole reason one user's mix cannot name another's movie.
+          -- key is the whole reason one user's vibe cannot name another's movie.
           CONSTRAINT tonight_mix_movies_mix
             FOREIGN KEY (user_id, mix_id) REFERENCES tonight_mixes (user_id, id)
             ON DELETE CASCADE,
@@ -381,7 +400,7 @@ export const TASTE_SCHEMA: SchemaModule = {
             ON DELETE CASCADE
         );
 
-        -- "Which mixes is this movie filed under", without a scan.
+        -- "Which vibes is this movie filed under", without a scan.
         CREATE INDEX tonight_mix_movies_movie_index
           ON tonight_mix_movies (user_id, movie_id);
       `,
@@ -555,7 +574,7 @@ export const TASTE_SCHEMA: SchemaModule = {
      *
      * The build serving traffic when this migration runs has never heard of
      * either column. It goes on updating movies — a state, a retitle, a different
-     * set of mixes — and every one of those writes would leave `updated_at`
+     * set of vibes — and every one of those writes would leave `updated_at`
      * standing still. Migrating and deploying are not one instant, a rolling
      * deploy runs both builds at once on purpose, and a rollback puts the old one
      * back. A store-side `SET updated_at = ...` is therefore correct only in the
@@ -589,10 +608,10 @@ export const TASTE_SCHEMA: SchemaModule = {
      *
      * ## Membership belongs to the object, and the join tables say so
      *
-     * A mix's genres are part of what the mix is; a movie's filing is part of
+     * A vibe's genres are part of what the vibe is; a movie's filing is part of
      * what the movie is. Both are rows in a table nobody updates directly — they
      * are deleted and reinserted, and they vanish underneath their owner when a
-     * mix is deleted, without the owner's row being written at all. So each join
+     * vibe is deleted, without the owner's row being written at all. So each join
      * table has an AFTER trigger that touches its owning object, and the touch is
      * a write of the row rather than a value: `updated_at = updated_at` fires the
      * owner's own BEFORE trigger, which is the one place that decides what the
@@ -600,26 +619,26 @@ export const TASTE_SCHEMA: SchemaModule = {
      *
      * They fire on delete and update, **not on insert**, and that is deliberate.
      * A reference row is never inserted on its own: either its owner is being
-     * created in the same breath — a new mix and the genres it is built from, a
-     * new movie and the mixes it is filed under — or an existing owner's list is
+     * created in the same breath — a new vibe and the genres it is built from, a
+     * new movie and the vibes it is filed under — or an existing owner's list is
      * being replaced, and replacing deletes the whole list before writing it
      * back. Both leave the owner's row written by something else, so an insert
      * has nothing left to record.
      *
-     * What firing on insert would cost is not hypothetical: a mix cannot exist
-     * without genres, so every mix would be dated a fraction after its own
+     * What firing on insert would cost is not hypothetical: a vibe cannot exist
+     * without genres, so every vibe would be dated a fraction after its own
      * creation, for ever, and `createdAt == updatedAt` — the plainest way to ask
      * "has anything happened to this since I made it" — would be false of every
-     * mix in the model. A signal that is always on is not a signal.
+     * vibe in the model. A signal that is always on is not a signal.
      *
      * The one gap this leaves is a writer that adds a reference row and touches
      * nothing else. Nothing in this repository does, both builds write the owner
      * on the same call, and `store.test.ts` pins it from the outside: adding a
-     * genre to a mix dates the mix, filing a film dates the film.
+     * genre to a vibe dates the vibe, filing a film dates the film.
      *
-     * The reverse is deliberately absent. Filing a movie under a mix does not
-     * date the mix — v4 settled why: "a Movie is its own object and a mix is one
-     * of the places the user keeps it; one fewer does not change what the mix's
+     * The reverse is deliberately absent. Filing a movie under a vibe does not
+     * date the vibe — v4 settled why: "a Movie is its own object and a vibe is one
+     * of the places the user keeps it; one fewer does not change what the vibe's
      * instruction says". Neither join table carries a timestamp of its own.
      *
      * ## What a legacy Movie's stamps mean
@@ -638,23 +657,23 @@ export const TASTE_SCHEMA: SchemaModule = {
      * null would have to be read as "older than everything" by every reader
      * separately.
      *
-     * Genres and mixes are untouched: theirs have been real since v1.
+     * Genres and vibes are untouched: theirs have been real since v1.
      *
      * ## This migration needs a release before it
      *
      * Everything above is additive and safe for the build already running — but
      * one thing here is not additive in the way that matters, and it is the
-     * cascade. Deleting a mix now writes the movies that were in it, which means
-     * the deletion takes movie locks. The build in production takes the mix lock
+     * cascade. Deleting a vibe now writes the movies that were in it, which means
+     * the deletion takes movie locks. The build in production takes the vibe lock
      * first and knows nothing about movies, so from the moment this migration
-     * lands, an old-build deletion holds the mix and reaches for a film while an
-     * `updateMovie` holds the film and reaches for the mix. That is a cycle, and
+     * lands, an old-build deletion holds the vibe and reaches for a film while an
+     * `updateMovie` holds the film and reaches for the vibe. That is a cycle, and
      * Postgres ends it by aborting somebody's write.
      *
      * The fix is not a maintenance window. It is one release, in this order:
      *
-     *     A   deploy the store with the reordered `deleteMix` — it holds every
-     *         filed movie before it holds the mix, and it depends on nothing
+     *     A   deploy the store with the reordered `deleteVibe` — it holds every
+     *         filed movie before it holds the vibe, and it depends on nothing
      *         here: no timestamp column is read or written by it, so it runs
      *         against this schema *before* v6 exists. `migrate.test.ts` proves
      *         that by running it against a database migrated only to v5.
@@ -756,7 +775,7 @@ export const TASTE_SCHEMA: SchemaModule = {
           $$;
 
         -- AFTER, because what is being recorded is that the change happened. A
-        -- mix or movie deleted alongside its references matches nothing here,
+        -- vibe or movie deleted alongside its references matches nothing here,
         -- which is the correct amount of work for a row that has gone.
         --
         -- Not on INSERT, and that is the one subtle line in this migration. See

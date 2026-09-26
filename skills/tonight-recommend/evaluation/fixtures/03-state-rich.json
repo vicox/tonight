@@ -1,6 +1,6 @@
 {
   "id": "03-state-rich",
-  "title": "Several Mixes, many films, a spread of states",
+  "title": "Several Vibes, many films, a spread of states",
   "user": "google:eval-03-state-rich",
   "condition": "ok",
   "exists_for": [
@@ -34,7 +34,7 @@
         "instruction": "Loud, fast, funny. I am not thinking about anything tonight."
       }
     ],
-    "mixes": [
+    "vibes": [
       {
         "name": "Quiet Dread",
         "genres": [
@@ -63,7 +63,7 @@
       {
         "title": "Stalker",
         "year": 1979,
-        "mixes": [
+        "vibes": [
           "Quiet Dread"
         ],
         "viewing": "seen"
@@ -71,7 +71,7 @@
       {
         "title": "Under the Skin",
         "year": 2013,
-        "mixes": [
+        "vibes": [
           "Quiet Dread"
         ],
         "viewing": "seen"
@@ -79,7 +79,7 @@
       {
         "title": "The Vanishing",
         "year": 1988,
-        "mixes": [
+        "vibes": [
           "Quiet Dread"
         ],
         "viewing": "seen"
@@ -87,7 +87,7 @@
       {
         "title": "Solaris",
         "year": 1972,
-        "mixes": [
+        "vibes": [
           "Quiet Dread"
         ],
         "viewing": "seen"
@@ -95,7 +95,7 @@
       {
         "title": "Memories of Murder",
         "year": 2003,
-        "mixes": [
+        "vibes": [
           "Small Town Secrets"
         ],
         "viewing": "seen"
@@ -103,7 +103,7 @@
       {
         "title": "Wind River",
         "year": 2017,
-        "mixes": [
+        "vibes": [
           "Small Town Secrets"
         ],
         "viewing": "seen"
@@ -111,7 +111,7 @@
       {
         "title": "Prisoners",
         "year": 2013,
-        "mixes": [
+        "vibes": [
           "Small Town Secrets"
         ],
         "viewing": "seen"
@@ -119,7 +119,7 @@
       {
         "title": "Zodiac",
         "year": 2007,
-        "mixes": [
+        "vibes": [
           "Quiet Dread",
           "Small Town Secrets"
         ],
@@ -128,7 +128,7 @@
       {
         "title": "Game Night",
         "year": 2018,
-        "mixes": [
+        "vibes": [
           "Friday Nonsense"
         ],
         "viewing": "seen"
@@ -136,7 +136,7 @@
       {
         "title": "Bullet Train",
         "year": 2022,
-        "mixes": [
+        "vibes": [
           "Friday Nonsense"
         ],
         "viewing": "seen"
@@ -144,13 +144,13 @@
       {
         "title": "Moon",
         "year": 2009,
-        "mixes": [],
+        "vibes": [],
         "viewing": "seen"
       },
       {
         "title": "Past Lives",
         "year": 2023,
-        "mixes": [],
+        "vibes": [],
         "viewing": null
       }
     ]

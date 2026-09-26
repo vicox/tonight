@@ -154,26 +154,26 @@ test("deleting the last genre hands focus to the section itself", () => {
   assert.notEqual(back, null);
 });
 
-test("deleting a mix hands focus to another card before anything else", () => {
+test("deleting a vibe hands focus to another card before anything else", () => {
   const cards = ["Small Town Secrets", "Quiet Dread"];
-  const back = closing("Quiet Dread", true, true, [...cards, "9 other movies"], "Your mixes");
+  const back = closing("Quiet Dread", true, true, [...cards, "9 other movies"], "Your vibes");
   assert.equal(back, "Small Town Secrets");
   assert.notEqual(back, null);
 });
 
-test("deleting the last mix hands focus to the films that are in none", () => {
+test("deleting the last vibe hands focus to the films that are in none", () => {
   // The stack is empty and the remainder's line has just become the only way
   // into a film from this section — which is exactly where a reader is going.
-  const back = closing("Quiet Dread", true, true, ["Quiet Dread", "9 other movies"], "Your mixes");
+  const back = closing("Quiet Dread", true, true, ["Quiet Dread", "9 other movies"], "Your vibes");
   assert.equal(back, "9 other movies");
   assert.notEqual(back, null);
 });
 
-test("deleting the last mix with every film filed hands focus to the section", () => {
-  // No card left and no remainder — every film is in some other mix, or there
+test("deleting the last vibe with every film filed hands focus to the section", () => {
+  // No card left and no remainder — every film is in some other vibe, or there
   // are no films at all. The heading is still there.
-  const back = closing("Quiet Dread", true, true, ["Quiet Dread", null], "Your mixes");
-  assert.equal(back, "Your mixes");
+  const back = closing("Quiet Dread", true, true, ["Quiet Dread", null], "Your vibes");
+  assert.equal(back, "Your vibes");
   assert.notEqual(back, null);
 });
 
@@ -181,7 +181,7 @@ test("dismissing a dialog still hands focus back to what opened it", () => {
   // Cancel, Escape, Close and a press outside are not deletions, and none of
   // them changed anything. What opened the dialog is where focus was.
   assert.equal(closing("Mystery", true, false, ["Slow Burn", "Mystery"], SECTION), "Mystery");
-  assert.equal(closing("Quiet Dread", true, false, ["Quiet Dread"], "Your mixes"), "Quiet Dread");
+  assert.equal(closing("Quiet Dread", true, false, ["Quiet Dread"], "Your vibes"), "Quiet Dread");
 });
 
 test("a control deleted from somewhere else is rescued by the next render", () => {

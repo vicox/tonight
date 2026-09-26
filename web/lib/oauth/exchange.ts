@@ -104,7 +104,7 @@ async function authorizationCodeGrant(
    */
   const acceptable = (granted: AuthorizationCode): GrantRefusal | undefined => {
     // The code was issued to one client. Presenting it as another is either a
-    // mix-up or an intercepted code being redeemed by its interceptor.
+    // vibe-up or an intercepted code being redeemed by its interceptor.
     if (granted.clientId !== clientId) {
       return {
         error: "invalid_grant",

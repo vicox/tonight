@@ -58,7 +58,7 @@ export type Standing = {
 /** The taste model as `get_taste` returns it, with verdicts folded in. */
 export type Taste = {
   genres: { name: string; instruction: string }[];
-  mixes: { name: string; instruction: string; genres: string[] }[];
+  vibes: { name: string; instruction: string; genres: string[] }[];
   movies: { title: string; year: number; viewing: string | null }[];
   verdicts?: Standing[];
 };
@@ -152,7 +152,7 @@ export const comparable = (model: unknown): string =>
 /** Everything in the taste model that is not a verdict. */
 const besideVerdicts = (taste: Taste) => ({
   genres: taste.genres,
-  mixes: taste.mixes,
+  vibes: taste.vibes,
   movies: taste.movies,
 });
 
@@ -443,10 +443,10 @@ export function correction(world: World): Failure[] {
  * `not-tonight` that shows up globally turns *"not in the mood for it"* into
  * *"does not like it"*. A `not-ever` that stops applying inside an occasion lets
  * a film they refused for good be offered on a Tuesday. And either of them
- * spreading to a **category** — a genre instruction, a mix, a neighbouring film
+ * spreading to a **category** — a genre instruction, a vibe, a neighbouring film
  * — turns one refusal into a theory about the user, which is the version of this
  * failure a payload of films alone could never show. That is why every user in
- * this evaluation starts with genres and a mix: a generalisation has to land
+ * this evaluation starts with genres and a vibe: a generalisation has to land
  * somewhere, and without somewhere to land there is nothing to catch.
  */
 export function scope(world: World): Failure[] {
@@ -522,7 +522,7 @@ export function scope(world: World): Failure[] {
  * care how far the refusal was aimed: *"too long for tonight"* becoming a note
  * on the Slow Burn genre is the same mistake as *"never again"* becoming one,
  * and the evening's version is the likelier of the two — it is the one that
- * sounds like a preference. Genres, mixes and every unrelated film are compared
+ * sounds like a preference. Genres, vibes and every unrelated film are compared
  * before and after, and each is named separately so a failure says what moved
  * rather than that something did.
  */
@@ -533,8 +533,8 @@ function nothingElseMoved(observed: Observed, fail: (detail: string) => void): v
   if (comparable(observed.after.genres) !== comparable(observed.before.genres)) {
     fail(`a refusal reached the genres: ${JSON.stringify(observed.after.genres)}`);
   }
-  if (comparable(observed.after.mixes) !== comparable(observed.before.mixes)) {
-    fail(`a refusal reached the mixes: ${JSON.stringify(observed.after.mixes)}`);
+  if (comparable(observed.after.vibes) !== comparable(observed.before.vibes)) {
+    fail(`a refusal reached the vibes: ${JSON.stringify(observed.after.vibes)}`);
   }
   for (const movie of observed.after.movies) {
     const was = observed.before.movies.find(
@@ -546,7 +546,7 @@ function nothingElseMoved(observed: Observed, fail: (detail: string) => void): v
   }
 
   // No category-level generalisation: every standing claim is about a film they
-  // actually spoke about, and none of them is a genre or a mix wearing a film's
+  // actually spoke about, and none of them is a genre or a vibe wearing a film's
   // shape.
   // The baseline opinion is something they said too — everybody said it — so it
   // belongs in what may legitimately stand. Leaving it out would make the
@@ -557,7 +557,7 @@ function nothingElseMoved(observed: Observed, fail: (detail: string) => void): v
   ]);
   const categories = new Set([
     ...observed.after.genres.map((genre) => genre.name),
-    ...observed.after.mixes.map((mix) => mix.name),
+    ...observed.after.vibes.map((vibe) => vibe.name),
   ]);
   for (const held of observed.after.verdicts ?? []) {
     if (!spokenAbout.has(filmKey(held))) {

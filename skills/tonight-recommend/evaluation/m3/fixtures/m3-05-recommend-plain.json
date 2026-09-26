@@ -5,7 +5,7 @@
   "families": [
     "J"
   ],
-  "catches": "The control of the stability pair. Identical genres, mix, films and verdict, and not one evening. Whatever this user is recommended is what the recommendation-active evidence alone produces, and 04 must not differ from it because of history it is not allowed to read.",
+  "catches": "The control of the stability pair. Identical genres, vibe, films and verdict, and not one evening. Whatever this user is recommended is what the recommendation-active evidence alone produces, and 04 must not differ from it because of history it is not allowed to read.",
   "writes": false,
   "model": {
     "genres": [
@@ -14,7 +14,7 @@
         "instruction": "Ideas over spectacle. I do not want a war in it."
       }
     ],
-    "mixes": [
+    "vibes": [
       {
         "name": "Long Way Out",
         "genres": [
@@ -27,7 +27,7 @@
       {
         "title": "Arrival",
         "year": 2016,
-        "mixes": [
+        "vibes": [
           "Long Way Out"
         ],
         "viewing": "seen"
@@ -35,7 +35,7 @@
       {
         "title": "Moon",
         "year": 2009,
-        "mixes": [
+        "vibes": [
           "Long Way Out"
         ],
         "viewing": "seen"

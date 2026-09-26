@@ -55,7 +55,7 @@ describe("the production migration catalog", () => {
 
   test("product memory is five roots, and the catalog says so", () => {
     // The invariant this repository now holds: Tonight persists product memory
-    // only as Movies, Genres, Mixes, Episodes and Verdicts. What it thinks while
+    // only as Movies, Genres, Vibes, Episodes and Verdicts. What it thinks while
     // it is talking to somebody is conversation, and conversation does not need
     // a row — the three tables built on the other assumption are dropped by
     // `retired.ts`, whose modules stay registered so a deployment hears about it.
@@ -90,8 +90,8 @@ describe("the production migration catalog", () => {
       "web_sessions",
     ];
 
-    // The five roots, and the relations that constitute them. A mix's genres and
-    // a film's mixes are what a Mix and a Movie *are*; an evening's offers are
+    // The five roots, and the relations that constitute them. A vibe's genres and
+    // a film's vibes are what a Vibe and a Movie *are*; an evening's offers are
     // part of the evening. None is a root of its own.
     const PRODUCT_MEMORY = [
       "tonight_movies",

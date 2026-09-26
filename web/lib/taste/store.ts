@@ -2,7 +2,7 @@ import { database } from "../db.ts";
 import type { SqlDriver } from "../db/driver.ts";
 import { prepareSchema } from "../db/migrate.ts";
 import type { AuthenticatedUser } from "../identity.ts";
-import type { Genre, Mix, Movie, MovieHandle, Viewing, Taste } from "./model.ts";
+import type { Genre, Vibe, Movie, MovieHandle, Viewing, Taste } from "./model.ts";
 
 /**
  * One user's taste model, and every operation on it.
@@ -16,7 +16,7 @@ import type { Genre, Mix, Movie, MovieHandle, Viewing, Taste } from "./model.ts"
  * genres because there is nowhere to say whose genres it wants.
  *
  * The operations are the product's, not the database's. There is no `insert`
- * here and no `where`: `createMix` is a thing Tonight does, and what SQL it takes
+ * here and no `where`: `createVibe` is a thing Tonight does, and what SQL it takes
  * is the adapter's business. That is what keeps SQL out of the MCP tools and out
  * of the web routes.
  *
@@ -40,22 +40,22 @@ export type GenreDraft = { name: unknown; instruction: unknown };
  * What updating a genre may change.
  *
  * Every field is optional and `undefined` means "leave it alone". Renaming
- * carries every mix reference with it; see the schema for why that is one
+ * carries every vibe reference with it; see the schema for why that is one
  * statement rather than several.
  */
 export type GenreChanges = { name?: unknown; instruction?: unknown };
 
-/** What creating a mix is given. Both fields are the caller's, as a genre's are. */
-export type MixDraft = { name: unknown; instruction: unknown; genres: unknown };
+/** What creating a vibe is given. Both fields are the caller's, as a genre's are. */
+export type VibeDraft = { name: unknown; instruction: unknown; genres: unknown };
 
 /**
- * What updating a mix may change.
+ * What updating a vibe may change.
  *
  * Passing `genres` replaces the list rather than adding to it, which is why this
- * is not simply a partial mix: "these are its genres now" has to be
+ * is not simply a partial vibe: "these are its genres now" has to be
  * distinguishable from not mentioning them.
  */
-export type MixChanges = { name?: unknown; instruction?: unknown; genres?: unknown };
+export type VibeChanges = { name?: unknown; instruction?: unknown; genres?: unknown };
 
 /**
  * What creating a movie is given.
@@ -70,7 +70,7 @@ export type MovieDraft = {
   year: unknown;
   imdbId?: unknown;
   viewing?: unknown;
-  mixes?: unknown;
+  vibes?: unknown;
 };
 
 /**
@@ -81,7 +81,7 @@ export type MovieDraft = {
  * keeps what was there, passing `null` says Tonight no longer knows — so these are
  * `unknown` rather than typed optionals, and the domain decides.
  *
- * Passing `mixes` replaces the filing exactly, `[]` included. Omitting it leaves
+ * Passing `vibes` replaces the filing exactly, `[]` included. Omitting it leaves
  * the relation rows untouched: not re-derived, not re-resolved, not rewritten.
  */
 export type MovieChanges = {
@@ -89,44 +89,44 @@ export type MovieChanges = {
   year?: unknown;
   imdbId?: unknown;
   viewing?: unknown;
-  mixes?: unknown;
+  vibes?: unknown;
 };
 
 export type TasteStore = {
   /**
-   * The whole model — genres, mixes and movies — from one database snapshot.
+   * The whole model — genres, vibes and movies — from one database snapshot.
    *
    * The only read there is. Everything that shows a taste model shows all of it —
-   * a mix is unreadable without the genres under it — so a per-object read would
+   * a vibe is unreadable without the genres under it — so a per-object read would
    * be an interface nobody wants and a second way for the parts to disagree.
    */
   taste(): Promise<Taste>;
 
   createGenre(draft: GenreDraft): Promise<Genre>;
-  /** Applies changes, rewriting every mix that names this genre when it is renamed. */
+  /** Applies changes, rewriting every vibe that names this genre when it is renamed. */
   updateGenre(name: string, changes: GenreChanges): Promise<Genre>;
-  /** Removes a genre. Refused while any mix is built from it. */
+  /** Removes a genre. Refused while any vibe is built from it. */
   deleteGenre(name: string): Promise<Genre>;
 
-  createMix(draft: MixDraft): Promise<Mix>;
-  updateMix(name: string, changes: MixChanges): Promise<Mix>;
-  /** Removes a mix. Always allowed: nothing is built from a mix. */
-  deleteMix(name: string): Promise<Mix>;
+  createVibe(draft: VibeDraft): Promise<Vibe>;
+  updateVibe(name: string, changes: VibeChanges): Promise<Vibe>;
+  /** Removes a vibe. Always allowed: nothing is built from a vibe. */
+  deleteVibe(name: string): Promise<Vibe>;
 
   createMovie(draft: MovieDraft): Promise<Movie>;
   /**
    * Applies changes, addressed by the movie's current title and year.
    *
    * Changing either leaves the object it is: the filings point at an id, so a
-   * retitled movie is still in the same mixes and no relation row is written.
+   * retitled movie is still in the same vibes and no relation row is written.
    */
   updateMovie(title: string, year: number, changes: MovieChanges): Promise<Movie>;
-  /** Removes a movie. Always allowed: its filings go with it, the mixes stay. */
+  /** Removes a movie. Always allowed: its filings go with it, the vibes stay. */
   deleteMovie(title: string, year: number): Promise<Movie>;
 };
 
 /** Re-exported so a caller needs one import to work with what these return. */
-export type { Genre, Mix, Movie, MovieHandle, Viewing, Taste };
+export type { Genre, Vibe, Movie, MovieHandle, Viewing, Taste };
 
 /**
  * Opens the store for one authenticated user.

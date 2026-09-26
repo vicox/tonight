@@ -104,7 +104,7 @@ export function loadRuns(dir) {
 }
 
 /**
- * Everything the run's own snapshot says the user has stored: Genre names, Mix
+ * Everything the run's own snapshot says the user has stored: Genre names, Vibe
  * names and Movie titles — the data that run actually saw, bound to it by
  * digest.
  */
@@ -115,7 +115,7 @@ export function storedNames(snapshot) {
       .filter((n) => typeof n === "string" && n.trim().length > 2)
       .map((n) => ({ name: n, kind }));
   return [
-    ...named(snapshot.mixes, "name", "mix"),
+    ...named(snapshot.vibes, "name", "vibe"),
     ...named(snapshot.movies, "title", "movie"),
     ...named(snapshot.genres, "name", "genre"),
   ];
@@ -218,7 +218,7 @@ export function signals(answer) {
  * Maximal certainty about a fit.
  *
  * Flagged wherever it occurs. Whether the certainty is about a *film's* fit —
- * which P5 limits while nothing has confirmed it — or about the Mix or the
+ * which P5 limits while nothing has confirmed it — or about the Vibe or the
  * user's stated intent, which it never limits, is a judgement about what the
  * sentence is about, and it belongs to the blind pass.
  */
@@ -320,7 +320,7 @@ export function flags(runs) {
       materiallyRelevant(run)
     ) {
       const named = run.stored.some(({ name }) => wholeTitle(name).test(run.answer));
-      if (!named) raise("AC3a", "no-stored-name", run, "no stored Genre, Mix or Movie is named");
+      if (!named) raise("AC3a", "no-stored-name", run, "no stored Genre, Vibe or Movie is named");
     }
 
     // AC1 — nothing this layer can recognise as a recommendation. Deliberately a

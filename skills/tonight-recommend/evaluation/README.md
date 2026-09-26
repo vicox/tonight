@@ -46,7 +46,7 @@ under. At the time of writing that is **`f098fd5b`**.
 node evaluation/seed.mjs 03-state-rich                 # seeds, then prints a bearer token
 ```
 
-Seeding goes through `create_genre`, `create_mix` and `create_movie` over HTTP. A fixture that
+Seeding goes through `create_genre`, `create_vibe` and `create_movie` over HTTP. A fixture that
 cannot be expressed through the public tool surface is not a fixture of this product. Re-running is
 idempotent: the fixture's user is emptied and rewritten, and no other user is read or written —
 the script refuses any user that is not `google:eval-…`.
@@ -233,7 +233,7 @@ recorded: 2026-09-12T14:22:00Z
 
 Read from the proxy log named above; this is a reading of it, not a substitute for it.
 
-1. `get_taste` → ok, 4 genres, 3 mixes, 12 movies
+1. `get_taste` → ok, 4 genres, 3 vibes, 12 movies
 
 ## External tool evidence
 

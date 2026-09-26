@@ -29,7 +29,7 @@ because that is the line the whole architecture turns on. The general rule, from
 | Declaration | User | **No** |
 | Episode field | Runtime or user | Only what was observed or stated; otherwise `unknown` |
 
-**Tonight persists product memory only as Movies, Genres, Mixes, Episodes and Verdicts.**
+**Tonight persists product memory only as Movies, Genres, Vibes, Episodes and Verdicts.**
 Agent-authored thoughts, observations, suggestions, questions, and other conversational
 intermediate state are not durable product memory. There is no row for what Tonight noticed, for
 what it meant to ask, or for a change it was about to offer: those live in the conversation and
@@ -142,7 +142,7 @@ scripted history with long gaps between sessions, Tonight produces no message ou
 user-initiated interaction, and unanswered questions expire without becoming verdicts.
 
 **8. Non-goals.** No inference of verdicts from behaviour. No confidence model yet. No proposals. No
-Mix changes. **No proactive follow-up of any kind** — no reminder, no scheduled check-in, no message
+Vibe changes. **No proactive follow-up of any kind** — no reminder, no scheduled check-in, no message
 sent to collect an answer. That capability is M8's and requires M7 first.
 
 **9. Completion condition.** Recommendations demonstrably improve across a scripted history
@@ -221,7 +221,7 @@ before-and-after comparisons, and the third is the persistence inventory in
 list somebody maintains.
 
 **8. Non-goals.** No pending offers, no expiry, no record of a refusal, no confidence model, no
-Mix restructuring. **No replacement for the removed classes under another name.**
+Vibe restructuring. **No replacement for the removed classes under another name.**
 
 **9. Completion condition.** Across a long scripted history, the offers are ones a user would
 accept, they arrive rarely enough not to be tedious, and no root moved without a yes.
@@ -232,20 +232,20 @@ visible.
 
 ---
 
-## M5 — Mixes that live
+## M5 — Vibes that live
 
 **1. User-visible capability.** The structure still describes the user after two years. Tonight
-notices when a Mix has drifted or become two things, and proposes the change in their language.
+notices when a Vibe has drifted or become two things, and proposes the change in their language.
 
-**2. Conceptual scope.** The full Mix lifecycle from §4: drift detection, split and merge proposals,
+**2. Conceptual scope.** The full Vibe lifecycle from §4: drift detection, split and merge proposals,
 dormancy, archiving, revival — and lineage, which is what makes all of them safe.
 
-**3. New knowledge that may exist.** Mix versions and their supersession relationships. Drift
+**3. New knowledge that may exist.** Vibe versions and their supersession relationships. Drift
 observations. Dormancy as a derived state.
 
 **4. Written automatically.** Drift observations. Dormancy. Proposals to split, merge or reword.
 
-**5. Requires a user act.** Every change to a Mix's sentence. Splits, merges, archiving, revival —
+**5. Requires a user act.** Every change to a Vibe's sentence. Splits, merges, archiving, revival —
 and the naming of anything that results, which must be in their words.
 
 **6. Correction and deletion.** A version change can be undone, returning the prior version to
@@ -258,11 +258,11 @@ single episode · proposal quality.
 
 **Behavioural removal:**
 
-- forgetting a Mix removes it from current behaviour entirely; archiving removes its claim on
+- forgetting a Vibe removes it from current behaviour entirely; archiving removes its claim on
   tonight's answer while leaving it readable;
 - a superseded version influences nothing — only the current version governs, and the old wording is
   history and not a competing opinion;
-- lifecycle reversal leaves nothing stale behind: undoing a split, restoring an archived Mix, or
+- lifecycle reversal leaves nothing stale behind: undoing a split, restoring an archived Vibe, or
   reverting to a prior version produces the behaviour of that state and not a blend of both.
 
 The last is the one most likely to fail quietly. A reversal that restores the structure while

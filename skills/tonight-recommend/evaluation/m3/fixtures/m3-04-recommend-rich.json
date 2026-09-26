@@ -14,7 +14,7 @@
         "instruction": "Ideas over spectacle. I do not want a war in it."
       }
     ],
-    "mixes": [
+    "vibes": [
       {
         "name": "Long Way Out",
         "genres": [
@@ -27,7 +27,7 @@
       {
         "title": "Arrival",
         "year": 2016,
-        "mixes": [
+        "vibes": [
           "Long Way Out"
         ],
         "viewing": "seen"
@@ -35,7 +35,7 @@
       {
         "title": "Moon",
         "year": 2009,
-        "mixes": [
+        "vibes": [
           "Long Way Out"
         ],
         "viewing": "seen"

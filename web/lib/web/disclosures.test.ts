@@ -141,7 +141,7 @@ test("no page still claims that no film is stored", () => {
 });
 
 test("every page says what a film record now holds", () => {
-  // Title, year, an optional IMDb id, watched, liked, and which mixes it is in.
+  // Title, year, an optional IMDb id, watched, liked, and which vibes it is in.
   // Said in each document's own register rather than in one shared sentence,
   // which is why these are the parts rather than the whole.
   const privacy = text("privacy");
@@ -202,7 +202,7 @@ test("every page says what a film record now holds", () => {
   assert.equal(privacy.includes("Liked and Liked"), false, "the duplicated word is back");
   assert.doesNotMatch(privacy, /whether you (have )?watched it, whether you liked it/);
   assert.doesNotMatch(privacy, /there are five of them|the one state you gave/i, "the five states");
-  assert.match(privacy, /which of your mixes it is in/);
+  assert.match(privacy, /which of your vibes it is in/);
 
   assert.match(text("terms"), /the films you have told it about/);
   assert.match(text("readme"), /whether they said they watched it/);
@@ -244,7 +244,7 @@ test("what is still true is still claimed", () => {
 
 test("what an assistant may fetch is disclosed as the whole model, films included", () => {
   // An MCP client receives the taste model in full. Saying it receives "your
-  // genres and mixes" understated it the moment v4 shipped, and a reader
+  // genres and vibes" understated it the moment v4 shipped, and a reader
   // deciding whether to authorize a client has to be told what actually crosses.
   const privacy = text("privacy");
   assert.match(privacy, /may <strong>request<\/strong> your taste model/);
@@ -302,7 +302,7 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
   assert.match(text("readme"), /everything else about a Movie is done through an assistant/);
 
   // The README has to agree with itself. It said the website "shows the whole
-  // model" one paragraph above saying a Movie in no Mix is not on it, and only
+  // model" one paragraph above saying a Movie in no Vibe is not on it, and only
   // the second of those is true.
   const readme = text("readme");
   assert.equal(
@@ -310,14 +310,14 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
     false,
     "the README still claims the website shows the whole model",
   );
-  assert.match(readme, /shows a Mix-oriented view of the model/);
-  assert.match(readme, /a Movie in no Mix is listed under \*Other movies\*/);
+  assert.match(readme, /shows a Vibe-oriented view of the model/);
+  assert.match(readme, /a Movie in no Vibe is listed under \*Other movies\*/);
   assert.match(readme, /the website is a view of it, not the definition of it/);
 });
 
 test("the terms overview names the model the rest of the terms describe", () => {
-  // The overview defined the model as genres, mixes and films, and said
-  // recommending reads "your genres and mixes". Both were written before
+  // The overview defined the model as genres, vibes and films, and said
+  // recommending reads "your genres and vibes". Both were written before
   // verdicts existed, and the data section further down had already been
   // corrected — so the document disagreed with itself about what is stored and
   // about what crosses to an assistant.
@@ -330,9 +330,9 @@ test("the terms overview names the model the rest of the terms describe", () => 
   // And what recommending reads is not overstated in either direction.
   assert.match(terms, /the films\s+you saved, and the verdicts that currently stand/);
   assert.equal(
-    terms.includes("it reads your genres and mixes and brings"),
+    terms.includes("it reads your genres and vibes and brings"),
     false,
-    "the terms still say a recommendation reads only genres and mixes",
+    "the terms still say a recommendation reads only genres and vibes",
   );
 });
 
@@ -361,7 +361,7 @@ test("every durable root the application opens is named in the retention promise
   // it — so the list is derived from the schemas the deployment actually
   // migrates rather than from memory.
   const promised: Record<string, RegExp> = {
-    taste: /your genres; your mixes/,
+    taste: /your genres; your vibes/,
     episodes: /the evenings Tonight recorded/,
     verdicts: /every verdict you gave/,
     // Sign-in and connection data is disclosed in its own section rather than
@@ -441,7 +441,7 @@ test("retention covers the films, what was said about them, and the evenings rec
   // named in its own right and its retention does not depend on a Movie.
   const terms = text("terms");
   assert.match(terms, /kept in its own\s+right/);
-  assert.match(terms, /your genres; your mixes; the films you saved/);
+  assert.match(terms, /your genres; your vibes; the films you saved/);
   assert.match(terms, /every verdict you gave, <strong>whether or not the film it is about is one you\s+saved<\/strong>/);
   assert.match(terms, /the evenings Tonight recorded/);
   assert.equal(
@@ -510,7 +510,7 @@ test("the README no longer describes names as relational identity", () => {
   }
 
   assert.match(readme, /every object has a private uuid, and a public name the user may change/);
-  assert.match(readme, /A Mix holds the Genre's uuid rather than its name/);
+  assert.match(readme, /A Vibe holds the Genre's uuid rather than its name/);
   assert.match(readme, /Every relation is keyed `\(user_id, id\)`/);
 });
 
@@ -568,7 +568,7 @@ test("the legacy-contract matcher catches the claim however it is written", () =
   // used on the pages could fail.
   //
   // Each of these is the same contract: one value a film carries, drawn from a
-  // vocabulary that mixes watching with opinion. The orders differ, the emphasis
+  // vocabulary that vibes watching with opinion. The orders differ, the emphasis
   // differs, the wrapper word differs, and one leaves a value out.
   const contracts = [
     "A Movie carries one state — not seen, seen, liked, loved, disliked, or nothing said.",

@@ -1,6 +1,6 @@
 import { CopyButton } from "./copy-button";
 import { GenreLabels } from "./genre-labels";
-import { MixCards } from "./mix-cards";
+import { VibeCards } from "./vibe-cards";
 import { MovieSummary } from "./movie-summary";
 import { Section } from "./section";
 import type { Taste } from "@/lib/taste/model";
@@ -15,38 +15,38 @@ import { recentlyAdded } from "@/lib/web/movie-summary";
  *
  *     YOUR GENRES     the reusable components
  *          ↓
- *     YOUR MIXES      what they mean in combination, each with how many
+ *     YOUR VIBES      what they mean in combination, each with how many
  *                     of its films are loved and three of their titles,
  *                     and one line for the films that are in none
  *
  * Vertical rather than side by side, because the relationship is a derivation and
- * not a comparison: mixes come *from* genres, and an arrow between two stacked
+ * not a comparison: vibes come *from* genres, and an arrow between two stacked
  * sections says that in a way two columns cannot.
  *
  * Three peers, drawn by one `Section`. Films used to float over two boxes with
- * the genres and mixes inside them, which said that those two were containers and
+ * the genres and vibes inside them, which said that those two were containers and
  * the films were a caption on the page — where in fact they are the three things
  * a taste model is made of, and a reader should meet them as three of a kind.
  * What carries an edge on this page is a row or a card, never a section.
  *
- * Genres are unlit and mixes carry the accent. That is the one piece of colour on
+ * Genres are unlit and vibes carry the accent. That is the one piece of colour on
  * the page and it is spent saying which of the two the user built themselves — a
- * genre is an ingredient, a mix is a decision. Lighting both would light neither.
+ * genre is an ingredient, a vibe is a decision. Lighting both would light neither.
  *
  * ## Names and counts are the overview; everything else is one press in
  *
  * No instruction, no genre chip and no film row appears on this page in its
  * resting state. The overview is for seeing the *shape* of a taste model — which
  * ideas somebody has and how much is under each — and putting the whole of every
- * mix on it turned that into a page you scroll rather than a page you read. A
- * genre's label opens its meaning; a mix's card opens its meaning, its genres
+ * vibe on it turned that into a page you scroll rather than a page you read. A
+ * genre's label opens its meaning; a vibe's card opens its meaning, its genres
  * and its films. What stays outside is what can be scanned: names, and numbers.
  *
  * ## What is JavaScript here, and what is not
  *
  * The page is a Server Component that has already opened the signed-in user's
  * store. What is client code is what can be pressed: the counts, the genre
- * labels and the mix cards, each with the dialog it opens; the copy button; and
+ * labels and the vibe cards, each with the dialog it opens; the copy button; and
  * the mark on a film's row. Nothing else here can change anything — what is on
  * show is a rendering of what the store holds, read on the server each time.
  *
@@ -57,7 +57,7 @@ import { recentlyAdded } from "@/lib/web/movie-summary";
  *
  * ## Nothing here is created or renamed
  *
- * A genre is named and a mix is composed in conversation, which is where a taste
+ * A genre is named and a vibe is composed in conversation, which is where a taste
  * model comes from — so there is no form on this page and no way to reach one.
  * The single exception is deleting, which lives inside the dialog for the thing
  * being deleted: a model you cannot take something out of yourself is not quite
@@ -79,9 +79,9 @@ export function TasteView({ taste, standing }: { taste: Taste; standing: readonl
     <>
       {/*
         First, and above the two sections rather than between them: the arrow says
-        a mix comes from genres, and it only says that while the two it points
+        a vibe comes from genres, and it only says that while the two it points
         between are next to each other. Every film on the page is under one of
-        these counts, genres and mixes included.
+        these counts, genres and vibes included.
       */}
       {/*
         The instant is settled here, once, where the render happens: `Recently
@@ -101,32 +101,32 @@ export function TasteView({ taste, standing }: { taste: Taste; standing: readonl
             be saved here.
           </Empty>
         ) : (
-          <GenreLabels genres={taste.genres} mixes={taste.mixes} movies={movies} />
+          <GenreLabels genres={taste.genres} vibes={taste.vibes} movies={movies} />
         )}
       </Section>
 
       <Arrow />
 
       <Section
-        title="Your mixes"
+        title="Your vibes"
         note="Your genres, mixed into something of your own."
-        count={taste.mixes.length}
+        count={taste.vibes.length}
       >
-        {taste.mixes.length === 0 && (
+        {taste.vibes.length === 0 && (
           <Empty>
             {taste.genres.length === 0
-              ? "A mix combines genres, so those come first."
+              ? "A vibe combines genres, so those come first."
               : "Nothing here yet. Ask ChatGPT for something two of your genres would both fit."}
           </Empty>
         )}
 
         {/*
-          Always, even with no mixes to draw: the films that are in none of them
-          are this section's remainder, and with no mixes that is every film
+          Always, even with no vibes to draw: the films that are in none of them
+          are this section's remainder, and with no vibes that is every film
           there is. Rendering the cards only when there are cards left the one
           way to those films off the page exactly when it was needed most.
         */}
-        <MixCards mixes={taste.mixes} movies={movies} />
+        <VibeCards vibes={taste.vibes} movies={movies} />
       </Section>
 
       <Prompt taste={taste} />
@@ -142,11 +142,11 @@ export function TasteView({ taste, standing }: { taste: Taste; standing: readonl
  * person can act on rather than infer.
  */
 function Prompt({ taste }: { taste: Taste }) {
-  const subject = taste.mixes[0]?.name ?? taste.genres[0]?.name;
+  const subject = taste.vibes[0]?.name ?? taste.genres[0]?.name;
   if (!subject) return null;
 
   const sentence = `What should I watch tonight? Use my ${subject} ${
-    taste.mixes.length ? "mix" : "genre"
+    taste.vibes.length ? "vibe" : "genre"
   }.`;
 
   return (

@@ -54,7 +54,7 @@ export default function Privacy() {
           one. Tonight does not send your taste model anywhere on its own initiative. What it does is
           answer: an assistant you have authorized may <strong>request</strong> your taste model
           through the MCP endpoint, and Tonight returns <strong>all</strong> of it — every genre and
-          mix with its instruction, every film you have saved with its year, its IMDb id if it
+          vibe with its instruction, every film you have saved with its year, its IMDb id if it
           has one, and whether you have said you watched it, and everything you have said about
           particular films. What that assistant then does with what it receives
           happens in that service, not here, and the operator has no control over it.
@@ -62,7 +62,7 @@ export default function Privacy() {
         <p>
           <strong>This website shows you less than that, and is a view of your data rather than
           the same answer rearranged.</strong> The signed-in page is built for reading a
-          collection: it groups your films under the mixes they are in, lists the rest under
+          collection: it groups your films under the vibes they are in, lists the rest under
           &ldquo;Other movies&rdquo;, and keeps each instruction one click away rather than on the
           page. What you said about a film is shown <em>against the film it is about</em>, so
           three things stored about you are not on it: a verdict about a film you never saved,
@@ -137,15 +137,15 @@ export default function Privacy() {
           <strong>Your taste model.</strong> This is the product, and it is all of it. For each{" "}
           <strong>genre</strong>: its name, the free-text <code>instruction</code> in which you say
           what that genre means to you, and the times it was created and last changed. For each{" "}
-          <strong>mix</strong>: the same three, plus which of your genres it is built from and the
+          <strong>vibe</strong>: the same three, plus which of your genres it is built from and the
           order you gave them in. Instructions are stored as you wrote them, apart from surrounding
           whitespace. Names have surrounding whitespace removed too, and runs of spaces inside them
-          collapsed to one, so that the name you see is the name a mix refers to.
+          collapsed to one, so that the name you see is the name a vibe refers to.
         </p>
         <p>
           <strong>Films you tell it about.</strong> A film is in Tonight only because you or an
           assistant acting for you put it there. For each one: the title and release year you gave,
-          an optional IMDb title id, which of your mixes it is in, and whether you have watched it.
+          an optional IMDb title id, which of your vibes it is in, and whether you have watched it.
           That last one is a fact and not an opinion, and it has three answers: <em>seen</em>,{" "}
           <em>not seen</em>, and nothing at all. Nothing at all is what a film starts as and means
           you have not said either way — it is different from <em>not seen</em>, which is
@@ -187,7 +187,7 @@ export default function Privacy() {
           <strong>That record is not a taste profile.</strong> Nothing about what you like is
           learned from it. An evening may record that you watched something, because you said so
           — that is the evening&rsquo;s own account of what happened. What it never does is become an
-          opinion: it is not a verdict, it does not create a genre or a mix, it never changes the
+          opinion: it is not a verdict, it does not create a genre or a vibe, it never changes the
           film&rsquo;s own record of whether you have seen it, and it never becomes a preference.
           Those only change when you say so, where they live. You can correct any part of an
           evening, and you can delete one outright — deleting removes it and the films it listed,
@@ -206,7 +206,7 @@ export default function Privacy() {
           indistinguishable from one you asked for outright, because that is what it is. If you
           say nothing, or say no, nothing is written: there is no pending suggestion left behind,
           no record that it was offered, and no note of your refusal. The five things above —
-          your genres, your mixes, your films, your verdicts, your evenings — are the whole of
+          your genres, your vibes, your films, your verdicts, your evenings — are the whole of
           what is kept about you.
         </p>
         <p>
@@ -230,7 +230,7 @@ export default function Privacy() {
         <p>
           <strong>Nothing you do changes your taste model except changing it.</strong> Tonight draws no
           conclusions from how you use it and writes nothing back from a recommendation: your genres
-          and mixes change only through the operations that change them — by you on this website, or
+          and vibes change only through the operations that change them — by you on this website, or
           by an assistant you have asked to make a change. What a recommendation itself looks like is
           not ours to promise: it is produced by the assistant you connect, from your taste model
           together with its own knowledge, its own context and whatever other tools it has.
@@ -279,7 +279,7 @@ export default function Privacy() {
       <section>
         <h2>What your instructions may reveal</h2>
         <p>
-          A genre and a mix each carry an <code>instruction</code> — free text in which you describe
+          A genre and a vibe each carry an <code>instruction</code> — free text in which you describe
           what that part of your taste means to you. It is the heart of the product and it is stored as
           you wrote it.
         </p>
@@ -301,8 +301,8 @@ export default function Privacy() {
           <li>No analytics, no tracking, no profiling, no advertising, no newsletter.</li>
           <li>
             <strong>No AI provider.</strong> Tonight contains no language model and calls no model
-            provider&rsquo;s API. Interpreting what you like, naming a mix and choosing films all
-            happen in the assistant you connect, not here — which reaches your genres, mixes and
+            provider&rsquo;s API. Interpreting what you like, naming a vibe and choosing films all
+            happen in the assistant you connect, not here — which reaches your genres, vibes and
             films by asking for them, as described above.
           </li>
           <li>
@@ -480,7 +480,7 @@ export default function Privacy() {
           that has lapsed registers itself again the next time it is used.
         </p>
         <p>
-          <strong>Everything Tonight holds about you</strong> — your genres, your mixes, the
+          <strong>Everything Tonight holds about you</strong> — your genres, your vibes, the
           films you saved, everything you have said about a film whether or not that film is one
           you saved, and the evenings Tonight recorded — is
           subject to a policy of the operator rather
@@ -500,9 +500,9 @@ export default function Privacy() {
       <section>
         <h2>Deleting your data</h2>
         <p>
-          You can delete any mix yourself at any time, on this website or through your assistant, and
-          any genre no mix is built from. A genre a mix does refer to stays until that mix does not:
-          take it out of the mix, or delete the mix, and the genre can go. For a film, the
+          You can delete any vibe yourself at any time, on this website or through your assistant, and
+          any genre no vibe is built from. A genre a vibe does refer to stays until that vibe does not:
+          take it out of the vibe, or delete the vibe, and the genre can go. For a film, the
           signed-in page lets you say whether you have seen a film and what you thought of it; adding one,
           changing its title or year, and removing it are done through your assistant, which does
           each there and then. To have your account and everything belonging to it removed, write

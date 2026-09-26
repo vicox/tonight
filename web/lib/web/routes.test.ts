@@ -22,8 +22,8 @@ const ORIGIN = "http://localhost:3000";
 
 const createGenre = (await import("../../app/api/genres/route.ts")).POST;
 const genre = await import("../../app/api/genres/[name]/route.ts");
-const createMix = (await import("../../app/api/mixes/route.ts")).POST;
-const mix = await import("../../app/api/mixes/[name]/route.ts");
+const createVibe = (await import("../../app/api/vibes/route.ts")).POST;
+const vibe = await import("../../app/api/vibes/[name]/route.ts");
 const setViewing = (await import("../../app/api/movies/route.ts")).PATCH;
 const setJudgement = (await import("../../app/api/verdicts/route.ts")).PATCH;
 
@@ -118,20 +118,20 @@ test("a malformed body is refused by the domain rather than coerced on the way i
 
   // The bug this exists for: a route that turned each of these into a string
   // would store a genre named "42", an instruction reading "[object Object]", or
-  // a mix built from a genre called "123".
+  // a vibe built from a genre called "123".
   const refusals = [
     ["/api/genres", createGenre, { name: 42, instruction: "Numbers." }, /must be text, not a number/],
     ["/api/genres", createGenre, { name: "Odd", instruction: {} }, /must be text, not an object/],
     ["/api/genres", createGenre, { name: "Odd", instruction: "   " }, /needs an instruction/],
     [
-      "/api/mixes",
-      createMix,
+      "/api/vibes",
+      createVibe,
       { name: "Bad", instruction: "Mixed.", genres: ["Sci-Fi", 123] },
       /entry 2 is a number/,
     ],
     [
-      "/api/mixes",
-      createMix,
+      "/api/vibes",
+      createVibe,
       { name: "Bad", instruction: "Mixed.", genres: "Sci-Fi" },
       /must be a list of genre names/,
     ],
@@ -146,8 +146,8 @@ test("a malformed body is refused by the domain rather than coerced on the way i
 
   const untouched = await taste(id);
   assert.deepEqual(
-    { genres: untouched.genres.map(orderGenre), mixes: untouched.mixes, movies: untouched.movies },
-    { genres: [{ name: "Sci-Fi", instruction: "Ideas." }], mixes: [], movies: [] },
+    { genres: untouched.genres.map(orderGenre), vibes: untouched.vibes, movies: untouched.movies },
+    { genres: [{ name: "Sci-Fi", instruction: "Ideas." }], vibes: [], movies: [] },
   );
 });
 
@@ -156,9 +156,9 @@ test("a conflict and a missing target come back as the domain's own answers", as
   await createGenre(
     request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
   );
-  await createMix(
+  await createVibe(
     request(
-      "/api/mixes",
+      "/api/vibes",
       "POST",
       { name: "My Sci-Fi", genres: ["Sci-Fi"], instruction: "Slow." },
       { cookie },
@@ -180,23 +180,23 @@ test("a conflict and a missing target come back as the domain's own answers", as
   assert.match(inUse.message ?? "", /"My Sci-Fi"/);
 
   const absent = await answer(
-    await mix.PATCH(
-      request("/api/mixes/Nothing", "PATCH", { instruction: "New." }, { cookie }),
+    await vibe.PATCH(
+      request("/api/vibes/Nothing", "PATCH", { instruction: "New." }, { cookie }),
       at("Nothing"),
     ),
   );
   assert.equal(absent.status, 400);
-  assert.match(absent.message ?? "", /no mix "Nothing"/);
+  assert.match(absent.message ?? "", /no vibe "Nothing"/);
 });
 
-test("a rename answers with the model as it now stands, mixes included", async () => {
+test("a rename answers with the model as it now stands, vibes included", async () => {
   const { cookie } = await signedIn();
   await createGenre(
     request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
   );
-  await createMix(
+  await createVibe(
     request(
-      "/api/mixes",
+      "/api/vibes",
       "POST",
       { name: "My Sci-Fi", genres: ["Sci-Fi"], instruction: "Slow." },
       { cookie },
@@ -212,7 +212,7 @@ test("a rename answers with the model as it now stands, mixes included", async (
 
   assert.equal(renamed.status, 200);
   assert.deepEqual(renamed.taste?.genres.map((one) => one.name), ["Science fiction"]);
-  assert.deepEqual(renamed.taste?.mixes[0]?.genres, ["Science fiction"]);
+  assert.deepEqual(renamed.taste?.vibes[0]?.genres, ["Science fiction"]);
 });
 
 // --- one tenant per session -----------------------------------------------
@@ -244,11 +244,11 @@ test("a session cannot change, delete or borrow another account's genres", async
     assert.match(refused.message ?? "", /no genre "Alice only"/);
   }
 
-  // Nor can he build a mix out of it.
+  // Nor can he build a vibe out of it.
   const borrowed = await answer(
-    await createMix(
+    await createVibe(
       request(
-        "/api/mixes",
+        "/api/vibes",
         "POST",
         { name: "Borrowed", genres: ["Alice only"], instruction: "Not mine." },
         { cookie: bob.cookie },
@@ -261,20 +261,20 @@ test("a session cannot change, delete or borrow another account's genres", async
   assert.deepEqual((await taste(alice.id)).genres.map(orderGenre), [
     { name: "Alice only", instruction: "Hers." },
   ]);
-  assert.deepEqual((await taste(bob.id)).mixes, []);
+  assert.deepEqual((await taste(bob.id)).vibes, []);
 });
 
 // --- a film's two marks ---------------------------------------------------
 
-/** A signed-in user with one film in one mix, which is what a mark sits on. */
+/** A signed-in user with one film in one vibe, which is what a mark sits on. */
 async function withFilm(said: { viewing?: "seen" | "unseen" } = {}) {
   const { cookie, id } = await signedIn();
   await createGenre(
     request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
   );
-  await createMix(
+  await createVibe(
     request(
-      "/api/mixes",
+      "/api/vibes",
       "POST",
       { name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." },
       { cookie },
@@ -283,7 +283,7 @@ async function withFilm(said: { viewing?: "seen" | "unseen" } = {}) {
   await (await tasteStore({ id })).createMovie({
     title: "Arrival",
     year: 2016,
-    mixes: ["Space Tension"],
+    vibes: ["Space Tension"],
     ...said,
   });
   return { cookie, id };
@@ -304,7 +304,7 @@ const mark = (cookie: string, body: unknown) =>
   setViewing(request("/api/movies", "PATCH", body, { cookie }));
 
 test("a successful press answers the outcome, and does not read the model back", async () => {
-  // The genre and mix routes hand back the whole taste model because the editor
+  // The genre and vibe routes hand back the whole taste model because the editor
   // reads it as its success signal. Nothing does that here: `Viewing` looks at
   // the status, and at the message only when something went wrong. Returning the
   // model would be nine statements per press thrown away — over a network, per
@@ -322,7 +322,7 @@ test("a successful press answers the outcome, and does not read the model back",
   // route that never reads the model and one that reads it and drops the result
   // both answer `{}`. The second costs nine statements per press over a network,
   // and naming the call is the only thing that keeps it from coming back the next
-  // time somebody copies the shape of the genre and mix routes.
+  // time somebody copies the shape of the genre and vibe routes.
   const route = readFileSync(new URL("../../app/api/movies/route.ts", import.meta.url), "utf8");
   assert.equal(
     /store\s*\.\s*taste\s*\(/.test(route),
@@ -380,7 +380,7 @@ test("a press changes the viewing and leaves the rest of the film alone", async 
     year: 2016,
     imdbId: "tt2543164",
     viewing: "seen",
-    mixes: ["Space Tension"],
+    vibes: ["Space Tension"],
   });
 });
 
@@ -398,7 +398,7 @@ test("the route takes the two marks and nothing else", async () => {
     year_: 1999,
     imdb_id: "tt0000001",
     imdbId: "tt0000001",
-    mixes: [],
+    vibes: [],
   });
 
   assert.deepEqual(await film(id), {
@@ -406,7 +406,7 @@ test("the route takes the two marks and nothing else", async () => {
     year: 2016,
     imdbId: null,
     viewing: "seen",
-    mixes: ["Space Tension"],
+    vibes: ["Space Tension"],
   });
 });
 

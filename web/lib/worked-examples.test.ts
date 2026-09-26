@@ -7,7 +7,7 @@ import { WORKED_EXAMPLES } from "./worked-examples.ts";
  * The curation, held to the rules it is meant to demonstrate.
  *
  * These six are the first thing a stranger reads, and they are teaching two
- * things at once: that a Mix is a name rather than a label, and that one person
+ * things at once: that a Vibe is a name rather than a label, and that one person
  * has several very different ones. Both are claims the set itself has to keep
  * making — a seventh example that summarised its Genres, or repeated an evening
  * already there, would quietly argue the opposite.
@@ -16,7 +16,7 @@ import { WORKED_EXAMPLES } from "./worked-examples.ts";
 test("there are six, and they are distinct evenings", () => {
   assert.equal(WORKED_EXAMPLES.length, 6);
 
-  for (const field of ["mix", "mark", "prompt"] as const) {
+  for (const field of ["vibe", "mark", "prompt"] as const) {
     const values = WORKED_EXAMPLES.map((example) => example[field]);
     assert.equal(new Set(values).size, values.length, `two examples share a ${field}`);
   }
@@ -39,16 +39,16 @@ test("no film appears in two evenings", () => {
   }
 });
 
-test("a Mix name is evocative, not a restatement of its Genres", () => {
+test("a Vibe name is evocative, not a restatement of its Genres", () => {
   // The principle these examples exist to demonstrate: if knowing the Genres
   // already tells you the name, the name is doing no work. A name containing one
   // of its own ingredients has failed that before anybody reads the instruction.
-  for (const { mix, genres } of WORKED_EXAMPLES) {
+  for (const { vibe, genres } of WORKED_EXAMPLES) {
     for (const genre of genres) {
       assert.equal(
-        mix.toLowerCase().includes(genre.toLowerCase()),
+        vibe.toLowerCase().includes(genre.toLowerCase()),
         false,
-        `"${mix}" contains its own genre "${genre}", so it is a label rather than a name`,
+        `"${vibe}" contains its own genre "${genre}", so it is a label rather than a name`,
       );
     }
   }
@@ -56,13 +56,13 @@ test("a Mix name is evocative, not a restatement of its Genres", () => {
 
 test("every evening is complete enough to render", () => {
   for (const example of WORKED_EXAMPLES) {
-    assert.equal(example.films.length, 3, `${example.mix}: three films, so the shape is uniform`);
-    assert.ok(example.genres.length >= 2, `${example.mix}: a mix of one genre shows nothing`);
-    assert.match(example.prompt, /\S/, `${example.mix}: no prompt`);
-    assert.ok(example.mark.length > 0, `${example.mix}: no mark`);
+    assert.equal(example.films.length, 3, `${example.vibe}: three films, so the shape is uniform`);
+    assert.ok(example.genres.length >= 2, `${example.vibe}: a vibe of one genre shows nothing`);
+    assert.match(example.prompt, /\S/, `${example.vibe}: no prompt`);
+    assert.ok(example.mark.length > 0, `${example.vibe}: no mark`);
 
     for (const value of [...example.films, ...example.genres]) {
-      assert.equal(value, value.trim(), `${example.mix}: "${value}" has stray whitespace`);
+      assert.equal(value, value.trim(), `${example.vibe}: "${value}" has stray whitespace`);
     }
   }
 });
@@ -71,21 +71,21 @@ test("each evening ends somewhere of its own", () => {
   const endings = WORKED_EXAMPLES.map((example) => example.followUp);
   assert.equal(new Set(endings).size, endings.length, "two examples end the same way");
 
-  for (const { mix, followUp } of WORKED_EXAMPLES) {
-    // The sentence is "something like <mix>, <followUp>", so it has to read on
+  for (const { vibe, followUp } of WORKED_EXAMPLES) {
+    // The sentence is "something like <vibe>, <followUp>", so it has to read on
     // from a comma and stay short enough to be something somebody says.
-    assert.equal(followUp, followUp.trim(), `${mix}: stray whitespace`);
-    assert.match(followUp, /^[a-z]/, `${mix}: the follow-up starts mid-sentence, in lower case`);
-    assert.doesNotMatch(followUp, /[.!?]$/, `${mix}: the quote closes the sentence, not this`);
-    assert.ok(followUp.split(" ").length <= 8, `${mix}: too long to be said in passing`);
+    assert.equal(followUp, followUp.trim(), `${vibe}: stray whitespace`);
+    assert.match(followUp, /^[a-z]/, `${vibe}: the follow-up starts mid-sentence, in lower case`);
+    assert.doesNotMatch(followUp, /[.!?]$/, `${vibe}: the quote closes the sentence, not this`);
+    assert.ok(followUp.split(" ").length <= 8, `${vibe}: too long to be said in passing`);
   }
 });
 
 test("the prompts are asked the way somebody would ask", () => {
   // Not keywords, and not a description of the feature. The example only works if
   // the request reads like something said out loud.
-  for (const { mix, prompt } of WORKED_EXAMPLES) {
-    assert.ok(prompt.split(" ").length >= 5, `${mix}: the prompt reads as a query, not a request`);
-    assert.match(prompt, /[.!?]$/, `${mix}: the prompt is not a finished sentence`);
+  for (const { vibe, prompt } of WORKED_EXAMPLES) {
+    assert.ok(prompt.split(" ").length >= 5, `${vibe}: the prompt reads as a query, not a request`);
+    assert.match(prompt, /[.!?]$/, `${vibe}: the prompt is not a finished sentence`);
   }
 });

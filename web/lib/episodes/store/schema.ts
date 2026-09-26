@@ -10,7 +10,7 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * — never a second, invisible model that quietly outvotes it". Separate modules
  * also mean either can move without renumbering the other.
  *
- * Nothing here references a genre, a mix or a movie. An episode names the films
+ * Nothing here references a genre, a vibe or a movie. An episode names the films
  * it offered as text, not as a foreign key into the taste model, because the two
  * are different claims: the taste model holds films the user told Tonight about,
  * and an offer holds a film Tonight mentioned once. Pointing one at the other

@@ -39,7 +39,7 @@ Tonight noticed and was not told — was a durable class here, authoritative ove
 allowed to inform a question. It was built, together with the Proposals that carried one to the
 user, and both were removed.
 
-The reasoning that removed them: **Tonight persists product memory only as Movies, Genres, Mixes,
+The reasoning that removed them: **Tonight persists product memory only as Movies, Genres, Vibes,
 Episodes and Verdicts.** Agent-authored thoughts, observations, suggestions, questions, and other
 conversational intermediate state are not durable product memory. A reading of Tonight's own is
 not made safe by being labelled non-authoritative — it is made safe by not outliving the sentence
@@ -51,9 +51,9 @@ Everything below about laundering, self-amplification and Tonight's own influenc
 holds more simply: a conclusion cannot become evidence for its premise when the conclusion was
 never written down.
 
-**Declaration is the general class, not a list.** Phase 1 happened to need three kinds — Genres, Mixes and exclusions — and it would be a mistake to read that as the definition. A Declaration is any durable statement the user authored about themselves, and the kinds already visible include:
+**Declaration is the general class, not a list.** Phase 1 happened to need three kinds — Genres, Vibes and exclusions — and it would be a mistake to read that as the definition. A Declaration is any durable statement the user authored about themselves, and the kinds already visible include:
 
-- Genres, Mixes and exclusions (Phase 1)
+- Genres, Vibes and exclusions (Phase 1)
 - situations they name — *"Sunday nights are for something gentle"*
 - statements about companions — *"my partner can't do subtitles"*
 - standing reasons for rejection — *"nothing over two and a half hours, ever"*
@@ -62,7 +62,7 @@ never written down.
 
 All of them are absolute within their scope and silent outside it, all of them are the user's own words, and none of them may be authored by the agent. Adding a kind of Declaration must never require a new provenance class; if it does, the model has been drawn too narrowly again.
 
-The separation between authored and observed is the whole design. Phase 1 established that a Mix is declarative evidence from the moment it is written, and that only a Movie state carries the user's verdict. Phase 2 multiplies the sources of knowledge without softening that line.
+The separation between authored and observed is the whole design. Phase 1 established that a Vibe is declarative evidence from the moment it is written, and that only a Movie state carries the user's verdict. Phase 2 multiplies the sources of knowledge without softening that line.
 
 ### The kinds worth holding
 
@@ -113,11 +113,11 @@ Both are **derived, never stored**. A number written down beside a claim cannot 
 
 **Present relevance of existing claims.** Time passed. Something was corroborated or contradicted. Relevance is recomputed; historical authority and the claims themselves are untouched.
 
-**Nothing about taste.** No verdict, no Genre, no Mix, no exclusion changes because of an interaction alone. This is Phase 1's ownership rule — *persist durable taste they express or confirm; never persist what you conclude alone* — carried into a world with far more to conclude from.
+**Nothing about taste.** No verdict, no Genre, no Vibe, no exclusion changes because of an interaction alone. This is Phase 1's ownership rule — *persist durable taste they express or confirm; never persist what you conclude alone* — carried into a world with far more to conclude from.
 
 ### What never changes automatically
 
-Verdicts on films. The wording of a Genre or a Mix. Exclusions. These are the user's sentences; the agent may propose a change to them and may never make one.
+Verdicts on films. The wording of a Genre or a Vibe. Exclusions. These are the user's sentences; the agent may propose a change to them and may never make one.
 
 ### How relevance moves
 
@@ -151,29 +151,29 @@ And a constraint that matters as much as the triggers: **asking has a budget.** 
 
 ---
 
-## 4. Mix lifecycle
+## 4. Vibe lifecycle
 
-A Mix is a sentence someone wrote about a kind of evening. Everything below follows from that: operations that change the sentence need their agreement; operations that change Tonight's *reading* of it do not.
+A Vibe is a sentence someone wrote about a kind of evening. Everything below follows from that: operations that change the sentence need their agreement; operations that change Tonight's *reading* of it do not.
 
-**Creation.** From the user's sentence, or from an offer Tonight makes that the user accepts in their own words. A Mix Tonight named for them is a Mix they will not recognise in a year.
+**Creation.** From the user's sentence, or from an offer Tonight makes that the user accepts in their own words. A Vibe Tonight named for them is a Vibe they will not recognise in a year.
 
-**Growth.** Films accumulate; states accumulate. Phase 1 fixed the epistemics: intent was certain from the first moment, and what grows is confidence about *specifics*. A Mix with ten loved films under it does not mean more than it did; it means Tonight knows more about which films answer it.
+**Growth.** Films accumulate; states accumulate. Phase 1 fixed the epistemics: intent was certain from the first moment, and what grows is confidence about *specifics*. A Vibe with ten loved films under it does not mean more than it did; it means Tonight knows more about which films answer it.
 
-**Drift.** The films under a Mix stop matching its sentence — either because taste moved or because the Mix was always two things. Detected, surfaced, never silently corrected. The sentence is the user's; if it no longer describes what it holds, that is a conversation, not a repair.
+**Drift.** The films under a Vibe stop matching its sentence — either because taste moved or because the Vibe was always two things. Detected, surfaced, never silently corrected. The sentence is the user's; if it no longer describes what it holds, that is a conversation, not a repair.
 
-**Splitting.** A Mix that has become two evenings. Tonight proposes with evidence, in their language: *"the last eight things under Quiet Dread split cleanly — half are procedurals, half are much stranger. Two Mixes, or is that one thing to you?"* The user decides, and names both.
+**Splitting.** A Vibe that has become two evenings. Tonight proposes with evidence, in their language: *"the last eight things under Quiet Dread split cleanly — half are procedurals, half are much stranger. Two Vibes, or is that one thing to you?"* The user decides, and names both.
 
-**Merging.** Two Mixes that turn out to be the same evening asked for twice. Same treatment.
+**Merging.** Two Vibes that turn out to be the same evening asked for twice. Same treatment.
 
-**Dormancy.** Unused for a long time. Not dead, not archived — just quiet. Dormancy affects how much weight a Mix carries in tonight's answer; it does not remove it.
+**Dormancy.** Unused for a long time. Not dead, not archived — just quiet. Dormancy affects how much weight a Vibe carries in tonight's answer; it does not remove it.
 
 **Archiving.** A user act. "I'm done with this one."
 
-**Reviving.** A dormant Mix that becomes relevant again. Tonight may surface it — *"this is Long Way Out territory, which you haven't asked for since last winter"* — and may not resurrect it silently.
+**Reviving.** A dormant Vibe that becomes relevant again. Tonight may surface it — *"this is Long Way Out territory, which you haven't asked for since last winter"* — and may not resurrect it silently.
 
 **Forgetting.** Deliberate, user-initiated, and complete: gone from behaviour, not merely hidden. A memory that can be deleted from view but still influences recommendations is worse than one that cannot be deleted at all, because it is a lie about control.
 
-**Relevance across years.** A Mix's present relevance must be able to fall on its own. A Mix built in 2024 with ten loved films and untouched since is not the same evidence in 2027, and a system that cannot express that will confidently recommend a person's former self. What it *meant* in 2024 does not fall; only its claim on tonight does.
+**Relevance across years.** A Vibe's present relevance must be able to fall on its own. A Vibe built in 2024 with ten loved films and untouched since is not the same evidence in 2027, and a system that cannot express that will confidently recommend a person's former self. What it *meant* in 2024 does not fall; only its claim on tonight does.
 
 ### Lineage
 
@@ -182,7 +182,7 @@ Every operation above — an edit, a split, a merge, a rewording — is a change
 - **An accepted change creates a new version**, a superseding Declaration. The prior version stays historically intact and readable.
 - **Only the current version governs present behaviour.** Superseded versions are history, not competing opinions.
 - **Episodes keep the version that was in force when they happened.** An evening answered under *Quiet Dread* as it read in 2024 was answered under that sentence, and re-reading it through the 2027 wording would make the record describe something that never occurred.
-- **Splits and merges preserve provenance without duplicating evidence.** When a Mix becomes two, the evidence beneath it is *attributed* to the successors, not copied into both — the same root event counted twice would manufacture confidence out of a filing decision. When two Mixes become one, shared roots collapse to one.
+- **Splits and merges preserve provenance without duplicating evidence.** When a Vibe becomes two, the evidence beneath it is *attributed* to the successors, not copied into both — the same root event counted twice would manufacture confidence out of a filing decision. When two Vibes become one, shared roots collapse to one.
 
 The rule underneath all four: history is append-only, meaning is versioned, and reorganising the present never changes what the past said or how much it was worth.
 
@@ -196,7 +196,7 @@ The rule underneath all four: history is append-only, meaning is versioned, and 
 
 **Tool use.** The deterministic tool surface stays the boundary of what Tonight can know about itself. This is a Phase 1 inheritance worth restating: a fixture that cannot be expressed through the public tools is not a fixture, and a belief that cannot be traced to a tool call is not a belief.
 
-**Reflection.** Periodically reconsidering what it believes: contradictions, decayed relevance, dormant structure, drifted Mixes.
+**Reflection.** Periodically reconsidering what it believes: contradictions, decayed relevance, dormant structure, drifted Vibes.
 
 Reflection **may never** create or mutate a user-authoritative Claim — a Verdict or a Declaration — without a user act.
 
@@ -220,14 +220,14 @@ So the boundary is simply: **reflection persists nothing.** What Tonight works o
 
 ### Entities
 
-**From Phase 1, unchanged:** Movie, Genre, Mix, Movie state, exclusion.
+**From Phase 1, unchanged:** Movie, Genre, Vibe, Movie state, exclusion.
 
 **Claim** — the unifying abstraction. Verdicts and Declarations are both Claims distinguished by provenance, and the provenance determines the rules. There is no agent-authored Claim: what Tonight works out is said rather than stored. Every Claim identifies seven things:
 
 | Facet | Why it is needed |
 | --- | --- |
 | **Claimant** | Who asserts it — the user, or the agent. Without this, provenance is a guess |
-| **Subject** | What it is about — a film, a Mix, a situation, a person |
+| **Subject** | What it is about — a film, a Vibe, a situation, a person |
 | **Assertion** | What is actually being said |
 | **Provenance** | How it came to be: stated, confirmed, observed, derived |
 | **Context / scope** | Where it applies. A Claim with no stated scope applies globally; one with a scope applies *only* there |
@@ -256,11 +256,11 @@ Scope and temporal status are what make the model survive years. A Claim without
 
 ### How they relate
 
-A **Mix** is composed of **Genres**, holds **Movies**, and scopes its **exclusions** — Phase 1 established that an exclusion belongs to the evening that named it and never becomes a global filter, and nothing in Phase 2 may erode that.
+A **Vibe** is composed of **Genres**, holds **Movies**, and scopes its **exclusions** — Phase 1 established that an exclusion belongs to the evening that named it and never becomes a global filter, and nothing in Phase 2 may erode that.
 
 A **Claim** rests on **Evidence**; Evidence points at **Episodes**; Episodes reference **Movies**, **Situations** and **People**. **Confidence** is a function over that graph rather than a number someone wrote down.
 
-An **Offer** names a Claim or a Mix and exists only for as long as the turn it was made in. **Plans** own **Threads** and produce **Episodes**.
+An **Offer** names a Claim or a Vibe and exists only for as long as the turn it was made in. **Plans** own **Threads** and produce **Episodes**.
 
 The invariant worth stating plainly: *a path exists from every belief Tonight acts on back to something the user said.* The stronger form the product now holds: there is nothing else for a path to start from, because nothing Tonight authored is written down.
 
@@ -354,7 +354,7 @@ This is the one failure mode that looks exactly like success from the inside. Ev
 
 **Safety arriving after memory and autonomy.** The ordering failure: memory that cannot be corrected, or autonomous behaviour resting on a model that has no way to notice it has gone stale. Each milestone is individually defensible and the sequence is not. *Prevention:* the two roadmap ordering rules in section 10 — no memory type ships without correction and forgetting in the same milestone, and no autonomous behaviour ships before relevance decay and drift detection.
 
-**Over-correction.** One bad night rewrites a Mix. *Prevention:* single episodes never move declarations; declarations move only by user act.
+**Over-correction.** One bad night rewrites a Vibe. *Prevention:* single episodes never move declarations; declarations move only by user act.
 
 **The surveillance feeling.** *Prevention:* Tonight only acts on what it was told, and the model stays legible and correctable. The architectural rule and the emotional outcome are the same rule.
 
@@ -388,7 +388,7 @@ The first rule is a correction to an earlier draft of this roadmap, which deferr
 
 **M4 — Offers instead of assuming.** What Tonight notices is put to the user as a question, and their yes writes the change. Nothing waits in between. *Value:* the model grows without the user maintaining it.
 
-**M5 — Mixes that live.** Drift detection, split and merge offers, dormancy, lineage. *Value:* the structure still describes them after two years.
+**M5 — Vibes that live.** Drift detection, split and merge offers, dormancy, lineage. *Value:* the structure still describes them after two years.
 
 **M6 — Knows the occasion.** Situations and companions, with scope enforced. *Value:* the right film for *this* evening, not just this person.
 

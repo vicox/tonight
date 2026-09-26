@@ -6,5 +6,5 @@
   "exists_for": ["AC1", "AC5"],
   "catches": "Onboarding drift; personalization invented from nothing; an unanchored expansion, which is most tempting here because there is nothing to anchor to.",
   "prompts": ["plain", "constrained"],
-  "model": { "genres": [], "mixes": [], "movies": [] }
+  "model": { "genres": [], "vibes": [], "movies": [] }
 }

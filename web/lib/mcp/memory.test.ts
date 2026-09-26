@@ -115,7 +115,7 @@ describe("the memory tools", () => {
     // The expected picture is written out here, not read back from the tool.
     const her = someone();
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
-    await said(her, "create_mix", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room" });
+    await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room" });
     await said(her, "create_movie", { ...HEAT, viewing: "seen" });
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
     await said(her, "record_episode", { request: "something tense", offered: [{ ...HEAT, lead: true }] });
@@ -123,7 +123,7 @@ describe("the memory tools", () => {
     const { held, remembered } = await memory(her);
     assert.deepEqual(
       held.map((root) => root.of).sort(),
-      ["genre", "mix", "movie", "verdict"],
+      ["genre", "movie", "verdict", "vibe"],
       "the held roots are not one of each",
     );
     assert.deepEqual(remembered.map((root) => root.of), ["evening"]);
@@ -269,7 +269,7 @@ describe("the memory tools", () => {
   test("every held and remembered root carries a handle a tool actually takes", async () => {
     const her = someone();
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
-    await said(her, "create_mix", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room" });
+    await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room" });
     await said(her, "create_movie", { ...HEAT, viewing: "seen" });
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
     await said(her, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
@@ -277,7 +277,7 @@ describe("the memory tools", () => {
     const { held, remembered } = await memory(her);
     const expected: Record<string, string> = {
       genre: "name",
-      mix: "name",
+      vibe: "name",
       movie: "film",
       verdict: "ref",
       evening: "id",
@@ -515,7 +515,7 @@ describe("the memory tools", () => {
 
     const payload = (await said(her, "get_taste")) as Record<string, unknown>;
     assert.equal("disagreements" in payload, false, "the disagreement projection came back");
-    assert.deepEqual(Object.keys(payload).sort(), ["genres", "mixes", "movies", "verdicts"]);
+    assert.deepEqual(Object.keys(payload).sort(), ["genres", "movies", "verdicts", "vibes"]);
 
     // Both facts are there, separately and unresolved: the film says they
     // watched it, the verdict says what they thought.
@@ -531,7 +531,7 @@ describe("the memory tools", () => {
     await said(her, "create_movie", { ...HEAT, viewing: "seen" });
 
     const payload = (await said(her, "get_taste")) as Record<string, unknown>;
-    assert.deepEqual(Object.keys(payload).sort(), ["genres", "mixes", "movies"]);
+    assert.deepEqual(Object.keys(payload).sort(), ["genres", "movies", "vibes"]);
   });
 
   /* ------------------------------------------- what the read does not reach */

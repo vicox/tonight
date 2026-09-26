@@ -10,14 +10,14 @@ import { sqlTasteStore } from "./sql.ts";
 /**
  * What only two connections can show.
  *
- * Everything else about timestamps and about deleting a mix is asserted in
+ * Everything else about timestamps and about deleting a vibe is asserted in
  * `store.test.ts`, which runs against the embedded Postgres and needs one
  * connection. These do not have that option, and each of them is here because a
  * sequential version of it would pass against code that is wrong:
  *
  *   - a stamp must not move backwards, which is about two transactions whose
  *     lifetimes overlap;
- *   - deleting a mix must take its movie locks before its mix lock, which is
+ *   - deleting a vibe must take its movie locks before its vibe lock, which is
  *     only visible while something else holds one of them;
  *   - and the three ways the filing can change *while* a deletion is taking
  *     those locks, each of which has to end in the right answer rather than in a
@@ -108,8 +108,8 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
    * Holds one movie by its handle until it is let go, and says when it has it.
    *
    * This is what makes the tests below deterministic: a deletion locks the films
-   * in a mix in one known order, so holding the first of them stops it exactly
-   * between reading the filing and taking the mix — which is the window every
+   * in a vibe in one known order, so holding the first of them stops it exactly
+   * between reading the filing and taking the vibe — which is the window every
    * question here is about.
    */
   function holdMovie(
@@ -208,11 +208,11 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     );
   });
 
-  test("deleting a mix takes its movies before it takes the mix", async (t) => {
-    // The invariant every path in the store obeys — movie side before mix side —
-    // stated as something observable. If the deletion took the mix first it would
-    // hold the mix while waiting for a movie, which is the other half of the cycle
-    // an `updateMovie` filing a film into that same mix would complete.
+  test("deleting a vibe takes its movies before it takes the vibe", async (t) => {
+    // The invariant every path in the store obeys — movie side before vibe side —
+    // stated as something observable. If the deletion took the vibe first it would
+    // hold the vibe while waiting for a movie, which is the other half of the cycle
+    // an `updateMovie` filing a film into that same vibe would complete.
     const deleting = await connection();
     const holder = await connection();
     const watcher = await connection();
@@ -220,17 +220,17 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
 
     const store = sqlTasteStore(deleting, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
-    await store.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
-    await store.createMovie({ title: "Arrival", year: 2016, mixes: ["Space Tension"] });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+    await store.createMovie({ title: "Arrival", year: 2016, vibes: ["Space Tension"] });
 
     const hold = holdMovie(t, holder, owner, "arrival");
     await hold.ready;
 
-    const deletion = watch(store.deleteMix("Space Tension"));
+    const deletion = watch(store.deleteVibe("Space Tension"));
     await pause(SETTLE);
     assert.equal(deletion.state.settled, false, "it did not wait for the film; this proves nothing");
 
-    // The mix must still be free. NOWAIT rather than a timeout: the question is
+    // The vibe must still be free. NOWAIT rather than a timeout: the question is
     // whether the lock is held right now, and an error is the answer to it.
     await watcher.transaction(async (tx) => {
       await tx.query(
@@ -247,8 +247,8 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     assert.equal(deletion.state.error, undefined);
 
     const taste = await sqlTasteStore(watcher, owner).taste();
-    assert.deepEqual(taste.mixes, []);
-    assert.deepEqual(taste.movies[0]!.mixes, []);
+    assert.deepEqual(taste.vibes, []);
+    assert.deepEqual(taste.movies[0]!.vibes, []);
   });
 
   test(
@@ -285,13 +285,13 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const owner = await fresh(deleting, "bridge");
     const store = sqlTasteStore(deleting, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
-    await store.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
-    await store.createMovie({ title: "Arrival", year: 2016, mixes: ["Space Tension"] });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+    await store.createMovie({ title: "Arrival", year: 2016, vibes: ["Space Tension"] });
 
     const hold = holdMovie(t, holder, owner, "arrival");
     await hold.ready;
 
-    const deletion = watch(store.deleteMix("Space Tension"));
+    const deletion = watch(store.deleteVibe("Space Tension"));
     await pause(SETTLE);
     assert.equal(deletion.state.settled, false, "it did not wait for the film on the old schema");
 
@@ -321,13 +321,13 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     // The dangerous shape, and the one the retry exists for: the deletion reads
     // the filing, starts locking, and a film it never saw is added — one that
     // sorts *below* the film it is waiting on. Carrying on would mean taking that
-    // lower lock from inside the mix lock, which is the half of the cycle this
+    // lower lock from inside the vibe lock, which is the half of the cycle this
     // store never takes.
     //
     // What makes this a test of the retry rather than of the outcome is the probe
     // at the end. An implementation that noticed nothing would lock the film it
-    // knew about, take the mix, and only then have the cascade reach for the film
-    // it did not — with the mix held. Here the mix has to be free at that moment,
+    // knew about, take the vibe, and only then have the cascade reach for the film
+    // it did not — with the vibe held. Here the vibe has to be free at that moment,
     // because letting go of everything is what the retry is.
     const deleting = await connection();
     const holder = await connection();
@@ -338,11 +338,11 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
 
     const store = sqlTasteStore(deleting, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
-    await store.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
     // "arrival" sorts before "moon", so the film that arrives late is the one the
-    // canonical order says to lock first — the lock a mix-holding deletion would
+    // canonical order says to lock first — the lock a vibe-holding deletion would
     // have to reach backwards for.
-    await store.createMovie({ title: "Moon", year: 2009, mixes: ["Space Tension"] });
+    await store.createMovie({ title: "Moon", year: 2009, vibes: ["Space Tension"] });
     await store.createMovie({ title: "Arrival", year: 2016 });
 
     const before = await sqlTasteStore(filer, owner).taste();
@@ -351,16 +351,16 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const hold = holdMovie(t, holder, owner, "moon");
     await hold.ready;
 
-    const deletion = watch(store.deleteMix("Space Tension"));
+    const deletion = watch(store.deleteVibe("Space Tension"));
     await pause(SETTLE);
     assert.equal(deletion.state.settled, false, "the deletion did not reach the film it waits on");
 
     // Arrives after the deletion read the filing, and takes no lock the deletion
     // holds — so it commits while the deletion is still waiting.
-    await sqlTasteStore(filer, owner).updateMovie("Arrival", 2016, { mixes: ["Space Tension"] });
+    await sqlTasteStore(filer, owner).updateMovie("Arrival", 2016, { vibes: ["Space Tension"] });
 
     // And now somebody holds *that* film, so the deletion's second attempt has to
-    // wait for it in the open rather than from behind the mix lock.
+    // wait for it in the open rather than from behind the vibe lock.
     const late = holdMovie(t, latecomer, owner, "arrival");
     await late.ready;
 
@@ -370,7 +370,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     assert.equal(deletion.state.settled, false, "the deletion did not wait for the late film");
 
     // The proof. If the deletion had carried on with the set it first read, it
-    // would be holding the mix right now and waiting for Arrival underneath it.
+    // would be holding the vibe right now and waiting for Arrival underneath it.
     await watcher.transaction(async (tx) => {
       await tx.query(
         `SELECT id FROM tonight_mixes
@@ -388,8 +388,8 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     // Both films are out of it, and both were dated by the cascade — including the
     // one the first pass never saw.
     const afterwards = await sqlTasteStore(filer, owner).taste();
-    assert.deepEqual(afterwards.mixes, []);
-    for (const movie of afterwards.movies) assert.deepEqual(movie.mixes, []);
+    assert.deepEqual(afterwards.vibes, []);
+    for (const movie of afterwards.movies) assert.deepEqual(movie.vibes, []);
     const arrivalNow = afterwards.movies.find((one) => one.title === "Arrival")!.updatedAt;
     assert.ok(arrivalNow > arrivalWas, "the film that arrived late was not dated");
   });
@@ -400,14 +400,14 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     //
     // The implementation this is written against locks by handle and then checks
     // that the row it got is the film it meant. The one it replaced did not, and
-    // the difference is not visible in the final state — both end with the mix
+    // the difference is not visible in the final state — both end with the vibe
     // gone. It is visible in *where the deletion waits*: the faulty version locks
     // the replacement under the old handle, decides it has everything, takes the
-    // mix, and only then has the cascade reach for the film that actually moved.
-    // With the mix already held.
+    // vibe, and only then has the cascade reach for the film that actually moved.
+    // With the vibe already held.
     //
     // So the real film is held under its new handle before the deletion is let
-    // go, and the mix is probed while the deletion waits for it. Free means the
+    // go, and the vibe is probed while the deletion waits for it. Free means the
     // deletion let go and looked again. Held means it carried on with the wrong
     // set — which is the bug.
     const deleting = await connection();
@@ -419,9 +419,9 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
 
     const store = sqlTasteStore(deleting, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
-    await store.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
-    await store.createMovie({ title: "Aaa", year: 2000, mixes: ["Space Tension"] });
-    await store.createMovie({ title: "Arrival", year: 2016, mixes: ["Space Tension"] });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+    await store.createMovie({ title: "Aaa", year: 2000, vibes: ["Space Tension"] });
+    await store.createMovie({ title: "Arrival", year: 2016, vibes: ["Space Tension"] });
     await store.createMovie({ title: "Www", year: 2016 });
 
     const before = await sqlTasteStore(watcher, owner).taste();
@@ -432,19 +432,19 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const hold = holdMovie(t, holder, owner, "aaa");
     await hold.ready;
 
-    const deletion = watch(store.deleteMix("Space Tension"));
+    const deletion = watch(store.deleteVibe("Space Tension"));
     await pause(SETTLE);
     assert.equal(deletion.state.settled, false, "the deletion did not stop at the first film");
 
     // The film the deletion has already read moves out of its handle, and a
-    // different film — one that was never in the mix — moves into it.
+    // different film — one that was never in the vibe — moves into it.
     const other = sqlTasteStore(retitling, owner);
     await other.updateMovie("Arrival", 2016, { title: "Xxx" });
     await other.updateMovie("Www", 2016, { title: "Arrival" });
 
     // And the film that moved is held under its *new* handle. A deletion that
     // noticed the swap has to come back for it here; one that did not will be
-    // holding the mix by the time the cascade reaches for it.
+    // holding the vibe by the time the cascade reaches for it.
     const moved = holdMovie(t, newHandle, owner, "xxx");
     await moved.ready;
 
@@ -471,21 +471,21 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
 
     // Kept, but as description rather than as proof.
     const afterwards = await sqlTasteStore(watcher, owner).taste();
-    assert.deepEqual(afterwards.mixes, []);
-    const filed = Object.fromEntries(afterwards.movies.map((one) => [one.title, one.mixes]));
+    assert.deepEqual(afterwards.vibes, []);
+    const filed = Object.fromEntries(afterwards.movies.map((one) => [one.title, one.vibes]));
     assert.deepEqual(filed, { Aaa: [], Arrival: [], Xxx: [] });
 
-    // The film that moved was in the mix and was dated by the cascade; the one
+    // The film that moved was in the vibe and was dated by the cascade; the one
     // that took its old handle never was, and must not have been.
     const movedNow = afterwards.movies.find((one) => one.title === "Xxx")!.updatedAt;
     assert.ok(movedNow > movedWas, "the film that changed handle was not dated");
   });
 
-  test("a mix remade under the same name mid-deletion is not the one that gets deleted", async (t) => {
+  test("a vibe remade under the same name mid-deletion is not the one that gets deleted", async (t) => {
     // The identity race, run rather than described. The deletion resolves the
-    // name to an id without a lock; if that mix has gone and a new one has taken
-    // the name by the time the mix lock is taken, deleting *that* would remove a
-    // mix nobody asked about and date films that were never in it.
+    // name to an id without a lock; if that vibe has gone and a new one has taken
+    // the name by the time the vibe lock is taken, deleting *that* would remove a
+    // vibe nobody asked about and date films that were never in it.
     const deleting = await connection();
     const holder = await connection();
     const other = await connection();
@@ -493,13 +493,13 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
 
     const store = sqlTasteStore(deleting, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
-    await store.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "First." });
-    await store.createMovie({ title: "Arrival", year: 2016, mixes: ["Space Tension"] });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "First." });
+    await store.createMovie({ title: "Arrival", year: 2016, vibes: ["Space Tension"] });
 
     const hold = holdMovie(t, holder, owner, "arrival");
     await hold.ready;
 
-    const deletion = watch(store.deleteMix("Space Tension"));
+    const deletion = watch(store.deleteVibe("Space Tension"));
     await pause(SETTLE);
     assert.equal(deletion.state.settled, false, "the deletion did not wait for the film");
 
@@ -508,28 +508,28 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     // a second deletion would need the very film lock this one is waiting for, so
     // the two would simply queue and nothing would be interleaved. Renaming takes
     // no film lock at all, and it produces exactly the state that matters — a
-    // different mix answering to the name the deletion resolved.
+    // different vibe answering to the name the deletion resolved.
     const meanwhile = sqlTasteStore(other, owner);
-    await meanwhile.updateMix("Space Tension", { name: "Quiet Dread" });
-    await meanwhile.createMix({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Second." });
+    await meanwhile.updateVibe("Space Tension", { name: "Quiet Dread" });
+    await meanwhile.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Second." });
 
     hold.release();
     await hold.done;
     await deletion.done;
 
-    assert.ok(deletion.state.error instanceof TasteError, "a mix nobody asked about was deleted");
-    assert.match((deletion.state.error as TasteError).message, /no mix "Space Tension"/);
+    assert.ok(deletion.state.error instanceof TasteError, "a vibe nobody asked about was deleted");
+    assert.match((deletion.state.error as TasteError).message, /no vibe "Space Tension"/);
 
-    // Nothing was deleted: the mix they meant is still there under its new name,
+    // Nothing was deleted: the vibe they meant is still there under its new name,
     // and the newcomer holding the old name is untouched.
     const after = await sqlTasteStore(other, owner).taste();
     assert.deepEqual(
-      after.mixes.map((one) => [one.name, one.instruction]),
+      after.vibes.map((one) => [one.name, one.instruction]),
       [
         ["Quiet Dread", "First."],
         ["Space Tension", "Second."],
       ],
     );
-    assert.deepEqual(after.movies[0]!.mixes, ["Quiet Dread"]);
+    assert.deepEqual(after.movies[0]!.vibes, ["Quiet Dread"]);
   });
 });

@@ -3,7 +3,7 @@ import type { SchemaModule } from "./migrate.ts";
 /**
  * Tables Tonight used to keep, and the migrations that remove them.
  *
- * Tonight persists product memory as five things: Movies, Genres, Mixes,
+ * Tonight persists product memory as five things: Movies, Genres, Vibes,
  * Episodes and Verdicts. What it thinks while it is talking to somebody —
  * a question it means to ask, a pattern it noticed, a change it wants to
  * offer — is conversation, and conversation does not need a row. Three tables

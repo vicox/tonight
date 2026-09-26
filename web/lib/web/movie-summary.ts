@@ -7,10 +7,10 @@ import type { Positioned } from "./judgements.ts";
  * The film collection at a glance: how many there are, what is known about them,
  * and the films behind each answer.
  *
- * The overview page shows films where they are filed — inside the mix they
+ * The overview page shows films where they are filed — inside the vibe they
  * belong to, or under "Other movies" when they are in none. That answers "what
- * is in this mix" and cannot answer "how many have I loved", because the loved
- * ones are spread across every mix on the page. These selections are that second
+ * is in this vibe" and cannot answer "how many have I loved", because the loved
+ * ones are spread across every vibe on the page. These selections are that second
  * question, and they are the only reason this module exists.
  *
  * ## One function behind every number and every list
@@ -209,23 +209,23 @@ export function spoken(selection: Selection, count: number): string | undefined 
 }
 
 /**
- * What the page calls the films that are in no mix.
+ * What the page calls the films that are in no vibe.
  *
- * The same words as the section on the overview, deliberately: a film in no mix
+ * The same words as the section on the overview, deliberately: a film in no vibe
  * already has a place and a name there, and a second word for it here — unsorted,
  * inbox, archive — would be a second idea about the same films.
  */
 export const OTHER_MOVIES = "Other movies";
 
 /**
- * Where a film is filed, for a row that is being read outside its mix.
+ * Where a film is filed, for a row that is being read outside its vibe.
  *
- * All of the mixes rather than the first and a count: the answer to "why is this
+ * All of the vibes rather than the first and a count: the answer to "why is this
  * film here" is the names, and "Space Tension +2" is the one form of it that
  * cannot be read.
  */
 export function filedUnder(movie: Movie): string[] {
-  return movie.mixes.length ? movie.mixes : [OTHER_MOVIES];
+  return movie.vibes.length ? movie.vibes : [OTHER_MOVIES];
 }
 
 /** Seven days, which is what "recently" means here and nowhere else. */
@@ -236,7 +236,7 @@ const RECENTLY = 7 * 24 * 60 * 60 * 1000;
  *
  * The summary says what the collection *is*; this says what just happened to
  * it. A film somebody added yesterday is the one they are most likely to have
- * come back to mark, and finding it otherwise means remembering which mix they
+ * come back to mark, and finding it otherwise means remembering which vibe they
  * put it in.
  *
  * All of them, however many there are. The week is the limit: a cap on top of it

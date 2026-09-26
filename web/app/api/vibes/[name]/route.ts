@@ -1,7 +1,7 @@
 import { authorized, given } from "../../../../lib/web/api.ts";
 
 /**
- * Changing or removing one mix, addressed by its current name in the path.
+ * Changing or removing one vibe, addressed by its current name in the path.
  *
  * Passing `genres` replaces the stored list rather than adding to it, which is the
  * store's rule and not this route's — see lib/taste/store.ts.
@@ -13,7 +13,7 @@ type Context = { params: Promise<{ name: string }> };
 export async function PATCH(request: Request, { params }: Context): Promise<Response> {
   const { name } = await params;
   return authorized(request, async ({ store, body }) => {
-    await store.updateMix(name, {
+    await store.updateVibe(name, {
       name: given(body, "new_name"),
       instruction: given(body, "instruction"),
       genres: given(body, "genres"),
@@ -25,7 +25,7 @@ export async function PATCH(request: Request, { params }: Context): Promise<Resp
 export async function DELETE(request: Request, { params }: Context): Promise<Response> {
   const { name } = await params;
   return authorized(request, async ({ store }) => {
-    await store.deleteMix(name);
+    await store.deleteVibe(name);
     return { taste: await store.taste() };
   });
 }

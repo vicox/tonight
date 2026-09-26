@@ -15,14 +15,14 @@
   --color-ink-faint: #6e6961;
   --color-rule: #262630;
 
-  /* The one accent: projector amber. It marks what the user made — their mixes,
-     and the arrow that says a mix came from genres. Genres themselves are
+  /* The one accent: projector amber. It marks what the user made — their vibes,
+     and the arrow that says a vibe came from genres. Genres themselves are
      deliberately unlit: they are ingredients, and if everything glows nothing
      does. */
   --color-beam: #e3a54a;
   --color-beam-dim: #6b4f24;
 
-  /* The one warning. Deleting a genre or a mix is the only thing on the website
+  /* The one warning. Deleting a genre or a vibe is the only thing on the website
      that takes something away for good, and the confirmation for it must not
      look like the amber that marks what the user made. Brick rather than a
      signal red: it belongs in this room, and it appears nowhere else. */

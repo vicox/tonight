@@ -188,15 +188,15 @@ const genreName = z
       "Matched case-insensitively.",
   );
 
-const mixName = z
+const vibeName = z
   .string()
   .describe(
-    'A mix\'s name — "Space Tension", "Puzzle Pressure", "Small Town Secrets". Evocative, not ' +
-      "descriptive: a genre is named for what it is and a mix for what it feels like, so if " +
+    'A vibe\'s name — "Space Tension", "Puzzle Pressure", "Small Town Secrets". Evocative, not ' +
+      "descriptive: a genre is named for what it is and a vibe for what it feels like, so if " +
       "knowing the genres already tells you the name, the name is doing no work. " +
-      '"Smart, not heavy" and "Funny action" are genre lists, not mix names. The only ' +
-      "identifier Tonight takes, matched case-insensitively. Genres and mixes have separate " +
-      "names: a genre called X and a mix called X are different objects.",
+      '"Smart, not heavy" and "Funny action" are genre lists, not vibe names. The only ' +
+      "identifier Tonight takes, matched case-insensitively. Genres and vibes have separate " +
+      "names: a genre called X and a vibe called X are different objects.",
   );
 
 const genreInstruction = z
@@ -208,20 +208,20 @@ const genreInstruction = z
       "the user's first person — it is their sentence about themselves, not a note about them.",
   );
 
-const mixInstruction = z
+const vibeInstruction = z
   .string()
   .describe(
-    "What the combination means to the user. A mix is not the intersection of its genres — the " +
+    "What the combination means to the user. A vibe is not the intersection of its genres — the " +
       "genres are the ingredients and this is the meaning. Say something the genres do not " +
       "already say on their own. Write it in the user's first person — it is their sentence " +
       "about themselves, not a note about them.",
   );
 
-const mixGenres = z
+const vibeGenres = z
   .array(z.string())
   .describe(
-    "The exact names of the user's genres this mix is built from, at least one. Genres only — " +
-      "a mix cannot be built from another mix. Passing this replaces the stored list.",
+    "The exact names of the user's genres this vibe is built from, at least one. Genres only — " +
+      "a vibe cannot be built from another vibe. Passing this replaces the stored list.",
   );
 
 const movieTitle = z
@@ -285,12 +285,12 @@ const movieViewing = z
       "thing they never asked you to remove. If they asked for both, do both.",
   );
 
-const movieMixes = z
+const movieVibes = z
   .array(z.string())
   .describe(
-    "The exact names of the user's mixes this film belongs to. They must already exist, and a " +
+    "The exact names of the user's vibes this film belongs to. They must already exist, and a " +
       "film may be in none, one or several. Passing this replaces the whole list; an empty list " +
-      "takes the film out of every mix.",
+      "takes the film out of every vibe.",
   );
 
 /**
@@ -335,18 +335,18 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Read the taste model",
       description:
-        "The user's whole movie taste model: their genres, the mixes built from them, and the " +
+        "The user's whole movie taste model: their genres, the vibes built from them, and the " +
         "films they have told Tonight about. A genre is a reusable piece of what they like, " +
-        "with an instruction saying what it means to them. A mix combines one or more genres " +
+        "with an instruction saying what it means to them. A vibe combines one or more genres " +
         "and has an instruction of its own for what the combination means; the films in it are " +
         "listed by title and year. Each film also appears once in movies, carrying its identity, " +
         "where it is filed, and `viewing`: seen, unseen, or null for never told. A new user has " +
         "none of it, which is the normal state " +
         "rather than an error. It is context and the vocabulary to reuse when writing — not a " +
-        "list of what may be recommended, and a genre or mix existing does not by itself say " +
+        "list of what may be recommended, and a genre or vibe existing does not by itself say " +
         "they like it. Every genre, " +
-        "mix and movie also carries createdAt and updatedAt: when Tonight wrote it, and when " +
-        "it last changed — which includes a mix's genres changing and a movie being filed " +
+        "vibe and movie also carries createdAt and updatedAt: when Tonight wrote it, and when " +
+        "it last changed — which includes a vibe's genres changing and a movie being filed " +
         "differently. Both are Tonight's own, ISO 8601 in UTC. No tool takes either, and " +
         "nothing you send can set or move them. createdAt is null on a film saved before " +
         "Tonight recorded creation times; that is not known rather than not set.\n\n" +
@@ -445,13 +445,13 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Update a genre",
       description:
-        "Change a genre's name or what it means. Pass new_name to rename it — every mix built " +
-        "from it follows the new name in the same write, so renaming never breaks a mix. " +
+        "Change a genre's name or what it means. Pass new_name to rename it — every vibe built " +
+        "from it follows the new name in the same write, so renaming never breaks a vibe. " +
         "Refining an instruction is how a taste model gets better over time; propose the new " +
         "wording and let the user agree to it rather than editing on their behalf.",
       inputSchema: z.object({
         name: genreName.describe("The genre to change, by its current name."),
-        new_name: genreName.describe("Rename the genre to this. Its mixes follow it.").optional(),
+        new_name: genreName.describe("Rename the genre to this. Its vibes follow it.").optional(),
         instruction: genreInstruction.optional(),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -465,8 +465,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Delete a genre",
       description:
-        "Remove a genre. Refused while any mix is built from it — change that mix's genres, or " +
-        "delete the mix first. The refusal names the mixes in the way; tell the user which " +
+        "Remove a genre. Refused while any vibe is built from it — change that vibe's genres, or " +
+        "delete the vibe first. The refusal names the vibes in the way; tell the user which " +
         "choice they are making rather than picking for them.",
       inputSchema: z.object({ name: genreName }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
@@ -475,58 +475,58 @@ export function tonightMcpServer(session: McpSession): McpServer {
   );
 
   server.registerTool(
-    "create_mix",
+    "create_vibe",
     {
-      title: "Create a mix",
+      title: "Create a vibe",
       description:
-        "Combine one or more of the user's genres into a mix of their own. Every named genre " +
-        "must already exist; a mix cannot be built from another mix. Name it the way a shelf in " +
+        "Combine one or more of the user's genres into a vibe of their own. Every named genre " +
+        "must already exist; a vibe cannot be built from another vibe. Name it the way a shelf in " +
         "a good video shop is named, not the way a filter is: 'Space Tension' beats " +
         "'Sci-Fi Thriller', and the test is whether they would ask for it by name in a month. " +
-        "A mix is the shape of a recommendation idea, so the moment to write one is just after " +
+        "A vibe is the shape of a recommendation idea, so the moment to write one is just after " +
         "using that idea to choose films — but only when the user stated the idea as lasting " +
         "taste, or confirmed a meaning you put to them. Wanting something tonight is not that, " +
         "and having invented a combination, used it and found films that fit is not what makes " +
         "it theirs. A confirmation covers only the meaning they were shown, and settles that " +
         "it is theirs rather than granting permission to write.",
-      inputSchema: z.object({ name: mixName, genres: mixGenres, instruction: mixInstruction }),
+      inputSchema: z.object({ name: vibeName, genres: vibeGenres, instruction: vibeInstruction }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
-    async (args) => attempt(async () => ({ mix: await store.createMix(args) })),
+    async (args) => attempt(async () => ({ vibe: await store.createVibe(args) })),
   );
 
   server.registerTool(
-    "update_mix",
+    "update_vibe",
     {
-      title: "Update a mix",
+      title: "Update a vibe",
       description:
-        "Change a mix's name, its meaning, or which genres it is built from. Passing genres " +
+        "Change a vibe's name, its meaning, or which genres it is built from. Passing genres " +
         "replaces the stored list rather than adding to it, and the list may never be empty. " +
         "Never reword their instruction: the sentence is theirs, and what it means is not " +
         "yours to adjust.",
       inputSchema: z.object({
-        name: mixName.describe("The mix to change, by its current name."),
-        new_name: mixName.describe("Rename the mix to this.").optional(),
-        genres: mixGenres.optional(),
-        instruction: mixInstruction.optional(),
+        name: vibeName.describe("The vibe to change, by its current name."),
+        new_name: vibeName.describe("Rename the vibe to this.").optional(),
+        genres: vibeGenres.optional(),
+        instruction: vibeInstruction.optional(),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
     async ({ name, new_name: renamed, genres, instruction }) =>
-      attempt(async () => ({ mix: await store.updateMix(name, { name: renamed, genres, instruction }) })),
+      attempt(async () => ({ vibe: await store.updateVibe(name, { name: renamed, genres, instruction }) })),
   );
 
   server.registerTool(
-    "delete_mix",
+    "delete_vibe",
     {
-      title: "Delete a mix",
+      title: "Delete a vibe",
       description:
-        "Remove a mix. Always allowed — nothing is built from a mix — and the genres it " +
+        "Remove a vibe. Always allowed — nothing is built from a vibe — and the genres it " +
         "combined are left alone.",
-      inputSchema: z.object({ name: mixName }),
+      inputSchema: z.object({ name: vibeName }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
-    async ({ name }) => attempt(async () => ({ deleted: await store.deleteMix(name) })),
+    async ({ name }) => attempt(async () => ({ deleted: await store.deleteVibe(name) })),
   );
 
   server.registerTool(
@@ -550,13 +550,13 @@ export function tonightMcpServer(session: McpSession): McpServer {
         year: movieYear,
         imdb_id: imdbId.optional(),
         viewing: movieViewing.optional(),
-        mixes: movieMixes.optional(),
+        vibes: movieVibes.optional(),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
-    async ({ title, year, imdb_id: imdbId, viewing, mixes }) =>
+    async ({ title, year, imdb_id: imdbId, viewing, vibes }) =>
       attempt(async () => ({
-        movie: await store.createMovie({ title, year, imdbId, viewing, mixes }),
+        movie: await store.createMovie({ title, year, imdbId, viewing, vibes }),
       })),
   );
 
@@ -565,7 +565,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Update a movie",
       description:
-        "Change what is stored about a saved film, or which mixes it is in. Addressed " +
+        "Change what is stored about a saved film, or which vibes it is in. Addressed " +
         "by its current title and year; new_title and new_year change either half and the film " +
         "stays the same object, so its filings follow it. Omitting a field leaves it alone — " +
         "passing null is what clears one back to unknown, and the two are not the same. " +
@@ -584,7 +584,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         new_year: movieYear.describe("Change the release year to this.").optional(),
         imdb_id: imdbId.optional(),
         viewing: movieViewing.optional(),
-        mixes: movieMixes.optional(),
+        vibes: movieVibes.optional(),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
@@ -595,7 +595,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
       new_year: reyeared,
       imdb_id: imdbId,
       viewing,
-      mixes,
+      vibes,
     }) =>
       attempt(async () => ({
         movie: await store.updateMovie(title, year, {
@@ -603,7 +603,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
           year: reyeared,
           imdbId,
           viewing,
-          mixes,
+          vibes,
         }),
       })),
   );
@@ -614,7 +614,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
       title: "Delete a movie",
       description:
         "Forget a film the user saved, where removing it is itself what they asked for. It " +
-        "leaves every mix it was in and the mixes themselves are left alone. Addressed by " +
+        "leaves every vibe it was in and the vibes themselves are left alone. Addressed by " +
         "title and year together.\n\n" +
         "**Not a way to tidy up after something else.** Forgetting or withdrawing a verdict " +
         "leaves the saved film standing on purpose: the film is in their collection and whether " +
@@ -631,7 +631,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
   // --- episodes ------------------------------------------------------------
   //
   // What happened on an evening, which is not what the user likes. These tools
-  // write history and never taste: nothing below reads a genre, a mix or a movie
+  // write history and never taste: nothing below reads a genre, a vibe or a movie
   // state, and nothing below writes one. A film recorded as offered is a film
   // Tonight mentioned once, not a film the user has told Tonight about.
 
@@ -873,7 +873,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "you may act on as though it were one, and a taking-back is not the same as never having " +
         "spoken — `history` below still holds it." +
         "\n\nThis reads what they said and nothing else: verdicts and takings-back, for one film. " +
-        "It cannot see a saved film, a genre, a mix or an evening, so it cannot tell you " +
+        "It cannot see a saved film, a genre, a vibe or an evening, so it cannot tell you " +
         "whether the film is even in their collection or whether they have said they watched it. " +
         "**Never conclude from this read what their whole position on a film is.** A question " +
         "about everything Tonight holds is `get_memory`'s.",
@@ -925,7 +925,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
       description:
         "The whole of what Tonight holds about this user, in two parts, so that \"what do " +
         "you know about me?\" has a complete and honest answer.\n\n" +
-        "`held` is what it currently holds as theirs: their genres, their mixes, the films they " +
+        "`held` is what it currently holds as theirs: their genres, their vibes, the films they " +
         "saved with whether they have watched them, and the verdicts that still stand. " +
         "`remembered` is what it remembers happening: evenings, " +
         "verdicts they replaced, verdicts they took back. **Remembered is not evidence about " +
@@ -937,7 +937,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "of a film is whatever verdict stands, and if none stands, no current opinion stands — " +
         "which `remembered` may still show them having given and taken back.\n\n" +
         "Every entry carries where it came from and, where one exists, the handle you correct " +
-        "it by: a genre or mix by its name, a film by title and year, an evening by its id, and " +
+        "it by: a genre or vibe by its name, a film by title and year, an evening by its id, and " +
         "one thing they said by its `ref`. A verdict's `ref` is what `forget_verdict` takes. An " +
         "evening also says where its own record came from: `requestSource` and `offeredSource` " +
         "are `observed` where Tonight received the request or put the films forward itself, and " +
@@ -1011,7 +1011,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "whether the reference named anything, and neither says your whole errand is done — if " +
         "they asked for something else as well, that is still yours to do.\n\n" +
         "**This call is the whole of the request.** Do not go on to update or delete the saved " +
-        "film, and do not touch any genre, mix, evening or anything else, unless they separately " +
+        "film, and do not touch any genre, vibe, evening or anything else, unless they separately " +
         "ask you to change that. A saved film is a different thing from something they said " +
         "about it: the film is in their collection and whether they watched it is a separate " +
         "thing they said, and neither stops being true because an opinion was taken back. " +
@@ -1052,7 +1052,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
  * What `get_memory` answers for: all of it.
  *
  * A constant, and that is the whole design. This read reaches every root Tonight
- * persists — films, genres, mixes, evenings, verdicts — so a reader may say
+ * persists — films, genres, vibes, evenings, verdicts — so a reader may say
  * *"that is everything"* on the strength of it, which is the one claim
  * `VERDICT_COVERAGE` below exists to deny its own reader.
  *
@@ -1072,7 +1072,7 @@ const COVERAGE = {
  * The same device as `COVERAGE` above, for the same reason and against a
  * different mistake. This read is complete about one thing — everything said
  * about one film, and which of it stands — and a reader who has only ever called
- * it has seen no saved film, no genre, no mix and no evening. The description
+ * it has seen no saved film, no genre, no vibe and no evening. The description
  * says so, but a description is read before the call and the answer is read
  * after it, so the limit travels with the answer too.
  *

@@ -51,7 +51,7 @@ function film(
   title: string,
   viewing: Viewing | null,
   judgement: Judgement | null = null,
-  mixes: string[] = [],
+  vibes: string[] = [],
 ): Shown {
   const position: Position | undefined = judgement === null ? undefined : { judgement };
   return {
@@ -59,7 +59,7 @@ function film(
     year: 2000,
     imdbId: null,
     viewing,
-    mixes,
+    vibes,
     createdAt: null,
     updatedAt: "2024-01-01T00:00:00.000000Z",
     position,
@@ -363,7 +363,7 @@ test("only the one ambiguous word is given a second sentence to a listener", () 
   );
 });
 
-test("a film in no mix is filed under the words the page already uses", () => {
+test("a film in no vibe is filed under the words the page already uses", () => {
   assert.deepEqual(filedUnder(film("Nosferatu", null)), [OTHER_MOVIES]);
   assert.deepEqual(filedUnder(film("Stalker", "seen", "loved", ["Quiet Dread", "Slow Cinema"])), [
     "Quiet Dread",
@@ -392,7 +392,7 @@ const saved = (
   year: 2000,
   imdbId: null,
   viewing,
-  mixes: [],
+  vibes: [],
   createdAt,
   // Deliberately today for every one of them: a list built on this would put
   // them all in, in an order of its own.
@@ -473,7 +473,7 @@ test("what was said about a film decides neither whether it is recent nor where"
   // The states run against the dates on purpose: the newest film is disliked and
   // the oldest is loved, with nothing-said, not-seen and liked in between. Any
   // comparator that looked at the state first — loved before liked before the
-  // rest, as the mix preview quite reasonably does — would answer in very nearly
+  // rest, as the vibe preview quite reasonably does — would answer in very nearly
   // the opposite order. And the input is scrambled, so input order cannot pass
   // for date order either.
   const movies = [

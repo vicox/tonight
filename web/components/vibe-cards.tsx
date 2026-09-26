@@ -9,26 +9,26 @@ import { Manage } from "./manage";
 import { Films } from "./movie-row";
 import { sectionFallback } from "./section";
 import { WayOut } from "./way-out";
-import type { Mix, Written } from "@/lib/taste/model";
-import { filmsIn, inNoMix, inOrder, preview, spokenMix } from "@/lib/web/mixes";
+import type { Vibe, Written } from "@/lib/taste/model";
+import { filmsIn, inNoVibe, inOrder, preview, spokenVibe } from "@/lib/web/vibes";
 import { LOVED, selected, type Shown } from "@/lib/web/movie-summary";
 import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
 
 /**
- * The user's mixes: a name each, and everything else one press in.
+ * The user's vibes: a name each, and everything else one press in.
  *
- * A card used to be the whole mix — its genres as chips, an arrow, its name, its
- * instruction behind a disclosure and its films underneath. Two mixes filled a
- * screen, which made the one thing this section is for, *seeing which mixes you
- * have*, the thing it was worst at. So a card is now the answer to "which mix is
+ * A card used to be the whole vibe — its genres as chips, an arrow, its name, its
+ * instruction behind a disclosure and its films underneath. Two vibes filled a
+ * screen, which made the one thing this section is for, *seeing which vibes you
+ * have*, the thing it was worst at. So a card is now the answer to "which vibe is
  * this and is it the one I want tonight", and the rest is a dialog.
  *
  * ## What survives on the card, and why
  *
- * The name, because a mix *is* its name. The genres it is built from, because
- * that is what a mix *is* — a composition, and a card that showed none of it
+ * The name, because a vibe *is* its name. The genres it is built from, because
+ * that is what a vibe *is* — a composition, and a card that showed none of it
  * asked to be opened before it could be recognised. A heart with a number when
- * any of its films are loved, because that is the reason to open this mix
+ * any of its films are loved, because that is the reason to open this vibe
  * tonight rather than another one. And three of the titles, because that is
  * what somebody recognises their own shelf by.
  *
@@ -37,45 +37,45 @@ import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
  * length, not as a second arrangement of it.
  *
  * How many films are in it is not among them. It is a measurement rather than a
- * recognition — it does not help anybody pick a mix, and set beside the loved
+ * recognition — it does not help anybody pick a vibe, and set beside the loved
  * count it read as the second half of a score. A listener is still given it,
- * because "four films, three loved" is how somebody would say a mix out loud,
+ * because "four films, three loved" is how somebody would say a vibe out loud,
  * and the dialog still counts what it opens.
  *
  * The heart is one heart and a number, never one heart per film: three hearts in
- * a row is a rating, and this is a count. It says that three films in this mix
+ * a row is a rating, and this is a count. It says that three films in this vibe
  * are loved, and it is absent when none are, because there is nothing to say.
  *
  * ## What is on the card comes from the films, every render
  *
- * None of it is stored on a mix and none of it is kept here: the films the mix's
+ * None of it is stored on a vibe and none of it is kept here: the films the vibe's
  * handles resolve to are read again on every render, and the heart is how many
  * of those are loved. So a mark pressed inside the dialog moves the heart on the
- * card by the next render. See `lib/web/mixes.ts`.
+ * card by the next render. See `lib/web/vibes.ts`.
  *
  * The order the cards come in is the same kind of answer: read off the films
- * every render, the liveliest mix first, and never written down. A mark pressed
+ * every render, the liveliest vibe first, and never written down. A mark pressed
  * in a dialog can therefore move a card up the list by the next render, which is
- * the point — the list is for finding tonight's mix, not for remembering which
+ * the point — the list is for finding tonight's vibe, not for remembering which
  * was made first.
  */
 /**
- * What the section's one non-mix way in stands for.
+ * What the section's one non-vibe way in stands for.
  *
- * A marker rather than a mix, so that one piece of state says which of the two
+ * A marker rather than a vibe, so that one piece of state says which of the two
  * dialogs is open without either of them being pretended into the other's shape.
  */
 const OTHER = "other" as const;
 
-export function MixCards({
-  mixes,
+export function VibeCards({
+  vibes,
   movies,
 }: {
-  mixes: readonly Written<Mix>[];
+  vibes: readonly Written<Vibe>[];
   movies: readonly Shown[];
 }) {
-  /** A mix, or the films that are in none of them. */
-  const [open, setOpen] = useState<Mix | typeof OTHER | null>(null);
+  /** A vibe, or the films that are in none of them. */
+  const [open, setOpen] = useState<Vibe | typeof OTHER | null>(null);
   /** The stack of cards, which is where focus goes if the one pressed has gone. */
   const stack = useRef<HTMLDivElement>(null);
   /**
@@ -91,7 +91,7 @@ export function MixCards({
    * What focus was last handed back to, until it is known to have survived.
    *
    * The remainder's own control is the case: filing the last film that is in no
-   * mix takes the line off the page, and that can land either side of the dialog
+   * vibe takes the line off the page, and that can land either side of the dialog
    * closing. Handing focus back and forgetting immediately left a reader on
    * `<body>` when the render arrived second — see the effect below, and
    * `lib/web/refocus.ts` for both halves of the race as rules.
@@ -101,13 +101,13 @@ export function MixCards({
    * The remainder's own control, when there is one.
    *
    * Held rather than looked for, because it is outside the stack: it belongs to
-   * the films that are in no mix, not to a mix. Deleting the last mix is what
+   * the films that are in no vibe, not to a vibe. Deleting the last vibe is what
    * makes it matter — the stack empties, and the line under it is the nearest
    * thing left of the same kind.
    */
   const remainder = useRef<HTMLButtonElement>(null);
   /**
-   * Whether the mix whose dialog is closing was deleted rather than dismissed.
+   * Whether the vibe whose dialog is closing was deleted rather than dismissed.
    *
    * The page is a render behind at that moment: the deletion has landed in the
    * store and the card is still on screen, so "is the invoker still in the
@@ -122,9 +122,9 @@ export function MixCards({
    * own restoration has no dialog left to restore from and leaves focus on the
    * document. This component is still mounted afterwards, which is what makes it
    * the place that can put focus back on the card that was pressed — and what
-   * was pressed can be gone by then: renaming a mix re-keys its row, and filing
-   * the last film that is in no mix takes the remainder's line away, and
-   * deleting a mix takes its card. So the fallback is a list rather than one
+   * was pressed can be gone by then: renaming a vibe re-keys its row, and filing
+   * the last film that is in no vibe takes the remainder's line away, and
+   * deleting a vibe takes its card. So the fallback is a list rather than one
    * control — another card, then the remainder's line, then the section's own
    * heading, which is there whether this section holds anything or not — and it
    * is checked twice: once when the dialog closes, and again if what took focus
@@ -165,45 +165,45 @@ export function MixCards({
   });
 
   /**
-   * The films that are in no mix, in the order the store holds them.
+   * The films that are in no vibe, in the order the store holds them.
    *
    * One quiet line, and the same dialog every other way in opens. Which films
-   * those are, and in which order, is `lib/web/mixes.ts` — a component should
+   * those are, and in which order, is `lib/web/vibes.ts` — a component should
    * not carry a rule that a test cannot reach.
    */
-  const other = inNoMix(movies);
+  const other = inNoVibe(movies);
 
   return (
     <>
       <div ref={stack} className="flex flex-col gap-3">
         {/*
-          The liveliest first, which is a question about the films in each mix and
+          The liveliest first, which is a question about the films in each vibe and
           therefore not something a card can answer for itself. The rule is
-          `lib/web/mixes.ts`; nothing about the order is written down.
+          `lib/web/vibes.ts`; nothing about the order is written down.
         */}
-        {inOrder(mixes, movies).map((mix) => {
-          const films = filmsIn(mix, movies);
+        {inOrder(vibes, movies).map((vibe) => {
+          const films = filmsIn(vibe, movies);
           const loved = selected(LOVED, films).length;
           const glance = preview(films);
 
           return (
             <button
-              key={mix.name}
+              key={vibe.name}
               type="button"
               aria-haspopup="dialog"
               // The name and both numbers, said the way somebody would say
               // them. A listener is given the count the card leaves out: it is
               // one phrase spoken, where on the card it was a second number
               // beside the loved one.
-              aria-label={spokenMix(mix.name, films.length, loved)}
+              aria-label={spokenVibe(vibe.name, films.length, loved)}
               // The card pressed, from the press itself. See `invoker`.
               onClick={(event) => {
                 invoker.current = event.currentTarget;
-                setOpen(mix);
+                setOpen(vibe);
               }}
               className={[
                 "flex w-full flex-wrap items-baseline justify-between gap-x-4 gap-y-1",
-                // The accent edge a mix has always had: it is the thing on this
+                // The accent edge a vibe has always had: it is the thing on this
                 // page the user built themselves.
                 "cursor-pointer rounded-xl border border-beam-dim bg-screen px-5 py-4 text-left",
                 "transition-colors hover:border-beam focus-visible:outline-2",
@@ -223,7 +223,7 @@ export function MixCards({
                 aria-hidden="true"
                 className="min-w-0 font-display text-[22px] leading-tight break-words text-ink"
               >
-                {mix.name}
+                {vibe.name}
               </span>
 
               {loved > 0 && (
@@ -241,37 +241,37 @@ export function MixCards({
               )}
 
               {/*
-                What the mix is built from, in the same chips the dialog sets
-                them in — a mix is a composition, and this is the part of it
+                What the vibe is built from, in the same chips the dialog sets
+                them in — a vibe is a composition, and this is the part of it
                 that says of what. Written after the heart for the same reason
                 the preview is: `w-full` takes a line wherever it sits, and put
                 before the heart it pushed the heart down to a line of its own.
 
                 Not a control. On the overview a genre's own label opens its
-                meaning; here a genre is what this mix is made of, and a button
+                meaning; here a genre is what this vibe is made of, and a button
                 inside a button is not a thing a browser will render.
               */}
               <span
                 aria-hidden="true"
                 className="mt-1.5 flex w-full flex-wrap items-center gap-1.5"
               >
-                {mix.genres.map((genre) => (
+                {vibe.genres.map((genre) => (
                   <Chip key={genre}>{genre}</Chip>
                 ))}
               </span>
 
               {/*
-                Three of the films, to be glanced at. The name says which mix
+                Three of the films, to be glanced at. The name says which vibe
                 this is; the titles are what somebody recognises their own shelf
                 by, and reading them here is usually the press they would
                 otherwise have to make.
 
-                Last of all, under the chips: the name says which mix this is,
+                Last of all, under the chips: the name says which vibe this is,
                 the chips say what it is made of, and these say what is actually
                 in it. Written after the heart for the reason above, and it
                 breaks rather than pushing the card sideways.
 
-                Which three, and in which order, is `lib/web/mixes.ts` — a card
+                Which three, and in which order, is `lib/web/vibes.ts` — a card
                 should not carry a rule.
               */}
               {glance !== null && (
@@ -289,7 +289,7 @@ export function MixCards({
       </div>
 
       {/*
-        The remainder, under the cards and attached to them: quieter than a mix's
+        The remainder, under the cards and attached to them: quieter than a vibe's
         name, in the same type as the summary's own ways in, and absent when every
         film is filed somewhere.
       */}
@@ -320,10 +320,10 @@ export function MixCards({
       ) : (
         open && (
           <Detail
-            mix={open}
+            vibe={open}
             films={filmsIn(open, movies)}
             onClose={() => setOpen(null)}
-            // Closed because the mix is gone, which is not the same as closed.
+            // Closed because the vibe is gone, which is not the same as closed.
             // See `removed`.
             onRemoved={() => {
               removed.current = true;
@@ -337,30 +337,30 @@ export function MixCards({
 }
 
 /**
- * One mix, in full: what it is called, what it means, what it is made of, and
+ * One vibe, in full: what it is called, what it means, what it is made of, and
  * what is in it.
  *
  * A name for an idea, the genres it combines, the idea in the user's own words,
- * and then the films they have kept under it — narrowing from what the mix is
+ * and then the films they have kept under it — narrowing from what the vibe is
  * made of to what is actually in it, and the same order the card is read in, so
  * that opening one is a card getting longer rather than a second arrangement of
  * the same four things. The films are the only part that can be changed from
  * here, through the same rows and the same marks as everywhere else.
  *
  * The genres are chips and nothing more. On the overview a genre's own label
- * opens its meaning; here a genre is context for the mix, and a control inside
+ * opens its meaning; here a genre is context for the vibe, and a control inside
  * a dialog that opened another dialog would be a maze.
  */
 function Detail({
-  mix,
+  vibe,
   films,
   onClose,
   onRemoved,
 }: {
-  mix: Mix;
+  vibe: Vibe;
   films: readonly Shown[];
   onClose: () => void;
-  /** Closed because the mix was deleted, which the stack answers differently. */
+  /** Closed because the vibe was deleted, which the stack answers differently. */
   onRemoved: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -376,7 +376,7 @@ function Detail({
   return (
     <dialog
       ref={dialog}
-      aria-label={mix.name}
+      aria-label={vibe.name}
       // Escape is the browser's: it fires `cancel`, and taking the default would
       // let the element close itself while React still had it mounted. A mark's
       // menu inside here takes its own Escape first — see `movie-state.tsx`.
@@ -393,29 +393,29 @@ function Detail({
     >
       <div className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8">
         {/*
-          The name, what can be done to the mix, and the way out — in that order,
+          The name, what can be done to the vibe, and the way out — in that order,
           so the `×` is the last thing on the row and the rightmost.
         */}
         <header className="flex items-start justify-between gap-4">
-          <h2 className="min-w-0 font-display text-[24px] leading-tight break-words">{mix.name}</h2>
+          <h2 className="min-w-0 font-display text-[24px] leading-tight break-words">{vibe.name}</h2>
           <div className="flex shrink-0 items-center gap-1">
-            <Manage kind="mix" name={mix.name} onRemoved={onRemoved} />
-            <WayOut name={mix.name} onClose={onClose} />
+            <Manage kind="vibe" name={vibe.name} onRemoved={onRemoved} />
+            <WayOut name={vibe.name} onClose={onClose} />
           </div>
         </header>
 
         <div className="mt-4 flex flex-wrap items-center gap-1.5">
-          {mix.genres.map((genre) => (
+          {vibe.genres.map((genre) => (
             <Chip key={genre}>{genre}</Chip>
           ))}
         </div>
 
         <p className="mt-4 text-[13.5px] leading-relaxed whitespace-pre-line text-ink-soft">
-          {mix.instruction}
+          {vibe.instruction}
         </p>
 
         {films.length === 0 ? (
-          <p className="py-6 text-center text-[13px] text-ink-faint">No films in this mix yet.</p>
+          <p className="py-6 text-center text-[13px] text-ink-faint">No films in this vibe yet.</p>
         ) : (
           <Films movies={films} className="mt-5" />
         )}

@@ -34,7 +34,7 @@ import {
  * So:
  *
  * - **held** — what Tonight currently holds as knowledge about them, and can
- *   act on. Genres, Mixes, Movies with what is known about watching them, and
+ *   act on. Genres, Vibes, Movies with what is known about watching them, and
  *   the verdicts that stand.
  * - **remembered** — what Tonight remembers happening: evenings, and the things
  *   they said that no longer stand. True, and not evidence.
@@ -129,7 +129,7 @@ export type Evening = {
  * column nobody can pass gets no handle at all rather than a decorative one.
  */
 export type Handle =
-  /** A Genre or a Mix, by the name the user gave it. */
+  /** A Genre or a Vibe, by the name the user gave it. */
   | { by: "name"; name: string }
   /** A Movie, by the two halves of how a film is named. */
   | { by: "film"; title: string; year: number }
@@ -152,10 +152,10 @@ export type GenreRoot = {
   handle: Handle;
 };
 
-/** A mix: named genres, and what the user means by having combined them. */
-export type MixRoot = {
+/** A vibe: named genres, and what the user means by having combined them. */
+export type VibeRoot = {
   placement: "held";
-  of: "mix";
+  of: "vibe";
   name: string;
   instruction: string;
   genres: readonly string[];
@@ -172,7 +172,7 @@ export type MovieRoot = {
   /** `null` is never told, which is not the same as `unseen`. */
   viewing: Viewing | null;
   imdbId: string | null;
-  mixes: readonly string[];
+  vibes: readonly string[];
   basis: Saved;
   handle: Handle;
 };
@@ -217,7 +217,7 @@ export type EveningRoot = {
   handle: Handle;
 };
 
-export type HeldRoot = GenreRoot | MixRoot | MovieRoot | SaidRoot;
+export type HeldRoot = GenreRoot | VibeRoot | MovieRoot | SaidRoot;
 export type RememberedRoot = SaidRoot | EveningRoot;
 export type Root = HeldRoot | EveningRoot;
 
@@ -264,16 +264,16 @@ export function compose({ taste, acts, episodes }: Roots): Memory {
     });
   }
 
-  for (const mix of taste.mixes) {
+  for (const vibe of taste.vibes) {
     held.push({
       placement: "held",
-      of: "mix",
-      name: mix.name,
-      instruction: mix.instruction,
-      genres: mix.genres,
-      films: mix.movies,
-      basis: savedAs(mix),
-      handle: { by: "name", name: mix.name },
+      of: "vibe",
+      name: vibe.name,
+      instruction: vibe.instruction,
+      genres: vibe.genres,
+      films: vibe.movies,
+      basis: savedAs(vibe),
+      handle: { by: "name", name: vibe.name },
     });
   }
 
@@ -324,7 +324,7 @@ const movieRoot = (movie: Written<Movie>): MovieRoot => ({
   film: { title: movie.title, year: movie.year },
   viewing: movie.viewing,
   imdbId: movie.imdbId,
-  mixes: movie.mixes,
+  vibes: movie.vibes,
   basis: savedAs(movie),
   handle: { by: "film", title: movie.title, year: movie.year },
 });

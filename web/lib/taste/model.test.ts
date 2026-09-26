@@ -76,12 +76,12 @@ describe("what a movie says about watching", () => {
       year: 1995,
       imdbId: null,
       viewing: "seen",
-      mixes: ["Quiet Dread"],
+      vibes: ["Quiet Dread"],
     });
 
     // Named field by field, which is what stops the store's own uuid reaching a
     // caller — and now also what would make re-adding an opinion deliberate.
-    assert.deepEqual(Object.keys(movie), ["title", "year", "imdbId", "viewing", "mixes"]);
+    assert.deepEqual(Object.keys(movie), ["title", "year", "imdbId", "viewing", "vibes"]);
     for (const gone of ["state", "liked", "loved", "disliked", "judgement"]) {
       assert.equal(gone in movie, false, `${gone} is back on a movie`);
     }

@@ -1,7 +1,7 @@
 /**
  * One section of the taste page: a heading, and what is under it.
  *
- * Films, genres and mixes are three peers, and this is the one component that
+ * Films, genres and vibes are three peers, and this is the one component that
  * draws all three of them — the same heading in the same face at the same size,
  * the same quiet count beside it, the same distance down to the first row. Three
  * sections written out three times would be three places for that to drift, and a

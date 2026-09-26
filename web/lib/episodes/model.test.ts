@@ -196,7 +196,7 @@ test("nothing here reaches the taste model", async () => {
     fs.readFileSync(new URL("model.ts", import.meta.url), "utf8"),
   );
   assert.equal(source.includes("../taste/"), false, "the episode model imported taste");
-  for (const owned of ["MovieState", "liked", "loved", "disliked", "genre", "mix"]) {
+  for (const owned of ["MovieState", "liked", "loved", "disliked", "genre", "vibe"]) {
     assert.equal(
       new RegExp(`\\b${owned}\\b`).test(source.replace(/\/\*\*[\s\S]*?\*\//gu, "")),
       false,
