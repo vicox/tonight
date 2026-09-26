@@ -511,7 +511,7 @@ check "a direct operation is authorised, and its limit follows immediately" \
     "$(order_check 'Asked to rename, delete, or say what Tonight knows' \
         '**do those**' \
         'Never add an unasked write to tidy another root' \
-        'Read back in ordinary sentences')" "True"
+        '**The question picks the read**')" "True"
 # The second route into the model, and the reason it is not the first: a pattern
 # the agent noticed may be put to the user, and their yes is what makes the
 # meaning theirs. Pinned because the rule above it, read alone, forbids it.
@@ -571,7 +571,7 @@ check "and the reverse is what must not happen" \
 check "the CRUD tools are named as the way to do it" \
     "$(order_check '## Asked about the model directly' \
         '**do those**' \
-        'Read back in ordinary sentences')" "True"
+        '**The question picks the read**')" "True"
 # M3 gave the skill a second read. Which one answers which question is a rule,
 # and the skill has to carry it in the order somebody meets it: the taste read
 # first, because that is the older and commoner case, then the memory read named

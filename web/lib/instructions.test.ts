@@ -714,7 +714,7 @@ test("the model can be inspected and changed in the conversation, in plain sente
 
   assert.match(flat, /## Asked about the model directly/);
   assert.match(flat, /\*\*do those\*\*, in the conversation/);
-  assert.match(flat, /in ordinary sentences/);
+  assert.match(flat, /the answer is ordinary sentences/);
   assert.match(flat, /is \*a\* management surface, not \*the\* one/);
 });
 
@@ -750,10 +750,28 @@ test("a read-back names both reads, and says which is for what", () => {
   // both reads and gave no criterion, and four certification runs sent a narrow
   // taste question to the wider read. The section states which question each
   // read answers.
+  // Both halves of the `get_taste` side. "What they like" alone left
+  // *"what are you using to recommend something to me?"* unclaimed, and one
+  // targeted run sent it to `get_memory`: the question is about the basis of a
+  // recommendation rather than about a preference, so the criterion has to name
+  // that too. Asserted as two separate matches so losing either one fails.
   assert.match(
     section,
-    /`get_taste` for what they like, `get_memory` for the wider\s+question of what Tonight holds/iu,
-    "the read-back no longer says which read answers which question",
+    /`get_taste` for what\s+they like and what a recommendation stands on/iu,
+    "the taste read is not claimed for what a recommendation stands on",
+  );
+  assert.match(
+    section,
+    /`get_memory` for the wider question of what\s+Tonight holds/iu,
+    "the memory read is no longer named for the wider question",
+  );
+  // And the criterion is about the question asked, not about a read-back: a
+  // question about the basis of a recommendation is not somebody asking to be
+  // read back to, which is how the narrower framing let it slip.
+  assert.match(
+    section,
+    /\*\*The question picks the read\*\*/u,
+    "the section no longer says the question decides which read answers",
   );
   assert.doesNotMatch(
     section,
@@ -830,7 +848,7 @@ test("authorising a direct operation does not authorise tidying another root", (
   // read-back routing, so nothing sits between the permission and its limit.
   const authorises = asked.search(/\*\*do those\*\*/u);
   const boundary = asked.search(/Never add an unasked write/u);
-  const readback = asked.search(/Read back in ordinary sentences/u);
+  const readback = asked.search(/\*\*The question picks the read\*\*/u);
   assert.ok(authorises >= 0 && boundary >= 0 && readback >= 0, "the section lost one of its three parts");
   assert.ok(
     authorises < boundary,
@@ -910,8 +928,13 @@ test("a question about what disagrees is routed to the read that can see both si
   assert.match(asked, /`get_memory`/u, "the memory view is no longer named for a read-back");
   assert.match(
     asked,
-    /`get_memory` for the wider\s+question of what Tonight holds/iu,
+    /`get_memory` for the wider question of what\s+Tonight holds/iu,
     "the memory view is no longer named for the wider question",
+  );
+  assert.match(
+    asked,
+    /what a recommendation stands on/iu,
+    "the taste read is not claimed for recommendation-basis questions",
   );
 
   // And the disagreement routing is gone rather than reworded. Nothing carries
@@ -1642,8 +1665,10 @@ test("every rule the agent cannot work out for itself is in the text it is given
     // the model is inspected and managed in conversation, in plain sentences
     "## Asked about the model directly",
     "**do those**",
-    "`get_taste` for what they like, `get_memory` for the wider",
-    "in ordinary sentences",
+    "`get_taste` for what",
+    "they like and what a recommendation stands on",
+    "`get_memory` for the wider question of what",
+    "the answer is ordinary sentences",
     // failures
     "offer to retry",
     "*Taste question*: stop",

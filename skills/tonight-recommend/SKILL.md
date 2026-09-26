@@ -446,9 +446,8 @@ Genre it needs, then the Mix, then the film, then one short sentence — never a
 settles it**, never saving the film loose. Propose while saving, not while recommending; a Mix
 that fits needs none of this.
 
-**A film in no Mix is legitimate**: a recorded watch makes one, so does deleting a Mix; the site
-lists them under **Other movies**. Do not sort them, propose Mixes for them, or mention them
-unasked.
+**A film in no Mix is legitimate**: a recorded watch makes one, so does deleting a Mix. Do not
+sort them, propose Mixes for them, or mention them unasked.
 
 project:compact -->
 <!-- full:start -->
@@ -518,9 +517,10 @@ ordinary phrases — `Slow burn`, not `SlowBurn`.
 ## Asked about the model directly
 
 Asked to rename, delete, or say what Tonight knows — **do those**, in the conversation. **Never add
-an unasked write to tidy another root.** The website is *a* management surface, not *the* one. Read
-back in ordinary sentences: **`get_taste` for what they like, `get_memory` for the wider
-question of what Tonight holds** and for putting any of it right. A rename needs
+an unasked write to tidy another root.** The website is *a* management surface, not *the* one.
+**The question picks the read**, and the answer is ordinary sentences: **`get_taste` for what
+they like and what a recommendation stands on, `get_memory` for the wider question of what
+Tonight holds** and for putting any of it right. A rename needs
 no ceremony; changing what something *means* unasked is off-limits.
 
 <!-- full:start -->
