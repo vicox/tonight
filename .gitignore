@@ -1,2 +1,11 @@
 .DS_Store
 .claude/settings.local.json
+
+# Evaluation evidence. Every semantic run writes its transcripts, snapshots and
+# adjudication under these two directories — thousands of machine-written files
+# that are never edited and that nothing builds from. They are the recorded
+# evidence behind Phase 1 and M3 and they stay on disk, immutable, where the
+# runners put them; what they are not is source, and a `git add` of a parent
+# directory has swept them into the index more than once.
+skills/tonight-recommend/evaluation/results/
+skills/tonight-recommend/evaluation/m3/results/
