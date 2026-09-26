@@ -48,8 +48,15 @@ const WEB = join(here, "..", "..", "..", "..", "web");
 const ORIGIN = process.env.TONIGHT_ORIGIN ?? "http://localhost:3000";
 const PROTOCOL_VERSION = "2026-07-28";
 
-/** The fixture users this may write to, and no others. */
-const OWNED = /^google:eval-m3-[a-z0-9-]+$/;
+/**
+ * The fixture users this may write to, and no others.
+ *
+ * `m3` and `m4`, because the M4 behavioural set uses this seeder and its own
+ * fixtures. Still a fixed list of prefixes rather than anything derived from
+ * the fixture being seeded: a guard that took its answer from the file it is
+ * guarding would agree with any file.
+ */
+const OWNED = /^google:eval-m[34]-[a-z0-9-]+$/;
 
 for (const line of readFileSync(join(WEB, ".env.local"), "utf8").split("\n")) {
   const at = line.indexOf("=");
