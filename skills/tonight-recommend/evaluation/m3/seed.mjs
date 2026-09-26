@@ -117,10 +117,16 @@ async function call(bearer, name, args = {}) {
 /**
  * Empties a fixture user completely.
  *
- * All five stores, because an M3 history reaches all five and a half-cleared
- * user is a different fixture wearing the right name. Verdict acts and pending
- * questions have no public delete that clears a user, so those two go through
- * the store — the same seam the question above uses.
+ * Every store, because a history reaches all of them and a half-cleared user is
+ * a different fixture wearing the right name. Verdict acts, pending questions
+ * and Tonight's own thinking have no public delete that clears a user, so those
+ * go through the store — the same seam the question above uses.
+ *
+ * Reflection was missed when the M4 set was added, and the proposals piled up:
+ * a fixture that seeds two pending offers had fourteen of them by the seventh
+ * run. Each run's own pair was still the last and still moved correctly, so the
+ * deltas stayed readable, but a gate comparing proposals wholesale would have
+ * been reading six previous runs.
  */
 async function clear(bearer, user) {
   const taste = await call(bearer, "get_taste");
@@ -136,6 +142,7 @@ async function clear(bearer, user) {
     if (root.of === "verdict") await call(bearer, "forget_verdict", { ref: root.handle.ref });
   }
   await forgetQuestions(user);
+  await forgetReflection(user);
 }
 
 /** The one store this reaches directly, and the two things it does there. */
@@ -152,6 +159,27 @@ async function forgetQuestions(user) {
   const { driver, store } = await questionStore(user);
   try {
     for (const open of await store.pending(new Date().toISOString())) await store.close(open.film);
+  } finally {
+    await driver.close?.();
+  }
+}
+
+/**
+ * Empties what Tonight itself has thought about this user.
+ *
+ * Through the store, because nothing on the tool surface deletes an observation
+ * or a proposal — deciding one is not deleting it, and a decided proposal is
+ * meant to survive. The rows are gone rather than decided: a fixture starts
+ * from a history, and last run's offers are not part of it.
+ */
+async function forgetReflection(user) {
+  const { postgresDriver } = await import(join(WEB, "lib", "db", "postgres.ts"));
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) throw new Error("DATABASE_URL is not set; the reflection seam needs the same database the server uses");
+  const driver = await postgresDriver(url);
+  try {
+    await driver.query("DELETE FROM tonight_proposals WHERE user_id = $1", [user]);
+    await driver.query("DELETE FROM tonight_observations WHERE user_id = $1", [user]);
   } finally {
     await driver.close?.();
   }

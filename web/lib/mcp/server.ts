@@ -382,6 +382,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "themselves. One verdict is one film and never a register, a style or a kind. And where " +
         "`because` is absent they gave no reason, so *\"what made it work for you\"* is a sentence " +
         "you would be writing on their behalf.\n\n" +
+        "**If you end by offering to save the reading, call `propose_change` before you ask.** " +
+        "*\"Want me to turn that into a genre?\"* is a question whose yes is supposed to write " +
+        "something, and a yes has to land on a proposal that already exists — otherwise the next " +
+        "thing they say is agreement to nothing, and you are left reconstructing what they " +
+        "agreed to. Saying what you noticed and asking nothing is free and needs no call at " +
+        "all; it is the invitation that needs one.\n\n" +
         "`verdicts` is what they have said about particular films, in their own words, and it is " +
         "the whole of what they think: nothing else here holds an opinion. Each entry names the " +
         "film and either a judgement — liked, loved " +

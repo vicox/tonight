@@ -410,5 +410,18 @@ describe("what recommendation work is handed", () => {
       /where\s+`because` is absent they gave no reason/u,
       "the read does not say that an absent reason is not one to be supplied",
     );
+
+    // And the offer rule, here rather than only in the skill. It sat in the
+    // persist section, where the decision is whether to persist; the sentence
+    // that breaks it is written at the end of an answer, and this is the read
+    // the model has in hand when it writes that sentence. Six of six pattern
+    // runs asked to save with no proposal behind it.
+    assert.match(
+      text,
+      /\*\*If you end by offering to save the reading, call `propose_change` before you ask\.\*\*/u,
+    );
+    assert.match(text, /a yes has to land on a proposal that already exists/u);
+    // Noticing aloud stays free — this must not read as "always propose".
+    assert.match(text, /Saying what you noticed and asking nothing is free/u);
   });
 });
