@@ -207,7 +207,8 @@ export const TASTE_SCHEMA: SchemaModule = {
      * EXPAND. Additive only: every statement here leaves v1 working.
      *
      * An instance deployed before this migration keeps inserting
-     * `(user_id, vibe, genre, position)` and reading by name, and must keep
+     * `(user_id, mix, genre, position)` — the physical column names, which v1
+     * wrote and which this repository keeps — and reading by name, and must keep
      * succeeding — which is why the two id columns on the reference table are
      * nullable and why nothing old is dropped. See the plan's EXPAND phase.
      */

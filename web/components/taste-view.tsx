@@ -117,7 +117,7 @@ export function TasteView({ taste, standing }: { taste: Taste; standing: readonl
           <Empty>
             {taste.genres.length === 0
               ? "A vibe combines genres, so those come first."
-              : "Nothing here yet. Ask ChatGPT for something two of your genres would both fit."}
+              : "Nothing here yet. Tell ChatGPT what kind of night you mean, and which of your genres belong in it."}
           </Empty>
         )}
 

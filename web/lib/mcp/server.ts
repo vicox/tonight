@@ -518,14 +518,20 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "replaces the stored list rather than adding to it, and the list may never be empty. " +
         "Never reword their instruction: the sentence is theirs, and what it means is not " +
         "yours to adjust.\n\n" +
-        "**Every one of these changes the whole vibe, so read the whole vibe back afterwards.** " +
+        "**Every one of these changes the whole vibe, so settle the whole vibe before you " +
+        "call.** Work out what the result would be — the name it would then have, the sentence " +
+        "it would then have, the genres it would then be built from, and what those genres' " +
+        "instructions say — and make the call only if those are one idea. Nothing here checks " +
+        "that and nothing undoes it: the write lands, and an incoherent vibe is what Tonight " +
+        "holds from that moment until somebody fixes it.\n\n" +
         "A name, a sentence and a set of genres are one idea or the vibe is incoherent, and each " +
         "field can break that on its own: a new name the old sentence no longer fits, a new " +
         "sentence that goes against the genres, or — most easily missed — a new genre list " +
         "under a name and sentence chosen for the old one. Replacing the genres is not a " +
         "bookkeeping change. Read the incoming genres' instructions, not their names, and if " +
-        "the result is two ideas wearing one name, say so and let the user decide which they " +
-        "meant. Changing the rest to fit is rewording their sentence by another route.",
+        "the result would be two ideas wearing one name, do not write it: say so and let the " +
+        "user decide which they meant. Changing the rest to fit is rewording their sentence by " +
+        "another route.",
       inputSchema: z.object({
         name: vibeName.describe("The vibe to change, by its current name."),
         new_name: vibeName.describe("Rename the vibe to this.").optional(),

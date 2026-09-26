@@ -461,8 +461,51 @@ test("a vibe is asked for as one idea, read from the genres' instructions", asyn
   // And the existing not-an-intersection rule is still where it was.
   assert.match(instruction, /not the intersection of its genres/iu, "the intersection rule went missing");
 
-  // (E) Changing the genres is changing the vibe.
+  // (E) Changing the genres is changing the vibe — and the judgement has to be
+  // made on the *prospective* whole, before the call.
+  //
+  // This said "read the whole vibe back afterwards", which is too late by one
+  // write. Coherence is the model's to judge and the store's to ignore, so
+  // there is no refusal to catch a bad update and nothing to roll back: by the
+  // time an afterwards-read notices, the incoherent vibe is what Tonight holds.
   assert.match(update, /Every one of these changes the whole vibe/iu, "update: a field is not the object");
+  assert.match(
+    update,
+    /settle the whole vibe before you\s+call/iu,
+    "update_vibe does not require the judgement to be made before the write",
+  );
+  assert.match(
+    update,
+    /Work out what the result would be/iu,
+    "update_vibe does not ask for the prospective whole to be worked out",
+  );
+  // All four parts of that prospective whole, named so none is assumed.
+  for (const [part, pattern] of [
+    ["name", /the name it would then have/iu],
+    ["instruction", /the sentence\s+it would then have/iu],
+    ["genres", /the genres it would then be built from/iu],
+    ["their instructions", /what those genres'\s+instructions say/iu],
+  ] as const) {
+    assert.match(update, pattern, `update_vibe does not name the resulting ${part}`);
+  }
+  assert.match(update, /make the call only if those are one idea/iu, "update: the call is not conditional");
+  assert.match(
+    update,
+    /if\s+the result would be two ideas wearing one name, do not write it/iu,
+    "update_vibe does not say to withhold the write",
+  );
+  // And the reason the ordering matters, so it is not tidied back later.
+  assert.match(
+    update,
+    /Nothing here checks\s+that and nothing undoes it/iu,
+    "update_vibe does not say why the judgement cannot wait",
+  );
+  // The defect itself, named: an afterwards-read is not the contract.
+  assert.doesNotMatch(
+    update,
+    /read the whole vibe back afterwards/iu,
+    "update_vibe judges the write after it has already landed",
+  );
   assert.match(
     update,
     /a new genre list\s+under a name and sentence chosen for the old one/iu,

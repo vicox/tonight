@@ -847,6 +847,24 @@ test("each section keeps its own copy, and the films section stays quiet", () =>
   assert.match(view, /note="What a night should feel like, in your words — built on your genres\."/);
   assert.doesNotMatch(view, /mixed into something/u, "the mixing metaphor came back");
 
+  // The empty state, which taught the wrong model twice in one sentence. It
+  // read "ask ChatGPT for something two of your genres would both fit": find
+  // where two genres overlap and the vibe is what you find — which is the
+  // intersection the product denies — and two of them, when one is the
+  // invariant. It now asks for the idea first and the genres that belong in it.
+  assert.match(
+    view,
+    /Tell ChatGPT what kind of night you mean, and which of your genres belong in it\./u,
+    "the vibes empty state no longer asks for the idea and its genres",
+  );
+  // Neither mistake, however it is reworded later.
+  for (const derivation of [/would both fit/iu, /\boverlap\b/iu, /\bintersect/iu, /both of your genres/iu]) {
+    assert.doesNotMatch(view, derivation, "the empty state reads a vibe as what its genres have in common");
+  }
+  for (const plural of [/two of your genres/iu, /two genres/iu, /at least two/iu]) {
+    assert.doesNotMatch(view, plural, "the empty state asks for two genres, and one is enough");
+  }
+
   // The films section carries the total beside its heading and a line under it
   // saying what these films are, exactly as the other two do — three sections of
   // one page, described the same way.
