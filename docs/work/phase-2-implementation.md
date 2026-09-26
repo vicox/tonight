@@ -27,10 +27,21 @@ because that is the line the whole architecture turns on. The general rule, from
 | --- | --- | --- |
 | Verdict | User | **No** |
 | Declaration | User | **No** |
-| Observation | Agent | Yes — non-authoritative, behaviourally inactive |
-| Proposal | Agent | Yes — inert until acted on |
 | Episode field | Runtime or user | Only what was observed or stated; otherwise `unknown` |
-| Operational state | Runtime | Yes |
+
+**Tonight persists product memory only as Movies, Genres, Mixes, Episodes and Verdicts.**
+Agent-authored thoughts, observations, suggestions, questions, and other conversational
+intermediate state are not durable product memory. There is no row for what Tonight noticed, for
+what it meant to ask, or for a change it was about to offer: those live in the conversation and
+end with it. The table above has no agent-authored class because there is nowhere to put one —
+the boundary is not *written non-authoritatively*, it is *not written*.
+
+This replaces an earlier design in which Observations and Proposals were durable, agent-owned
+classes with their own tables and a lifecycle of their own. They were built, and they were
+removed: the honest way to keep an agent's readings from hardening into facts about somebody is
+not to store them carefully, it is not to store them. What survives is the rule that made them
+seem necessary — nothing becomes the user's until the user says so — and that rule now has a
+simpler mechanism, because a yes writes the Genre and a no writes nothing at all.
 
 ---
 
@@ -177,48 +188,43 @@ the whole picture, recognise it as their own, and correct anything wrong in it w
 
 ---
 
-## M4 — Proposes instead of assuming
+## M4 — Offers instead of assuming
 
-**1. User-visible capability.** Tonight occasionally says *"I've noticed something — is this right?"*
-and the model grows without the user maintaining it.
+**Superseded in its stored form.** M4 was built as a durable Observation → Proposal → user-act
+lifecycle, with two agent-owned tables, and then removed along with the persistent Questions that
+preceded it. What remains of the milestone is the behaviour, and the behaviour needs no storage.
 
-**2. Conceptual scope.** Observations as agent-authored, non-authoritative Claims; Proposals as
-inert offers to turn one into a Declaration or Verdict. Reflection as a runtime responsibility,
-within the §5 boundary.
+**1. User-visible capability.** Tonight occasionally says *"I've noticed something — is this
+right?"* and the model grows without the user maintaining it.
 
-**3. New knowledge that may exist.** Observations. Proposals. Both agent-owned, both behaviourally
-inactive until accepted.
+**2. Conceptual scope.** Offering, as something an agent does in a conversation. Noticing is free
+and writes nothing; the offer is a sentence; the user's yes is what writes, and what it writes is
+one of the five roots, indistinguishable from the same root created on request — because that is
+what it is.
 
-**4. Written automatically.** Observations and Proposals — permitted by their provenance class, and
-recorded as non-authoritative. Operational reflection state.
+**3. New knowledge that may exist.** None. This milestone adds no persistent class.
 
-**5. Requires a user act.** Every promotion of an Observation into a Verdict or a Declaration. An
-accepted Proposal is the user act; an unaccepted one expires.
+**4. Written automatically.** Nothing.
 
-**6. Correction and deletion.** A Proposal can be rejected and stays rejected — a rejected proposal
-that returns next month is a worse failure than never proposing. Observations can be deleted, and
-the user can see them without having to accept them.
+**5. Requires a user act.** Everything. A Genre suggested and accepted is written at the moment of
+the yes, in the same call an outright request would have used.
 
-**7. Evaluation gate.** **Reflection safety** (hard gate): reflection never creates or mutates a
-Verdict or Declaration without the required user act; operational state, Observations and inert
-Proposals are permitted · proposal rate per month · proposal acceptance rate · non-fabrication under
-accumulation.
+**6. Correction and deletion.** Nothing new to correct: a declined offer leaves nothing, so there
+is nothing to delete, nothing to expire, and no record that the offer was made. A Genre created
+from an accepted offer is corrected and deleted like any other Genre.
 
-**Behavioural removal**, proven by recommending again after each act rather than by inspecting what
-is stored:
+**7. Evaluation gate.** **Reflection safety** (hard gate): no user-facing root changes without the
+user's yes · an offer that is not taken up leaves the stores byte-identical · nothing Tonight
+authored appears in `get_taste` or `get_memory`. All three are deterministic — the first two are
+before-and-after comparisons, and the third is the persistence inventory in
+`web/lib/db/schemas.test.ts`, which derives the tables from the migrations rather than from a
+list somebody maintains.
 
-- deleting an Observation, or rejecting a Proposal, removes its influence — subsequent answers match
-  those of a history where it never existed;
-- a rejected Proposal never recurs, and never reappears in any form that treats it as accepted;
-- an Observation that is merely unaccepted changes no answer at all, which is the inert state being
-  genuinely inert rather than weakly active.
+**8. Non-goals.** No pending offers, no expiry, no record of a refusal, no confidence model, no
+Mix restructuring. **No replacement for the removed classes under another name.**
 
-**8. Non-goals.** No unprompted delivery of proposals — they wait to be seen. No confidence model
-driving them yet. No Mix restructuring.
-
-**9. Completion condition.** Across a long scripted history, proposals are ones a user would accept,
-arrive within budget, never recur once rejected, and nothing authoritative was ever written without
-a user act.
+**9. Completion condition.** Across a long scripted history, the offers are ones a user would
+accept, they arrive rarely enough not to be tedious, and no root moved without a yes.
 
 **10. Dependencies.** M3 — the architecture's load-bearing constraint. An agent that grows its own
 model before the user can see the whole of it contaminates the history before the problem is
@@ -270,8 +276,8 @@ weight, not a decision.
 dormancy produces the right proposals at the right time, and the historical record still reads
 correctly through every superseded version.
 
-**10. Dependencies.** M4 — splits and merges are proposals, and the proposal machinery must exist and
-be trusted first.
+**10. Dependencies.** M4 — splits and merges are offers, and offering has to be a settled
+behaviour before it is pointed at the structure the user built.
 
 ---
 

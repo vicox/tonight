@@ -1632,15 +1632,18 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Never add an unasked write to tidy another root.",
     "only the meaning they could agree to",
     "Asking is not permission",
-    // M4 repair: an offer to save has to have a proposal behind it, or a yes
-    // lands on nothing. Six of six pattern runs asked without one.
-    "an offer to save\nis a `propose_change` first",
+    // Tonight persists nothing it thought of by itself, so an offer is a thing
+    // said in a conversation and nothing else. The rule the agent cannot work
+    // out alone is what that implies: a yes is the only thing that writes, and
+    // a no leaves nothing — not a pending offer, not a record it was made.
+    "Noticing writes nothing;\nonly their yes does, and no trace of the offer outlives it.",
     // The mood rule, at its own statement rather than at the worked instance
     // that restated it two lines later — "an ordinary recommendation or a mood
     // for tonight is no reason to", which is pinned above as well.
     "or a mood for tonight is no reason to",
-    // M4: the judgement was always here; these are the tools that carry it.
-    "so a yes has something to land on",
+    // The judgement half of the same rule: do not offer what you would not act
+    // on now, because there is nowhere for an unacted offer to wait.
+    "Offer only what you would write now.",
     "or anything you\nnoticed or offered yourself",
     // Not "watched and said nothing writes nothing", which was false: watching
     // is a fact the user reported, and both the viewing and the evening may be

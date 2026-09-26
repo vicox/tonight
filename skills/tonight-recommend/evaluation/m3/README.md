@@ -43,17 +43,24 @@ withdrawal is a question about rows. For `m3-06` and `m3-07` the artifact carrie
 taken after the agent has finished, and the rubric judges the difference rather than the answer's
 description of itself.
 
-## The one seam
+## No seam
 
-Nothing on the tool surface opens a pending Verdict question — `record_opportunity` spends a chance
-against one that already exists. So `m3-03-pending` opens its question through the store, and
-`seed.mjs` says so where it does it. It is the same seam the deterministic gates declare in their
-own limits, and it is the only place in this directory that reaches past the public tools.
+Every fixture here is seeded through the public tools, with nothing reaching past them. There
+used to be one exception — a pending Verdict question, which no tool could open — and it went
+when the questions did: Tonight persists product memory only as Movies, Genres, Mixes, Episodes
+and Verdicts, and all five are reachable from the surface an agent uses.
+
+Two fixtures went with it. `m3-03-pending` was a person with a question waiting against them and
+`m3-08-nothing-pending` was its control, and the distinction they existed to test no longer
+exists — the two histories are now the same history. **The frozen `preflight` and `preflight2`
+sets still name them**, because those are the record of a certification that was run and editing
+a record is not a repair. Re-freezing that matrix is the first step of the next certification,
+not something this directory does on its own.
 
 ## Running it
 
 ```
-node evaluation/m3/run.mjs --dry-run              seventeen scenarios, three runs each
+node evaluation/m3/run.mjs --dry-run              fifteen scenarios, three runs each
 node evaluation/m3/run.mjs
 node evaluation/m3/run.mjs --only H --runs 1      one family
 node evaluation/m3/run.mjs --only m3-01-long-history__why-think

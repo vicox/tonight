@@ -32,8 +32,24 @@ Not storage — the kinds of knowledge that exist, and what each is allowed to d
 | --- | --- | --- | --- |
 | **Verdict** | What the user said about a film | Only the user | Absolute. The agent never holds an opinion about whether someone liked something |
 | **Declaration** | **Any durable assertion the user authored** | Only the user | Absolute within its own scope; silent on everything it does not cover |
-| **Observation** | Something Tonight noticed and was not told | The agent | None on its own. May inform a question; may never become a Verdict or a Declaration without a user act |
 | **Episode** | What happened on a given evening, field by field | The runtime and the user, per field | Factual **only for what was actually established** — see *Episodes are facts, not inferences* below |
+
+**There is no agent-authored kind, and this table used to have one.** An *Observation* — something
+Tonight noticed and was not told — was a durable class here, authoritative over nothing and
+allowed to inform a question. It was built, together with the Proposals that carried one to the
+user, and both were removed.
+
+The reasoning that removed them: **Tonight persists product memory only as Movies, Genres, Mixes,
+Episodes and Verdicts.** Agent-authored thoughts, observations, suggestions, questions, and other
+conversational intermediate state are not durable product memory. A reading of Tonight's own is
+not made safe by being labelled non-authoritative — it is made safe by not outliving the sentence
+it was said in. What Tonight notices, it says; what the user answers, it writes; and what it
+writes is one of the five, indistinguishable from the same thing asked for outright. Nothing waits
+in between.
+
+Everything below about laundering, self-amplification and Tonight's own influence still holds, and
+holds more simply: a conclusion cannot become evidence for its premise when the conclusion was
+never written down.
 
 **Declaration is the general class, not a list.** Phase 1 happened to need three kinds — Genres, Mixes and exclusions — and it would be a mistake to read that as the definition. A Declaration is any durable statement the user authored about themselves, and the kinds already visible include:
 
@@ -126,8 +142,8 @@ Without these, a single weak observation becomes strong simply by being referenc
 
 ### When to ask
 
-- An observation has grown useful but is still an inference.
-- A proposed change would rewrite the user's own words.
+- Something Tonight has noticed is useful but is still an inference.
+- A change it would suggest would rewrite the user's own words.
 - Two claims contradict, and which one wins changes future behaviour.
 - A long absence means the model may be stale in ways only they can resolve.
 
@@ -182,11 +198,11 @@ The rule underneath all four: history is append-only, meaning is versioned, and 
 
 **Reflection.** Periodically reconsidering what it believes: contradictions, decayed relevance, dormant structure, drifted Mixes.
 
-Reflection **may** persist its own work — operational and runtime state, agent Observations, and inert Proposals. Thinking that cannot record what it thought has to redo it, and an agent that recomputes its view of a decade every time is not a long-lived agent.
-
 Reflection **may never** create or mutate a user-authoritative Claim — a Verdict or a Declaration — without a user act.
 
-That is the boundary, and it is the single most important separation in the runtime: **thinking may persist its own work; belief ownership stays governed.** The distinction is not between writing and not writing, but between what the agent owns and what the user owns. Everything reflection produces is the agent's, marked as the agent's, and inert until a person acts on it.
+That was once half of the boundary; the other half said reflection **may** persist its own work — operational state, Observations, inert Proposals — on the grounds that thinking which cannot record what it thought has to redo it. That half is withdrawn. The distinction turned out not to be between what the agent owns and what the user owns, but between what is written and what is said: an agent-owned store is still a store, still accumulates, still ends up read back as though somebody had meant it.
+
+So the boundary is simply: **reflection persists nothing.** What Tonight works out, it says in the conversation it worked it out in, and the user's answer is what writes. The cost is real — a reading has to be reached again next time — and it is the price of a product where everything durable is something a person said.
 
 **Notifications.** The right to speak unprompted, tightly budgeted. Justified only by something with a deadline, or a discovery the user would have wanted and could not have found.
 
@@ -206,7 +222,7 @@ That is the boundary, and it is the single most important separation in the runt
 
 **From Phase 1, unchanged:** Movie, Genre, Mix, Movie state, exclusion.
 
-**Claim** — the unifying abstraction. Verdicts, Declarations and Observations are all Claims distinguished by provenance, and the provenance determines the rules. Every Claim identifies seven things:
+**Claim** — the unifying abstraction. Verdicts and Declarations are both Claims distinguished by provenance, and the provenance determines the rules. There is no agent-authored Claim: what Tonight works out is said rather than stored. Every Claim identifies seven things:
 
 | Facet | Why it is needed |
 | --- | --- |
@@ -234,7 +250,7 @@ Scope and temporal status are what make the model survive years. A Claim without
 
 **Thread** — an unfinished discovery with a natural next step.
 
-**Proposal** — a change to memory that the agent wants and has not made. First-class, visible, expiring, and requiring a user act to become real.
+**Offer** — a change to memory that the agent would make and has not. A sentence in a conversation, not a record: it is made, answered and gone. A yes writes the change as the user's own; a no writes nothing, and nothing remembers that it was asked.
 
 **Plan / Goal** — a multi-step intention with state, owned by the runtime.
 
@@ -244,9 +260,9 @@ A **Mix** is composed of **Genres**, holds **Movies**, and scopes its **exclusio
 
 A **Claim** rests on **Evidence**; Evidence points at **Episodes**; Episodes reference **Movies**, **Situations** and **People**. **Confidence** is a function over that graph rather than a number someone wrote down.
 
-A **Proposal** targets a Claim or a Mix and is inert until a user acts on it. **Plans** own **Threads** and produce **Episodes**.
+An **Offer** names a Claim or a Mix and exists only for as long as the turn it was made in. **Plans** own **Threads** and produce **Episodes**.
 
-The invariant worth stating plainly: *a path exists from every belief Tonight acts on back to something the user said.* Observations are permitted to exist and are not permitted to act.
+The invariant worth stating plainly: *a path exists from every belief Tonight acts on back to something the user said.* The stronger form the product now holds: there is nothing else for a path to start from, because nothing Tonight authored is written down.
 
 ### How global and contextual taste combine
 
@@ -292,20 +308,20 @@ The methodological shift is that a fixture stops being a snapshot and becomes a 
 
 | Capability | The question | Where it is judged |
 | --- | --- | --- |
-| **Write permission** | Is every write permitted by its provenance class — user-authoritative Claims tracing to an appropriate user act, agent-authored Observations and Proposals written freely but recorded as non-authoritative? | **Deterministic.** The highest-value new mechanical check available — and, unlike anything in Phase 1, fully objective |
+| **Write permission** | Is every write permitted by its provenance class — that is, does every durable row trace to an appropriate user act, with no agent-authored row anywhere? | **Deterministic.** The highest-value new mechanical check available — and, unlike anything in Phase 1, fully objective |
 | **Episode factuality** | Is every Episode field either observed, stated, or unknown — and is nothing inferred along the recommendation→choice→watched→finished→liked chain? | **Deterministic** |
 | **Evidence accounting** | Does any root event count more than once? Does any derived claim strengthen an ancestor? | **Deterministic** |
 | **Scope containment** | Does contextual or companion evidence stay inside its scope rather than becoming global taste? | **Deterministic** on scope; blind on effect |
 | **Memory fidelity** | After a scripted history, does what Tonight believes match what the user said? | Deterministic on presence/absence; blind on nuance |
 | **Non-fabrication under accumulation** | Phase 1's false-personalization bar, after months of data rather than one snapshot | Blind, with deterministic flags |
 | **Confidence calibration** | When Tonight is sure, is it right more often than when it hedges? | Deterministic, given a scripted history with known answers |
-| **Proposal quality** | Are proposals the ones a user would accept, and how many arrive per month? | Blind for quality; deterministic for rate |
+| **Offer quality** | Are the changes Tonight offers ones a user would accept, and how many arrive per month? | Blind for quality; deterministic for rate |
 | **Interruption budget** | Unprompted messages per month, and their acceptance | Deterministic |
 | **Drift handling** | Given a scripted taste change, is it noticed — and not over-corrected from a single episode? | Blind, over a trajectory |
 | **Forgetting** | After a deletion, is the thing gone from *behaviour*? | Deterministic: recommend again and check |
-| **Resumption** | Is an interrupted long task resumed correctly, having created no unauthorised user-authoritative or behaviour-changing memory while suspended? Operational state needed to resume, and non-authoritative inert Observations and Proposals, are permitted | Deterministic |
+| **Resumption** | Is an interrupted long task resumed correctly, having created no unauthorised user-authoritative or behaviour-changing memory while suspended? Only operational state needed to resume is permitted — there is no non-authoritative store to park a reading in | Deterministic |
 | **Companion separation** | Does watching with someone else contaminate the user's model? | Deterministic on scoping; blind on effect |
-| **Reflection safety** | Does reflection ever create or mutate a user-authoritative Claim — a Verdict or a Declaration — without the required user act? Operational state, Observations and inert Proposals are permitted | **Deterministic, and it should be a hard gate** |
+| **Reflection safety** | Does reflection ever create or mutate a durable root without the required user act? Only operational state is permitted; there is no agent-authored store to write to | **Deterministic, and it should be a hard gate** |
 | **Longitudinal quality** | Does the lead get better across a simulated year? | Blind, paired against an earlier point in the same history |
 
 The last row deserves note: Phase 2's natural comparison is not only against a frozen baseline but against **Tonight's own earlier self on the same history**. An agent that does not beat its month-one self by month twelve has not learned anything, however good each individual answer looks.
@@ -328,7 +344,7 @@ This is the one failure mode that looks exactly like success from the inside. Ev
 
 ## 9. Risks
 
-**Inference laundering through confidence.** The subtle form of compounding fabrication, and the one that needs a named defence: a weak Observation is referenced by a derived claim, which is referenced by another, and the repetition alone makes it look well-supported. Nothing false was ever asserted; the support was manufactured by bookkeeping. *Prevention:* the evidence rules in section 3 — support comes only from independent roots, a root counts once, cycles add nothing, and no derived claim may strengthen an ancestor. Observations still never promote to Verdicts or Declarations without a user act, and the claim graph keeps every belief traceable to a root that can be found and cut.
+**Inference laundering through confidence.** The subtle form of compounding fabrication, and the one that needs a named defence: a weak reading of Tonight's own is referenced by a derived claim, which is referenced by another, and the repetition alone makes it look well-supported. Nothing false was ever asserted; the support was manufactured by bookkeeping. *Prevention:* the evidence rules in section 3 — support comes only from independent roots, a root counts once, cycles add nothing, and no derived claim may strengthen an ancestor. The product's own answer is blunter and came later: a reading of Tonight's own is never written at all, so there is nothing for repetition to accumulate against, and the claim graph keeps every belief traceable to a root that can be found and cut.
 
 **The self-confirmation loop.** Tonight recommends, the user watches, Tonight reads that as preference, and recommends more of it. *Prevention:* a film Tonight recommended is not evidence of taste. Only an unprompted verdict is independent. This must be enforced structurally, because it is undetectable by inspection — the model looks like it is learning.
 
@@ -370,9 +386,9 @@ The first rule is a correction to an earlier draft of this roadmap, which deferr
 
 **M3 — Explains itself, whole.** Tonight can show everything it believes and why, and the per-kind corrections from M1 and M2 become one coherent experience. *Value:* trust — the user can see the picture, not just fix pieces of it.
 
-**M4 — Proposes instead of assuming.** Observations surface as proposals to accept or reject. *Value:* the model grows without the user maintaining it.
+**M4 — Offers instead of assuming.** What Tonight notices is put to the user as a question, and their yes writes the change. Nothing waits in between. *Value:* the model grows without the user maintaining it.
 
-**M5 — Mixes that live.** Drift detection, split and merge proposals, dormancy, lineage. *Value:* the structure still describes them after two years.
+**M5 — Mixes that live.** Drift detection, split and merge offers, dormancy, lineage. *Value:* the structure still describes them after two years.
 
 **M6 — Knows the occasion.** Situations and companions, with scope enforced. *Value:* the right film for *this* evening, not just this person.
 

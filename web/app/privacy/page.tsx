@@ -68,8 +68,7 @@ export default function Privacy() {
           three things stored about you are not on it: a verdict about a film you never saved,
           because there is no film there to show it against; a <em>not tonight</em>, because that
           belongs to an evening rather than to the film; and a verdict you replaced or took back,
-          because the page shows what stands. The evenings Tonight recorded are not on it either,
-          nor is anything Tonight noticed or offered.
+          because the page shows what stands. The evenings Tonight recorded are not on it either.
           None of that is deleted, hidden from you, or outside this policy — it is stored, it is
           covered by the retention and deletion terms below, and an assistant you authorize can
           read all of it back to you.
@@ -195,30 +194,20 @@ export default function Privacy() {
           rather than hiding it from view.
         </p>
         <p>
-          <strong>A question Tonight is carrying.</strong> When there is something it has been
-          meaning to ask you about a film, that is noted against your account — the film, when it
-          first came up, and how many chances to ask have gone by. It is Tonight&rsquo;s own note
-          rather than anything you said: a film waiting there says nothing about whether you liked
-          it, an unanswered question never becomes an opinion, and one that has waited too long is
-          removed rather than concluded.
+          <strong>What Tonight thinks is not stored at all.</strong> It may ask you something, it
+          may notice that two films you loved are alike, it may suggest a genre for them. None of
+          that is written down. A question it meant to come back to, a reading of its own, a
+          change it was about to offer — all of it lives in the conversation you are having and
+          ends with it, and it is not here the next time you talk to it.
         </p>
         <p>
-          <strong>What Tonight thinks, kept apart from what you said.</strong> Tonight may write
-          down a reading of its own — an <em>observation</em>, such as noticing that two films you
-          loved are alike — and may offer you a change based on one, which is a{" "}
-          <em>proposal</em>. Both are stored against your account, with what was noticed, the
-          change being offered, whether you accepted or refused it, and when.
-        </p>
-        <p>
-          <strong>Neither is anything you said, and neither counts as taste.</strong> An
-          observation is Tonight&rsquo;s own interpretation, not a record of your words, and it
-          does not become one by sitting there: nothing Tonight notices or proposes affects what is
-          recommended to you unless you accept it. Accepting is what makes a change real — at that
-          point the genre or other record it described is created, and it is yours like any other.
-          Refusing writes nothing, and the refusal is kept so the same thing is not put to you
-          again. These records are not shown on this website; an assistant you have authorized can
-          read them through the MCP endpoint, and they are kept and deleted on the same terms as
-          everything else below.
+          <strong>Which means nothing enters your data unless you say so.</strong> If Tonight
+          suggests a genre and you say yes, the genre is created and it is yours like any other —
+          indistinguishable from one you asked for outright, because that is what it is. If you
+          say nothing, or say no, nothing is written: there is no pending suggestion left behind,
+          no record that it was offered, and no note of your refusal. The five things above —
+          your genres, your mixes, your films, your verdicts, your evenings — are the whole of
+          what is kept about you.
         </p>
         <p>
           <strong>What is still deliberately not stored.</strong> Tonight keeps no scored or star ratings,
@@ -493,8 +482,7 @@ export default function Privacy() {
         <p>
           <strong>Everything Tonight holds about you</strong> — your genres, your mixes, the
           films you saved, everything you have said about a film whether or not that film is one
-          you saved, the evenings Tonight recorded, any question it is waiting to ask you, and what Tonight
-          noticed or offered — is
+          you saved, and the evenings Tonight recorded — is
           subject to a policy of the operator rather
           than a rule in the software: it is{" "}
           <strong>intended to be kept until the closed beta ends</strong>, and the operator will delete

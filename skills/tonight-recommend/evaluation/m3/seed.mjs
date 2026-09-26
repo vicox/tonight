@@ -25,13 +25,9 @@
  *
  * Because a history that cannot be expressed through the public tool surface is
  * not a history of this product. Every genre, mix, film, verdict, withdrawal,
- * evening and correction below goes through the same MCP endpoint an agent uses.
- *
- * The one exception is a pending question. Nothing on the tool surface opens
- * one — `record_opportunity` spends a chance against a question that already
- * exists — so that single act reaches the store directly. It is written here
- * rather than hidden, and it is the same seam the deterministic M3 gates
- * declare in their own limits.
+ * evening and correction below goes through the same MCP endpoint an agent uses,
+ * with no exception: there is no store-level seam here, because there is no
+ * state left that the tools cannot reach.
  *
  * ## Safety
  *
@@ -56,7 +52,7 @@ const PROTOCOL_VERSION = "2026-07-28";
  * the fixture being seeded: a guard that took its answer from the file it is
  * guarding would agree with any file.
  */
-const OWNED = /^google:eval-m[34]-[a-z0-9-]+$/;
+const OWNED = /^google:eval-m3-[a-z0-9-]+$/;
 
 for (const line of readFileSync(join(WEB, ".env.local"), "utf8").split("\n")) {
   const at = line.indexOf("=");
@@ -118,15 +114,9 @@ async function call(bearer, name, args = {}) {
  * Empties a fixture user completely.
  *
  * Every store, because a history reaches all of them and a half-cleared user is
- * a different fixture wearing the right name. Verdict acts, pending questions
- * and Tonight's own thinking have no public delete that clears a user, so those
- * go through the store — the same seam the question above uses.
- *
- * Reflection was missed when the M4 set was added, and the proposals piled up:
- * a fixture that seeds two pending offers had fourteen of them by the seventh
- * run. Each run's own pair was still the last and still moved correctly, so the
- * deltas stayed readable, but a gate comparing proposals wholesale would have
- * been reading six previous runs.
+ * a different fixture wearing the right name. All five of them are reachable
+ * from the tools: films, mixes and genres are deleted, evenings forgotten, and
+ * each verdict act forgotten by the reference `get_memory` gives it.
  */
 async function clear(bearer, user) {
   const taste = await call(bearer, "get_taste");
@@ -140,59 +130,6 @@ async function clear(bearer, user) {
   const memory = await call(bearer, "get_memory");
   for (const root of [...memory.held, ...memory.remembered]) {
     if (root.of === "verdict") await call(bearer, "forget_verdict", { ref: root.handle.ref });
-  }
-  await forgetQuestions(user);
-  await forgetReflection(user);
-}
-
-/** The one store this reaches directly, and the two things it does there. */
-async function questionStore(user) {
-  const { postgresDriver } = await import(join(WEB, "lib", "db", "postgres.ts"));
-  const { sqlQuestionStore } = await import(join(WEB, "lib", "verdicts", "questions", "sql.ts"));
-  const url = process.env.DATABASE_URL?.trim();
-  if (!url) throw new Error("DATABASE_URL is not set; the question seam needs the same database the server uses");
-  const driver = await postgresDriver(url);
-  return { driver, store: sqlQuestionStore(driver, { id: user }) };
-}
-
-async function forgetQuestions(user) {
-  const { driver, store } = await questionStore(user);
-  try {
-    for (const open of await store.pending(new Date().toISOString())) await store.close(open.film);
-  } finally {
-    await driver.close?.();
-  }
-}
-
-/**
- * Empties what Tonight itself has thought about this user.
- *
- * Through the store, because nothing on the tool surface deletes an observation
- * or a proposal — deciding one is not deleting it, and a decided proposal is
- * meant to survive. The rows are gone rather than decided: a fixture starts
- * from a history, and last run's offers are not part of it.
- */
-async function forgetReflection(user) {
-  const { postgresDriver } = await import(join(WEB, "lib", "db", "postgres.ts"));
-  const url = process.env.DATABASE_URL?.trim();
-  if (!url) throw new Error("DATABASE_URL is not set; the reflection seam needs the same database the server uses");
-  const driver = await postgresDriver(url);
-  try {
-    await driver.query("DELETE FROM tonight_proposals WHERE user_id = $1", [user]);
-    await driver.query("DELETE FROM tonight_observations WHERE user_id = $1", [user]);
-  } finally {
-    await driver.close?.();
-  }
-}
-
-async function openQuestion(user, act) {
-  const { askAbout } = await import(join(WEB, "lib", "verdicts", "questions.ts"));
-  const { driver, store } = await questionStore(user);
-  try {
-    const since = new Date(Date.now() - act.daysAgo * 86_400_000).toISOString();
-    await store.open(askAbout(act.film, since, act.opportunities ?? 0));
-  } finally {
-    await driver.close?.();
   }
 }
 
@@ -215,11 +152,6 @@ async function seed(id) {
     });
   }
 
-  // References handed back by the seeded acts, so a later act can name an
-  // earlier one by the label the fixture gave it.
-  const noticed = new Map();
-  const offered = new Map();
-
   // In order, because order is what makes one verdict supersede another.
   for (const act of spec.acts ?? []) {
     switch (act.do) {
@@ -241,30 +173,6 @@ async function seed(id) {
         if (act.correction) await call(bearer, "correct_episode", { episode: episode.id, ...act.correction });
         break;
       }
-      case "question":
-        await openQuestion(spec.user, act);
-        break;
-      // M4's two agent-owned kinds. Seeded through the public tools like
-      // everything else: a fixture where Tonight has already noticed something,
-      // or already offered it, is a history the product can actually reach.
-      case "observe": {
-        const { observation } = await call(bearer, "record_observation", { noticed: act.noticed });
-        noticed.set(act.as ?? act.noticed, observation.ref);
-        break;
-      }
-      case "propose": {
-        const { proposal } = await call(bearer, "propose_change", {
-          ...(act.from === undefined ? {} : { from: noticed.get(act.from) }),
-          noticed: act.noticed,
-          target: act.target,
-        });
-        offered.set(act.as ?? act.noticed, proposal.ref);
-        // A fixture may want the proposal already decided — a rejected one is
-        // the only way to set up "a no stays a no across a conversation".
-        if (act.decided === "rejected") await call(bearer, "reject_proposal", { ref: proposal.ref });
-        if (act.decided === "accepted") await call(bearer, "accept_proposal", { ref: proposal.ref });
-        break;
-      }
       default:
         throw new Error(`${spec.id}: unknown act ${act.do}`);
     }
@@ -278,11 +186,6 @@ async function snapshot(bearer) {
   return {
     taste: await call(bearer, "get_taste"),
     memory: await call(bearer, "get_memory"),
-    // What Tonight thinks, which neither of the other two can see. A decision
-    // is a row, and "they moved on" is only distinguishable from "they were
-    // taken as having refused" if the proposal's state is in the record: an
-    // absent rejection looks exactly like an absent acceptance without it.
-    reflection: await call(bearer, "get_proposals"),
   };
 }
 

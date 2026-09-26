@@ -307,14 +307,18 @@ test("two users may hold the same genre name without meaning the same thing", as
 
 // --- movies ---------------------------------------------------------------
 
-test("the endpoint offers twenty-two tools, and a movie is addressed by title and year", async () => {
+test("the endpoint offers twenty tools, and a movie is addressed by title and year", async () => {
   const tools = await listTools(await tokenFor(someone()));
 
   // The eleven taste tools, in registration order, then M1's four episode tools,
-  // then M2's five verdict tools, then M3's two. Four sets, read as four because
+  // then M2's three verdict tools, then M3's two. Four sets, read as four because
   // none reaches another: episodes write what happened, verdicts write what they
   // thought of it, the taste tools write what somebody says they like, and M3's
   // pair explain all of that back and take one piece of it away again.
+  //
+  // Every one of them writes or reads one of the five things Tonight persists —
+  // Movies, Genres, Mixes, Episodes, Verdicts. There is no tool for anything
+  // Tonight itself thought, because there is nowhere for such a thing to go.
   assert.deepEqual(
     tools.map((tool) => tool.name),
     [
@@ -336,14 +340,7 @@ test("the endpoint offers twenty-two tools, and a movie is addressed by title an
       "record_verdict",
       "withdraw_verdict",
       "get_verdicts",
-      "get_open_questions",
-      "record_opportunity",
       "get_memory",
-      "record_observation",
-      "propose_change",
-      "get_proposals",
-      "accept_proposal",
-      "reject_proposal",
       "forget_verdict",
     ],
   );

@@ -10,8 +10,6 @@ import { filmKey } from "../../films/identity.ts";
 import type { AuthenticatedUser } from "../../identity.ts";
 import { tonightMcpServer } from "../../mcp/server.ts";
 import { sqlTasteStore, TASTE_SCHEMA } from "../../taste/store/sql.ts";
-import { askAbout } from "../../verdicts/questions.ts";
-import { QUESTIONS_SCHEMA, sqlQuestionStore } from "../../verdicts/questions/sql.ts";
 import { sqlVerdictStore, VERDICTS_SCHEMA } from "../../verdicts/store/sql.ts";
 import {
   expected,
@@ -28,7 +26,6 @@ import {
   type Taste,
   type World,
 } from "./gates.ts";
-import { sqlReflectionStore } from "../../reflection/store/sql.ts";
 import {
   FILMS,
   OWNER_HISTORY,
@@ -65,8 +62,6 @@ type Answer = {
 
 type Tool = { handler: (args: Record<string, unknown>) => Promise<Answer> };
 
-const DAY = 86_400_000;
-
 /** A reference and an episode id that are well-formed and belong to nobody. */
 const NOBODY_REF = "00000000-0000-4000-8000-000000000000";
 const NOBODY_EPISODE = "00000000-0000-4000-8000-000000000001";
@@ -86,14 +81,12 @@ describe("M3 — explains itself, and can be corrected", () => {
         store: sqlTasteStore(driver, asUser(who)),
         episodes: sqlEpisodeStore(driver, asUser(who)),
         verdicts: sqlVerdictStore(driver, asUser(who)),
-        questions: sqlQuestionStore(driver, asUser(who)),
-        reflection: sqlReflectionStore(driver, asUser(who)),
       }) as unknown as { _registeredTools: Record<string, Tool> }
     )._registeredTools;
 
   before(async () => {
     driver = await embeddedDriver();
-    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA, QUESTIONS_SCHEMA]) {
+    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA]) {
       await migrate(driver, schema);
     }
 
@@ -115,8 +108,6 @@ describe("M3 — explains itself, and can be corrected", () => {
       taste: sqlTasteStore(driver, asUser(who)),
       verdicts: sqlVerdictStore(driver, asUser(who)),
       episodes: sqlEpisodeStore(driver, asUser(who)),
-      questions: sqlQuestionStore(driver, asUser(who)),
-        reflection: sqlReflectionStore(driver, asUser(who)),
     };
 
     const call = async (name: string, args: Record<string, unknown> = {}) => {
@@ -129,7 +120,6 @@ describe("M3 — explains itself, and can be corrected", () => {
       taste: await stores.taste.taste(),
       acts: await stores.verdicts.acts(),
       episodes: await stores.episodes.episodes(),
-      questions: await stores.questions.pending(new Date().toISOString()),
     });
 
     let evening: string | undefined;
@@ -218,14 +208,6 @@ describe("M3 — explains itself, and can be corrected", () => {
           forgetting = { before: was, removed: refs };
           break;
         }
-        case "question":
-          await stores.questions.open(
-            askAbout(step.film, new Date(Date.now() - step.daysAgo * DAY).toISOString()),
-          );
-          break;
-        case "opportunity":
-          await call("record_opportunity", { film: step.film });
-          break;
       }
     }
 
@@ -471,7 +453,7 @@ describe("M3 — explains itself, and can be corrected", () => {
   /* --------------------------------------------------------------- the tests */
 
   test("every history says what it proves, and none repeats another", () => {
-    assert.equal(TRAJECTORIES.length, 25);
+    assert.equal(TRAJECTORIES.length, 23);
     for (const trajectory of TRAJECTORIES) {
       assert.ok(trajectory.proves.length > 20, `${trajectory.name} does not say what it proves`);
       assert.ok(trajectory.steps.length > 0);
@@ -483,7 +465,7 @@ describe("M3 — explains itself, and can be corrected", () => {
   test("the histories between them exercise every root and every fate", () => {
     // A gate set that never drives a case cannot fail on it.
     const steps = TRAJECTORIES.flatMap((one) => one.steps);
-    for (const act of ["genre", "mix", "movie", "verdict", "withdraw", "evening", "outcome", "amend", "forget", "question", "opportunity"]) {
+    for (const act of ["genre", "mix", "movie", "verdict", "withdraw", "evening", "outcome", "amend", "forget"]) {
       assert.ok(steps.some((step) => step.act === act), `no history ever performs ${act}`);
     }
     const verdicts = steps.filter((step) => step.act === "verdict");
@@ -562,9 +544,8 @@ describe("M3 — explains itself, and can be corrected", () => {
   });
 
   test("the limits of this evaluation are written down rather than assumed", () => {
-    assert.equal(LIMITS.length, 5);
+    assert.equal(LIMITS.length, 4);
     assert.ok(LIMITS.some((limit) => limit.includes("blind sweep")), "the semantic half is not recorded");
-    assert.ok(LIMITS.some((limit) => limit.includes("pending question")), "the one store-level seam is not recorded");
     assert.ok(
       LIMITS.some((limit) => limit.includes("source-level mutation")),
       "the fact that the gates are proved observationally is not recorded",
@@ -997,33 +978,10 @@ describe("M3 — explains itself, and can be corrected", () => {
 
   /* -- reading is not writing ------------------------------------------------ */
 
-  test("a memory read that consumes operational state is caught", () => {
-    probe("reading spends a question", "read-purity", (copy) => {
-      copy.seen["waiting-to-ask"]!.after.questions = [];
-    });
-  });
-
   test("a memory read that moves a timestamp and nothing else is caught", () => {
     probe("reading touches a row and leaves its content alone", "read-purity", (copy) => {
       const taste = copy.seen["one-of-everything"]!.after.taste as { genres: { updatedAt: string }[] };
       taste.genres[0]!.updatedAt = "2999-01-01T00:00:00.000Z";
-    });
-  });
-
-  /* -- what Tonight is waiting to ask ---------------------------------------- */
-
-  test("a pending question reaching the memory view is caught", () => {
-    probe("what Tonight wants to ask becomes memory", "pending-state", (copy) => {
-      const seen = copy.seen["waiting-to-ask"]!;
-      const root = structuredClone(seen.memory.held[0]!);
-      root.of = "question";
-      seen.memory.remembered.push(root);
-    });
-  });
-
-  test("a pending question changing what a recommendation reads is caught", () => {
-    probe("operational state reaches the taste model", "pending-state", (copy) => {
-      copy.seen["waiting-to-ask"]!.taste.genres.push({ name: "Waiting", instruction: "because a question is open" });
     });
   });
 

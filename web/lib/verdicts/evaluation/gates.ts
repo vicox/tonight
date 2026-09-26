@@ -1,5 +1,4 @@
-import { MAX_OPPORTUNITIES, MAX_PENDING_DAYS } from "../questions.ts";
-import { BASELINE, TUESDAY, WEDNESDAY, type Film, type Step, type Trajectory } from "./trajectories.ts";
+import { BASELINE, TUESDAY, WEDNESDAY, type Step, type Trajectory } from "./trajectories.ts";
 
 /**
  * The M2 gates: is what the user said the only thing that counts, and does it
@@ -36,9 +35,9 @@ import { BASELINE, TUESDAY, WEDNESDAY, type Film, type Step, type Trajectory } f
  *
  * ## What the gates read
  *
- * Everything comes from the public tool surface — `get_taste`, `get_verdicts`,
- * `get_open_questions` — because the question is what an agent would be handed,
- * not which rows exist.
+ * Everything comes from the public tool surface — `get_taste` and `get_verdicts`
+ * — because what an agent would be handed is the question here, not which rows
+ * exist.
  */
 
 /* --------------------------------------------------------------- the shapes */
@@ -55,7 +54,6 @@ export type Standing = {
   told: string;
 };
 
-export type Question = { film: Film; since: string; opportunities: number };
 
 /** The taste model as `get_taste` returns it, with verdicts folded in. */
 export type Taste = {
@@ -81,9 +79,6 @@ export type Observed = {
    * trajectory is only invariant if it was invariant at every point along it.
    */
   checkpoints: Taste[];
-  /** Open questions at the end, and the same read repeated. */
-  pending: Question[];
-  pendingAgain: Question[];
   /** `get_verdicts` per film the trajectory touched, keyed by `title (year)`. */
   asked: Record<string, Asked>;
   /** `get_verdicts` asked about an occasion, keyed by `title (year) @ occasion`. */
@@ -94,8 +89,6 @@ export type Observed = {
 export type Crossing = {
   /** Verdicts of the first user's that showed up in the second user's taste. */
   leakedVerdicts: Standing[];
-  /** Questions of the first user's that showed up in the second user's pending list. */
-  leakedQuestions: Question[];
   /** The second user's `get_verdicts` about the first user's film. */
   asked: Asked;
   /** Whether the first user's claim was still exactly as it was afterwards. */
@@ -720,8 +713,8 @@ export function provenanceTexture(world: World): Failure[] {
  *
  * Zero, not small. The architecture's list is explicit — a recommendation, a
  * repeated recommendation, a film chosen, watched or finished, the episode
- * history at large, an open question, the chances that went by, and the time
- * that passed — none of it contributes to what recommendation work is handed.
+ * history at large, and a film Tonight asked about and never heard back on —
+ * none of it contributes to what recommendation work is handed.
  *
  * Every one of those is compared against the same baseline, and **at every step
  * rather than at the end**. A system that concluded something from *chosen* and
@@ -733,7 +726,7 @@ const MUST_NOT_MOVE = [
   "influence-chosen",
   "influence-watched",
   "influence-finished",
-  "waiting-a-long-time",
+  "asked-and-never-answered",
 ] as const;
 
 export function nonInfluence(world: World): Failure[] {
@@ -757,26 +750,19 @@ export function nonInfluence(world: World): Failure[] {
     failures.push(...fail.failures);
   }
 
-  const waiting = need(world, "waiting-a-long-time");
-  const fail = failer("non-influence", "waiting-a-long-time");
+  const waiting = need(world, "asked-and-never-answered");
+  const fail = failer("non-influence", "asked-and-never-answered");
 
   // A supplementary check, and deliberately the weaker one: the pair above is
   // what proves non-influence, because a state can change the answer without
   // ever naming itself. This only catches the blunt version.
   const payload = JSON.stringify(waiting.after);
-  for (const word of ["question", "opportunit", "episode", "pending"]) {
+  for (const word of ["episode", "offered", "recordedat"]) {
     if (payload.toLowerCase().includes(word)) {
       fail(`"${word}" reached the taste model: ${payload.slice(0, 200)}`);
     }
   }
 
-  // The question itself is still exactly what it was — unanswered, and unaged by
-  // anything except the chances the caller declared.
-  const open = waiting.pending[0];
-  const declared = waiting.trajectory.steps.filter((step) => step.act === "opportunity").length;
-  if (open?.opportunities !== declared) {
-    fail(`${String(declared)} chances were declared and the question counts ${String(open?.opportunities)}`);
-  }
   return [...failures, ...fail.failures];
 }
 
@@ -787,18 +773,17 @@ export function nonInfluence(world: World): Failure[] {
  *
  * Half of this cannot be shown by calling things. The claim is about what
  * happens when nobody is calling, so the absence is proved from the code: no
- * timer, no schedule, no transport, anywhere in what M2 added. The other half is
- * behavioural — a long gap and a waiting question produce nothing, and reading
- * the open questions costs the question nothing, so an agent that looks is not
- * quietly spending the user's patience.
+ * timer, no schedule, no transport, anywhere in what M2 added.
+ *
+ * The behavioural half used to live here too: there was state that a reading
+ * could spend, so the gate read the open questions twice and compared. There is
+ * no such state now, and the behavioural claim it leaves behind — that a film
+ * Tonight offered and heard nothing back about produces nothing — is gate 7's,
+ * over the `asked-and-never-answered` trajectory.
  */
 export function noOutbound(world: World): Failure[] {
-  const fail = failer("no-outbound", "waiting-a-long-time");
-  const waiting = need(world, "waiting-a-long-time");
+  const fail = failer("no-outbound", "asked-and-never-answered");
 
-  if (canon(waiting.pending) !== canon(waiting.pendingAgain)) {
-    fail("reading the open questions changed them");
-  }
   for (const name of world.surface.tools) {
     if (/notify|remind|send|email|push|schedule|announce/i.test(name)) {
       fail(`the tool surface offers ${name}, which reaches out rather than answering`);
@@ -824,87 +809,12 @@ export function noOutbound(world: World): Failure[] {
 
 /* ------------------------------------------------------------------ gate 9 */
 
-/**
- * Expiry: a question that runs out stops being carried and concludes nothing.
- *
- * Both limits, at their boundaries, and crossed with each other. One day short
- * of the day limit with one chance left is still carried; on the day limit it is
- * gone whether no chances, one or two have been used; and a third chance ends it
- * long before the days run out. Together those rule out the plausible wrong
- * rule — that time only counts once the chances are exhausted — which a single
- * over-aged question with no chances against it cannot.
- *
- * The important half is the second sentence. Retirement must leave no verdict,
- * no withdrawal, and no trace in the taste model — an expired question that
- * turned into *"they didn't like it"* would be the system inventing an answer
- * out of the user's silence. There is no Observation in M2 for it to become
- * either; `history` holds every act of any kind, so an empty history is the
- * whole claim rather than a list of shapes somebody remembered to exclude.
- */
-const LIFETIMES = [
-  ["question-out-of-chances", "gone"],
-  ["question-out-of-time", "gone"],
-  ["question-out-of-time-after-one-chance", "gone"],
-  ["question-out-of-time-after-two-chances", "gone"],
-  ["question-still-waiting", "carried"],
-] as const;
-
-export function expiry(world: World): Failure[] {
-  const failures: Failure[] = [];
-
-  for (const [name, expectation] of LIFETIMES) {
-    const fail = failer("expiry", name);
-    const seen = need(world, name);
-    const carried = seen.pending.length > 0;
-
-    if (expectation === "gone" && carried) {
-      fail(
-        `the question is still being carried past the limits (${String(MAX_OPPORTUNITIES)} chances, ` +
-          `${String(MAX_PENDING_DAYS)} days, whichever comes first): ${JSON.stringify(seen.pending)}`,
-      );
-    }
-    if (expectation === "carried" && !carried) {
-      fail(
-        `a question inside both limits (under ${String(MAX_OPPORTUNITIES)} chances, under ` +
-          `${String(MAX_PENDING_DAYS)} days) was dropped`,
-      );
-    }
-    // Whatever became of it, nothing was concluded from it.
-    if (asSet(seen.after.verdicts ?? []) !== asSet(expectedStanding([]))) {
-      fail(`a question produced a verdict: ${JSON.stringify(seen.after.verdicts)}`);
-    }
-    if (comparable(seen.after) !== comparable(seen.before)) {
-      fail("a question's lifetime moved the taste model");
-    }
-    const asked = seen.asked[filmKey({ title: "Prisoners", year: 2013 })];
-    if (asked && (asked.current !== null || asked.history.length > 0)) {
-      fail(`a question left an act — a verdict or a withdrawal — behind it: ${JSON.stringify(asked)}`);
-    }
-    failures.push(...fail.failures);
-  }
-  return failures;
-}
-
-/* ----------------------------------------------------------------- gate 10 */
-
-/**
- * Isolation: one person's claims are another person's nothing.
- *
- * Read and write, and the second is the one worth stating separately: a
- * cross-user write that is refused is good, and a cross-user write that quietly
- * lands in the caller's own account while the owner's claim survives is also
- * good — what must never happen is the owner's claim moving. So this checks the
- * owner afterwards rather than only the refusal.
- */
 export function isolation(world: World): Failure[] {
   const fail = failer("isolation", "crossing");
   const { crossing } = world;
 
   if (crossing.leakedVerdicts.length > 0) {
     fail(`another user's verdicts were visible: ${JSON.stringify(crossing.leakedVerdicts)}`);
-  }
-  if (crossing.leakedQuestions.length > 0) {
-    fail(`another user's open questions were visible: ${JSON.stringify(crossing.leakedQuestions)}`);
   }
   if (crossing.asked.current !== null || crossing.asked.history.length > 0) {
     fail(`get_verdicts answered across users: ${JSON.stringify(crossing.asked)}`);
@@ -936,7 +846,6 @@ export const GATES: readonly { name: string; check: Gate }[] = [
   { name: "provenance-texture", check: provenanceTexture },
   { name: "non-influence", check: nonInfluence },
   { name: "no-outbound", check: noOutbound },
-  { name: "expiry", check: expiry },
   { name: "isolation", check: isolation },
 ];
 
@@ -953,9 +862,8 @@ export function gate(world: World): Failure[] {
  */
 export const LIMITS = [
   "whether a model, handed a faithful payload, writes about the user faithfully — strengthening or generalising a reason as it answers — is semantic and needs a blind sweep; deciding it here with a pattern would make an opinion look like a fact",
-  "nothing in the tool surface opens a question yet, so the question trajectories reach the store directly; when a tool opens one, these gates should drive it instead",
   "the gates prove what recommendation work is handed, not what a host model then does with it — that is the Step 8 cycle's subject and the instructions are its object",
-  "M2 has no Observation: the only acts are verdicts and withdrawals, so an empty verdict history is the whole of 'nothing was concluded' rather than a list of shapes to exclude",
+  "M2 has no Observation and Tonight persists nothing it thought of by itself: the only acts are verdicts and withdrawals, so an empty verdict history is the whole of 'nothing was concluded' rather than a list of shapes to exclude",
 ] as const;
 
 export type { Step, Trajectory };

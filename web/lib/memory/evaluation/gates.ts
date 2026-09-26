@@ -97,7 +97,6 @@ export type Stores = {
   taste: { genres: Stamped[]; mixes: Stamped[]; movies: Stamped[] };
   acts: unknown;
   episodes: { id: string; recordedAt: string }[];
-  questions: unknown;
 };
 
 export type Observed = {
@@ -1473,7 +1472,7 @@ export function purity(world: World): Failure[] {
 
   for (const seen of Object.values(world.seen)) {
     const fail = failer("read-purity", seen.trajectory.name);
-    for (const held of ["taste", "acts", "episodes", "questions"] as const) {
+    for (const held of ["taste", "acts", "episodes"] as const) {
       if (canon(seen.before[held]) !== canon(seen.after[held])) {
         fail(`reading what Tonight knows changed the ${held}`);
       }
@@ -1482,43 +1481,6 @@ export function purity(world: World): Failure[] {
     failures.push(...fail.failures);
   }
   return failures;
-}
-
-/* ------------------------------------------------------------------ gate J */
-
-/**
- * What Tonight is waiting to ask is not something it knows about them.
- *
- * Proved as a pair rather than a word search, because a state can change an
- * answer without ever naming itself. The two people below differ only in that
- * one has a question pending against them and two chances gone by; the whole of
- * the memory view and the whole of the taste model have to be the same for both.
- */
-export function pending(world: World): Failure[] {
-  const fail = failer("pending-state", "waiting-to-ask");
-  const waiting = need(world, "waiting-to-ask");
-  const quiet = need(world, "waiting-to-ask-control");
-
-  for (const part of ["held", "remembered"] as const) {
-    if (alike(waiting.memory[part]) !== alike(quiet.memory[part])) {
-      fail(`a question Tonight is carrying changed what it says it knows: ${part}`);
-    }
-  }
-  for (const part of ["genres", "mixes", "movies"] as const) {
-    if (alike(waiting.taste[part]) !== alike(quiet.taste[part])) {
-      fail(`a pending question changed the ${part} a recommendation reads`);
-    }
-  }
-  if (alike(waiting.taste.verdicts ?? []) !== alike(quiet.taste.verdicts ?? [])) {
-    fail("a pending question changed the verdicts a recommendation reads");
-  }
-
-  // Supplementary: and it does not name itself either.
-  const payload = JSON.stringify(waiting.memory).toLowerCase();
-  for (const word of ["question", "opportunit", "pending", "since", "asked"]) {
-    if (payload.includes(`"${word}`)) fail(`"${word}" reached the memory view`);
-  }
-  return fail.failures;
 }
 
 /* ------------------------------------------------------------------ gate K */
@@ -1868,7 +1830,6 @@ export const GATES: readonly { name: string; check: Gate }[] = [
   { name: "correcting", check: correcting },
   { name: "recommendation-isolation", check: isolation },
   { name: "read-purity", check: purity },
-  { name: "pending-state", check: pending },
   { name: "user-isolation", check: ownership },
   { name: "film-identity", check: identity },
   { name: "correction-handles", check: handles },
@@ -1888,7 +1849,6 @@ export function gate(world: World): Failure[] {
  */
 export const LIMITS = [
   "whether the prose a model writes from a faithful memory view is itself honest — whether it says 'you seem to like' about something nobody said — is semantic and needs a blind sweep; that is Slice 7's subject and these gates deliberately stop at the payload",
-  "nothing in the tool surface opens a pending question yet, so the pending-state trajectories reach that store directly; when a tool opens one, these gates should drive it instead",
   "the gates prove what a correction did to stored memory, not whether a model chose the right correction from what the user said — routing is instruction behaviour and is evaluated with the instructions",
   "the gates are proved by mutating the observations they read, not by mutating production source: a source-level mutation harness would have to patch and restore real files, and the observational probes already establish that every gate can fail for the defect it names; source mutation was used while writing these gates and is exploratory rather than part of this artifact",
   "the instants persistence assigns — when a row was written, when somebody spoke, when an evening was noted — are compared for consistency and for not moving, never for value, because no script can predict one",

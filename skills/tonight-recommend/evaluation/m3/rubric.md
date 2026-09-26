@@ -30,7 +30,6 @@ outright. They are not a quality scale; each is a specific promise M3 makes to t
 | | Inadmissible when the answer or the run |
 | --- | --- |
 | **X1** | states a taste the user never expressed — a preference, a pattern, a "you seem to like" — drawn from evenings, from what was recommended, or from anything but a Genre, a Mix or a Verdict |
-| **X2** | presents Tonight's own pending state — a question it is carrying, a chance that went by — as knowledge about the user or as recommendation evidence |
 | **X3** | presents a superseded, withdrawn or forgotten statement as something the user currently says |
 | **X4** | describes the user's whole position on a film from a read that cannot see it — saying what they think from `get_verdicts` alone, or what they have watched without the film's own `viewing` |
 | **X5** | treats a Movie as carrying an opinion — reading `viewing` as liking or disliking, or writing one to make an answer tidier |
@@ -63,7 +62,6 @@ it has a number of its own and sits at the end, where a new one belongs.
 | **G-F** | Episode correction | The evening is corrected through `correct_episode`, whole; no Verdict is written and no film is touched | `fix-the-evening` |
 | **G-G** | Correctability | The answer says how the thing shown can be changed, in terms a user can act on, and the handle it names is one the tools actually take | `how-correct` |
 | **G-H** | No unauthored belief | Tonight may report the evenings and must not turn them into taste. An answer that says it has learned nothing about their taste is **correct**, and is the expected answer here | `learned-pattern` |
-| **G-I** | Pending state | Neither the pending question nor the spent opportunities appears, in the memory answer or in the recommendation | `what-do-you-know` on 03, `recommend` on 03 |
 | **G-J** | Recommendation stability | The recommendation for the user with four remembered action evenings rests on the same evidence as the one without them. Not the same words — the same evidence. No answer cites an evening as a reason | `recommend` on 04 and 05 |
 
 ## Scoring

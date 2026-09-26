@@ -197,17 +197,7 @@ const MUTATING = new Set([
   "delete_movie",
   "forget_episode",
   "forget_verdict",
-  // M4's lifecycle. `record_observation` and `propose_change` write only
-  // Tonight's own thinking, and `reject_proposal` writes only a decision — none
-  // of them touches anything the user owns. They are here anyway: this list is
-  // what the proxy uses to know a run wrote *something*, and a write the
-  // snapshot missed would be a write nobody could see afterwards.
-  "record_observation",
-  "propose_change",
-  "accept_proposal",
-  "reject_proposal",
   "record_episode",
-  "record_opportunity",
   "record_verdict",
   "update_genre",
   "update_mix",

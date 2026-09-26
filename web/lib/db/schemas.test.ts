@@ -3,9 +3,7 @@ import test, { describe } from "node:test";
 
 import { sqlEpisodeStore } from "../episodes/store/sql.ts";
 import type { AuthenticatedUser } from "../identity.ts";
-import { sqlReflectionStore } from "../reflection/store/sql.ts";
 import { sqlTasteStore } from "../taste/store/sql.ts";
-import { sqlQuestionStore } from "../verdicts/questions/sql.ts";
 import { sqlVerdictStore } from "../verdicts/store/sql.ts";
 import { migrate } from "./migrate.ts";
 import { embeddedDriver } from "./pglite.ts";
@@ -42,50 +40,92 @@ describe("the production migration catalog", () => {
       const taste = sqlTasteStore(driver, who);
       const episodes = sqlEpisodeStore(driver, who);
       const verdicts = sqlVerdictStore(driver, who);
-      const questions = sqlQuestionStore(driver, who);
-      const reflection = sqlReflectionStore(driver, who);
 
       // Each store is asked for the read its own surface is built on. A table
       // the catalog did not create fails here rather than in production.
       assert.deepEqual((await taste.taste()).genres, []);
       assert.deepEqual(await episodes.episodes(), []);
       assert.deepEqual(await verdicts.standing(), []);
-      assert.deepEqual(await questions.pending(new Date().toISOString()), []);
-      assert.deepEqual(await reflection.observations(), []);
-      assert.deepEqual(await reflection.proposals(), []);
 
-      // And a write, because a missing column is not a missing table: the
-      // reflection lifecycle is exercised end to end against the deployed
-      // schema, including the acceptance that writes across two modules.
-      const noticed = await reflection.observe("they keep choosing quiet films");
-      const offered = await reflection.propose(noticed.ref, "worth making a genre?", {
-        kind: "genre",
-        name: "Restrained Thriller",
-        instruction: "Tension carried by what is withheld rather than what is shown.",
-      });
-      await reflection.accept(offered.ref);
-      assert.deepEqual(
-        (await taste.taste()).genres.map((one) => one.name),
-        ["Restrained Thriller"],
-      );
     } finally {
       await driver.close();
     }
   });
 
-  test("every schema the application opens is in the catalog", () => {
-    // The other direction, and the cheap one: a module the stores know about
-    // and the catalog does not is the defect above waiting to happen again.
-    // Named rather than discovered, because a list that derived itself from the
-    // stores would be satisfied by any two lists that agreed with each other.
-    const opened = ["oauth", "web", "taste", "episodes", "verdicts", "verdict_questions", "reflection"];
-    for (const named of opened) {
-      assert.ok(schemaNamed(named), `${named} is not in the production migration catalog`);
+  test("product memory is five roots, and the catalog says so", () => {
+    // The invariant this repository now holds: Tonight persists product memory
+    // only as Movies, Genres, Mixes, Episodes and Verdicts. What it thinks while
+    // it is talking to somebody is conversation, and conversation does not need
+    // a row — the three tables built on the other assumption are dropped by
+    // `retired.ts`, whose modules stay registered so a deployment hears about it.
+    //
+    // Derived from the migrations rather than from a list somebody keeps in step,
+    // because a list that agreed with another list would be satisfied by both
+    // being wrong.
+    const created = new Set<string>();
+    for (const schema of ALL_SCHEMAS) {
+      for (const migration of schema.migrations) {
+        const sql = "sql" in migration && typeof migration.sql === "string" ? migration.sql : "";
+        for (const [, table] of sql.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?([a-z_]+)/gu)) {
+          created.add(table!);
+        }
+        for (const [, table] of sql.matchAll(/DROP TABLE (?:IF EXISTS )?([a-z_]+)/gu)) {
+          created.delete(table!);
+        }
+      }
     }
-    assert.equal(
-      ALL_SCHEMAS.length,
-      opened.length,
-      "the catalog holds a module this test does not know about — add it here and check it is deployed",
+
+    // Infrastructure is not product memory: signing somebody in is not something
+    // Tonight knows about their taste. Named explicitly so that adding one is a
+    // deliberate act rather than a silent widening of the rule.
+    const INFRASTRUCTURE = [
+      "oauth_clients",
+      "oauth_pending_logins",
+      "oauth_authorization_codes",
+      "oauth_refresh_families",
+      "oauth_refresh_tokens",
+      "oauth_rate_limits",
+      "web_logins",
+      "web_sessions",
+    ];
+
+    // The five roots, and the relations that constitute them. A mix's genres and
+    // a film's mixes are what a Mix and a Movie *are*; an evening's offers are
+    // part of the evening. None is a root of its own.
+    const PRODUCT_MEMORY = [
+      "tonight_movies",
+      "tonight_genres",
+      "tonight_mixes",
+      "tonight_mix_genres",
+      "tonight_mix_movies",
+      "tonight_episodes",
+      "tonight_episode_offers",
+      "tonight_verdict_acts",
+    ];
+
+    assert.deepEqual(
+      [...created].sort(),
+      [...INFRASTRUCTURE, ...PRODUCT_MEMORY].sort(),
+      "a table exists that is neither infrastructure nor one of the five product-memory roots",
     );
+
+    // And the three that are gone stay gone. Named individually: the failure
+    // this guards against is one of them coming back under its own name.
+    for (const retired of ["tonight_verdict_questions", "tonight_observations", "tonight_proposals"]) {
+      assert.equal(created.has(retired), false, `${retired} is a live table again`);
+    }
+  });
+
+  test("the retired modules are still deployed, so the drop actually runs", () => {
+    // Removing a module from the catalog would leave its tables in the database
+    // with nothing owning them. The modules stay; their last migration drops.
+    for (const name of ["verdict_questions", "reflection"]) {
+      const schema = schemaNamed(name);
+      assert.ok(schema, `${name} left the catalog and its tables would be orphaned`);
+      const last = schema.migrations.at(-1);
+      assert.ok(last, `${name} has no migrations`);
+      const sql = "sql" in last && typeof last.sql === "string" ? last.sql : "";
+      assert.match(sql, /DROP TABLE/u, `${name}'s last migration does not drop anything`);
+    }
   });
 });

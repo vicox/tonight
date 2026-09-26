@@ -7,11 +7,8 @@ import { embeddedDriver } from "../db/pglite.ts";
 import { EPISODES_SCHEMA, sqlEpisodeStore } from "../episodes/store/sql.ts";
 import type { AuthenticatedUser } from "../identity.ts";
 import { sqlTasteStore, TASTE_SCHEMA } from "../taste/store/sql.ts";
-import { askAbout } from "../verdicts/questions.ts";
-import { QUESTIONS_SCHEMA, sqlQuestionStore } from "../verdicts/questions/sql.ts";
 import { sqlVerdictStore, VERDICTS_SCHEMA } from "../verdicts/store/sql.ts";
 import { tonightMcpServer } from "./server.ts";
-import { sqlReflectionStore } from "../reflection/store/sql.ts";
 
 /**
  * The memory surface, as an agent actually meets it.
@@ -56,7 +53,7 @@ type Memory = {
  */
 const COVERAGE = {
   completeFor: ["held", "remembered"],
-  excluded: { openQuestions: { readWith: "get_open_questions" } },
+  excluded: {},
 };
 
 const RECEIPT = { writeScope: "verdict-act-only", otherRoots: "unchanged" };
@@ -66,7 +63,7 @@ describe("the memory tools", () => {
 
   before(async () => {
     driver = await embeddedDriver();
-    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA, QUESTIONS_SCHEMA]) {
+    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA]) {
       await migrate(driver, schema);
     }
   });
@@ -85,8 +82,6 @@ describe("the memory tools", () => {
         store: sqlTasteStore(driver, who),
         episodes: sqlEpisodeStore(driver, who),
         verdicts: sqlVerdictStore(driver, who),
-        questions: sqlQuestionStore(driver, who),
-        reflection: sqlReflectionStore(driver, who),
       }) as unknown as { _registeredTools: Record<string, Tool> }
     )._registeredTools;
   };
@@ -304,14 +299,12 @@ describe("the memory tools", () => {
       taste: await said(her, "get_taste"),
       verdicts: await said(her, "get_verdicts", { film: BLACK_BAG }),
       episodes: await said(her, "get_episodes"),
-      questions: await said(her, "get_open_questions"),
     };
     for (let round = 0; round < 3; round += 1) await memory(her);
 
     assert.deepEqual(await said(her, "get_taste"), before.taste, "reading memory moved the taste model");
     assert.deepEqual(await said(her, "get_verdicts", { film: BLACK_BAG }), before.verdicts);
     assert.deepEqual(await said(her, "get_episodes"), before.episodes);
-    assert.deepEqual(await said(her, "get_open_questions"), before.questions);
     assert.deepEqual(await memory(her), await memory(her), "two readings disagreed");
   });
 
@@ -543,62 +536,38 @@ describe("the memory tools", () => {
 
   /* ------------------------------------------- what the read does not reach */
 
-  test("coverage says what the read is complete for, and never whether a question exists", async () => {
-    // The failure this exists for: a run read `get_memory`, saw no questions in
-    // it — because they are excluded by design — and told the user there were
-    // none. There was one. Coverage has to say "not carried here" without ever
-    // saying "none", so it is the same constant either way.
-    const quiet = someone("coverage-quiet");
-    const waiting = someone("coverage-waiting");
-    for (const who of [quiet, waiting]) {
-      await said(who, "create_movie", { ...BLACK_BAG, viewing: "seen" });
-    }
-    await sqlQuestionStore(driver, asUser("google:coverage-waiting")).open(
-      askAbout(HEAT, new Date(Date.now() - 10 * 86_400_000).toISOString(), 2),
-    );
+  test("coverage says this read is complete, and says it the same way to everybody", async () => {
+    // The failure this exists for: a run read `get_memory`, met the absence of
+    // something the read did not carry, and told the user there was none of it.
+    // The fix at the time was a coverage line naming the read that did carry it.
+    // There is no such second read now — memory is the whole of what Tonight
+    // keeps — so coverage says exactly that, and says it as a constant: a
+    // coverage line computed from what somebody happens to have would be a way
+    // of finding out what they have.
+    const empty = someone("coverage-empty");
+    const full = someone("coverage-full");
+    await said(full, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await said(full, "record_verdict", judged(BLACK_BAG, "loved"));
+    await said(full, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
 
-    const without = (await said(quiet, "get_memory")) as unknown as { coverage: unknown };
-    const with_ = (await said(waiting, "get_memory")) as unknown as { coverage: unknown };
+    const without = (await said(empty, "get_memory")) as unknown as { coverage: unknown };
+    const with_ = (await said(full, "get_memory")) as unknown as { coverage: unknown };
 
     assert.deepEqual(without.coverage, COVERAGE);
-    assert.deepEqual(with_.coverage, without.coverage, "coverage moved when a question existed");
     assert.equal(
       JSON.stringify(with_.coverage),
       JSON.stringify(without.coverage),
-      "coverage is not byte-identical between the two",
+      "coverage moved with what the person had",
     );
-
-    // The section order is part of the contract: a reader is told what is
-    // covered before it is told what is not.
     assert.deepEqual((without.coverage as { completeFor: string[] }).completeFor, [
       "held",
       "remembered",
     ]);
-
-    // And the question itself reached nothing.
-    const whole = JSON.stringify(with_);
-    for (const leak of ["Heat", "opportunit", "since", '"question']) {
-      assert.equal(whole.includes(leak), false, `${leak} reached the memory view`);
-    }
-    // While the read that owns it still answers.
-    const open = (await said(waiting, "get_open_questions")) as unknown as { questions: unknown[] };
-    assert.equal(open.questions.length, 1, "get_open_questions stopped being the read for this");
-    assert.equal(
-      ((await said(quiet, "get_open_questions")) as unknown as { questions: unknown[] }).questions.length,
-      0,
+    assert.deepEqual(
+      (without.coverage as { excluded: Record<string, unknown> }).excluded,
+      {},
+      "the read claims to be holding something back, and there is nothing left to hold back",
     );
-  });
-
-  test("a pending question moves no root in the memory view", async () => {
-    const her = someone("coverage-roots");
-    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen" });
-    await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
-    const before = await memory(her);
-
-    await sqlQuestionStore(driver, asUser("google:coverage-roots")).open(
-      askAbout(HEAT, new Date().toISOString(), 0),
-    );
-    assert.deepEqual(await memory(her), before, "opening a question changed what Tonight remembers");
   });
 
   /* --------------------------------------------------------- the boundary */

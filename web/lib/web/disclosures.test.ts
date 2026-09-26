@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { RETIRED_SCHEMAS } from "../db/retired.ts";
 import { ALL_SCHEMAS } from "../db/schemas.ts";
 import { tonightMcpServer } from "../mcp/server.ts";
 
@@ -116,7 +117,7 @@ const TOOL_NAMES = Object.keys(
 
 /** How a count reads in prose, for the small numbers a document spells out. */
 function numberWord(count: number): string {
-  const words: Record<number, string> = { 11: "eleven", 21: "twenty-one", 22: "twenty-two", 23: "twenty-three", 26: "twenty-six", 27: "twenty-seven", 28: "twenty-eight" };
+  const words: Record<number, string> = { 11: "eleven", 19: "nineteen", 20: "twenty", 21: "twenty-one", 22: "twenty-two", 23: "twenty-three", 26: "twenty-six", 27: "twenty-seven", 28: "twenty-eight" };
   return words[count] ?? String(count);
 }
 
@@ -335,37 +336,6 @@ test("the terms overview names the model the rest of the terms describe", () => 
   );
 });
 
-test("what Tonight itself writes down is disclosed, and disclosed as not being taste", () => {
-  // M4 persists two things nobody said: an observation is Tonight's reading of
-  // a history, and a proposal is a change it wants and has not made. Both are
-  // user-keyed and durable, so both belong in the inventory — and the claim
-  // that matters is not that they exist but that existing is all they do.
-  const privacy = text("privacy");
-  assert.match(privacy, /What Tonight thinks, kept apart from what you said/);
-  assert.match(privacy, /an <em>observation<\/em>/);
-  assert.match(privacy, /a\{" "\}\s*<em>proposal<\/em>/);
-  assert.match(privacy, /whether you accepted or refused it, and when/);
-
-  // Non-authoritative, said as a consequence rather than as a category.
-  assert.match(privacy, /Neither is anything you said, and neither counts as taste/);
-  assert.match(
-    privacy,
-    /nothing Tonight notices or proposes affects what is\s+recommended to you unless you accept it/,
-  );
-  assert.match(privacy, /Accepting is what makes a change real/);
-  assert.match(privacy, /Refusing writes nothing, and the refusal is kept/);
-
-  // Where they can and cannot be read, which must stay true of the projection.
-  assert.match(privacy, /These records are not shown on this website/);
-  assert.match(privacy, /read them through the MCP endpoint/);
-  assert.match(privacy, /nor is anything Tonight noticed or offered/);
-
-  // And the terms say the same thing in their own words.
-  const terms = text("terms");
-  assert.match(terms, /Tonight may also write down readings of its own and offer you changes/);
-  assert.match(terms, /only affects\s+what is recommended to you if you accept it/);
-});
-
 test("the no-profile claim says what is actually true", () => {
   // "No behavioural profile of any kind" stopped being accurate the moment
   // Tonight could persist a pattern it noticed. The narrower claim is the one
@@ -394,13 +364,11 @@ test("every durable root the application opens is named in the retention promise
     taste: /your genres; your mixes/,
     episodes: /the evenings Tonight recorded/,
     verdicts: /every verdict you gave/,
-    reflection: /what Tonight noticed or offered you/,
     // Sign-in and connection data is disclosed in its own section rather than
     // in the taste-model retention list, and named here so it is not thought
     // missing.
     oauth: /Sign-in and connection data/,
     web: /Sign-in and connection data/,
-    verdict_questions: /waiting to ask|open questions|meaning to ask/i,
   };
 
   const terms = text("terms");
@@ -411,11 +379,44 @@ test("every durable root the application opens is named in the retention promise
       `${module} is stored and no public page says what happens to it`,
     );
   }
+
+  // The retired modules are the other half of the same guard. They stay in the
+  // catalog so a deployment runs the migration that drops their tables, and
+  // they hold nothing afterwards — so they must be promised nothing, and a
+  // module that is neither promised nor retired is a store nobody disclosed.
+  const retired = RETIRED_SCHEMAS.map((schema) => schema.module);
   assert.deepEqual(
-    Object.keys(promised).sort(),
+    [...Object.keys(promised), ...retired].sort(),
     ALL_SCHEMAS.map((schema) => schema.module).sort(),
     "a schema is deployed that this disclosure guard does not know about",
   );
+});
+
+test("nothing Tonight thought of by itself is promised anywhere, because none is kept", () => {
+  // Tonight used to keep the questions it was carrying and the readings it had
+  // written, and both were disclosed. They are gone: what it thinks while it is
+  // talking to somebody is conversation, and conversation is not stored. A page
+  // still describing that storage would be promising a retention for tables
+  // that no longer exist — a false statement about what is held, which is worse
+  // than a missing one.
+  for (const page of ["terms", "privacy"] as const) {
+    const said = text(page);
+    for (const gone of [
+      /an <em>observation<\/em>|a reading of its own is (?:stored|kept)/i,
+      /what Tonight noticed or offered/i,
+      /question it is waiting to ask/i,
+      /stored against your account, with what was noticed/i,
+    ]) {
+      assert.doesNotMatch(said, gone, `${page} still describes storage that was removed`);
+    }
+  }
+
+  // And each says outright that it is not kept, so a reader is told rather than
+  // left to notice an absence.
+  const privacy = text("privacy");
+  assert.match(privacy, /What Tonight thinks is not stored at all/i);
+  assert.match(privacy, /lives in the conversation you are having and\s+ends with it/i);
+  assert.match(privacy, /nothing enters your data unless you say so/i);
 });
 
 test("retention covers the films, what was said about them, and the evenings recorded", () => {
@@ -624,7 +625,7 @@ test("every public page describes the split rather than one multiplexed field", 
 });
 
 test("the README documents the tools the server actually offers", () => {
-  // It claimed eleven for a long time and the surface is twenty-two. A count in
+  // It claimed eleven for a long time and the surface was twenty-two. A count in
   // prose drifts silently; this reads the table and the server together.
   const readme = text("readme");
   const documented = [...lines("readme").matchAll(/^\| `([a-z_]+)` \|/gmu)].map((row) => row[1]!);

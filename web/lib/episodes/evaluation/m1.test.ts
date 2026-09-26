@@ -11,7 +11,6 @@ import { sqlTasteStore } from "../../taste/store/sql.ts";
 import { EPISODES_SCHEMA, sqlEpisodeStore } from "../store/sql.ts";
 import { gate, LIMITS, OUTCOMES, type ReadEpisode, type Result } from "./gates.ts";
 import { TRAJECTORIES } from "./trajectories.ts";
-import type { ReflectionStore } from "../../reflection/store.ts";
 
 /**
  * M1's evaluation: does Tonight remember the evening, and only the evening?
@@ -28,16 +27,6 @@ const refusingExcept = <T>(what: string, allowed: Record<string, unknown>): T =>
   new Proxy({} as object, {
     get(_, name) {
       if (typeof name === "string" && name in allowed) return allowed[name];
-      return () => {
-        throw new Error(`M1 reached the ${what} store: ${String(name)}`);
-      };
-    },
-  }) as T;
-
-/** A store that refuses everything, so reaching it is a failure and not a write. */
-const refusing = <T>(what: string): T =>
-  new Proxy({} as object, {
-    get(_, name) {
       return () => {
         throw new Error(`M1 reached the ${what} store: ${String(name)}`);
       };
@@ -78,10 +67,6 @@ describe("M1 — remembers the evening", () => {
           // truth for a user who has said nothing, and it keeps the refusal on
           // every path an episode tool could actually take.
           verdicts: refusingExcept("verdict", { standing: async () => [] }),
-          questions: refusing("question"),
-          // Reflection is one more store an episode tool must never reach: an
-          // evening is a fact, and noticing something about it is M4's, not M1's.
-          reflection: refusing<ReflectionStore>("reflection"),
         }) as unknown as { _registeredTools: Record<string, Tool> }
       )._registeredTools;
 

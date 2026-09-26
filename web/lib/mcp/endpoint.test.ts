@@ -136,7 +136,6 @@ test("every tool is discoverable, and only the intended ones", async () => {
   const tools = json.result?.tools;
   assert.ok(tools);
   assert.deepEqual(tools.map((tool) => tool.name).sort(), [
-    "accept_proposal",
     "correct_episode",
     "create_genre",
     "create_mix",
@@ -148,36 +147,36 @@ test("every tool is discoverable, and only the intended ones", async () => {
     "forget_verdict",
     "get_episodes",
     "get_memory",
-    "get_open_questions",
-    "get_proposals",
     "get_server_info",
     "get_taste",
     "get_verdicts",
-    "propose_change",
     "record_episode",
-    "record_observation",
-    "record_opportunity",
     "record_verdict",
-    "reject_proposal",
     "update_genre",
     "update_mix",
     "update_movie",
     "withdraw_verdict",
   ]);
 
-  // Twenty-two, and every one of them a state operation. Product guidance ships
-  // in skills/ beside the server rather than as a runtime tool: an exhaustive
-  // list is what keeps one from creeping back.
+  // Twenty, and every one of them a state operation on one of the five things
+  // Tonight persists: Movies, Genres, Mixes, Episodes, Verdicts. Product
+  // guidance ships in skills/ beside the server rather than as a runtime tool,
+  // and an exhaustive list is what keeps one from creeping back.
   //
   // Eleven are the taste model's, four are M1's episodes, which write what
-  // happened rather than what somebody likes, five are M2's verdicts, which
+  // happened rather than what somebody likes, three are M2's verdicts, which
   // write what they thought of it, and two are M3's: one that explains all of it
   // back and one that takes a single statement out of it. The sets never mix: no
   // episode tool reads or writes a genre, a mix or a saved film, and no verdict
   // tool does either — the chain from watching to liking is never closed for the
   // user. M3's pair read across all of them and write nothing but a deletion the
   // user asked for.
-  assert.equal(tools.length, 27);
+  //
+  // There is no sixth set. Tools once existed here for the questions Tonight was
+  // carrying and for what it had noticed and wanted to suggest — state Tonight
+  // wrote about itself rather than anything a person told it. They are gone, and
+  // this list is where their return would show up first.
+  assert.equal(tools.length, 20);
 
   const info = tools.find((tool) => tool.name === "get_server_info");
   assert.equal(info?.title, "Server information");

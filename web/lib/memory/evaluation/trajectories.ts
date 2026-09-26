@@ -95,11 +95,7 @@ export type Step =
       refused?: true;
     }
   /** Removing one thing they said, or all of it, about a film. */
-  | { act: "forget"; film: Film; which: Which }
-  /** Tonight notes it has something to ask. Operational, never memory. */
-  | { act: "question"; film: Film; daysAgo: number }
-  /** A chance to ask went by. Operational, never memory. */
-  | { act: "opportunity"; film: Film };
+  | { act: "forget"; film: Film; which: Which };
 
 export type Trajectory = {
   name: string;
@@ -309,25 +305,6 @@ export const TRAJECTORIES: readonly Trajectory[] = [
       { act: "movie", film: heat95, viewing: "seen" },
       { act: "movie", film: zodiac, viewing: "seen" },
       { act: "movie", film: prisoners, viewing: "seen" },
-    ],
-  },
-  {
-    name: "waiting-to-ask",
-    proves: "a question Tonight is carrying, and the chances that went by, are no part of what it knows about them",
-    steps: [
-      { act: "movie", film: heat95, viewing: "seen" },
-      { act: "verdict", film: zodiac, told: "volunteered", judgement: "loved" },
-      { act: "question", film: prisoners, daysAgo: 10 },
-      { act: "opportunity", film: prisoners },
-      { act: "opportunity", film: prisoners },
-    ],
-  },
-  {
-    name: "waiting-to-ask-control",
-    proves: "the same person with nothing waiting — the control the pair is read against",
-    steps: [
-      { act: "movie", film: heat95, viewing: "seen" },
-      { act: "verdict", film: zodiac, told: "volunteered", judgement: "loved" },
     ],
   },
 

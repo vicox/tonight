@@ -2,8 +2,6 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 import type { AuthenticatedUser } from "../identity.ts";
-import { ReflectionError } from "../reflection/model.ts";
-import type { ReflectionStore } from "../reflection/store.ts";
 import {
   IMDB_ID_PATTERN,
   MAX_IMDB_ID_LENGTH,
@@ -36,7 +34,6 @@ import {
 } from "../verdicts/model.ts";
 import { current, spoken, supersession } from "../verdicts/model.ts";
 import { compose } from "../memory/model.ts";
-import type { QuestionStore } from "../verdicts/questions.ts";
 import type { VerdictStore } from "../verdicts/store.ts";
 import type { TasteStore } from "../taste/store.ts";
 import { SERVER_NAME, SERVER_VERSION } from "./identity.ts";
@@ -87,21 +84,6 @@ export type McpSession = {
    * write the other, and the chain stops before liking exactly as M1 says.
    */
   verdicts: VerdictStore;
-  /**
-   * Which films are waiting on an answer — Tonight's own note, not the user's.
-   * Inert: it is read inside a conversation the user began, and nothing here
-   * ever makes Tonight appear on its own.
-   */
-  questions: QuestionStore;
-  /**
-   * What Tonight noticed and what it has offered — its own thinking, and the
-   * only store here that is not the user's. Nothing in it is authoritative and
-   * nothing in it reaches `get_taste`; §5 of the architecture is the whole
-   * arrangement — *thinking may persist its own work; belief ownership stays
-   * governed.* The one method that crosses the line is `accept`, and it only
-   * runs because somebody said yes.
-   */
-  reflection: ReflectionStore;
 };
 
 // --- shared field schemas --------------------------------------------------
@@ -321,7 +303,7 @@ const movieMixes = z
  */
 export function tonightMcpServer(session: McpSession): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  const { store, episodes, verdicts, questions, reflection } = session;
+  const { store, episodes, verdicts } = session;
   // The instant a claim is made is the server's to know, not a caller's to
   // state: a tool that accepted a timestamp would let a model backdate what
   // somebody said, and when they said it is part of the claim.
@@ -382,12 +364,14 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "themselves. One verdict is one film and never a register, a style or a kind. And where " +
         "`because` is absent they gave no reason, so *\"what made it work for you\"* is a sentence " +
         "you would be writing on their behalf.\n\n" +
-        "**If you end by offering to save the reading, call `propose_change` before you ask.** " +
-        "*\"Want me to turn that into a genre?\"* is a question whose yes is supposed to write " +
-        "something, and a yes has to land on a proposal that already exists — otherwise the next " +
-        "thing they say is agreement to nothing, and you are left reconstructing what they " +
-        "agreed to. Saying what you noticed and asking nothing is free and needs no call at " +
-        "all; it is the invitation that needs one.\n\n" +
+        "**If you end by offering to save the reading, their yes is what writes it — and it " +
+        "writes it there and then.** *\"Want me to turn that into a genre?\"* is answered with " +
+        "`create_genre` and nothing else: the genre they agreed to is a genre they have, the " +
+        "same as one they asked for outright, and there is nothing to record beforehand and " +
+        "nothing left over after. So offer only what you would write on the spot. Nothing here " +
+        "holds a pending offer, so an offer you mean to come back to is an offer only you are " +
+        "carrying, and it is gone when this conversation is. Saying what you noticed and asking " +
+        "nothing is free and writes nothing at all.\n\n" +
         "`verdicts` is what they have said about particular films, in their own words, and it is " +
         "the whole of what they think: nothing else here holds an opinion. Each entry names the " +
         "film and either a judgement — liked, loved " +
@@ -839,7 +823,6 @@ export function tonightMcpServer(session: McpSession): McpServer {
         // retire on its own; the other order could lose what they said in order
         // to tidy up something that was never theirs.
         const verdict = await verdicts.say(stateVerdict(film, assertion, told, now(), scope));
-        await questions.close(film);
         return { verdict: written(verdict) };
       }),
   );
@@ -924,42 +907,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
       }),
   );
 
-  server.registerTool(
-    "get_open_questions",
-    {
-      title: "Films waiting on an answer",
-      description:
-        "Which films you have something to ask about, oldest first. This is your own note, not " +
-        "anything they told you: a film waiting here says nothing about whether they liked it, " +
-        "and a question that has waited a long time says nothing either.\n\n" +
-        "Read it while you are already talking with them, and ask at most where it fits what " +
-        "they came for. It is never a reason to start a conversation — Tonight does not get in " +
-        "touch on its own. Reading this costs the question nothing.",
-      inputSchema: z.object({}),
-      annotations: { readOnlyHint: true, openWorldHint: false },
-    },
-    async () => attempt(async () => ({ questions: await questions.pending(now()) })),
-  );
 
-  server.registerTool(
-    "record_opportunity",
-    {
-      title: "Note that a chance to ask went by",
-      description:
-        "Say that there was a real chance to ask about this film — they were here, you were " +
-        "already talking, and the question would have fitted — and no answer came of it. Only " +
-        "call this when that was actually true; reading the open questions is not a chance, and " +
-        "neither is anything happening while nobody is here.\n\n" +
-        "A question retires after three such chances, or thirty days, whichever comes first. " +
-        "Retiring removes the question and means nothing else: it is not a dislike, not a " +
-        "refusal, and not an answer. If they do answer, record the verdict instead — that closes " +
-        "the question without any of this mattering.",
-      inputSchema: z.object({ film: verdictFilm }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-    },
-    async ({ film }) =>
-      attempt(async () => ({ question: await questions.opportunity(film as Film, now()) })),
-  );
 
   // --- memory --------------------------------------------------------------
   //
@@ -992,11 +940,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "evening also says where its own record came from: `requestSource` and `offeredSource` " +
         "are `observed` where Tonight received the request or put the films forward itself, and " +
         "`stated` where the user later corrected it.\n\n" +
-        "`coverage` says what this read answers for — `held` and `remembered` are " +
-        "the whole of Memory — and what it leaves out. A question you are carrying is your own " +
-        "note rather than something they told you, so it is excluded here and read with " +
-        "`get_open_questions`. It is the same either way, so their absence from this answer is " +
-        "never evidence that there are none.\n\n" +
+        "`coverage` says what this read answers for, and it answers for all of it: `held` " +
+        "and `remembered` are the whole of Memory, and nothing is held back from this " +
+        "answer.\n\n" +
         "This is for explaining and correcting, not for recommending. `get_taste` is what a " +
         "recommendation reads; this holds history beside belief on purpose, and using the " +
         "history as though it were taste is the one thing it must not be used for. Reading it " +
@@ -1009,11 +955,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "a superset is not a narrower question answered. It asks like explaining and it is not. " +
         "This read is for the wider question — *\"what do you know about me?\"*, *\"show me " +
         "everything you remember\"* — and for putting any of it right.\n\n" +
-        "One thing is deliberately not here: a question you are carrying about a film is your " +
-        "own note, not something Tonight knows about them, so it is left out on purpose. Its " +
-        "absence here is therefore no evidence that there is none — **never say there are no " +
-        "open questions on the strength of this read.** `get_open_questions` is the only read " +
-        "that can answer that, and it belongs to you rather than to them either way.",
+        "Tonight remembers nothing about a person beyond what is here. Whatever you are " +
+        "carrying about them as you talk — something you meant to ask, something you noticed, " +
+        "something you were about to suggest — is yours and this conversation's, and it is " +
+        "written down nowhere. It will not be here next time, and it is not theirs to correct.",
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
@@ -1037,150 +982,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
 
   /* ------------------------------------------------------- what Tonight thinks */
 
-  server.registerTool(
-    "record_observation",
-    {
-      title: "Write down something you noticed",
-      description:
-        "Something you noticed about their history that nobody told you. A pattern across films " +
-        "they loved, a shape in what they turn down, a reading of two things put together. It is " +
-        "yours, not theirs, and writing it here is what keeps those apart.\n\n" +
-        "**An observation is not evidence and never becomes evidence.** It does not reach " +
-        "`get_taste`, it changes no recommendation, and it does not grow more true by surviving: " +
-        "one you wrote a year ago says exactly what one you wrote today says, which is that you " +
-        "noticed something. Nothing here may be reported to them as something they said, or " +
-        "counted as a preference of theirs, or used to justify an answer as though they had " +
-        "established it.\n\n" +
-        "Write it in your own voice — *\"both films they loved withhold more than they show\"* — " +
-        "never in theirs. If you want it to become theirs, that is `propose_change`, and it is " +
-        "theirs only once they say so.\n\n" +
-        "**Only what they established may found a reading.** Their verdicts, their genres and " +
-        "mixes, the films they saved and what they said about watching them. Not a film you put " +
-        "forward, not an evening that happened, not something you noticed or offered before — " +
-        "reading your own output back is how a guess comes to look like a finding. And not an " +
-        "absence: nothing follows from a film they have said nothing about.\n\n" +
-        "**One thing is not a pattern.** A single film they loved is a film they loved; two that " +
-        "happen to share a decade is a coincidence. What is worth writing down is a thread you " +
-        "could say out loud and they would recognise — and if the only way to see it is to " +
-        "squint, there is nothing here to notice yet. Nothing is lost by not writing one: an " +
-        "observation nobody needed is noise you will read back later as though it meant " +
-        "something.",
-      inputSchema: z.object({ noticed: z.string().min(1).max(2_000) }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-    },
-    async ({ noticed }) =>
-      attempt(async () => ({ observation: await reflection.observe(noticed) })),
-  );
 
-  server.registerTool(
-    "propose_change",
-    {
-      title: "Offer them a change, and do not make it",
-      description:
-        "Put a reading to them as something they could adopt: *\"you seem to like restrained " +
-        "thrillers — want me to make that a genre?\"* The proposal carries exactly what accepting " +
-        "it would create, so what they say yes to is what gets written and nothing has to be " +
-        "reconstructed afterwards.\n\n" +
-        "**Proposing is not doing.** Nothing is created here. Showing it to them is not their " +
-        "agreeing to it, their not answering is not their agreeing to it, and a proposal that " +
-        "has waited a long time has not become any more agreed. The only thing that makes it " +
-        "real is `accept_proposal`, called because they said so.\n\n" +
-        "`from` names the observation this came out of, where there was one — it is the `ref` " +
-        "`record_observation` gave you. Leave it out for an offer made in the moment. `noticed` " +
-        "is why you are offering it, in your words; `target` is the change itself.\n\n" +
-        "Offer it once and let them answer. A second proposal of the same thing is the same " +
-        "question asked twice, and asking twice is how a no becomes a yes by attrition.\n\n" +
-        "**Ask it as a question, because it is one.** *\"Maybe restrained thrillers are part of " +
-        "what works for you?\"* — something they can say no to without correcting you. Not *\"you " +
-        "like restrained thrillers\"*, which tells them what they think and leaves them arguing " +
-        "with their own taste model.\n\n" +
-        "**And it never takes over the answer.** If they asked for a film, they get the film, in " +
-        "the shape an answer takes — the offer goes at the end, in a line, or waits for a better " +
-        "moment. A recommendation that turned into a conversation about their taste model is a " +
-        "recommendation they did not get.",
-      inputSchema: z.object({
-        from: z.string().uuid().optional(),
-        noticed: z.string().min(1).max(2_000),
-        target: z.object({
-          kind: z.literal("genre"),
-          name: z.string().min(1),
-          instruction: z.string().min(1),
-        }),
-      }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-    },
-    async ({ from, noticed, target }) =>
-      attempt(async () => ({
-        proposal: await reflection.propose(from ?? null, noticed, target),
-      })),
-  );
 
-  server.registerTool(
-    "get_proposals",
-    {
-      title: "What you noticed, and what you have offered",
-      description:
-        "Your own thinking: the observations you wrote down, and every change you offered with " +
-        "what became of it. **None of it is anything they said.** It is excluded from " +
-        "`get_memory` for the same reason an open question is — that read answers *what do you " +
-        "know about me*, and this is what you made of it rather than anything they told you.\n\n" +
-        "Each proposal says `state`: `pending` while it waits, `accepted` where they said yes and " +
-        "the change was made, `rejected` where they said no. A rejected one stays here and stays " +
-        "rejected; do not offer it again, and do not treat it as undecided because time has " +
-        "passed. Reading any of this writes nothing and decides nothing.",
-      inputSchema: z.object({}),
-      annotations: { readOnlyHint: true, openWorldHint: false },
-    },
-    async () =>
-      attempt(async () => ({
-        observations: await reflection.observations(),
-        proposals: await reflection.proposals(),
-      })),
-  );
 
-  server.registerTool(
-    "accept_proposal",
-    {
-      title: "They said yes — make the change",
-      description:
-        "Call this when they have **actually agreed**, in words, to the change you offered. " +
-        "Their yes is the whole of the authority for it, and it is the only thing in Tonight " +
-        "that turns something you thought into something they have.\n\n" +
-        "**What it writes is the proposal's own target, not whatever the conversation has since " +
-        "drifted to.** If what they agreed to is not what you offered, this is the wrong call: " +
-        "offer the thing they agreed to and let them accept that.\n\n" +
-        "Not this for: a maybe, a shrug, a change of subject, a question back, or their saying " +
-        "something that merely sounds compatible. None of those is a yes, and a proposal left " +
-        "pending costs nothing — accepting one they did not agree to writes a genre into their " +
-        "model under their name.\n\n" +
-        "The proposal and the change land together or not at all, so there is no state where " +
-        "they agreed and nothing happened. Refused if the proposal was already accepted or " +
-        "rejected: a decision stands, and accepting twice would write twice.",
-      inputSchema: z.object({ ref: z.string().uuid() }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-    },
-    async ({ ref }) => attempt(async () => ({ accepted: await reflection.accept(ref) })),
-  );
 
-  server.registerTool(
-    "reject_proposal",
-    {
-      title: "They said no — and it stays no",
-      description:
-        "They turned the offer down. Nothing is written, their model is exactly as it was, and " +
-        "the proposal is marked refused so that it is not offered again.\n\n" +
-        "**A no settles it.** Do not propose the same thing next week in different words; a " +
-        "rejected idea that comes back is worse than one never offered, because it tells them " +
-        "their answer did not count. If they later say the thing themselves, that is them " +
-        "establishing it and it goes through the ordinary tools — not through this proposal " +
-        "coming back to life.\n\n" +
-        "Record a no you actually got. Their not answering is not a no either: an unanswered " +
-        "proposal stays pending, and leaving it there is the honest state.",
-      inputSchema: z.object({ ref: z.string().uuid() }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-    },
-    async ({ ref }) => attempt(async () => ({ rejected: await reflection.reject(ref) })),
-  );
 
   server.registerTool(
     "forget_verdict",
@@ -1242,20 +1047,21 @@ export function tonightMcpServer(session: McpSession): McpServer {
 }
 
 /**
- * What `get_memory` answers for, and what it deliberately does not.
+ * What `get_memory` answers for: all of it.
  *
- * A constant, and that is the whole design. A question Tonight is carrying is
- * its own note rather than something the user told it, so it is not Memory and
- * is not in the three sections — but a reader that met their absence would have
- * no way to tell "there are none" from "this read does not carry them", and the
- * first of those is a claim about the user that nothing here can support. So the
- * read says which parts it is complete for and names the one read that answers
- * the rest. Identical for everybody, consulted for nothing: building it from
- * whether a question exists would leak exactly what excluding them protects.
+ * A constant, and that is the whole design. This read reaches every root Tonight
+ * persists — films, genres, mixes, evenings, verdicts — so a reader may say
+ * *"that is everything"* on the strength of it, which is the one claim
+ * `VERDICT_COVERAGE` below exists to deny its own reader.
+ *
+ * `excluded` is empty and stays present. It used to name a second read holding
+ * notes Tonight had written itself, and the field is what told a reader that an
+ * absence here was not a finding. There is no such second place now, and saying
+ * so outright is not the same as leaving a reader to infer it from a missing key.
  */
 const COVERAGE = {
   completeFor: ["held", "remembered"],
-  excluded: { openQuestions: { readWith: "get_open_questions" } },
+  excluded: {},
 } as const;
 
 /**
@@ -1334,8 +1140,7 @@ async function attempt(work: () => Promise<unknown>) {
     if (
     !(error instanceof TasteError) &&
     !(error instanceof EpisodeError) &&
-    !(error instanceof VerdictError) &&
-    !(error instanceof ReflectionError)
+    !(error instanceof VerdictError) 
   ) {
     throw error;
   }

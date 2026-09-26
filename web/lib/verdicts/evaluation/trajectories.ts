@@ -60,11 +60,10 @@ export type Step =
       occasion?: string;
     }
   /** The user takes back what they said, in the scope they said it. */
-  | { act: "withdraw"; film: Film; occasion?: string }
+  | { act: "withdraw"; film: Film; occasion?: string };
   /** Tonight notes that it has something to ask, as of some days ago. */
-  | { act: "question"; film: Film; daysAgo: number }
   /** A chance to ask went by unanswered. Stated by a caller, never observed. */
-  | { act: "opportunity"; film: Film };
+
 
 export type Trajectory = {
   name: string;
@@ -261,60 +260,16 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     ],
   },
   {
-    name: "waiting-a-long-time",
-    proves: "a question waiting through chances and weeks adds nothing and sends nothing",
+    name: "asked-and-never-answered",
+    proves: "a film Tonight asked about and never heard back on is still a film nobody judged",
     steps: [
       { act: "viewing", film: prisoners, viewing: "seen" },
       { act: "recommend", film: prisoners },
-      { act: "question", film: prisoners, daysAgo: 20 },
-      { act: "opportunity", film: prisoners },
-      { act: "opportunity", film: prisoners },
+      { act: "outcome", watched: true, finished: true },
     ],
   },
 
-  /* --- the two ways a question runs out, at their boundaries --------------- */
 
-  {
-    name: "question-out-of-chances",
-    proves: "a third unanswered chance retires the question well inside the day limit",
-    steps: [
-      { act: "question", film: prisoners, daysAgo: 1 },
-      { act: "opportunity", film: prisoners },
-      { act: "opportunity", film: prisoners },
-      { act: "opportunity", film: prisoners },
-    ],
-  },
-  {
-    name: "question-out-of-time",
-    proves: "the day limit retires a question that has had no chances at all",
-    steps: [{ act: "question", film: prisoners, daysAgo: 30 }],
-  },
-  {
-    name: "question-out-of-time-after-one-chance",
-    proves: "the day limit does not wait for the chances to run out — one used is still out of time",
-    steps: [
-      { act: "question", film: prisoners, daysAgo: 30 },
-      { act: "opportunity", film: prisoners },
-    ],
-  },
-  {
-    name: "question-out-of-time-after-two-chances",
-    proves: "the same, one chance short of the other limit — whichever comes first ends it",
-    steps: [
-      { act: "question", film: prisoners, daysAgo: 30 },
-      { act: "opportunity", film: prisoners },
-      { act: "opportunity", film: prisoners },
-    ],
-  },
-  {
-    name: "question-still-waiting",
-    proves: "a question one day and one chance inside both limits is still carried",
-    steps: [
-      { act: "question", film: prisoners, daysAgo: 29 },
-      { act: "opportunity", film: prisoners },
-      { act: "opportunity", film: prisoners },
-    ],
-  },
 ];
 
 /** The films a trajectory touched, so a gate can look at the right ones. */

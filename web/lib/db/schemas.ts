@@ -2,10 +2,9 @@ import { EPISODES_SCHEMA } from "../episodes/store/sql.ts";
 import { OAUTH_SCHEMA } from "../oauth/store/sql.ts";
 import { TASTE_SCHEMA } from "../taste/store/sql.ts";
 import { VERDICTS_SCHEMA } from "../verdicts/store/sql.ts";
-import { REFLECTION_SCHEMA } from "../reflection/store/sql.ts";
-import { QUESTIONS_SCHEMA } from "../verdicts/questions/sql.ts";
 import { WEB_SCHEMA } from "../web/store/sql.ts";
 import type { SchemaModule } from "./migrate.ts";
+import { RETIRED_SCHEMAS } from "./retired.ts";
 
 /**
  * Every schema in the database, so that something can find one by name.
@@ -42,8 +41,9 @@ export const ALL_SCHEMAS: readonly SchemaModule[] = [
   TASTE_SCHEMA,
   EPISODES_SCHEMA,
   VERDICTS_SCHEMA,
-  QUESTIONS_SCHEMA,
-  REFLECTION_SCHEMA,
+  // Retired: the tables are dropped and the modules stay, so a deployment hears
+  // about the drop and the names cannot be reused. See `retired.ts`.
+  ...RETIRED_SCHEMAS,
 ];
 
 /** One module by name, or nothing — a need naming something unknown is a bug. */

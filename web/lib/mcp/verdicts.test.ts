@@ -7,11 +7,8 @@ import { embeddedDriver } from "../db/pglite.ts";
 import { EPISODES_SCHEMA, sqlEpisodeStore } from "../episodes/store/sql.ts";
 import type { AuthenticatedUser } from "../identity.ts";
 import { TASTE_SCHEMA, sqlTasteStore } from "../taste/store/sql.ts";
-import { askAbout } from "../verdicts/questions.ts";
-import { QUESTIONS_SCHEMA, sqlQuestionStore } from "../verdicts/questions/sql.ts";
 import { VERDICTS_SCHEMA, sqlVerdictStore } from "../verdicts/store/sql.ts";
 import { tonightMcpServer } from "./server.ts";
-import { sqlReflectionStore } from "../reflection/store/sql.ts";
 
 /**
  * The verdict tools, held to the boundary they exist to keep.
@@ -34,8 +31,6 @@ type Tool = {
   }>;
 };
 
-const DAY = 86_400_000;
-
 describe("the verdict tools", () => {
   let driver: SqlDriver;
   let ana: Record<string, Tool>;
@@ -49,14 +44,12 @@ describe("the verdict tools", () => {
         store: sqlTasteStore(driver, asUser(who)),
         episodes: sqlEpisodeStore(driver, asUser(who)),
         verdicts: sqlVerdictStore(driver, asUser(who)),
-        questions: sqlQuestionStore(driver, asUser(who)),
-        reflection: sqlReflectionStore(driver, asUser(who)),
       }) as unknown as { _registeredTools: Record<string, Tool> }
     )._registeredTools;
 
   before(async () => {
     driver = await embeddedDriver();
-    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA, QUESTIONS_SCHEMA]) {
+    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA]) {
       await migrate(driver, schema);
     }
     ana = toolsFor("google:ana");
@@ -168,25 +161,32 @@ describe("the verdict tools", () => {
     assert.doesNotMatch(said, /which governs|disagrees with/iu, "it still promises a resolution");
   });
 
-  test("the memory view says which absence is not evidence", async () => {
-    // A run read `get_memory` and volunteered "no episodes or open questions on
-    // file yet". There was one, ten days old. Pending questions are excluded
-    // from this view on purpose, so their absence here proves nothing — and the
-    // fix is to say so, not to put them in.
+  test("the memory view claims the whole of memory, with nothing kept elsewhere", async () => {
+    // This read used to declare an exclusion, because there was a second place
+    // Tonight kept notes of its own and a reader meeting their absence here
+    // could not tell "there are none" from "this read does not carry them".
+    // There is no second place now — so the read says it answers for all of it,
+    // and the answer's `coverage` says the same thing to a reader who never saw
+    // the description.
+    const description = ana.get_memory!.description ?? "";
+
+    assert.match(description, /answers for all of it|the whole of Memory/iu, "it does not claim to be complete");
+    assert.doesNotMatch(description, /get_open_questions|deliberately not here/iu, "it points at a read that is gone");
+
+    const view = (await said(ana, "get_memory")) as unknown as {
+      coverage: { completeFor: string[]; excluded: Record<string, unknown> };
+    };
+    assert.deepEqual(view.coverage.completeFor, ["held", "remembered"]);
+    assert.deepEqual(view.coverage.excluded, {}, "the answer still claims something is held back");
+  });
+
+  test("the memory view says its own thoughts are not written down", async () => {
+    // The replacement for the exclusion. A model that has just noticed something
+    // about somebody needs to know that noticing it is not the same as Tonight
+    // knowing it — nothing it thinks survives the conversation.
     const said = ana.get_memory!.description ?? "";
-
-    assert.match(said, /deliberately not here|left out on purpose/iu, "it does not say anything is excluded");
-    assert.match(
-      said,
-      /absence here[^.]*no evidence|never say there are no open questions/iu,
-      "it does not say the exclusion proves nothing",
-    );
-    assert.match(said, /`get_open_questions`/u, "it does not name the read that can answer it");
-
-    // That the exclusion itself holds is proved properly elsewhere — the M3
-    // pending-state gate runs two people who differ only in having a question
-    // open and compares the whole view. Repeating it weakly here would add a
-    // second, worse answer to a question that already has a good one.
+    assert.match(said, /remembers nothing about a person beyond what is here/iu, "it does not say memory is the whole of it");
+    assert.match(said, /written down nowhere|not be here next time/iu, "it does not say a thought does not persist");
   });
 
   /* ------------------------------------------ what a write hands back, exactly */
@@ -509,106 +509,10 @@ describe("the verdict tools", () => {
     assert.equal((await standing(ana, f)).current, null, "a same-instant withdrawal did not take");
   });
 
-  /* -------------------------------------------------------- open questions */
-
-  test("9. open questions can be looked at", async () => {
-    const f = film();
-    await sqlQuestionStore(driver, asUser("google:ana")).open(askAbout(f, new Date().toISOString()));
-    const out = (await said(ana, "get_open_questions")) as unknown as { questions: { film: object }[] };
-    assert.equal(out.questions.some((q) => JSON.stringify(q.film) === JSON.stringify(f)), true);
-  });
-
-  test("10. looking at them costs nothing", async () => {
-    const f = film();
-    const store = sqlQuestionStore(driver, asUser("google:ana"));
-    await store.open(askAbout(f, new Date().toISOString()));
-    for (let read = 0; read < 5; read += 1) await said(ana, "get_open_questions");
-    const mine = (await store.pending(new Date().toISOString())).find((q) => q.film.title === f.title);
-    assert.equal(mine?.opportunities, 0, "reading the open questions aged one");
-  });
-
-  test("11. a stated chance ages only the film it names", async () => {
-    const one = film();
-    const two = film();
-    const store = sqlQuestionStore(driver, asUser("google:ana"));
-    const at = new Date().toISOString();
-    await store.open(askAbout(one, at));
-    await store.open(askAbout(two, at));
-    await said(ana, "record_opportunity", { film: one });
-    const pending = await store.pending(at);
-    assert.equal(pending.find((q) => q.film.title === one.title)?.opportunities, 1);
-    assert.equal(pending.find((q) => q.film.title === two.title)?.opportunities, 0, "another film was aged");
-  });
-
-  test("11b. a stated chance ages only the user who stated it", async () => {
-    const f = film();
-    const at = new Date().toISOString();
-    await sqlQuestionStore(driver, asUser("google:ana")).open(askAbout(f, at));
-    const out = (await said(ben, "record_opportunity", { film: f })) as unknown as { question: unknown };
-    assert.equal(out.question, null, "a stranger's chance reached her question");
-    const mine = (await sqlQuestionStore(driver, asUser("google:ana")).pending(at)).find(
-      (q) => q.film.title === f.title,
-    );
-    assert.equal(mine?.opportunities, 0);
-  });
-
-  test("12. the third chance retires the question", async () => {
-    const f = film();
-    const store = sqlQuestionStore(driver, asUser("google:ana"));
-    const at = new Date().toISOString();
-    await store.open(askAbout(f, at));
-    await said(ana, "record_opportunity", { film: f });
-    await said(ana, "record_opportunity", { film: f });
-    assert.equal((await store.pending(at)).some((q) => q.film.title === f.title), true, "it retired early");
-    const out = (await said(ana, "record_opportunity", { film: f })) as unknown as { question: unknown };
-    assert.equal(out.question, null);
-    assert.equal((await store.pending(at)).some((q) => q.film.title === f.title), false);
-  });
-
-  test("13. a question older than thirty days is no longer open", async () => {
-    const f = film();
-    const long = new Date(Date.now() - 31 * DAY).toISOString();
-    await sqlQuestionStore(driver, asUser("google:ana")).open(askAbout(f, long));
-    const out = (await said(ana, "get_open_questions")) as unknown as { questions: { film: { title: string } }[] };
-    assert.equal(out.questions.some((q) => q.film.title === f.title), false, "it outlived its thirty days");
-
-    const fresh = film();
-    await sqlQuestionStore(driver, asUser("google:ana")).open(askAbout(fresh, new Date(Date.now() - 29 * DAY).toISOString()));
-    const still = (await said(ana, "get_open_questions")) as unknown as { questions: { film: { title: string } }[] };
-    assert.equal(still.questions.some((q) => q.film.title === fresh.title), true, "it retired a day early");
-  });
-
-  test("14. recording what they said closes the question that was waiting", async () => {
-    const f = film();
-    const store = sqlQuestionStore(driver, asUser("google:ana"));
-    const at = new Date().toISOString();
-    await store.open(askAbout(f, at));
-    await said(ana, "record_verdict", { film: f, told: "confirmed", said: { about: "judgement", judgement: "loved" } });
-    assert.equal((await store.pending(at)).some((q) => q.film.title === f.title), false, "the question stayed open");
-    assert.equal((await standing(ana, f)).current?.assertion?.judgement, "loved", "the verdict was lost while tidying");
-  });
-
-  test("15. a question that runs out produces no claim of any kind", async () => {
-    const f = film();
-    const store = sqlQuestionStore(driver, asUser("google:ana"));
-    await store.open(askAbout(f, new Date().toISOString()));
-    for (let each = 0; each < 3; each += 1) await said(ana, "record_opportunity", { film: f });
-    const read = await standing(ana, f);
-    assert.deepEqual(read.history, [], "retiring wrote a claim");
-    assert.equal(read.current, null);
-  });
-
-  test("15b. a question that runs out of time produces no claim either", async () => {
-    const f = film();
-    await sqlQuestionStore(driver, asUser("google:ana")).open(askAbout(f, new Date(Date.now() - 40 * DAY).toISOString()));
-    await said(ana, "get_open_questions");
-    assert.deepEqual((await standing(ana, f)).history, [], "the clock wrote a claim");
-  });
-
   /* ------------------------------------------------------------- identity */
 
   test("16. no tool takes a user", () => {
-    for (const name of ["record_verdict", "withdraw_verdict", "get_verdicts", "get_open_questions", "record_opportunity"]) {
+    for (const name of ["record_verdict", "withdraw_verdict", "get_verdicts"]) {
       const shape = JSON.stringify(ana[name]?.inputSchema ?? {});
       for (const forbidden of ["user_id", "userId", '"user"', "claimant"]) {
         assert.equal(shape.includes(forbidden), false, `${name} accepts ${forbidden}`);
@@ -668,26 +572,19 @@ describe("the verdict tools", () => {
     }
   });
 
-  test("the surface is the six tools approved so far, and no generic mutation", () => {
-    // M2 approved five. M3 adds `forget_verdict`, which is not a sixth way to
+  test("the surface is the four verdict tools, and no generic mutation", () => {
+    // M2 approved three. M3 adds `forget_verdict`, which is not a fourth way to
     // change what they said: it removes one act whole, on their say-so, and the
     // names below are still the ones that would let an edit in.
     const mine = Object.keys(ana).filter((name) => /verdict|question|opportunit/.test(name)).sort();
-    assert.deepEqual(mine, [
-      "forget_verdict",
-      "get_open_questions",
-      "get_verdicts",
-      "record_opportunity",
-      "record_verdict",
-      "withdraw_verdict",
-    ]);
+    assert.deepEqual(mine, ["forget_verdict", "get_verdicts", "record_verdict", "withdraw_verdict"]);
     for (const generic of ["update_verdict", "set_verdict", "upsert_verdict", "delete_verdict", "patch_verdict"]) {
       assert.equal(generic in ana, false, `${generic} appeared`);
     }
   });
 
   test("the descriptions carry the rules a model has to read", () => {
-    const text = ["record_verdict", "withdraw_verdict", "get_verdicts", "get_open_questions", "record_opportunity"]
+    const text = ["record_verdict", "withdraw_verdict", "get_verdicts"]
       .map((name) => ana[name]?.description ?? "")
       .join("\n");
 
@@ -700,10 +597,12 @@ describe("the verdict tools", () => {
     assert.match(text, /`not-ever` is about the film and also applies\s+everywhere/u);
     // Withdrawal.
     assert.match(text, /not a neutral one, and certainly not a dislike/u);
-    // Questions are not taste, and never a reason to appear.
-    assert.match(text, /says nothing about whether they liked it/u);
-    assert.match(text, /never a reason to start a conversation/u);
-    assert.match(text, /Tonight does not get in\s+touch on its own/u);
+    // That Tonight never gets in touch on its own used to be stated in the
+    // descriptions of the tools that carried its pending notes. Those tools are
+    // gone, and with them the only thing that could have looked like a reason to
+    // reach out. What remains is structural and proved as such: test 20 below
+    // reads this file's source for a timer, a fetch or a tool that offers to
+    // start something, and the M2 `noOutbound` gate does the same.
     // Correction appends.
     assert.match(text, /supersedes the old one and the old one\s+stays in the history/u);
 

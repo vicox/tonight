@@ -9,8 +9,6 @@ import { EPISODES_SCHEMA, sqlEpisodeStore } from "../../episodes/store/sql.ts";
 import type { AuthenticatedUser } from "../../identity.ts";
 import { tonightMcpServer } from "../../mcp/server.ts";
 import { TASTE_SCHEMA, sqlTasteStore } from "../../taste/store/sql.ts";
-import { askAbout } from "../questions.ts";
-import { QUESTIONS_SCHEMA, sqlQuestionStore } from "../questions/sql.ts";
 import { VERDICTS_SCHEMA, sqlVerdictStore } from "../store/sql.ts";
 import {
   GATES,
@@ -20,12 +18,10 @@ import {
   type Asked,
   type Crossing,
   type Observed,
-  type Question,
   type Surface,
   type Taste,
   type World,
 } from "./gates.ts";
-import { sqlReflectionStore } from "../../reflection/store/sql.ts";
 import {
   BASELINE,
   FILMS,
@@ -43,11 +39,10 @@ import {
  * the surface a host agent reaches, and what an agent is handed is the whole
  * question of this milestone.
  *
- * One exception, and it is declared in `LIMITS` rather than hidden here: nothing
- * in the tool surface opens a question yet, so the question trajectories reach
- * `questions.open` directly. Backdating is the reason it has to be that way —
- * every tool takes its instant from the server, which is what stops a caller
- * forging one, and an expiry gate needs a question that is genuinely old.
+ * Everything runs through those tools, with no store reached behind them. It
+ * used to have one exception: Tonight kept pending notes of its own that no tool
+ * could open, so those trajectories wrote to the store directly. Tonight keeps
+ * no such notes now, and the exception went with them.
  *
  * Each trajectory runs as its own user, starting from `BASELINE`: the same
  * genres, mix and unrelated film for everybody. A verdict history is
@@ -66,17 +61,12 @@ type Tool = {
   }>;
 };
 
-const DAY = 86_400_000;
-
 /** The modules M2 added, as gate 8 reads them. */
 const M2_SOURCES = [
   "../model.ts",
   "../store.ts",
   "../store/sql.ts",
   "../store/schema.ts",
-  "../questions.ts",
-  "../questions/sql.ts",
-  "../questions/schema.ts",
   "../../mcp/server.ts",
 ] as const;
 
@@ -96,14 +86,12 @@ describe("M2 — only what they said", () => {
         store: sqlTasteStore(driver, asUser(who)),
         episodes: sqlEpisodeStore(driver, asUser(who)),
         verdicts: sqlVerdictStore(driver, asUser(who)),
-        questions: sqlQuestionStore(driver, asUser(who)),
-        reflection: sqlReflectionStore(driver, asUser(who)),
       }) as unknown as { _registeredTools: Record<string, Tool> }
     )._registeredTools;
 
   before(async () => {
     driver = await embeddedDriver();
-    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA, QUESTIONS_SCHEMA]) {
+    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA]) {
       await migrate(driver, schema);
     }
 
@@ -124,7 +112,6 @@ describe("M2 — only what they said", () => {
   async function walk(trajectory: Trajectory): Promise<Observed> {
     const who = `google:${trajectory.name}`;
     const tools = toolsFor(who);
-    const questions = sqlQuestionStore(driver, asUser(who));
 
     const call = async (name: string, args: Record<string, unknown> = {}) => {
       const result = await tools[name]!.handler(args);
@@ -136,8 +123,6 @@ describe("M2 — only what they said", () => {
       return result.structuredContent as Record<string, unknown>;
     };
     const taste = async (): Promise<Taste> => (await call("get_taste")) as unknown as Taste;
-    const open = async (): Promise<Question[]> =>
-      ((await call("get_open_questions")) as unknown as { questions: Question[] }).questions;
 
     // The taste everybody starts from. Genres and a mix are here so that a
     // rejection generalising into a category has somewhere to land where a gate
@@ -205,13 +190,6 @@ describe("M2 — only what they said", () => {
           film: step.film,
           ...(step.occasion === undefined ? {} : { occasion: step.occasion }),
         });
-      } else if (step.act === "question") {
-        // The one store-level step. See the note at the head of this file.
-        await questions.open(
-          askAbout(step.film, new Date(Date.now() - step.daysAgo * DAY).toISOString()),
-        );
-      } else {
-        await call("record_opportunity", { film: step.film });
       }
       // After every step, not only at the end: a trajectory is invariant only if
       // it was invariant at each point along it.
@@ -235,8 +213,6 @@ describe("M2 — only what they said", () => {
       before,
       after: await taste(),
       checkpoints,
-      pending: await open(),
-      pendingAgain: await open(),
       asked,
       askedAt,
     };
@@ -256,15 +232,9 @@ describe("M2 — only what they said", () => {
       told: "volunteered",
       said: { about: "judgement", judgement: "loved", because: "the tension never lets up" },
     });
-    await sqlQuestionStore(driver, asUser("google:owner")).open(
-      askAbout(FILMS.heat, new Date().toISOString()),
-    );
     const before = ((await call(mine, "get_taste")) as unknown as Taste).verdicts ?? [];
 
     const strangersTaste = (await call(theirs, "get_taste")) as unknown as Taste;
-    const strangersQuestions = (await call(theirs, "get_open_questions")) as unknown as {
-      questions: Question[];
-    };
     const asked = (await call(theirs, "get_verdicts", {
       film: FILMS.prisoners,
     })) as unknown as Asked;
@@ -277,12 +247,10 @@ describe("M2 — only what they said", () => {
       said: { about: "judgement", judgement: "disliked" },
     });
     await call(theirs, "withdraw_verdict", { film: FILMS.prisoners });
-    await call(theirs, "record_opportunity", { film: FILMS.heat });
 
     const stillMine = ((await call(mine, "get_taste")) as unknown as Taste).verdicts ?? [];
     return {
       leakedVerdicts: strangersTaste.verdicts ?? [],
-      leakedQuestions: strangersQuestions.questions,
       asked,
       intact: JSON.stringify(before) === JSON.stringify(stillMine),
       stillMine,
@@ -300,7 +268,7 @@ describe("M2 — only what they said", () => {
   /* --------------------------------------------------------------- the tests */
 
   test("every trajectory names the invariant it proves", () => {
-    assert.equal(TRAJECTORIES.length, 21);
+    assert.equal(TRAJECTORIES.length, 16);
     for (const trajectory of TRAJECTORIES) {
       assert.ok(trajectory.proves.length > 20, `${trajectory.name} does not say what it proves`);
       assert.ok(trajectory.steps.length > 0);
@@ -339,7 +307,6 @@ describe("M2 — only what they said", () => {
       );
     }
     assert.ok(steps.some((step) => step.act === "withdraw"), "nothing is ever taken back");
-    assert.ok(steps.some((step) => step.act === "opportunity"), "no chance ever goes by");
     assert.ok(
       verdicts.some((step) => step.act === "verdict" && (step.because ?? step.reason) !== undefined),
       "no reason is ever given, so fidelity is never tested",
@@ -348,25 +315,6 @@ describe("M2 — only what they said", () => {
       verdicts.some((step) => step.act === "verdict" && (step.because ?? step.reason) === undefined),
       "no verdict is ever given without a reason, so absence is never tested",
     );
-  });
-
-  test("both expiry limits are exercised at their boundary and crossed with each other", () => {
-    // The plausible wrong rule is "time only counts once the chances are used
-    // up". Ruling it out needs the day limit reached at several chance counts,
-    // and the chance limit reached well inside the days.
-    const ages = (name: string) => {
-      const steps = TRAJECTORIES.find((one) => one.name === name)?.steps ?? [];
-      const question = steps.find((step) => step.act === "question");
-      return {
-        days: question?.act === "question" ? question.daysAgo : undefined,
-        chances: steps.filter((step) => step.act === "opportunity").length,
-      };
-    };
-    assert.deepEqual(ages("question-still-waiting"), { days: 29, chances: 2 });
-    assert.deepEqual(ages("question-out-of-time"), { days: 30, chances: 0 });
-    assert.deepEqual(ages("question-out-of-time-after-one-chance"), { days: 30, chances: 1 });
-    assert.deepEqual(ages("question-out-of-time-after-two-chances"), { days: 30, chances: 2 });
-    assert.deepEqual(ages("question-out-of-chances"), { days: 1, chances: 3 });
   });
 
   test("the influence trajectories are prefixes of one another", () => {
@@ -406,8 +354,8 @@ describe("M2 — only what they said", () => {
   });
 
   test("the limits of this evaluation are written down rather than assumed", () => {
-    assert.equal(LIMITS.length, 4);
-    for (const mark of ["blind sweep", "opens a question", "no Observation"]) {
+    assert.equal(LIMITS.length, 3);
+    for (const mark of ["blind sweep", "no Observation"]) {
       assert.ok(
         LIMITS.some((limit) => limit.includes(mark)),
         `the limit about "${mark}" is not recorded`,
@@ -662,9 +610,9 @@ describe("M2 — only what they said", () => {
     });
   });
 
-  test("a pending question contributing to taste is caught", () => {
-    probe("a waiting question becomes an answer", "non-influence", (copy) => {
-      copy.seen["waiting-a-long-time"]!.checkpoints.at(-1)!.verdicts = [
+  test("a film asked about and never answered contributing to taste is caught", () => {
+    probe("an unanswered question becomes an answer", "non-influence", (copy) => {
+      copy.seen["asked-and-never-answered"]!.checkpoints.at(-1)!.verdicts = [
         { title: "Prisoners", year: 2013, judgement: "liked", told: "volunteered" },
       ];
     });
@@ -672,50 +620,14 @@ describe("M2 — only what they said", () => {
 
   test("an episode reaching the taste payload is caught", () => {
     probe("the evenings are handed over too", "non-influence", (copy) => {
-      (copy.seen["waiting-a-long-time"]!.after as unknown as { episodes: unknown[] }).episodes = [];
-    });
-  });
-
-  test("an expired question that concludes a rejection is caught", () => {
-    probe("silence hardens into a refusal", "expiry", (copy) => {
-      copy.seen["question-out-of-chances"]!.after.verdicts = [
-        { title: "Prisoners", year: 2013, rejected: "not-ever", told: "volunteered" },
-      ];
-    });
-  });
-
-  test("a question that never retires is caught", () => {
-    probe("the day limit never fires", "expiry", (copy) => {
-      copy.seen["question-out-of-time"]!.pending = [
-        { film: FILMS.prisoners, since: new Date().toISOString(), opportunities: 0 },
-      ];
-    });
-  });
-
-  test("the day limit failing once a chance has been used is caught", () => {
-    // The broken rule this exists for: "time expiry applies only when no chances
-    // have been used". The 30-day question with a chance against it survives.
-    probe("time stops counting once a chance is used", "expiry", (copy) => {
-      copy.seen["question-out-of-time-after-one-chance"]!.pending = [
-        {
-          film: FILMS.prisoners,
-          since: new Date(Date.now() - 30 * DAY).toISOString(),
-          opportunities: 1,
-        },
-      ];
+      (copy.seen["asked-and-never-answered"]!.after as unknown as { episodes: unknown[] }).episodes = [];
     });
   });
 
   test("an outbound action appearing in the surface is caught", () => {
     probe("Tonight gets in touch on its own", "no-outbound", (copy) => {
       copy.surface.tools = [...copy.surface.tools, "remind_about_film"];
-      copy.surface.sources["../questions.ts"] = "setInterval(ask, 86400000);";
-    });
-  });
-
-  test("a reading that spends the question is caught", () => {
-    probe("looking costs the question something", "no-outbound", (copy) => {
-      copy.seen["waiting-a-long-time"]!.pendingAgain = [];
+      copy.surface.sources["../store/sql.ts"] = "setInterval(ask, 86400000);";
     });
   });
 

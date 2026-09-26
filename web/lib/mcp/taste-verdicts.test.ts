@@ -7,11 +7,8 @@ import { embeddedDriver } from "../db/pglite.ts";
 import { EPISODES_SCHEMA, sqlEpisodeStore } from "../episodes/store/sql.ts";
 import type { AuthenticatedUser } from "../identity.ts";
 import { TASTE_SCHEMA, sqlTasteStore } from "../taste/store/sql.ts";
-import { askAbout } from "../verdicts/questions.ts";
-import { QUESTIONS_SCHEMA, sqlQuestionStore } from "../verdicts/questions/sql.ts";
 import { VERDICTS_SCHEMA, sqlVerdictStore } from "../verdicts/store/sql.ts";
 import { tonightMcpServer } from "./server.ts";
-import { sqlReflectionStore } from "../reflection/store/sql.ts";
 
 /**
  * What recommendation work is handed, once verdicts exist.
@@ -22,10 +19,9 @@ import { sqlReflectionStore } from "../reflection/store/sql.ts";
  * user said, and nothing else?
  *
  * The things that must never reach it are the interesting half. An episode, a
- * question waiting on an answer, a chance that went by, a claim they corrected
- * or took back — all of them are real, none of them is a verdict, and a
- * recommendation that used any of them would be personalising on something
- * nobody stated.
+ * claim they corrected or took back, something Tonight worked out for itself —
+ * all of them are real, none of them is a verdict, and a recommendation that
+ * used any of them would be personalising on something nobody stated.
  */
 
 const asUser = (id: string): AuthenticatedUser => ({ id }) as AuthenticatedUser;
@@ -62,14 +58,12 @@ describe("what recommendation work is handed", () => {
         store: sqlTasteStore(driver, asUser(who)),
         episodes: sqlEpisodeStore(driver, asUser(who)),
         verdicts: sqlVerdictStore(driver, asUser(who)),
-        questions: sqlQuestionStore(driver, asUser(who)),
-        reflection: sqlReflectionStore(driver, asUser(who)),
       }) as unknown as { _registeredTools: Record<string, Tool> }
     )._registeredTools;
 
   before(async () => {
     driver = await embeddedDriver();
-    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA, QUESTIONS_SCHEMA]) {
+    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA]) {
       await migrate(driver, schema);
     }
     ana = toolsFor("google:ana");
@@ -107,6 +101,20 @@ describe("what recommendation work is handed", () => {
    */
   const evidence = (model: unknown): string =>
     JSON.stringify(model, (key, value) => (key === "createdAt" || key === "updatedAt" ? null : value));
+
+  /**
+   * The same idea as `evidence`, reaching further, and as a value rather than a
+   * string so that `assert.deepEqual` can name the field that moved.
+   *
+   * Two people who did the same things a millisecond apart differ in every
+   * instant persistence assigned and in every reference it minted. Neither is
+   * something either of them said, so comparing two histories means comparing
+   * what is left once the machinery is blanked — which is exactly what the
+   * pairs below are for.
+   */
+  const MACHINERY = ["createdAt", "updatedAt", "changedAt", "savedAt", "recordedAt", "saidAt", "at", "ref", "id"];
+  const stamplessly = (value: unknown): unknown =>
+    JSON.parse(JSON.stringify(value, (key, held: unknown) => (MACHINERY.includes(key) ? null : held)));
 
   /* ------------------------------------------------ a verdict reaches the answer */
 
@@ -313,23 +321,112 @@ describe("what recommendation work is handed", () => {
     assert.equal("verdicts" in one, false, "watching and finishing became a verdict");
   });
 
-  test("a question waiting on an answer adds nothing, however long it waits", async () => {
+  test("asking about a film is a conversation, and there is nothing to write it with", async () => {
+    // Tonight used to keep the questions it was carrying, and this test proved
+    // that carrying one changed nothing about what recommendation work was
+    // handed. It keeps none now: asking is something it does in the
+    // conversation, and the conversation is where it stays. So the claim is
+    // stronger and shaped differently — there is no call that would record an
+    // asking, and a person Tonight asked about a film looks from here exactly
+    // like a person it never asked, because from here they are the same person.
     const f = film();
-    const waiting = toolsFor("google:waiting");
+    const asked = toolsFor("google:asked-about-it");
     const quiet = toolsFor("google:quiet-too");
-    for (const tools of [waiting, quiet]) {
+    for (const tools of [asked, quiet]) {
       await said(tools, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
     }
-    const questions = sqlQuestionStore(driver, asUser("google:waiting"));
-    await questions.open(askAbout(f, new Date(Date.now() - 20 * 86_400_000).toISOString()));
-    await said(waiting, "record_opportunity", { film: f });
-    await said(waiting, "record_opportunity", { film: f });
+    // Everything Tonight can do around an asking: offer the film, and hear that
+    // they watched it. Neither is an answer, and the asking itself has no call.
+    const written = await said(asked, "record_episode", {
+      request: "anything good",
+      offered: [{ title: f.title, year: f.year, lead: true }],
+    });
+    await said(asked, "correct_episode", {
+      episode: (written.episode as { id: string }).id,
+      watched: true,
+    });
 
+    for (const absent of ["ask_about", "record_question", "open_question", "get_open_questions", "record_opportunity"]) {
+      assert.equal(absent in asked, false, `${absent} exists, so an asking can be written down`);
+    }
     assert.equal(
-      evidence(await taste(waiting)),
+      evidence(await taste(asked)),
       evidence(await taste(quiet)),
-      "a pending question or a chance that went by reached recommendation work",
+      "having been asked about a film reached recommendation work",
     );
+  });
+
+  /* ------------------------------------------------- offering, and being told no */
+
+  test("a suggestion Tonight makes and nobody takes up leaves the model untouched", async () => {
+    // Tonight may notice that two films somebody loved are alike and say so.
+    // Saying so is a sentence, and a sentence writes nothing — there is no call
+    // that records having offered, so the person it was put to is
+    // indistinguishable afterwards from the person it was never put to. That is
+    // the whole of the guarantee: not that an unaccepted offer is inert, but
+    // that there is no unaccepted offer anywhere to be inert.
+    const offered = toolsFor("google:was-offered-something");
+    const never = toolsFor("google:was-offered-nothing");
+    const f = film();
+    const other = film();
+    for (const tools of [offered, never]) {
+      await said(tools, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
+      await said(tools, "create_movie", { title: other.title, year: other.year, viewing: "seen" });
+      await said(tools, "record_verdict", {
+        film: f,
+        told: "volunteered",
+        said: { about: "judgement", judgement: "loved" },
+      });
+      await said(tools, "record_verdict", {
+        film: other,
+        told: "volunteered",
+        said: { about: "judgement", judgement: "loved" },
+      });
+    }
+
+    // Everything the conversation would have done: Tonight reads what it has,
+    // sees the pattern, and puts it to them. Then they say no — which is to say,
+    // they say nothing, and nothing happens.
+    await said(offered, "get_taste");
+    await said(offered, "get_memory");
+
+    assert.deepEqual(
+      stamplessly(await said(offered, "get_memory")),
+      stamplessly(await said(never, "get_memory")),
+      "being offered something changed what Tonight remembers",
+    );
+    assert.equal(
+      evidence(await taste(offered)),
+      evidence(await taste(never)),
+      "being offered something changed what a recommendation reads",
+    );
+  });
+
+  test("a suggestion they accept is written as an ordinary genre, with nothing to say it was one", async () => {
+    // The other half, and the reason the first one is safe. A yes does not
+    // promote anything or resolve anything: it is `create_genre`, the same call
+    // somebody asking outright would have caused. So the Genre carries no trace
+    // of having been Tonight's idea — no author, no accepted-at, no provenance
+    // field of any kind — because a Genre the user agreed to is a Genre the user
+    // has, and a field saying otherwise would be exactly the agent-authored
+    // memory this product does not keep.
+    const asked = toolsFor("google:asked-outright");
+    const agreed = toolsFor("google:agreed-to-it");
+
+    await said(asked, "create_genre", { name: "Quiet Dread", instruction: "something is wrong and nobody says it" });
+    // Tonight suggested this one, and they said yes. Same call, same arguments.
+    await said(agreed, "create_genre", { name: "Quiet Dread", instruction: "something is wrong and nobody says it" });
+
+    const one = ((await said(asked, "get_taste")) as { genres: Record<string, unknown>[] }).genres[0]!;
+    const two = ((await said(agreed, "get_taste")) as { genres: Record<string, unknown>[] }).genres[0]!;
+    assert.deepEqual(
+      stamplessly(one),
+      stamplessly(two),
+      "a genre somebody agreed to differs from one they asked for",
+    );
+    for (const provenance of ["author", "proposed", "acceptedAt", "suggestedBy", "source", "origin", "told"]) {
+      assert.equal(provenance in two, false, `a genre carries ${provenance}, which would record whose idea it was`);
+    }
   });
 
   test("recommending a film, however often, creates nothing", async () => {
@@ -411,17 +508,18 @@ describe("what recommendation work is handed", () => {
       "the read does not say that an absent reason is not one to be supplied",
     );
 
-    // And the offer rule, here rather than only in the skill. It sat in the
-    // persist section, where the decision is whether to persist; the sentence
-    // that breaks it is written at the end of an answer, and this is the read
-    // the model has in hand when it writes that sentence. Six of six pattern
-    // runs asked to save with no proposal behind it.
-    assert.match(
-      text,
-      /\*\*If you end by offering to save the reading, call `propose_change` before you ask\.\*\*/u,
-    );
-    assert.match(text, /a yes has to land on a proposal that already exists/u);
-    // Noticing aloud stays free — this must not read as "always propose".
+    // And the offer rule, here rather than only in the skill: the sentence that
+    // breaks it is written at the end of an answer, and this is the read the
+    // model has in hand when it writes that sentence.
+    //
+    // It used to say the offer had to be recorded before it was made. Nothing
+    // records one now, so the rule says what actually holds — the yes writes,
+    // immediately, and an offer nobody takes up leaves nothing behind.
+    assert.match(text, /their yes is what writes it — and it\s+writes it there and then/u);
+    assert.match(text, /answered with\s+`create_genre` and nothing else/u);
+    assert.match(text, /offer only what you would write on the spot/u);
+    assert.doesNotMatch(text, /propose_change|a proposal that already exists/u, "it still names a tool that is gone");
+    // Noticing aloud stays free — this must not read as "always ask".
     assert.match(text, /Saying what you noticed and asking nothing is free/u);
   });
 });
