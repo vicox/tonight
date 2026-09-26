@@ -96,7 +96,7 @@ export function loadRuns(dir) {
         answer: answerOf(text),
         snapshotBody: body,
         stored: storedNames(snapshot),
-        stateful: statefulTitles(snapshot),
+        watched: watchedTitles(snapshot),
       };
     });
   if (runs.length === 0) throw new Error(`no runs in ${dir}`);
@@ -122,17 +122,51 @@ export function storedNames(snapshot) {
 }
 
 /**
- * The states that mean the user has already formed a relationship with a film.
+ * The films the snapshot says the user has watched, and why it says so.
  *
- * `not_seen` and `null` are deliberately absent: they are the absence of an
- * experience, so the film is still on the table and may lead.
+ * Two roots can say it and the rule joins them, exactly as `lib/seen.ts` does
+ * for the product: the Movie's own `viewing` when it is `seen`, and any standing
+ * judgement, because nobody likes a film they have not seen.
+ *
+ * Three things are deliberately *not* here, and each is a way this was wrong
+ * before:
+ *
+ * - `unseen` and a missing `viewing` are the absence of watching, so the film is
+ *   still on the table and may lead. They differ from each other — one is
+ *   something the user said — but neither makes a film spent.
+ * - A **rejection** proves nothing about watching. *"Not ever"* is most often
+ *   said about a film somebody has never seen, and *"not tonight"* is about an
+ *   evening.
+ * - `verdicts` carries only what currently stands, so a judgement the user
+ *   withdrew or replaced cannot reach this. That is structural rather than a
+ *   check below.
  */
-const STATEFUL = new Set(["seen", "liked", "loved", "disliked"]);
+export function watchedTitles(snapshot) {
+  const judged = new Map(
+    (snapshot.verdicts ?? [])
+      .filter((v) => v.occasion === undefined && typeof v.judgement === "string")
+      .map((v) => [`${String(v.title).trim().toLowerCase()}\u0000${String(v.year)}`, v.judgement]),
+  );
 
-export function statefulTitles(snapshot) {
-  return (snapshot.movies ?? [])
-    .filter((m) => STATEFUL.has(m.state))
-    .map((m) => ({ title: m.title, state: m.state }));
+  const found = [];
+  for (const movie of snapshot.movies ?? []) {
+    const judgement = judged.get(`${String(movie.title).trim().toLowerCase()}\u0000${String(movie.year)}`);
+    if (movie.viewing === "seen") found.push({ title: movie.title, why: "viewing: seen" });
+    else if (judgement !== undefined) found.push({ title: movie.title, why: `verdict: ${judgement}` });
+  }
+
+  // A film they judged without ever saving is watched too, and a recommendation
+  // calling it new is the same contradiction. It has no Movie row, so it is
+  // collected from the verdicts rather than from the collection.
+  const saved = new Set(
+    (snapshot.movies ?? []).map((m) => `${String(m.title).trim().toLowerCase()}\u0000${String(m.year)}`),
+  );
+  for (const one of snapshot.verdicts ?? []) {
+    const key = `${String(one.title).trim().toLowerCase()}\u0000${String(one.year)}`;
+    if (saved.has(key) || one.occasion !== undefined || typeof one.judgement !== "string") continue;
+    found.push({ title: one.title, why: `verdict: ${one.judgement}` });
+  }
+  return found;
 }
 
 /* ------------------------------------------------------------------ signals */
@@ -244,7 +278,7 @@ const wholeTitle = (title) =>
  *             phrase?: string, title?: string, state?: string }} Flag
  * @param {{ file: string, header: Record<string, string>, answer: string,
  *           stored: { name: string, kind: string }[],
- *           stateful: { title: string, state: string }[] }[]} runs
+ *           watched: { title: string, why: string }[] }[]} runs
  * @returns {Flag[]}
  */
 export function flags(runs) {
@@ -299,17 +333,18 @@ export function flags(runs) {
     }
 
     // AC4 — the answer and its own snapshot disagree about whether a film has
-    // been watched.
+    // been watched. The snapshot's answer is the derived one: what the film says
+    // about watching, or what a standing judgement implies.
     for (const m of run.answer.matchAll(NOVELTY)) {
       const window = run.answer.slice(
         Math.max(0, m.index - CONTEXT),
         m.index + m[0].length + CONTEXT,
       );
-      for (const { title, state } of run.stateful) {
+      for (const { title, why } of run.watched) {
         if (!wholeTitle(title).test(window)) continue;
-        raise("AC4", "novelty-against-state", run, quoteAround(run.answer, m.index, m[0].length), {
+        raise("AC4", "novelty-against-watching", run, quoteAround(run.answer, m.index, m[0].length), {
           title,
-          state,
+          why,
           phrase: m[0].trim(),
         });
       }

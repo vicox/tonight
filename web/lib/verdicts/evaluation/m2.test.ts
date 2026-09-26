@@ -144,11 +144,22 @@ describe("M2 — only what they said", () => {
     for (const genre of BASELINE.genres) await call("create_genre", { ...genre });
     for (const mix of BASELINE.mixes) await call("create_mix", { ...mix });
     for (const movie of BASELINE.movies) await call("create_movie", { ...movie });
+    // The baseline opinion, as an opinion is written now. It used to be a field
+    // on the film above; when it stopped being one, the tool dropped it in
+    // silence and every user's baseline lost the thing the neighbouring-film
+    // gates exist to protect.
+    for (const one of BASELINE.said) {
+      await call("record_verdict", {
+        film: one.film,
+        told: one.told,
+        said: { about: "judgement", judgement: one.judgement },
+      });
+    }
 
-    // Leading `state` steps are the taste the trajectory starts from rather than
+    // Leading `viewing` steps are what the trajectory starts from rather than
     // part of it, so the baseline is read once they have been applied.
     for (const step of trajectory.steps) {
-      if (step.act === "state") await call("create_movie", { ...step.film, state: step.state });
+      if (step.act === "viewing") await call("create_movie", { ...step.film, viewing: step.viewing });
     }
     const before = await taste();
     const checkpoints: Taste[] = [before];
@@ -157,7 +168,7 @@ describe("M2 — only what they said", () => {
     let lead: { title: string; year: number } | undefined;
 
     for (const step of trajectory.steps) {
-      if (step.act === "state") continue;
+      if (step.act === "viewing") continue;
       if (step.act === "recommend") {
         lead = step.film;
         const written = await call("record_episode", {
@@ -291,12 +302,12 @@ describe("M2 — only what they said", () => {
     for (const trajectory of TRAJECTORIES) {
       assert.ok(trajectory.proves.length > 20, `${trajectory.name} does not say what it proves`);
       assert.ok(trajectory.steps.length > 0);
-      // Setup is setup: the baseline is read once the leading states are in, so
-      // a state arriving later would be silently reordered.
-      const firstAct = trajectory.steps.findIndex((step) => step.act !== "state");
+      // Setup is setup: the baseline is read once the leading viewings are in,
+      // so one arriving later would be silently reordered.
+      const firstAct = trajectory.steps.findIndex((step) => step.act !== "viewing");
       assert.ok(
-        firstAct === -1 || !trajectory.steps.slice(firstAct).some((step) => step.act === "state"),
-        `${trajectory.name} files a Movie state after the trajectory has begun`,
+        firstAct === -1 || !trajectory.steps.slice(firstAct).some((step) => step.act === "viewing"),
+        `${trajectory.name} files a viewing after the trajectory has begun`,
       );
     }
     assert.equal(new Set(TRAJECTORIES.map((one) => one.name)).size, TRAJECTORIES.length);
@@ -361,7 +372,7 @@ describe("M2 — only what they said", () => {
     // it plus one more thing, so a gate failure names the step that moved.
     const stepsOf = (name: string) =>
       (TRAJECTORIES.find((one) => one.name === name)?.steps ?? []).filter(
-        (step) => step.act !== "state",
+        (step) => step.act !== "viewing",
       );
     const chain = [
       "influence-baseline",
@@ -443,7 +454,7 @@ describe("M2 — only what they said", () => {
 
   test("a withdrawn verdict that keeps standing is caught", () => {
     probe("a withdrawal does not take", "withdrawal", (copy) => {
-      copy.seen["withdrawal-reveals-the-state"]!.after.verdicts = [
+      copy.seen["withdrawal-leaves-silence"]!.after.verdicts = [
         { title: "Prisoners", year: 2013, judgement: "disliked", told: "volunteered" },
       ];
     });
@@ -517,12 +528,39 @@ describe("M2 — only what they said", () => {
     });
   });
 
-  test("a not-tonight moving an unrelated Movie state is caught", () => {
+  test("a not-tonight moving an unrelated film's viewing is caught", () => {
+    // The plausible bug in this model: a refusal that reaches across and rewrites
+    // what is known about watching a neighbouring film. It used to be written as
+    // a `state` of `disliked`, which is a field `Movie` no longer has — so the
+    // mutation added a property nothing reads and killed nothing.
     probe("an evening's refusal rewrites a neighbouring film", "scope", (copy) => {
       const seen = copy.seen["not-tonight-one-evening"]!;
       seen.after.movies = seen.after.movies.map((movie) =>
-        movie.title === "Heat" ? { ...movie, state: "disliked" } : movie,
+        movie.title === "Heat" ? { ...movie, viewing: "unseen" } : movie,
       );
+    });
+  });
+
+  test("a not-tonight moving an unrelated film's opinion is caught", () => {
+    // The other half, and the one the baseline exists for. An evening's refusal
+    // that reached the standing opinion about another film would be a mood
+    // turned into a fact about the person — and the opinion is a verdict now, so
+    // that is where a leak would have to land.
+    probe("an evening's refusal rewrites a neighbouring opinion", "scope", (copy) => {
+      const seen = copy.seen["not-tonight-one-evening"]!;
+      seen.after.verdicts = (seen.after.verdicts ?? []).map((held) =>
+        held.title === "Heat" ? { ...held, judgement: "disliked" } : held,
+      );
+    });
+  });
+
+  test("a not-tonight erasing an unrelated opinion is caught", () => {
+    // And the failure that looks like tidying rather than like writing: the
+    // neighbouring verdict simply gone. A gate that only compared what is
+    // present would miss it.
+    probe("an evening's refusal drops a neighbouring opinion", "scope", (copy) => {
+      const seen = copy.seen["not-tonight-one-evening"]!;
+      seen.after.verdicts = (seen.after.verdicts ?? []).filter((held) => held.title !== "Heat");
     });
   });
 

@@ -54,12 +54,24 @@ export default function Privacy() {
           one. Tonight does not send your taste model anywhere on its own initiative. What it does is
           answer: an assistant you have authorized may <strong>request</strong> your taste model
           through the MCP endpoint, and Tonight returns <strong>all</strong> of it — every genre and
-          mix with its instruction, and every film you have saved with its year, its IMDb id if it
-          has one, and the one state you gave it. That is the same model this website shows
-          you, arranged differently: the signed-in page groups your films under the mixes they are
-          in and lists the rest under &ldquo;Other movies&rdquo;, and it keeps each instruction one
-          click away rather than on the page. What that assistant then does with what it receives
+          mix with its instruction, every film you have saved with its year, its IMDb id if it
+          has one, and whether you have said you watched it, and everything you have said about
+          particular films. What that assistant then does with what it receives
           happens in that service, not here, and the operator has no control over it.
+        </p>
+        <p>
+          <strong>This website shows you less than that, and is a view of your data rather than
+          the same answer rearranged.</strong> The signed-in page is built for reading a
+          collection: it groups your films under the mixes they are in, lists the rest under
+          &ldquo;Other movies&rdquo;, and keeps each instruction one click away rather than on the
+          page. What you said about a film is shown <em>against the film it is about</em>, so
+          three things stored about you are not on it: a verdict about a film you never saved,
+          because there is no film there to show it against; a <em>not tonight</em>, because that
+          belongs to an evening rather than to the film; and a verdict you replaced or took back,
+          because the page shows what stands. The evenings Tonight recorded are not on it either.
+          None of that is deleted, hidden from you, or outside this policy — it is stored, it is
+          covered by the retention and deletion terms below, and an assistant you authorize can
+          read all of it back to you.
         </p>
       </section>
 
@@ -133,14 +145,34 @@ export default function Privacy() {
         <p>
           <strong>Films you tell it about.</strong> A film is in Tonight only because you or an
           assistant acting for you put it there. For each one: the title and release year you gave,
-          an optional IMDb title id, one state, and which of your mixes it is in. The state is a
-          single answer, and there are five of them: <em>not seen</em>, <em>seen</em>,{" "}
-          <em>liked</em>, <em>loved</em> and <em>disliked</em>. <em>Seen</em> means you watched it
-          and said nothing about it — it is not a verdict. A film may also have no state at all,
-          which means you have said nothing, and that is what a film starts as. It is different
-          from <em>not seen</em>, which is something you said. Neither is guessed from anything:
-          being recommended a film never gives it a state, and
-          neither does saving one.
+          an optional IMDb title id, which of your mixes it is in, and whether you have watched it.
+          That last one is a fact and not an opinion, and it has three answers: <em>seen</em>,{" "}
+          <em>not seen</em>, and nothing at all. Nothing at all is what a film starts as and means
+          you have not said either way — it is different from <em>not seen</em>, which is
+          something you said. Neither is guessed from anything: being recommended a film never
+          says you watched it, and neither does saving one.
+        </p>
+        <p>
+          <strong>What you thought of a film.</strong> Kept separately from the film itself,
+          because it is a different kind of thing. A <em>verdict</em> is something you said about
+          one film: that you <em>liked</em>, <em>loved</em> or <em>disliked</em> it, or that you
+          turned it down — <em>not tonight</em> for one evening, or <em>not ever</em>. Each one
+          records your own words for why if you gave them, whether you volunteered it or answered
+          a question, and when you said it. Nothing else is stored as an opinion: a saved film
+          carries no rating, and being recommended something writes no verdict.
+        </p>
+        <p>
+          <strong>Verdicts keep their history, and you can take one back.</strong> Changing your
+          mind records the new verdict and keeps the old one as something you used to say.
+          Withdrawing one takes <strong>that verdict</strong> out of what currently applies rather
+          than leaving a weaker one — and it reaches exactly as far as the verdict did: taking back
+          a <em>not tonight</em> given for one evening leaves anything you said about the film in
+          general still standing. It does not unsay it either: that you said it, and then took it
+          back, is still part of what Tonight remembers, and both are shown to you. Neither reaches the
+          film itself: taking back an opinion does not change whether you said you watched it,
+          and does not remove the film from your collection. <strong>Forgetting</strong> is the
+          stronger of the two and is the one that removes: that one thing you said is gone, and
+          nothing remembers it afterwards.
         </p>
         <p>
           <strong>What is stored about an evening.</strong> Tonight records the evenings it took
@@ -153,10 +185,13 @@ export default function Privacy() {
         </p>
         <p>
           <strong>That record is not a taste profile.</strong> Nothing about what you like is
-          learned from it. An evening never changes a film&rsquo;s state, never creates a genre or
-          a mix, and never becomes a preference: those only change when you say so. You can
-          correct any part of an evening, and you can delete one outright — deleting removes it
-          and the films it listed, rather than hiding it from view.
+          learned from it. An evening may record that you watched something, because you said so
+          — that is the evening&rsquo;s own account of what happened. What it never does is become an
+          opinion: it is not a verdict, it does not create a genre or a mix, it never changes the
+          film&rsquo;s own record of whether you have seen it, and it never becomes a preference.
+          Those only change when you say so, where they live. You can correct any part of an
+          evening, and you can delete one outright — deleting removes it and the films it listed,
+          rather than hiding it from view.
         </p>
         <p>
           <strong>What is still deliberately not stored.</strong> Tonight keeps no scored or star ratings,
@@ -166,12 +201,13 @@ export default function Privacy() {
           pointer and never followed.
         </p>
         <p>
-          <strong>A state, never a history.</strong> A film in Tonight says whether you have
-          watched it, not when, how often, or in what order. An evening Tonight recorded carries the
+          <strong>Whether, never when.</strong> A film in Tonight says whether you have watched
+          it, not when, how often, or in what order. An evening Tonight recorded carries the
           moment Tonight wrote it down, which is not the moment you watched anything — nobody
-          asked you that, so it is not recorded. Liked, loved and
-          disliked are things you said about a film, not a rating scale: there is no score, no
-          stars and no average of anything.
+          asked you that, so it is not recorded. A verdict carries the moment you said it, which
+          is when you spoke rather than when you watched. Liked, loved and disliked are things you
+          said about a film, not a rating scale: there is no score, no stars and no average of
+          anything.
         </p>
         <p>
           <strong>Nothing you do changes your taste model except changing it.</strong> Tonight draws no
@@ -426,8 +462,9 @@ export default function Privacy() {
           that has lapsed registers itself again the next time it is used.
         </p>
         <p>
-          <strong>Your taste model</strong> — your genres, your mixes, and the films you saved
-          along with the state you gave each — is subject to a policy of the operator rather
+          <strong>Everything Tonight holds about you</strong> — your genres, your mixes, the
+          films you saved, everything you have said about a film whether or not that film is one
+          you saved, and the evenings Tonight recorded — is subject to a policy of the operator rather
           than a rule in the software: it is{" "}
           <strong>intended to be kept until the closed beta ends</strong>, and the operator will delete
           it then, or earlier on a valid request. The application does not delete it by itself, and
@@ -447,7 +484,7 @@ export default function Privacy() {
           You can delete any mix yourself at any time, on this website or through your assistant, and
           any genre no mix is built from. A genre a mix does refer to stays until that mix does not:
           take it out of the mix, or delete the mix, and the genre can go. For a film, the
-          signed-in page lets you set that state; adding one,
+          signed-in page lets you say whether you have seen a film and what you thought of it; adding one,
           changing its title or year, and removing it are done through your assistant, which does
           each there and then. To have your account and everything belonging to it removed, write
           to{" "}

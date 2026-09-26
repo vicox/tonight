@@ -49,7 +49,7 @@ const DIALOG = new URL("../../components/chosen.tsx", import.meta.url);
 const MIXES = new URL("../../components/mix-cards.tsx", import.meta.url);
 const ROW = new URL("../../components/movie-row.tsx", import.meta.url);
 const SUMMARY = new URL("../../components/movie-summary.tsx", import.meta.url);
-const MARKS = new URL("../../components/movie-state.tsx", import.meta.url);
+const MARKS = new URL("../../components/movie-mark.tsx", import.meta.url);
 const MANAGE = new URL("../../components/manage.tsx", import.meta.url);
 const EXIT = new URL("../../components/way-out.tsx", import.meta.url);
 
@@ -160,66 +160,79 @@ test("the IMDb link says IMDb, and is absent when there is no id", () => {
   assert.match(link, />\s*IMDb</, "the visible link text does not contain IMDb");
 });
 
-test("the row shows one mark, and it is the state the film is in", () => {
-  // One icon per film, not five. A page of twenty films has to stay readable, and
-  // the mark has to say what the film is rather than what it is not.
-  assert.match(marks, /const shown = \(state: MovieState \| null\) =>/);
-  assert.match(marks, /CHOICES\.find\(\(choice\) => choice\.state === state\) \?\? NOTHING_SAID/);
-  assert.match(marks, /<current\.icon/, "the trigger does not draw the current state");
+test("a row shows two marks, and each draws the answer the film carries", () => {
+  // Two, not one and not seven. A film answers two questions — whether it was
+  // watched and what they made of it — and a single control offering both would
+  // make somebody choose which of two true things to record.
+  assert.match(row, /<MovieMark mark=\{VIEWING\}/, "the row does not draw the viewing mark");
+  assert.match(row, /mark=\{JUDGEMENT\}/, "the row does not draw the judgement mark");
+  assert.match(row, /value=\{movie\.viewing\}/);
+  assert.match(row, /value=\{movie\.position\?\.judgement \?\? null\}/);
 
-  // Exactly one icon element outside the menu.
-  const trigger = marks.slice(marks.indexOf("<button\n          ref={trigger}"), marks.indexOf("{open && ("));
-  assert.equal((trigger.match(/<current\.icon/g) ?? []).length, 1);
+  // And one component behind both, so the keyboard, the focus handling and the
+  // dismissal are one implementation rather than two that drift.
+  assert.match(marks, /export function MovieMark<T>/);
+  assert.match(marks, /const chosen = mark\.choices\.find/);
+  assert.match(marks, /<current\.icon/, "the trigger does not draw the current answer");
 });
 
-test("each state has its Lucide icon, and nothing-said has its own", () => {
+test("each answer has its Lucide icon, and nothing-said has its own", () => {
   assert.match(marks, /from "lucide-react"/);
-  for (const [state, icon] of [
+  for (const [value, icon] of [
     ["seen", "Eye"],
-    ["not_seen", "EyeOff"],
+    ["unseen", "EyeOff"],
     ["liked", "ThumbsUp"],
     ["loved", "Heart"],
     ["disliked", "ThumbsDown"],
   ]) {
     assert.match(
       marks,
-      new RegExp(`state: "${state}",[^}]*icon: ${icon}`),
-      `${state} is not drawn with ${icon}`,
+      new RegExp(`value: "${value}",[^}]*icon: ${icon}`),
+      `${value} is not drawn with ${icon}`,
     );
   }
 
-  // Circle draws `null`, and only that. It must not join the five: nothing in the
-  // model, the store or the tools knows about it.
-  assert.match(marks, /const NOTHING_SAID = \{ label: "Nothing said", icon: Circle \}/);
-  assert.equal(
-    /state: "nothing_said"|"circle"|MOVIE_STATES.*Circle/.test(marks),
-    false,
-    "Circle has been made into a sixth state",
-  );
+  // Circle draws the unset value on both marks, and is not one of the answers
+  // either offers: nothing in the model, the store or the tools knows about it.
+  assert.equal((marks.match(/unset: \{ label: "[^"]+", icon: Circle \}/g) ?? []).length, 2);
+  assert.equal(/value: "nothing_said"|value: "circle"/.test(marks), false, "Circle became an answer");
 });
 
-test("the menu offers the five real states, with an icon and words for each", () => {
+test("the viewing mark offers two answers and no way back to silence", () => {
+  // A press is a statement. Unsaying one is a real operation and it stays with
+  // the assistant, where `update_movie` accepts a null.
+  const viewing = marks.slice(marks.indexOf("export const VIEWING"), marks.indexOf("export const JUDGEMENT"));
+  assert.deepEqual(
+    [...viewing.matchAll(/value: "([a-z]+)"/g)].map((match) => match[1]),
+    ["unseen", "seen"],
+    "the viewing mark no longer offers not-seen then seen, the direction a film moves",
+  );
+  assert.equal(/value: null/.test(viewing), false, "the viewing mark can write silence back");
+  assert.match(viewing, /endpoint: "\/api\/movies"/);
+  assert.match(viewing, /field: "viewing"/);
+});
+
+test("the judgement mark offers the three, and taking it back", () => {
+  // `null` *is* an answer here, and that is the difference between the two
+  // marks: taking back what you said about a film is an ordinary thing to want,
+  // and the verdict model has a word for it.
+  const judgement = marks.slice(marks.indexOf("export const JUDGEMENT"));
+  assert.deepEqual(
+    [...judgement.matchAll(/value: (?:"([a-z]+)"|(null))/g)].map((match) => match[1] ?? match[2]),
+    ["liked", "loved", "disliked", "null"],
+    "the judgement mark no longer offers the three warmest-last and then taking it back",
+  );
+  assert.match(judgement, /endpoint: "\/api\/verdicts"/);
+  assert.match(judgement, /field: "judgement"/);
+});
+
+test("the menu is one menu, with an icon and words for each answer", () => {
   const menu = marks.slice(marks.indexOf("{open && ("));
 
   assert.match(menu, /role="menu"/);
-  assert.match(menu, /CHOICES\.map/, "the menu does not offer the five");
+  assert.match(menu, /mark\.choices\.map/, "the menu does not offer the mark's own answers");
   assert.match(menu, /<Icon\n/, "an option has no icon");
   assert.match(menu, /\{label\}/, "an option has no words");
-
-  // In one order, and it is the order the summary reads them in: the two facts
-  // first — not seen before seen, the direction a film moves through them — and
-  // then the three ways of having an opinion. A reader meeting both should not
-  // have to learn two orders.
-  assert.deepEqual(
-    [...marks.matchAll(/\{ state: "([a-z_]+)"/g)].map((match) => match[1]),
-    ["not_seen", "seen", "liked", "loved", "disliked"],
-    "the menu no longer offers the five in the order the summary reads them",
-  );
-
-  // And no way back to nothing said: a press is a statement, and unsaying one is
-  // an operation this page deliberately does not have.
-  assert.equal(menu.includes("NOTHING_SAID"), false, "the menu offers nothing-said");
-  assert.equal(/set\(null\)|state: null/.test(menu), false, "the menu can write null");
 });
 
 test("it is a menu button, with a menu button's semantics", () => {
@@ -231,12 +244,12 @@ test("it is a menu button, with a menu button's semantics", () => {
   assert.match(marks, /aria-haspopup="menu"/);
   assert.match(marks, /aria-expanded=\{open\}/);
   assert.match(marks, /aria-controls=\{open \? menuId : undefined\}/);
-  assert.match(marks, /aria-label=\{`What you said about \$\{title\} \(\$\{year\}\): \$\{current\.label\}`\}/);
+  assert.match(marks, /aria-label=\{`\$\{mark\.asks\} \$\{title\} \(\$\{year\}\): \$\{current\.label\}`\}/);
 
   // One answer out of a set is what menuitemradio is for, and `aria-checked` is
   // how a listener is told which one it currently is.
   assert.match(marks, /role="menuitemradio"/);
-  assert.match(marks, /aria-checked=\{state === choice\}/);
+  assert.match(marks, /aria-checked=\{value === choice\}/);
 });
 
 test("the menu's keyboard is a menu's: arrows move, Enter chooses, Escape returns", () => {
@@ -299,13 +312,20 @@ test("the menu's keyboard is a menu's: arrows move, Enter chooses, Escape return
 });
 
 test("a mark writes through the one route boundary, and keeps no copy of its own", () => {
-  const write = bodyOf("MovieState", marks);
+  const write = bodyOf("MovieMark", marks);
 
-  // The same route boundary, the same store, the same domain rules as every
-  // other write from this website. No second path to the movie table.
-  assert.match(write, /fetch\("\/api\/movies", \{/);
+  // The same route boundary, the same domain rules as every other write from
+  // this website. The mark carries which route it is for rather than naming one,
+  // so the two marks cannot drift into two ways of writing.
+  assert.match(write, /fetch\(mark\.endpoint, \{/);
   assert.match(write, /method: "PATCH"/);
+  assert.match(write, /\[mark\.field\]: to/, "the mark does not send its own field");
   assert.match(write, /router\.refresh\(\)/);
+
+  // Two routes, and each mark names exactly one. A viewing is a fact about a
+  // saved film; a judgement is a verdict, and they are not the same write.
+  assert.match(marks, /endpoint: "\/api\/movies"/);
+  assert.match(marks, /endpoint: "\/api\/verdicts"/);
 
   // No optimistic state: the mark renders the props it was given, so an
   // assistant writing between the render and the press cannot leave this
@@ -321,9 +341,9 @@ test("a mark writes through the one route boundary, and keeps no copy of its own
 test("the counts sit above every film they count", () => {
   const view = bodyOf("TasteView");
 
-  // Given the whole collection, not a mix's films: three of the four tiles count
-  // a state, and a state is spread across every mix on the page.
-  assert.match(view, /<MovieSummary\s+movies=\{taste\.movies\}/, "the page has no counts on it");
+  // Given the whole collection, not a mix's films: what is counted is spread
+  // across every mix on the page.
+  assert.match(view, /<MovieSummary movies=\{movies\}/, "the page has no counts on it");
 
   const at = view.indexOf("<MovieSummary");
   assert.ok(at < view.indexOf('title="Your genres"'), "the counts are below the genres");
@@ -333,18 +353,17 @@ test("the counts sit above every film they count", () => {
 test("the counts are one line of plain text, in one type", () => {
   const films = bodyOf("MovieSummary", summary);
 
-  // The six, in the order they are read, laid end to end. Composed from the
-  // model's own lists so the order is the model's and not a second opinion about
-  // it, with `without status` left out when there is none.
-  assert.match(films, /const row = \[\s*\.\.\.FACTS,\s*\.\.\.OPINIONS,/);
-  assert.match(films, /quiet\.length > 0 \? \[WITHOUT_STATUS\] : \[\]/);
+  // The two questions, in the order they are read, laid end to end. Composed
+  // from the model's own lists so the order is the model's and not a second
+  // opinion about it, with an empty answer left out.
+  assert.match(films, /const row = \[\.\.\.WATCHED, \.\.\.SAID\]\.filter\(/);
   assert.match(films, /row\.map\(\(selection, index\)/, "the row is not rendered as one list");
 
-  // One `Count` draws all six, so the five answers cannot drift apart from one
+  // One `Count` draws every control, so the answers cannot drift apart from one
   // another: they are given the row's own type and nothing of their own.
   const line = films.slice(films.indexOf("row.map"), films.indexOf("recent.length > 0"));
   assert.equal((line.match(/<Count\b/g) ?? []).length, 1, "an item is drawn differently");
-  assert.match(line, /"hover:text-ink"/, "the five answers carry a type of their own");
+  assert.match(line, /"hover:text-ink"/, "the answers carry a type of their own");
 
   // The remainder steps down from that type — smaller and quieter, because it is
   // what is left over rather than something somebody said — and it is the only
@@ -355,7 +374,7 @@ test("the counts are one line of plain text, in one type", () => {
     /"text-\[12\.5px\] text-ink-faint hover:text-ink-soft"/,
     "the remainder is not set quieter than the five",
   );
-  assert.match(films, /const remainders = \[WITHOUT_STATUS\];/);
+  assert.match(films, /const remainders = \[NO_OPINION\];/);
   assert.equal(
     /font-|tracking-|opacity-|leading-(snug|tight)/.test(line),
     false,
@@ -448,14 +467,18 @@ test("the total is beside the heading, and is not a tile", () => {
   assert.equal(/"Total"/.test(summary + model), false, "Total is still a tile");
 });
 
-test("the films with no state are in the row, and absent when there are none", () => {
+test("a control with nothing in it is left out of the row", () => {
   const films = bodyOf("MovieSummary", summary);
 
-  // In the row with the rest, in the same type, and last — and out of it
-  // entirely when there is none: nothing to say, and a zero there would read as
-  // a state that happens to be empty.
-  assert.match(films, /quiet\.length > 0 \? \[WITHOUT_STATUS\] : \[\]/, "the count is always shown");
-  assert.match(films, /const quiet = selected\(WITHOUT_STATUS, movies\);/);
+  // In the row with the rest and in the same type, and out of it entirely when
+  // there is none: nothing to say, and a zero would read as an answer that
+  // happens to be empty. The row is two exhaustive questions laid end to end,
+  // which is why it is filtered rather than assembled from a fixed spine.
+  assert.match(
+    films,
+    /const row = \[\.\.\.WATCHED, \.\.\.SAID\]\.filter\(\(one\) => selected\(one, movies\)\.length > 0\);/,
+    "the count is always shown",
+  );
 
   const line = films.slice(films.indexOf("row.map"), films.indexOf("recent.length > 0"));
   assert.match(
@@ -496,7 +519,7 @@ test("one dialog serves every one of the seven ways in", () => {
     "the dialog is not given the films the pressed control stands for",
   );
   assert.match(summary, /const RECENT: Selection = \{/, "this week is not shaped like the others");
-  assert.match(summary, /states: \[\]/, "this week claims to be a state");
+  assert.match(summary, /holds: \(\) => false/, "this week claims to be an answer");
 });
 
 test("the summary is an overview of a collection, not a report about it", () => {
@@ -570,7 +593,7 @@ test("the dialog shows the page's own rows, and says where each film is filed", 
 
   assert.match(chosen, /<Films movies=\{films\} filed/, "the dialog does not reuse the film list");
   assert.equal(
-    /<MovieState|<li|imdb\.com/i.test(summary),
+    /<Viewing|<li|imdb\.com/i.test(summary),
     false,
     "the dialog draws a film row of its own",
   );
@@ -590,7 +613,7 @@ test("a row reads title, year, IMDb, then where it is filed, then the mark", () 
   const title = films.indexOf("{movie.title} ({movie.year})");
   const imdb = films.indexOf("<Imdb id=");
   const filed = films.indexOf("<Filed movie=");
-  const mark = films.indexOf("<MovieState ");
+  const mark = films.indexOf("<MovieMark ");
 
   assert.ok(title < imdb, "the IMDb link is not after the year");
   assert.ok(imdb < filed, "the mixes come before the link out");
@@ -607,13 +630,13 @@ test("a row reads title, year, IMDb, then where it is filed, then the mark", () 
 
 test("it is the same mark on a row in both places, with the same behaviour", () => {
   // Not a second control that happens to look like it: the row is one component,
-  // rendered by the page and by the dialog, handing `MovieState` the same three
-  // things either way round. Everything the mark itself is held to — the menu,
+  // rendered by the page and by the dialog, handing each mark the same things
+  // either way round. Everything the mark itself is held to — the menu,
   // its keyboard, the one route boundary it writes through — is pinned above and
   // applies to a row in the dialog because it is the same row.
   assert.match(
     bodyOf("Films", row),
-    /<MovieState title=\{movie\.title\} year=\{movie\.year\} state=\{movie\.state\} \/>/,
+    /<MovieMark mark=\{VIEWING\} value=\{movie\.viewing\} title=\{movie\.title\} year=\{movie\.year\} \/>/,
   );
 
   // The row file is on both sides of the client boundary — the server page
@@ -624,7 +647,7 @@ test("it is the same mark on a row in both places, with the same behaviour", () 
 
 test("neither a count nor an open list is a copy of the films", () => {
   // The only state is which tile is open. A mark pressed inside the dialog
-  // writes through `MovieState`, which asks for the page to be re-rendered; the
+  // writes through `Viewing`, which asks for the page to be re-rendered; the
   // server's answer arrives as a new `movies`, and every count and the open list
   // are computed from it again. So a film that no longer belongs to the open tile
   // leaves the list, and the tile above it is already showing one fewer.
@@ -761,8 +784,8 @@ test("the mark stays on the right of a row, however the words wrap", () => {
   // on the right of the row's first line instead of being pushed under it.
   assert.match(films, /className="flex min-w-0 flex-1 flex-wrap items-baseline/);
   assert.ok(
-    films.includes("</span>\n          <MovieState"),
-    "the mark is inside the box that wraps, so a long row pushes it off the line",
+    films.includes("</span>\n          <span className=\"flex shrink-0 items-center"),
+    "the marks are inside the box that wraps, so a long row pushes them off the line",
   );
 
   // Which is also why the row is no longer three items spread apart: with two,
@@ -840,12 +863,12 @@ test("a genre is a compact label, and a mix is a compact card", () => {
   // numbers rather than the whole mix.
   assert.match(
     bodyOf("TasteView"),
-    /<GenreLabels genres=\{taste\.genres\} mixes=\{taste\.mixes\} movies=\{taste\.movies\}/,
+    /<GenreLabels genres=\{taste\.genres\} mixes=\{taste\.mixes\} movies=\{movies\}/,
     "genres are not labels, or are not given what they need to reach their films",
   );
   assert.match(
     bodyOf("TasteView"),
-    /<MixCards mixes=\{taste\.mixes\} movies=\{taste\.movies\}/,
+    /<MixCards mixes=\{taste\.mixes\} movies=\{movies\}/,
     "the page does not hand the mixes their films",
   );
 
@@ -945,7 +968,7 @@ test("a closed mix card is a name, what it is made of, and a loved count", () =>
   // And the rest of the mix is still not on the closed card: no instruction, no
   // film row, no mark. All of that is in the dialog.
   assert.equal(
-    /instruction|<Films|MovieState/.test(stack),
+    /instruction|<Films|Viewing/.test(stack),
     false,
     "the closed card still carries the mix's details",
   );
@@ -1668,7 +1691,7 @@ test("recently added is one quiet control, not a list", () => {
   // The page settles the instant, once, where the render happens.
   assert.match(
     bodyOf("TasteView"),
-    /recent=\{recentlyAdded\(taste\.movies, new Date\(\)\)\}/,
+    /recent=\{recentlyAdded\(movies, new Date\(\)\)\}/,
     "the page does not hand the summary its recent films",
   );
 });
@@ -1707,7 +1730,7 @@ test("with no mixes at all, the films in none of them are still reachable", () =
   // that there are no mixes yet is beside it, not instead of it.
   assert.match(
     view,
-    /<MixCards mixes=\{taste\.mixes\} movies=\{taste\.movies\}/,
+    /<MixCards mixes=\{taste\.mixes\} movies=\{movies\}/,
     "the page does not render the mixes section",
   );
   assert.match(view, /\{taste\.mixes\.length === 0 && \(/, "the empty message is not shown beside it");
@@ -1818,7 +1841,9 @@ function enclosing(
  * there are none.
  */
 function bodyOf(name: string, file: string = source): string {
-  const start = file.indexOf(`function ${name}(`);
+  // A generic component declares `function Name<T>(`, so the parameter list is
+  // not always what follows the name.
+  const start = file.search(new RegExp(`function ${name}(?:<[^>]*>)?\\(`));
   assert.notEqual(start, -1, `no ${name}() in the component`);
 
   const rest = file.slice(start);

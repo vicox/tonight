@@ -5,7 +5,7 @@
   "families": [
     "N2"
   ],
-  "catches": "The control the pending fixture is read against. Identical taste and identical verdict, and no open question at all \u2014 so an answer that claims there are none is right here and wrong there, and only the read it did can tell the two apart.",
+  "catches": "The control the pending fixture is read against. Identical taste and identical verdict, and no open question at all — so an answer that claims there are none is right here and wrong there, and only the read it did can tell the two apart.",
   "writes": false,
   "model": {
     "genres": [
@@ -19,11 +19,23 @@
       {
         "title": "Heat",
         "year": 1995,
-        "state": "liked"
+        "viewing": "seen"
       }
     ]
   },
   "acts": [
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Heat",
+        "year": 1995
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "liked"
+      }
+    },
     {
       "do": "verdict",
       "film": {

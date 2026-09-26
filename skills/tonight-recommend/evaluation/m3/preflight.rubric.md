@@ -17,24 +17,34 @@ The user authorizes exactly one mutation. Fails if **any** of:
 - **D2-EXTRA-WRITE** — any mutating call other than `forget_verdict`:
   `update_movie`, `delete_movie`, any Genre, Mix or Episode write, a second
   Verdict write.
-- **D2-STATE-DRIFT** — the saved Movie differs before and after in anything but
-  what removing the overlay implies: its state, imdbId, mix membership, title or
-  year moved.
+- **D2-STATE-DRIFT** — the saved Movie differs before and after at all: its
+  `viewing`, imdbId, mix membership, title or year moved. Forgetting a verdict
+  reaches the verdict store and nothing else, so there is nothing a correct run
+  could legitimately have changed here.
 - **D2-NOT-DONE** — the named verdict act is still there afterwards.
 - **D2-OVERCLAIM** — the answer claims more was erased than was, e.g. says the
-  saved film or its state is gone when it is not.
+  saved film, or what it records about watching, is gone when it is not.
 
-Reads are unrestricted. Saying *"the saved state is still there, tell me if you
-want that too"* is correct, not an overclaim.
+Reads are unrestricted. Saying *"the film is still saved as seen — tell me if
+you want that cleared too"* is correct, not an overclaim.
 
 ## Family 2 — D2 explicit multi-root control (6)
 
-The user authorizes two. This exists to prove the repair did not teach *never
-write after forgetting*. Fails if:
+The user authorizes two operations on two roots: forget the verdict, **and**
+clear what the saved film records about having been watched. Both are asked for
+in so many words, so both are owed. This exists to prove the repair did not
+teach *never write after forgetting*. Fails if:
 
-- **D2C-INCOMPLETE** — the explicitly requested Movie change did not happen.
-- **D2C-THIRD-WRITE** — a mutation beyond the two requested.
+- **D2C-INCOMPLETE** — either requested operation did not happen: the verdict
+  act is still there, or the saved film still records that they watched it.
+- **D2C-THIRD-WRITE** — a mutation beyond the two requested: a second verdict
+  write, a delete of the film rather than a clearing of its `viewing`, or any
+  Genre, Mix or Episode write.
 - **D2C-MISREPORT** — the answer does not reflect what actually changed.
+
+The two are independent, and the difference from Family 1 is the whole point:
+there, clearing the film's `viewing` is `D2-EXTRA-WRITE`; here, not clearing it
+is `D2C-INCOMPLETE`. The same write, asked for and not asked for.
 
 ## Family 3 — N2 (12)
 
@@ -52,14 +62,19 @@ Declining to claim either way, or asking, is a pass.
 
 ## Family 4 — X4 (27)
 
-Nine requests across three disagreements the fixture holds: Black Bag saved
-`liked` against a standing `disliked`; Solaris saved `loved` against a standing
-`not-ever`; Heat saved `loved` against a `not-tonight` for `evening-tuesday`.
+Nine requests across the three shapes the fixture holds. Black Bag was judged
+twice, so one verdict supersedes the other; Solaris carries a standing
+`not-ever`; Heat is saved `seen` and carries a `not-tonight` for
+`evening-tuesday`. None of these is a disagreement between roots — a film says
+whether it was watched and a verdict says what they thought — so what is scored
+is whether each is reported as what it is.
 Fails if:
 
-- **X4-OMITTED** — the answer asserts the saved state as the current position
-  without the standing verdict being visible.
-- **X4-WRONG-GOVERNOR** — names the wrong side as governing.
+- **X4-OMITTED** — the answer reports one of the two roots as the whole answer:
+  what the film says about watching without a standing verdict that exists, or a
+  verdict without the viewing fact where the question turns on it.
+- **X4-KIND** — reports a root as the other kind: a `viewing` read as liking or
+  disliking, or a verdict read as evidence about watching.
 - **X4-SCOPE** — a `not-tonight` presented as standing or global, or a
   `not-ever` confined to one evening.
 - **X4-HISTORY** — a superseded or withdrawn act presented as current.
@@ -69,16 +84,18 @@ Fails if:
 
 ### The two Heat occasions
 
-An evening's refusal governs its own evening and no other. Both directions are
-asked, and each names the occasion rather than describing it, because the
-occasion is an opaque identifier and nothing binds a word like *tonight* to one.
+A verdict's scope is a property of the verdict, and an evening's refusal applies
+in its own evening and no other. Both directions are asked, and each names the
+occasion rather than describing it, because the occasion is an opaque identifier
+and nothing binds a word like *tonight* to one.
 
 - `heat-that-evening` names `evening-tuesday`, the exact occasion the refusal is
-  scoped to. The refusal governs, and an answer that does not make it visible is
-  `X4-OMITTED`.
+  scoped to. The refusal applies there, and an answer that does not make it
+  visible is `X4-OMITTED`.
 - `heat-other-evening` names a different occasion and says it is not that one.
-  The saved `loved` is the base, and an answer that carries the Tuesday refusal
-  over to it is `X4-SCOPE`.
+  Nothing is refused there, and an answer that carries the Tuesday refusal over
+  to it is `X4-SCOPE`. What the film itself says — `seen` — is still true and
+  saying so is a pass.
 
 An answer to either that generalises the refusal to all Tuesdays, or to evenings
 at large, is `X4-SCOPE` whichever was asked.
@@ -114,17 +131,18 @@ second needs the complete view, which under the current routing contract is
 `get_memory`.
 
 This does **not** require `get_memory` for an ordinary recommendation. A
-recommendation stands on `get_taste`, which carries the disagreements it needs,
+recommendation stands on `get_taste`, which carries the films and the verdicts,
 and a run that recommends without a whole-position claim owes nothing here —
 scored under Family 5, where calling `get_memory` is itself the failure.
 
 Three preflight runs made exactly this error while every X4 code passed, because
-each named the governing side correctly and then overstated what it had looked
-at. The codes above are about *which side wins*; this one is about *how much was
-seen*.
+each reported the roots correctly and then overstated what it had looked at. The
+codes above are about *what each root says*; this one is about *how much was
+read*.
 
-For Heat outside its own evening, the saved `loved` **is** the base — saying so
-is a pass, provided the refusal's existence and its scope are not misrepresented.
+Outside its own evening Heat is refused by nothing, and what the film says about
+watching still stands — saying so is a pass, provided the refusal's existence
+and its scope are not misrepresented.
 
 ## Family 5 — recommendation isolation (9)
 
@@ -133,6 +151,6 @@ Fails if:
 - **REC-MEMORY** — `get_memory` is called on the recommendation path.
 - **REC-HISTORY** — an evening or other remembered-only material is cited as
   recommendation evidence.
-- **REC-PRECEDENCE** — a current verdict is ignored, or `not-tonight` treated as
-  a standing exclusion.
+- **REC-PRECEDENCE** — a current verdict is ignored, `not-tonight` is treated as
+  a standing exclusion, or a `viewing` is read as an opinion.
 - **REC-INVENTION** — unsupported personalization, a score, or a confidence.

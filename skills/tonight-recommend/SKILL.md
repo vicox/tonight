@@ -70,9 +70,12 @@ Read a Mix as **its own instruction plus the instructions of its Genres**, in th
 
 <!-- full:start -->
 A **Genre** is a reusable component of what they like; a **Mix** is Genres plus what the
-*combination* means. A **Movie** is a film they told Tonight about: asked for it to be kept, or
-said something about it. Title and year name it; it carries an optional IMDb id and one **state**.
-`get_taste` describes all three in its own text, which is where an agent meets them.
+*combination* means. A **Movie** is a film in their library: one they asked Tonight to keep, or
+one they told it they had watched. Title and year name it; it carries an optional IMDb id and
+**viewing** — whether they watched it. What they *thought* of it is a **Verdict**, never a Movie
+field — and a Verdict stands on its own root: somebody can say *"I loved it"* about a film that
+was never saved, so saying something about a film neither needs a Movie nor writes one.
+`get_taste` describes all four in its own text, which is where an agent meets them.
 
 A Mix is the shape of a recommendation idea: `Sci-Fi` and `Thriller` are its ingredients, and
 `Space Tension` is the third thing this person decided about them. Its instruction is where that
@@ -136,16 +139,18 @@ What the model is evidence *of*:
   the moment it exists: one written last night with nothing under it yet says as much about what
   they like as one with ten films under it, and it is more current. A Genre is an ingredient and
   thinner on its own; a recommendation justified only by a Genre name is justified by a label.
-- **Movie states calibrate that evidence. They never decide whether it counts.** `loved`
+- **Verdicts calibrate that evidence. They never decide whether it counts.** `loved`
   strengthens it, `liked` strengthens it more weakly, `disliked` weakens something similar — a
-  negative sign, not a ban. `not_seen` and `null` are absence of experience, never evidence
-  against; `seen` says they have watched it and nothing more.
-- **A verdict is what they said about a film, and it outranks a state that disagrees.** A state
-  is how a film is filed; a verdict is what they told you about it, and the more recent, more
-  particular thing they said wins for tonight. The state is not rewritten and not lost: take the
-  verdict back and it shows again, exactly as it was. Only what currently stands counts — a
-  correction replaces what it corrected, and what they withdrew is silence rather than a weak
-  signal.
+  negative sign, not a ban. Only what currently stands counts: a correction replaces what it
+  corrected, and what they withdrew is not a weak signal — **taking a verdict back removes that
+  act from what stands**, and leaves no quieter opinion underneath it. It reaches exactly as far
+  as the act reached: an evening's `not-tonight` taken back leaves a judgement about the film
+  standing where it was. And it is not an unsaying — `get_memory` still remembers they said it.
+- **A Movie carries no opinion at all.** `viewing` says whether they watched it and that is a
+  fact, never a sign for or against: `unseen` is them saying they have not, `null` is nobody
+  having said, and neither is evidence about what they like. A saved film with no verdict is a
+  film they have given **no opinion** on — which is not the same as having said nothing about
+  it, since `seen` or `unseen` is something they said.
 - **A refusal reaches exactly as far as they said.** `not-tonight` is about that evening and
   nothing else: outside it the film stands where it stood, and it never becomes a dislike or a
   rule about films like it. `not-ever` stops that film for good — that film, not its genre, its
@@ -160,8 +165,8 @@ What the model is evidence *of*:
   they meant is not in question, and no particular film has been confirmed to fit it yet**. So
   say how well a film answers what the Mix asks for as plainly as it deserves: that is a match
   against something they wrote, and you can both see it. What you may not say is that **they**
-  like it, or that it is confirmed, proven or settled for them — their verdict comes from a
-  Movie state or from what they have said about the film, and there is neither yet.
+  like it, or that it is confirmed, proven or settled for them — their verdict is what they said
+  about the film, and there is none yet.
 <!-- full:end -->
 <!-- project:compact
 Two kinds of request, told apart from what they said — never by asking. **Read `get_taste` either
@@ -178,10 +183,11 @@ exclusions hold.
 - **A matching Mix is a reason the recommendation fits.** It counts from the moment it exists:
   one written last night says as much as one with ten films under it. A Genre is an ingredient;
   a Genre name alone is a label.
-- **States calibrate it, never decide whether it counts.** `loved` strengthens, `liked` more
-  weakly, `disliked` weakens something similar — a sign, not a ban. `not_seen` and `null` are
-  absence of experience, not evidence against; `seen` says only that they watched it.
-- **A verdict outranks a disagreeing state**; say what they said.
+- **Verdicts calibrate it, never decide whether it counts.** `loved` strengthens, `liked` more
+  weakly, `disliked` weakens something similar — a sign, not a ban. Only what stands counts; a
+  withdrawal removes that act in its own scope — not a weaker opinion, not an unsaying.
+  A Movie carries no opinion: `viewing` is a fact about watching.
+
 - A Mix with nothing under it: **intent certain, their verdict unconfirmed** — use it, vary
   reach and certainty. Say how a film fits the Mix; never that **they** like it yet.
 
@@ -225,21 +231,30 @@ question **or** one lever, never both. **Owed an answer, a tool call is not one.
 project:compact -->
 
 <!-- full:start -->
-**Lead with what they have not seen or judged.** `seen`, `liked`, `loved` and `disliked` each
-rule a Movie out as new. `not_seen` does not: they have not seen it, so it stays on the table. A
-`loved` one is a **reason**, not a suggestion. Anchor a stretch in something they like — an
-absence shows where to look, never why — and say it is one.
+**Lead with what they have not seen or judged.** `viewing` of `seen` rules a Movie out as new,
+and so does a standing judgement — **nobody likes a film they have not seen**, so `liked`,
+`loved` and `disliked` each mean they watched it whether or not a Movie says so. `unseen` does
+not rule it out: they have not seen it, so it stays on the table. A `loved` one is a **reason**,
+not a suggestion. Anchor a stretch in something they like — an absence shows where to look,
+never why — and say it is one.
 
-**Being in the model is never evidence they have not seen it — the state is.** A Movie carrying
-one of those four is never called new, unseen or not yet watched, and never offered as one:
-*"it's on your list and you haven't seen it"* is a contradiction, not a recommendation. That they
-saw it, liked it or loved it stays — as the reason, never as the offer.
+**A refusal is not evidence they saw it.** `not-ever` and `not-tonight` turn a film down; neither
+says they watched it. `not-ever` rules the film out everywhere; `not-tonight` rules it out in its
+own evening and nowhere else.
+
+**Being in the model is never evidence they have not seen it.** A film that is seen or judged is
+never called new, unseen or not yet watched, and never offered as one: *"it's on your list and
+you haven't seen it"* is a contradiction, not a recommendation. And `null` is not `unseen` —
+with no viewing and no verdict, **nobody has said either way**, so it may lead but must never be
+described as one they have not seen.
 <!-- full:end -->
 <!-- project:compact
-**Lead with what they have not seen or judged.** `seen`, `liked`, `loved` and `disliked` rule a
-Movie out as new, **and out of being called new or unseen**. `not_seen` does not, so it stays. A
-`loved` one is a **reason**, not a suggestion. Anchor a stretch in something they like — an
-absence shows where to look, never why — and say it is one.
+**Lead with what they have not seen or judged.** `seen`, and any standing judgement — which
+means they watched it — rule a Movie out as new **and out of being called new or unseen**.
+`unseen` does not, so it stays; a refusal proves nothing about watching. `null` may lead but is
+**nobody having said**, never *"you haven't seen it"*. A `loved` one is a **reason**, not a
+suggestion. Anchor a stretch in something they like — an absence shows where to look, never
+why — and say it is one.
 project:compact -->
 
 <!-- full:start -->
@@ -301,19 +316,42 @@ the model outright is a different question, answered below.
 
 **Persist durable taste they express or confirm—not inference.**
 
+<!-- full:start -->
 Noticed something unsaid that looks lasting? You **may** ask — *"want me to remember the kind of
 thing this is?"* Only then: an ordinary recommendation or a mood for tonight is no reason to. A
 yes makes that meaning theirs, and only the meaning they could agree to — if it reaches further
 than the last thing said, say the further part first. Asking is not asking permission.
+<!-- full:end -->
+<!-- project:compact
+Noticed something unsaid that looks lasting? You **may** ask — *"want me to remember the kind of
+thing this is?"* Only then: an ordinary recommendation or a mood for tonight is no reason to. A
+yes makes that meaning theirs, and only the meaning they could agree to — say the further part
+first if it reaches past the last thing said. Asking is not asking permission.
+project:compact -->
 
+<!-- full:start -->
 - *"Tonight I feel like slow science fiction"* writes **nothing** — what they want now, not what
   they are like.
-- A film they watched and said nothing about writes **nothing** — no Genre, no Mix, no durable
-  taste.
+- A film they watched and said nothing about writes **no taste** — no Genre, no Mix, no verdict,
+  nothing about what they like. What they told you about *watching* it is theirs and is not
+  this: `viewing` may hold it, and an evening may record what they said they did with a film.
+<!-- full:end -->
+<!-- project:compact
+- A mood for tonight writes **nothing** — what they want now, not what they are like.
+- Watching writes **no taste**: the viewing and the evening may be recorded, never an opinion.
+project:compact -->
 
-Never infer a preference from silence, from a film you recommended, or from a pattern. Never
-widen something specific into a claim about the person, or note what you recommended. Think a
-Genre or Mix should change? **Say so and let them decide.**
+<!-- full:start -->
+Never infer a preference from silence, from a pattern, or from a film you recommended —
+recording the evening it was offered on is a fact and is not this. Never widen something specific
+into a claim about the person. Think a Genre or Mix should change? **Say so and let them
+decide.**
+<!-- full:end -->
+<!-- project:compact
+Never infer a preference from silence, from a pattern, or from a film you recommended. Never
+widen something specific into a claim about the person. Think a Genre or Mix should change?
+**Say so and let them decide.**
+project:compact -->
 
 <!-- full:start -->
 A conclusion they have confirmed is no longer only yours. *"The kind of thing this is"* is enough
@@ -322,12 +360,12 @@ you like me to save this?"* prompts — that exposes plumbing and makes the prod
 somebody who has just said plainly what they like has already answered it. The question is not
 whether they clicked save. It is whether the sentence you are about to store came from them.
 
-| What happened | What may be written |
+| What happened | What may be written as taste |
 | --- | --- |
 | *"I love slow science fiction."* | a Genre for it. A standing preference, stated plainly |
 | *"Tonight I feel like slow science fiction."* | **nothing** — use it freely tonight; ask nothing unless a lasting preference shows through it, and then put that meaning to them rather than the request |
-| You recommended a film. They said nothing. | **nothing** |
-| They watched it and said nothing. | **nothing** |
+| You recommended a film. They said nothing. | **nothing** as taste — `record_episode` may note the evening, what was asked for and what was offered, as fact |
+| They watched it and said nothing. | **nothing** as taste — an evening may record what they said they did, and `viewing` is theirs to have told you |
 | They turned down three films for being grim. | **nothing** — a pattern to ask about, not a preference |
 
 *"You have turned down three of these for being too grim — want me to put that in your
@@ -344,9 +382,13 @@ Two requests about a film, and they differ:
   Movie this way without at least one Mix.**
 - **What they said about a film does not.** *"I loved it"*, *"not tonight"*, *"never again"* —
   that is a verdict, and it goes to `record_verdict`. No Mix is needed for one and none may be
-  invented to hold it; a later request to keep the film takes a Mix. Changed their mind? Record
-  the new verdict, which supersedes the old one. Taking it back is `withdraw_verdict`, and what
-  the Movie state said is then what is left.
+  invented to hold it — and no Movie either: a Verdict stands on its own root, so a film nobody
+  has saved may still carry one, and saying something about a film never writes a Movie to hold
+  it; a later request to keep the film takes a Mix. Changed their mind? Record
+  the new verdict, which supersedes the old one. Taking it back is `withdraw_verdict`, which
+  removes that act from what stands and reaches no further than the act did: nothing weaker is
+  left underneath it, an evening's `not-tonight` taken back leaves a judgement about the film
+  standing, and none of it is an unsaying — they did say it, and `get_memory` remembers that.
 
 **Which Mix a kept film goes in** — not *"may I save this?"* but *"what kind of night is this?"*
 Classify the film; do not fit it to what is there. Read the Genres and Mixes first.
@@ -365,7 +407,7 @@ instruction is written in arrive with `create_genre` and `create_mix`.
 **Proposing a new Mix:** say what you noticed, name it, say what it means, and make the idea
 concrete — three to five other films that would belong in it, and two or three names it could
 have instead. Then ask. **Those films are illustration only**: never written, never in the Mix,
-never given a state, nothing to classify. Only the film they asked to keep is being saved. **A
+never given a viewing or a verdict. Only the film they asked to keep is being saved. **A
 yes is the whole of the permission**: any Genre it needs, then the Mix, then the film, then one
 short sentence — never ask a second time. **A no settles it**, never saving the film loose.
 Propose while saving, not while recommending; a Mix that genuinely fits needs none of this.
@@ -380,8 +422,8 @@ Two requests about a film:
 
 - **Keeping a film goes into a Mix** — *"save this one"*. **Never write a Movie this way
   without at least one Mix.**
-- **What they said about it does not** — that is a verdict: `record_verdict`, no Mix needed or
-  invented for one; a later request to keep the film takes a Mix.
+- **What they said about it does not** — that is a verdict: `record_verdict`, and no Mix and no
+  Movie is needed or invented to hold one; a later request to keep the film takes a Mix.
 
 **Which Mix a kept film goes in** is a classification, not a request for permission. Classify the
 film rather than fitting it to what is there, and read the Genres and Mixes first.
@@ -398,8 +440,8 @@ arrive with `create_genre` and `create_mix`.
 
 **Proposing a new Mix:** say what you noticed, name it, say what it means, and make it concrete
 — three to five other films that would belong, and two or three alternative names. Then ask.
-**Those films are illustration only**: never written, never in a Mix, never given a state or
-classified; only the film they asked to keep is saved. **A yes is the whole permission**: any
+**Those films are illustration only**: never written, never filed, never given a viewing or a
+verdict; only the film they asked to keep is saved. **A yes is the whole permission**: any
 Genre it needs, then the Mix, then the film, then one short sentence — never ask twice. **A no
 settles it**, never saving the film loose. Propose while saving, not while recommending; a Mix
 that fits needs none of this.
@@ -410,8 +452,8 @@ unasked.
 
 project:compact -->
 **A recommendation is not a saved Movie.** What they say about a film is a verdict —
-`record_verdict`, never a state; `create_movie` says what a state means. Liked, loved and disliked already say they saw it;
-never ask for what their sentence gave you. Settle title and year first — `Dune` names two films; ask if
+`record_verdict`, never a Movie field; `create_movie` carries `viewing` and no opinion. Never ask
+for what their sentence gave you. Settle title and year first — `Dune` names two films; ask if
 ambiguous: that resolves *which film*, not permission.
 
 <!-- full:start -->
@@ -430,14 +472,14 @@ because a name is easier to judge against another name than on its own, and the 
 name.
 
 Those films are the one place in this skill where naming films is not the start of anything.
-Mentioning a film has never written one down, and none of the state rules reach them: the user
+Mentioning a film has never written one down, and none of the writing rules reach them: the user
 has said nothing about them, so there is nothing to record, nothing to classify and no Mix to
 put them in. The film they asked you to keep is the only one in the flow.
 
 A Movie is theirs, the same way a Genre or a Mix is, and never an entry from a catalogue.
 
 Naming three films writes nothing down, and neither does their liking one of your suggestions
-unless they said something about the film itself. Leaving the state out records that Tonight was
+unless they said something about the film itself. Leaving `viewing` out records that Tonight was
 not told, and `create_movie` says what that means for the field.
 
 The Mix rule governs what you write when they ask you to **keep** a film; it says nothing about
@@ -446,7 +488,7 @@ films that are already there.
 
 <!-- full:start -->
 The taste model and nothing else, in full: no way to ask how often or in what order anything was
-watched. Liked, loved and disliked are stored, and `create_movie` says what they are.
+watched. Liked, loved and disliked are verdicts, and `record_verdict` says what they are.
 
 Names match case-insensitively and are how everything refers to everything else.
 
@@ -470,9 +512,8 @@ ordinary phrases — `Slow burn`, not `SlowBurn`.
 
 Asked to rename, delete, or say what Tonight knows — **do those**, in the conversation. **Never add
 an unasked write to tidy another root.** The website is *a* management surface, not *the* one. Read
-back with `get_taste`, or `get_memory` for memory and disagreements, in ordinary sentences; for
-disagreements, never `get_verdicts` alone. A rename needs no ceremony; changing what something
-*means* unasked is off-limits.
+back with `get_taste`, or `get_memory` for the whole of it, in ordinary sentences. A rename needs
+no ceremony; changing what something *means* unasked is off-limits.
 
 <!-- full:start -->
 Somebody may say *"rename my Sci-Fi genre"*, *"delete Popcorn Chaos"* or *"what do you know about
@@ -492,8 +533,8 @@ one time to describe the model, because describing it is what was asked for.
 
 *"What do you know about me?"* is a different question from *"what do I like?"*, and it has its
 own read. `get_taste` is what a recommendation stands on; `get_memory` is everything Tonight
-holds — what they saved, what they said, the evenings it was part of, and the places two of those
-disagree. Much of it is history rather than belief, which is why the two are not one tool. What
+holds — what they saved, whether they watched it, what they said about it, and the evenings it
+was part of. Much of it is history rather than belief, which is why the two are not one tool. What
 each part means, and the handle for correcting any of it, arrive with `get_memory` itself.
 
 When a Genre is in the way of a deletion, say which choice they are making rather than picking
@@ -512,16 +553,16 @@ of them may be written down because it seemed likely.
 **That record is history, not taste.** Nothing is learned from it automatically, so a film you
 recommended can come back and an evening says nothing about what they like. Neither does a
 question of yours still waiting on an answer, however long it has waited: only what they said
-teaches you anything. A Movie says *that*
-they watched something, never when. **A film they saved is different**: its state is evidence,
-because they are the one who put it there.
+teaches you anything. An evening says *that* something happened, never what they made of it.
+**What they said about a film is different**: that is evidence, because they are the one who
+said it.
 <!-- full:end -->
 <!-- project:compact
 ## What Tonight remembers
 
 An evening is recorded as fact: asked, offered, and what they said they did. **History is not
-taste** — nothing is learned from it, so a film you recommended can come back. A Movie says
-*that* they watched something, never when. **A saved film is different**: its state is evidence.
+taste** — nothing is learned from it, so a film you recommended can come back. An evening says
+*that* something happened, never what they made of it: **only what they said is evidence**.
 project:compact -->
 
 Never say "I'll remember that" unless you wrote it — and then say what you wrote.

@@ -1,13 +1,8 @@
-import {
-  MOVIE_STATES,
-  TasteError,
-  checkMovieTitle,
-  checkYear,
-} from "../../../lib/taste/model.ts";
+import { TasteError, VIEWINGS, checkMovieTitle, checkYear } from "../../../lib/taste/model.ts";
 import { authorized, given } from "../../../lib/web/api.ts";
 
 /**
- * Setting what the user has said about one film they saved.
+ * Saying whether the user has watched one film they saved.
  *
  * ## Why the handle is in the body rather than the path
  *
@@ -23,27 +18,32 @@ import { authorized, given } from "../../../lib/web/api.ts";
  *
  * A successful press answers `{}` with a 200. The genre and mix routes hand back
  * the whole taste model, which their callers ignore in favour of re-rendering
- * from the store; nothing here needs it either. `MovieState` looks at the status and, when something
- * went wrong, at the message — so reading the model back would be nine
- * statements per press whose result is thrown away, and the page re-renders from
- * the store a moment later anyway.
+ * from the store; nothing here needs it either. The control looks at the status
+ * and, when something went wrong, at the message — so reading the model back
+ * would be nine statements per press whose result is thrown away, and the page
+ * re-renders from the store a moment later anyway.
  *
  * A refusal still carries the domain's own sentence, which is the part a caller
  * can act on.
  *
- * ## One field, deliberately
+ * ## One field, and it is a fact
  *
- * `state` is what the signed-in page can change, so it is what this accepts. A
- * title, a year, an IMDb id and mix membership are all things the store can
+ * `viewing` is what the signed-in page can change here, so it is what this
+ * accepts. What the user *thought* of the film is not a movie field at all — it
+ * is a verdict, and `/api/verdicts` is the route that writes one. Keeping them
+ * apart is the whole point of the split: a press on "Seen" says they watched it
+ * and says nothing about whether they liked it.
+ *
+ * A title, a year, an IMDb id and mix membership are all things the store can
  * change and nothing on the website asks for — an endpoint that accepted them
  * would be capability with no caller, and the assistant already reaches all of
  * it through `update_movie`.
  *
- * The store's nullable state is untouched, and this route is narrower than it is
- * on purpose: it takes one of the five states and nothing else. A press on the
- * page is something the user did, so it always says something — and a `null`
+ * The store's nullable viewing is untouched, and this route is narrower than it
+ * is on purpose: it takes one of the two answers and nothing else. A press on
+ * the page is something the user did, so it always says something — and a `null`
  * arriving here is a caller this page does not have, which is worth a refusal
- * rather than a silent sixth meaning. Returning a film to "never told" is a real
+ * rather than a silent third meaning. Returning a film to "never told" is a real
  * operation and it stays with the assistant, where `update_movie` accepts it.
  *
  * The handle is checked here rather than cast, because a JSON body is `unknown`
@@ -54,24 +54,24 @@ import { authorized, given } from "../../../lib/web/api.ts";
 export const dynamic = "force-dynamic";
 
 /**
- * The state as this route accepts it: one of the five, or not mentioned.
+ * The viewing as this route accepts it: one of the two, or not mentioned.
  *
  * `undefined` is passed straight through, because that is what the store already
- * reads as "leave it alone". Everything else that is not one of the five — `null`
+ * reads as "leave it alone". Everything else that is not one of the two — `null`
  * included — is refused before the store is asked, so nothing on this path can
  * put a film back to having been said nothing about.
  */
 function pressed(body: Record<string, unknown>): string | undefined {
-  const value = given(body, "state");
+  const value = given(body, "viewing");
   if (value === undefined) return undefined;
-  if (typeof value === "string" && (MOVIE_STATES as readonly string[]).includes(value)) {
+  if (typeof value === "string" && (VIEWINGS as readonly string[]).includes(value)) {
     return value;
   }
 
   throw new TasteError(
-    `"state" must be one of ${MOVIE_STATES.join(", ")} here — a press on the page is something ` +
+    `"viewing" must be one of ${VIEWINGS.join(", ")} here — a press on the page is something ` +
       "the user did. Setting it back to null, meaning Tonight was never told, is done through " +
-      "an assistant.",
+      "an assistant. What they thought of the film is a verdict, not a viewing.",
   );
 }
 
@@ -80,6 +80,6 @@ export async function PATCH(request: Request): Promise<Response> {
     const title = checkMovieTitle(given(body, "title"));
     const year = checkYear(given(body, "year"));
 
-    await store.updateMovie(title, year, { state: pressed(body) });
+    await store.updateMovie(title, year, { viewing: pressed(body) });
   });
 }

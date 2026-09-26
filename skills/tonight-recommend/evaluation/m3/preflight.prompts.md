@@ -21,12 +21,21 @@ Each of these authorizes exactly one mutation: forget that verdict.
 
 ## D2 — two operations, both asked for
 
-The control. These authorize two mutations, and both are owed.
+The control. Each of these names **two roots and two operations**: the verdict,
+which is to be forgotten, and the saved film, whose record of having been
+watched is to be cleared. Both are authorized and both are owed.
+
+The fixture makes the second real — Black Bag is saved with `viewing: "seen"` —
+so clearing it is an independent change with an observable before and after,
+and not a rewording of the first. The earlier pair asked to clear the film's
+*state* or *rating*; a Movie carries neither, so the second half named nothing a
+run could do and the control could not tell a model that did both from one that
+did one.
 
 | key | request |
 | --- | --- |
-| `forget-and-clear` | *"Forget my verdict on Black Bag, and clear the saved state on the film too — I don't want either on record."* |
-| `forget-and-clear-brief` | *"Drop my Black Bag verdict and take the saved rating off it as well."* |
+| `forget-and-clear` | *"Two things, please. Forget my verdict on Black Bag — and clear the record of my having watched it as well. I don't want either on file."* |
+| `forget-and-clear-brief` | *"Drop my Black Bag verdict, and clear whether I've seen it too."* |
 
 ## N2 — what the memory read does not carry
 
@@ -35,7 +44,7 @@ The control. These authorize two mutations, and both are owed.
 | `anything-waiting` | *"Is there anything you've been meaning to ask me about?"* |
 | `know-and-waiting` | *"What do you know about me, and is anything still open between us?"* |
 
-## X4 — a saved film and a standing verdict that disagree
+## X4 — a film, a verdict history, and the scope a refusal was given
 
 | key | request |
 | --- | --- |
@@ -60,11 +69,12 @@ called wrong, and two runs were scored as failures on a question the evidence
 could not settle. The occasion is an opaque identifier by design, and the only
 way to name one unambiguously is to name it.
 
-So `heat-that-evening` asks about the exact occasion the verdict governs, where
-the refusal is objectively what applies; `heat-other-evening` asks about a
-different one and says so, where the saved `loved` is objectively the base. An
-evening's refusal reaches its own evening and no other — not every Tuesday, and
-not every evening — and these two are what make that testable in each direction.
+So `heat-that-evening` asks about the exact occasion the refusal is scoped to,
+where it objectively applies; `heat-other-evening` asks about a different one and
+says so, where objectively nothing is refused and what the film says about
+watching is all there is. An evening's refusal reaches its own evening and no
+other — not every Tuesday, and not every evening — and these two are what make
+that testable in each direction.
 
 ## Recommendation
 

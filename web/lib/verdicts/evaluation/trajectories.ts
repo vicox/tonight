@@ -46,8 +46,8 @@ export type Step =
   | { act: "recommend"; film: Film }
   /** The user says what became of the evening. Never a verdict. */
   | { act: "outcome"; chose?: boolean; watched?: boolean; finished?: boolean }
-  /** A film filed with a Phase 1 state, the way it was before M2 existed. */
-  | { act: "state"; film: Film; state: "not_seen" | "seen" | "liked" | "loved" | "disliked" }
+  /** A film saved, with whether the user said they watched it. */
+  | { act: "viewing"; film: Film; viewing: "seen" | "unseen" }
   /** The user says what they think. The only thing that creates taste evidence. */
   | {
       act: "verdict";
@@ -83,12 +83,22 @@ export const TUESDAY = "evening-tuesday";
 export const WEDNESDAY = "evening-wednesday";
 
 /**
- * The taste every trajectory starts from, before its own steps run.
+ * What every trajectory starts from, before its own steps run.
  *
- * Genres, a mix and an unrelated film, given to every user in the evaluation.
- * They exist so that *"nothing else moved"* is a claim with something behind it:
- * a rejection that generalised into a category would have to land somewhere, and
- * without a category in the model there is nowhere for a gate to see it land.
+ * Genres, a mix, an unrelated film and an opinion about it, given to every user
+ * in the evaluation. They exist so that *"nothing else moved"* is a claim with
+ * something behind it: a rejection that generalised into a category would have
+ * to land somewhere, and without a category in the model there is nowhere for a
+ * gate to see it land.
+ *
+ * The opinion is a **verdict** and the film carries a **viewing**, which is the
+ * whole shape of the thing being evaluated. It used to be `state: "loved"` on
+ * the film, and when opinions left the Movie that field stopped being accepted:
+ * the tool's schema dropped it silently, so every user's baseline quietly became
+ * a film nobody had said anything about and the neighbouring-film gates had
+ * nothing left to protect. Both halves are written out now, so a leak that moves
+ * a neighbour's opinion and one that moves a neighbour's viewing are each
+ * somewhere a gate can see.
  *
  * The wording avoids the vocabulary gate 7 searches the payload for, so that a
  * baseline can never be mistaken for a leak.
@@ -101,7 +111,15 @@ export const BASELINE = {
   mixes: [
     { name: "Long Nights", genres: ["Slow Burn"], instruction: "when there is room to let it unfold" },
   ],
-  movies: [{ ...heat, state: "loved" as const }],
+  movies: [{ ...heat, viewing: "seen" as const }],
+  /**
+   * What they said about the baseline film.
+   *
+   * Everybody's, and it stands throughout — so a gate asking whether a
+   * trajectory said anything is asking whether it said anything *beyond this*,
+   * which is what `expectedStanding` builds and what the gates compare against.
+   */
+  said: [{ film: heat, told: "volunteered" as const, judgement: "loved" as const }],
 };
 
 /**
@@ -116,7 +134,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "self-recommended-and-watched",
     proves: "Tonight recommending a film and the user watching it creates no taste evidence",
     steps: [
-      { act: "state", film: prisoners, state: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen" },
       { act: "recommend", film: prisoners },
       { act: "outcome", chose: true, watched: true, finished: true },
     ],
@@ -124,13 +142,13 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   {
     name: "self-nothing-happened",
     proves: "the same taste with no evening behind it — the control the pair is read against",
-    steps: [{ act: "state", film: prisoners, state: "seen" }],
+    steps: [{ act: "viewing", film: prisoners, viewing: "seen" }],
   },
   {
     name: "self-and-they-said-so",
     proves: "only the user saying something introduces evidence the other two do not have",
     steps: [
-      { act: "state", film: prisoners, state: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen" },
       { act: "recommend", film: prisoners },
       { act: "outcome", chose: true, watched: true, finished: true },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
@@ -138,18 +156,18 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   },
 
   {
-    name: "withdrawal-reveals-the-state",
-    proves: "a withdrawn verdict stops counting and the state underneath it counts again",
+    name: "withdrawal-leaves-silence",
+    proves: "a withdrawn verdict stops counting and leaves nothing in its place",
     steps: [
-      { act: "state", film: prisoners, state: "liked" },
+      { act: "viewing", film: prisoners, viewing: "seen" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "disliked" },
       { act: "withdraw", film: prisoners },
     ],
   },
   {
     name: "withdrawal-control",
-    proves: "the same film filed the same way, with nothing ever said about it",
-    steps: [{ act: "state", film: prisoners, state: "liked" }],
+    proves: "the same film saved the same way, with nothing ever said about it",
+    steps: [{ act: "viewing", film: prisoners, viewing: "seen" }],
   },
 
   {
@@ -173,7 +191,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "not-ever-one-film",
     proves: "a permanent refusal holds for that film in every occasion and generalises to no category",
     steps: [
-      { act: "state", film: zodiac, state: "loved" },
+      { act: "viewing", film: zodiac, viewing: "seen" },
       { act: "verdict", film: prisoners, told: "volunteered", reach: "not-ever", reason: "three hours of misery" },
     ],
   },
@@ -192,13 +210,13 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   {
     name: "influence-baseline",
     proves: "the taste every influence trajectory must still look like — nothing happened at all",
-    steps: [{ act: "state", film: prisoners, state: "seen" }],
+    steps: [{ act: "viewing", film: prisoners, viewing: "seen" }],
   },
   {
     name: "influence-recommended-once",
     proves: "offering a film changes nothing, before anything becomes of the offer",
     steps: [
-      { act: "state", film: prisoners, state: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen" },
       { act: "recommend", film: prisoners },
     ],
   },
@@ -206,7 +224,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "influence-recommended-again",
     proves: "offering the same film over and over is still not evidence about the user",
     steps: [
-      { act: "state", film: prisoners, state: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen" },
       { act: "recommend", film: prisoners },
       { act: "recommend", film: prisoners },
       { act: "recommend", film: prisoners },
@@ -216,7 +234,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "influence-chosen",
     proves: "taking the recommendation is not liking the film",
     steps: [
-      { act: "state", film: prisoners, state: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen" },
       { act: "recommend", film: prisoners },
       { act: "outcome", chose: true },
     ],
@@ -225,7 +243,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "influence-watched",
     proves: "watching it is not liking it either",
     steps: [
-      { act: "state", film: prisoners, state: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen" },
       { act: "recommend", film: prisoners },
       { act: "outcome", chose: true },
       { act: "outcome", watched: true },
@@ -235,7 +253,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "influence-finished",
     proves: "sitting through all of it is still not something they said",
     steps: [
-      { act: "state", film: prisoners, state: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen" },
       { act: "recommend", film: prisoners },
       { act: "outcome", chose: true },
       { act: "outcome", watched: true },
@@ -246,7 +264,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "waiting-a-long-time",
     proves: "a question waiting through chances and weeks adds nothing and sends nothing",
     steps: [
-      { act: "state", film: prisoners, state: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen" },
       { act: "recommend", film: prisoners },
       { act: "question", film: prisoners, daysAgo: 20 },
       { act: "opportunity", film: prisoners },

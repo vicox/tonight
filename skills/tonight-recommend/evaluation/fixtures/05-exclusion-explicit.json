@@ -39,18 +39,18 @@
       {
         "title": "The Vanishing",
         "year": 1988,
-        "state": "loved",
         "mixes": [
           "Quiet Dread"
-        ]
+        ],
+        "viewing": "seen"
       },
       {
         "title": "Zodiac",
         "year": 2007,
-        "state": "liked",
         "mixes": [
           "Quiet Dread"
-        ]
+        ],
+        "viewing": "seen"
       }
     ]
   },
@@ -63,5 +63,31 @@
     "not_binding_looks_like": [
       "a gory or torture-centred film is offered for a Quiet Dread night"
     ]
-  }
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": {
+        "title": "The Vanishing",
+        "year": 1988
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "loved"
+      }
+    },
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Zodiac",
+        "year": 2007
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "liked"
+      }
+    }
+  ]
 }

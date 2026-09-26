@@ -27,27 +27,63 @@
       {
         "title": "Arrival",
         "year": 2016,
-        "state": "loved",
         "mixes": [
           "Long Way Out"
-        ]
+        ],
+        "viewing": "seen"
       },
       {
         "title": "Moon",
         "year": 2009,
-        "state": "liked",
         "mixes": [
           "Long Way Out"
-        ]
+        ],
+        "viewing": "seen"
       },
       {
         "title": "Aftersun",
         "year": 2022,
-        "state": "liked"
+        "viewing": "seen"
       }
     ]
   },
   "acts": [
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Arrival",
+        "year": 2016
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "loved"
+      }
+    },
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Moon",
+        "year": 2009
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "liked"
+      }
+    },
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Aftersun",
+        "year": 2022
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "liked"
+      }
+    },
     {
       "do": "verdict",
       "film": {

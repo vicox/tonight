@@ -125,6 +125,14 @@ async function clear(bearer) {
   for (const movie of taste.movies) await call(bearer, "delete_movie", { title: movie.title, year: movie.year });
   for (const mix of taste.mixes) await call(bearer, "delete_mix", { name: mix.name });
   for (const genre of taste.genres) await call(bearer, "delete_genre", { name: genre.name });
+
+  // Verdicts too, and they are a second store: a run that began with the last
+  // fixture's opinions still standing would not be a run of this fixture. They
+  // are reached by reference, which is what `get_memory` hands out.
+  const memory = (await call(bearer, "get_memory")).structuredContent;
+  for (const root of [...memory.held, ...memory.remembered]) {
+    if (root.of === "verdict") await call(bearer, "forget_verdict", { ref: root.handle.ref });
+  }
 }
 
 /** What `get_taste` answers for a fixture's user, right now. */
@@ -141,13 +149,25 @@ async function seed(id) {
   for (const genre of model.genres) await call(bearer, "create_genre", genre);
   for (const mix of model.mixes) await call(bearer, "create_mix", mix);
   for (const movie of model.movies) {
-    const { title, year, state, mixes } = movie;
+    const { title, year, viewing, mixes } = movie;
     await call(bearer, "create_movie", {
       title,
       year,
-      ...(state === null || state === undefined ? {} : { state }),
+      // Omitted rather than sent as null when a fixture says nothing: leaving
+      // the field out records that Tonight was not told, which is the answer a
+      // fixture means by leaving it out.
+      ...(viewing === null || viewing === undefined ? {} : { viewing }),
       ...(mixes?.length ? { mixes } : {}),
     });
+  }
+
+  // What they said about particular films. A judgement is the only kind a
+  // Phase 1 fixture holds: the evaluative Movie states it used to carry became
+  // verdicts when opinions left the Movie, and a fixture says so directly now
+  // rather than through a field that answered two questions.
+  for (const act of spec.acts ?? []) {
+    if (act.do !== "verdict") throw new Error(`fixture ${spec.id}: only verdicts are seeded here`);
+    await call(bearer, "record_verdict", { film: act.film, told: act.told, said: act.said });
   }
 
   return { spec, bearer, taste: (await call(bearer, "get_taste")).structuredContent };

@@ -5,6 +5,8 @@ import { ConfigurationError } from "../oauth/config.ts";
 import { orderGenre, orderMix, orderMovie } from "../taste/model.ts";
 import { RECONCILE_MIX_GENRES, TASTE_SCHEMA } from "../taste/store/schema.ts";
 import { sqlTasteStore } from "../taste/store/sql.ts";
+import { VERDICTS_SCHEMA, } from "../verdicts/store/schema.ts";
+import { sqlVerdictStore } from "../verdicts/store/sql.ts";
 import type { SqlDriver } from "./driver.ts";
 import { migrate, prepareSchema, type SchemaModule } from "./migrate.ts";
 import { embeddedDriver } from "./pglite.ts";
@@ -655,16 +657,21 @@ const oldCode = {
     // from v9: a build that has never heard of it cannot write a movie once
     // that migration has run, which is a deployment ordering constraint and is
     // written down as one in the schema.
+    //
+    // What the user said about the film is deliberately not written here. These
+    // contracts are about the timestamp trigger, and the column that carried an
+    // answer has changed name once and meaning twice; naming one would make
+    // this fixture fail for a reason it is not about.
     const [named] = await sql.query<{ yes: boolean }>(
       `SELECT count(*) > 0 AS yes FROM information_schema.columns
         WHERE table_name = 'tonight_movies' AND column_name = 'canonical_title'`,
     );
     const [movie] = await sql.query<{ id: string }>(
       named?.yes
-        ? `INSERT INTO tonight_movies (user_id, title, canonical_title, year, imdb_id, state)
-           VALUES ($1, $2, lower($2), 2016, NULL, 'loved') RETURNING id`
-        : `INSERT INTO tonight_movies (user_id, title, year, imdb_id, state)
-           VALUES ($1, $2, 2016, NULL, 'loved') RETURNING id`,
+        ? `INSERT INTO tonight_movies (user_id, title, canonical_title, year, imdb_id)
+           VALUES ($1, $2, lower($2), 2016, NULL) RETURNING id`
+        : `INSERT INTO tonight_movies (user_id, title, year, imdb_id)
+           VALUES ($1, $2, 2016, NULL) RETURNING id`,
       [ALICE, title],
     );
     for (const mix of mixes) {
@@ -677,13 +684,13 @@ const oldCode = {
     return movie!.id;
   },
 
-  /** The old `updateMovie`: four columns, no stamp anywhere in it. */
-  async updateMovie(sql: SqlDriver, id: string, state: string): Promise<void> {
+  /** The old `updateMovie`: a whole-row write, no stamp anywhere in it. */
+  async updateMovie(sql: SqlDriver, id: string, title = "Arrival"): Promise<void> {
     await sql.query(
       `UPDATE tonight_movies
-          SET title = $3, year = $4, imdb_id = $5, state = $6
+          SET title = $3, year = $4, imdb_id = $5
         WHERE user_id = $1 AND id = $2`,
-      [ALICE, id, "Arrival", 2016, null, state],
+      [ALICE, id, title, 2016, null],
     );
   },
 
@@ -799,7 +806,7 @@ test("the old build still dates a movie it edits, without naming the column", as
   const was = await stamps(sql, "Arrival");
   assert.equal(was.created, null, "a legacy row was given a creation time");
 
-  await oldCode.updateMovie(sql, id, "disliked");
+  await oldCode.updateMovie(sql, id);
 
   const now = await stamps(sql, "Arrival");
   assert.ok(now.updated > was.updated, `old-build update: ${now.updated} is not after ${was.updated}`);
@@ -877,7 +884,7 @@ test("the taste store requires its own migrations before it can serve", async ()
   // serves a user a wrong answer because a column is missing.
   const early = sqlTasteStore(sql, { id: ALICE });
   await assert.rejects(
-    () => early.createMovie({ title: "Arrival", year: 2016, state: "loved" }),
+    () => early.createMovie({ title: "Arrival", year: 2016, viewing: "seen" }),
     (error: unknown) => {
       assert.match(String((error as Error).message), /canonical_title/u);
       return true;
@@ -890,10 +897,10 @@ test("the taste store requires its own migrations before it can serve", async ()
   assert.equal(await migrate(sql, TASTE_SCHEMA), remaining);
 
   const store = sqlTasteStore(sql, { id: ALICE });
-  await store.createMovie({ title: "Arrival", year: 2016, state: "loved" });
+  await store.createMovie({ title: "Arrival", year: 2016, viewing: "seen" });
   assert.deepEqual(
-    (await store.taste()).movies.map((movie) => [movie.title, movie.state]),
-    [["Arrival", "loved"]],
+    (await store.taste()).movies.map((movie) => [movie.title, movie.viewing]),
+    [["Arrival", "seen"]],
   );
 });
 
@@ -961,7 +968,7 @@ test("v7 takes the bridge away, and only the bridge", async () => {
     assert.equal(await present(sql, kind, name), true, `${kind} ${name} was not there to remove`);
   }
 
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, upTo(7));
 
   for (const [kind, name] of [
     ["column", "watched"],
@@ -977,16 +984,18 @@ test("v7 takes the bridge away, and only the bridge", async () => {
 
   // And nothing else went with it. v6's triggers are on the same table and were
   // added after the ones being dropped, which is exactly how a contract migration
-  // takes too much.
-  assert.equal(await present(sql, "column", "state"), true, "state was dropped");
+  // takes too much. `state` goes too, but in v12 and for its own reasons.
+  assert.equal(await present(sql, "column", "state"), true, "v7 dropped state as well");
   assert.equal(await present(sql, "trigger", "tonight_movies_written_at"), true, "v6 lost a trigger");
   assert.equal(await present(sql, "function", "tonight_written_at"), true, "v6 lost its function");
   assert.equal(await present(sql, "function", "tonight_mix_movies_touch"), true, "v6 lost a touch");
 });
 
-test("what the user said survives the contract migration untouched", async () => {
+test("what the user said survives the contract migration, on both axes", async () => {
   // The whole point of the two representations was that neither of them lost
-  // anything. Dropping one has to be the moment that stays true.
+  // anything. v7 dropped one; v10-v12 split the survivor into a viewing fact and
+  // a verdict, and every row still has to arrive with both halves of what it
+  // meant.
   const sql = await fresh();
   await migrate(sql, upTo(4));
   for (const [what, watched, liked] of BACKFILL) await oldCodeInsert(sql, what, watched, liked);
@@ -998,54 +1007,76 @@ test("what the user said survives the contract migration untouched", async () =>
   );
 
   await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, VERDICTS_SCHEMA);
 
-  const afterwards = await sql.query<{ title: string; state: string | null }>(
-    `SELECT title, state FROM tonight_movies WHERE user_id = $1 ORDER BY title`,
-    [ALICE],
-  );
-  assert.deepEqual(afterwards, before);
-
-  // And the store reads them back as the films they are, with the states intact.
+  // Every state maps to the viewing it implied, and the three evaluative ones
+  // each leave a verdict carrying what they said.
+  const VIEWING_OF: Record<string, string> = {
+    not_seen: "unseen",
+    seen: "seen",
+    liked: "seen",
+    loved: "seen",
+    disliked: "seen",
+  };
   const { movies } = await sqlTasteStore(sql, { id: ALICE }).taste();
   assert.equal(movies.length, BACKFILL.length);
   assert.deepEqual(
-    Object.fromEntries(movies.map((one) => [one.title, one.state])),
-    Object.fromEntries(BACKFILL.map(([what, , , state]) => [what, state])),
+    Object.fromEntries(movies.map((one) => [one.title, one.viewing])),
+    Object.fromEntries(
+      before.map((row) => [row.title, row.state === null ? null : VIEWING_OF[row.state]]),
+    ),
+  );
+
+  const judged = await sql.query<{ title: string; judgement: string }>(
+    `SELECT title, judgement FROM tonight_verdict_acts WHERE user_id = $1 ORDER BY title`,
+    [ALICE],
+  );
+  assert.deepEqual(
+    judged,
+    before
+      .filter((row) => row.state !== null && ["liked", "loved", "disliked"].includes(row.state))
+      .map((row) => ({ title: row.title, judgement: row.state })),
+    "an opinion was lost or invented on the way to the verdict store",
   );
 });
 
-test("a state is still written and read after the bridge is gone", async () => {
-  // The trigger that is being dropped fired on every insert and update of this
-  // table. Taking it away must leave ordinary writing exactly as it was.
+test("a viewing is still written and read after the contract migration", async () => {
+  // Two triggers have been dropped from this table over its life and a column
+  // with it. Taking them away must leave ordinary writing exactly as it was.
   const sql = await fresh();
   await migrate(sql, TASTE_SCHEMA);
 
   const store = sqlTasteStore(sql, { id: ALICE });
-  await store.createMovie({ title: "Arrival", year: 2016, state: "loved" });
-  await store.updateMovie("Arrival", 2016, { state: "disliked" });
+  await store.createMovie({ title: "Arrival", year: 2016, viewing: "seen" });
+  await store.updateMovie("Arrival", 2016, { viewing: "unseen" });
   await store.createMovie({ title: "Moon", year: 2009 });
 
   const { movies } = await store.taste();
   assert.deepEqual(
-    movies.map((one) => [one.title, one.state]),
+    movies.map((one) => [one.title, one.viewing]),
     [
-      ["Arrival", "disliked"],
+      ["Arrival", "unseen"],
       ["Moon", null],
     ],
   );
 
-  // Silence is still not a statement, and the check still refuses a sixth state.
-  await assert.rejects(
-    sql.query(
-      `INSERT INTO tonight_movies (user_id, title, canonical_title, year, state)
-              -- The canonical name is the film's identity from v9 on; a raw row
-              -- that omitted it would be refused for that rather than for what
-              -- this contract is about.
-              VALUES ($1, 'x', 'x', 2000, 'neutral')`,
-      [ALICE],
-    ),
-    (error: unknown) => (error as { code?: string }).code === "23514",
-  );
+  // Silence is still not a statement, and the check refuses anything that is
+  // not one of the two — an opinion included, which is what the column used to
+  // accept and must never accept again.
+  for (const wrong of ["neutral", "liked", "loved", "disliked", "not_seen"]) {
+    await assert.rejects(
+      sql.query(
+        `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing)
+                -- The canonical name is the film's identity from v9 on; a raw row
+                -- that omitted it would be refused for that rather than for what
+                -- this contract is about.
+                VALUES ($1, 'x', 'x', 2000, $2)`,
+        [ALICE, wrong],
+      ),
+      (error: unknown) => (error as { code?: string }).code === "23514",
+      wrong,
+    );
+  }
 });
 
 test("a caller cannot set either stamp, in any build", async () => {
@@ -1054,8 +1085,8 @@ test("a caller cannot set either stamp, in any build", async () => {
 
   // Named outright, which no build does and the schema has no reason to allow.
   await sql.query(
-    `INSERT INTO tonight_movies (user_id, title, canonical_title, year, state, created_at, updated_at)
-     VALUES ($1, 'Arrival', 'arrival', 2016, 'loved', '1999-01-01Z', '1999-01-01Z')`,
+    `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing, created_at, updated_at)
+     VALUES ($1, 'Arrival', 'arrival', 2016, 'seen', '1999-01-01Z', '1999-01-01Z')`,
     [ALICE],
   );
   const [fresh1] = await sql.query<{ old: boolean }>(
@@ -1076,4 +1107,560 @@ test("a caller cannot set either stamp, in any build", async () => {
   // be stored, and no elapsed time is needed to see that.
   assert.equal(now.created, was.created, "an update rewrote a creation time");
   assert.notEqual(now.updated, "1999-01-01 00:00:00.000000", "an update set its own change time");
+});
+
+/* ------------------------------ v10-v12: viewing, verdicts, and the column that went */
+
+/**
+ * The conversion, held to the one thing it must not do.
+ *
+ * A migrated act is the *base* beneath whatever the user has said since. Dating
+ * it by when the conversion happened to run would make a years-old filing
+ * supersede a verdict given last week, which is the failure this whole section
+ * exists to prevent — so every case below is about where in a history the
+ * migrated act lands.
+ *
+ * The rest is arithmetic: every legacy state maps to the viewing it implied,
+ * and nothing about the film moves while that happens.
+ */
+
+/** A movie as the pre-v10 build wrote one, with a state and an optional date. */
+async function legacyMovie(
+  sql: SqlDriver,
+  title: string,
+  state: string | null,
+  createdAt: string | null = null,
+): Promise<void> {
+  await sql.query(
+    `INSERT INTO tonight_movies (user_id, title, canonical_title, year, state, created_at, updated_at)
+     VALUES ($1, $2, lower($2), 2016, $3, $4, now())`,
+    [ALICE, title, state, createdAt],
+  );
+  if (createdAt === null) return;
+  // The stamp trigger overwrites what an insert names, so the date is set after
+  // it — the same way v9's backfill works around the same trigger.
+  await sql.exec("ALTER TABLE tonight_movies DISABLE TRIGGER tonight_movies_written_at;");
+  await sql.query(`UPDATE tonight_movies SET created_at = $2 WHERE user_id = $1 AND title = $3`, [
+    ALICE,
+    createdAt,
+    title,
+  ]);
+  await sql.exec("ALTER TABLE tonight_movies ENABLE TRIGGER tonight_movies_written_at;");
+}
+
+/**
+ * Everything in the verdict store for one film, oldest first.
+ *
+ * Grouped the way the domain groups films rather than by `lower(title)`: two
+ * spellings of one film are one history, and SQL cannot run that rule — which is
+ * the whole reason the conversion is code.
+ */
+async function acts(sql: SqlDriver, title: string, year = 2016) {
+  const { filmKey } = await import("../films/identity.ts");
+  const wanted = filmKey({ title, year });
+  const all = await sql.query<{
+    title: string;
+    year: number;
+    said: string;
+    judgement: string | null;
+    told: string | null;
+    said_at: Date;
+    seq: string;
+  }>(
+    `SELECT title, year, said, judgement, told, said_at, seq FROM tonight_verdict_acts
+      WHERE user_id = $1 ORDER BY said_at, seq`,
+    [ALICE],
+  );
+  return all.filter((one) => filmKey(one) === wanted);
+}
+
+/** A verdict as the user's own build would have written one. */
+async function realVerdict(sql: SqlDriver, title: string, judgement: string, at: string) {
+  await sql.query(
+    `INSERT INTO tonight_verdict_acts
+       (user_id, said, title, year, said_at, told, about, judgement)
+     VALUES ($1, 'verdict', $2, 2016, $3, 'volunteered', 'judgement', $4)`,
+    [ALICE, title, at, judgement],
+  );
+}
+
+/** Up to v9 on taste, and the verdict store ready — the state before v10. */
+async function beforeTheSplit(): Promise<SqlDriver> {
+  const sql = await fresh();
+  await migrate(sql, upTo(9));
+  await migrate(sql, VERDICTS_SCHEMA);
+  return sql;
+}
+
+test("every legacy state becomes the viewing it implied, and nothing else moves", async () => {
+  const sql = await beforeTheSplit();
+  for (const [title, state] of [
+    ["Nothing", null],
+    ["Unseen", "not_seen"],
+    ["Watched", "seen"],
+    ["Liked", "liked"],
+    ["Loved", "loved"],
+    ["Disliked", "disliked"],
+  ] as const) {
+    await legacyMovie(sql, title, state);
+  }
+
+  // Everything about the films, before, as a whole row rather than a field list.
+  const shape = `SELECT title, canonical_title, year, imdb_id, created_at, updated_at
+                   FROM tonight_movies WHERE user_id = $1 ORDER BY title`;
+  const before = await sql.query(shape, [ALICE]);
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  assert.deepEqual(
+    await sql.query<{ title: string; viewing: string | null }>(
+      `SELECT title, viewing FROM tonight_movies WHERE user_id = $1 ORDER BY title`,
+      [ALICE],
+    ),
+    [
+      { title: "Disliked", viewing: "seen" },
+      { title: "Liked", viewing: "seen" },
+      { title: "Loved", viewing: "seen" },
+      { title: "Nothing", viewing: null },
+      { title: "Unseen", viewing: "unseen" },
+      { title: "Watched", viewing: "seen" },
+    ],
+  );
+
+  // Identity, metadata and both stamps are exactly as they were. `updated_at` in
+  // particular: it is on the read, so moving it would tell every user that every
+  // film they have was touched by a migration.
+  assert.deepEqual(await sql.query(shape, [ALICE]), before, "the backfill moved something else");
+
+  // And the three opinions are verdicts now, one each, and nothing else is.
+  const written = await sql.query<{ title: string; judgement: string; told: string; about: string }>(
+    `SELECT title, judgement, told, about FROM tonight_verdict_acts WHERE user_id = $1 ORDER BY title`,
+    [ALICE],
+  );
+  assert.deepEqual(written, [
+    { title: "Disliked", judgement: "disliked", told: "volunteered", about: "judgement" },
+    { title: "Liked", judgement: "liked", told: "volunteered", about: "judgement" },
+    { title: "Loved", judgement: "loved", told: "volunteered", about: "judgement" },
+  ]);
+});
+
+test("a film's mixes and its IMDb id are untouched by the conversion", async () => {
+  const sql = await beforeTheSplit();
+  await sql.query(
+    `INSERT INTO tonight_genres (user_id, name, instruction) VALUES ($1, 'Slow', 'takes its time')`,
+    [ALICE],
+  );
+  await sql.query(
+    `INSERT INTO tonight_mixes (user_id, name, instruction) VALUES ($1, 'Long Nights', 'room')`,
+    [ALICE],
+  );
+  await sql.query(
+    `INSERT INTO tonight_movies (user_id, title, canonical_title, year, imdb_id, state)
+     VALUES ($1, 'Heat', 'heat', 1995, 'tt0113277', 'loved')`,
+    [ALICE],
+  );
+  await sql.query(
+    `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id)
+     SELECT $1, x.id, f.id FROM tonight_mixes AS x, tonight_movies AS f
+      WHERE x.user_id = $1 AND f.user_id = $1`,
+    [ALICE],
+  );
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  const { movies } = await sqlTasteStore(sql, { id: ALICE }).taste();
+  assert.deepEqual(
+    movies.map((one) => [one.title, one.year, one.imdbId, one.viewing, one.mixes]),
+    [["Heat", 1995, "tt0113277", "seen", ["Long Nights"]]],
+  );
+});
+
+test("with no history, the migrated act is dated by the film's own creation", async () => {
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.000Z");
+  await migrate(sql, TASTE_SCHEMA);
+
+  const [act] = await acts(sql, "Heat");
+  assert.equal(act?.said_at.toISOString(), "2020-05-05T10:00:00.000Z");
+});
+
+test("a film older than the created_at column is dated by the v6 baseline", async () => {
+  // `created_at` is genuinely null for a row that predates v6 — nobody wrote the
+  // moment down. The baseline is the earliest instant anyone can honestly say
+  // the film already existed, and it is not `updated_at`, which moves whenever
+  // anything about the film changes.
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", null);
+  // Through the trigger the stamp cannot be cleared — it keeps `OLD.created_at`
+  // on every update — so this is how a row that predates v6 is reproduced.
+  await sql.exec("ALTER TABLE tonight_movies DISABLE TRIGGER tonight_movies_written_at;");
+  await sql.query(`UPDATE tonight_movies SET created_at = NULL WHERE user_id = $1`, [ALICE]);
+  await sql.exec("ALTER TABLE tonight_movies ENABLE TRIGGER tonight_movies_written_at;");
+
+  const [baseline] = await sql.query<{ applied_at: Date }>(
+    "SELECT applied_at FROM schema_migrations WHERE module = 'taste' AND version = 6",
+  );
+  await migrate(sql, TASTE_SCHEMA);
+
+  const [act] = await acts(sql, "Heat");
+  assert.equal(act?.said_at.getTime(), baseline!.applied_at.getTime());
+});
+
+test("a real verdict stands over the migrated one, however old the film is", async () => {
+  // The case this dating exists for: a film filed years ago and an opinion given
+  // last week. Whatever the conversion does, the recent word has to win.
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.000Z");
+  await realVerdict(sql, "Heat", "disliked", "2026-01-01T20:00:00.000Z");
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  const history = await acts(sql, "Heat");
+  assert.deepEqual(history.map((one) => one.judgement), ["loved", "disliked"]);
+  assert.equal(
+    (await sqlVerdictStore(sql, { id: ALICE } as never).standing())[0]?.judgement,
+    "disliked",
+    "the migrated act displaced a verdict the user actually gave",
+  );
+});
+
+test("a migrated act is dated under history that is older than the film's row", async () => {
+  // The awkward case: the verdict predates the Movie's own creation stamp, which
+  // happens when a film is saved after it was talked about. `baseAt` alone would
+  // put the migrated act on top of it, so it is placed a millisecond earlier
+  // instead.
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2026-06-01T10:00:00.000Z");
+  await realVerdict(sql, "Heat", "disliked", "2020-01-01T20:00:00.000Z");
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  const history = await acts(sql, "Heat");
+  assert.deepEqual(history.map((one) => one.judgement), ["loved", "disliked"]);
+  assert.equal(history[0]?.said_at.toISOString(), "2020-01-01T19:59:59.999Z");
+});
+
+test("an equal instant still leaves the real act standing", async () => {
+  // Two acts in one millisecond are separated by `seq`, which Postgres allocates
+  // — so a migrated act dated exactly at the real one would be ordered by
+  // insertion and win. The millisecond step is what stops that.
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2026-01-01T20:00:00.000Z");
+  await realVerdict(sql, "Heat", "disliked", "2026-01-01T20:00:00.000Z");
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  assert.equal(
+    (await sqlVerdictStore(sql, { id: ALICE } as never).standing())[0]?.judgement,
+    "disliked",
+    "an act written later won a tie it should have lost",
+  );
+});
+
+test("a standing not-ever is not displaced by a migrated judgement", async () => {
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.000Z");
+  await sql.query(
+    `INSERT INTO tonight_verdict_acts (user_id, said, title, year, said_at, told, about, reach)
+     VALUES ($1, 'verdict', 'Heat', 2016, '2026-01-01T20:00:00.000Z', 'confirmed', 'rejection', 'not-ever')`,
+    [ALICE],
+  );
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  const [standing] = await sqlVerdictStore(sql, { id: ALICE } as never).standing();
+  assert.equal(standing?.rejected, "not-ever");
+  assert.equal(standing?.judgement, undefined, "the refusal became a judgement");
+});
+
+test("a withdrawal still silences the migrated act it now sits above", async () => {
+  // The user took back what they said about this film. A migrated act arriving
+  // underneath the withdrawal must stay withdrawn — a conversion cannot revive
+  // an opinion somebody retracted.
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.000Z");
+  await realVerdict(sql, "Heat", "disliked", "2026-01-01T20:00:00.000Z");
+  await sql.query(
+    `INSERT INTO tonight_verdict_acts (user_id, said, title, year, said_at)
+     VALUES ($1, 'withdrawal', 'Heat', 2016, '2026-01-02T20:00:00.000Z')`,
+    [ALICE],
+  );
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  assert.deepEqual(
+    await sqlVerdictStore(sql, { id: ALICE } as never).standing(),
+    [],
+    "a migrated act survived a withdrawal that came after it",
+  );
+});
+
+test("a not-tonight leaves the migrated judgement standing everywhere else", async () => {
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.000Z");
+  await sql.query(
+    `INSERT INTO tonight_verdict_acts
+       (user_id, said, title, year, occasion, said_at, told, about, reach)
+     VALUES ($1, 'verdict', 'Heat', 2016, 'tue', '2026-01-01T20:00:00.000Z', 'confirmed', 'rejection', 'not-tonight')`,
+    [ALICE],
+  );
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  const standing = await sqlVerdictStore(sql, { id: ALICE } as never).standing();
+  const global = standing.find((one) => one.occasion === undefined);
+  const evening = standing.find((one) => one.occasion === "tue");
+  assert.equal(global?.judgement, "loved", "an evening's refusal took the base with it");
+  assert.equal(evening?.rejected, "not-tonight");
+});
+
+test("two spellings of one film share a history; two years do not", async () => {
+  // Matched the way the domain matches, not by raw spelling and not by
+  // `lower()`. The conversion has to find the history a differently-spelled act
+  // belongs to, and must not merge two films that only share a title.
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "  BLACK   bag ", "loved", "2020-05-05T10:00:00.000Z");
+  await realVerdict(sql, "black bag", "disliked", "2019-01-01T20:00:00.000Z");
+
+  await sql.query(
+    `INSERT INTO tonight_movies (user_id, title, canonical_title, year, state)
+     VALUES ($1, 'Heat', 'heat', 1995, 'loved')`,
+    [ALICE],
+  );
+  await sql.query(
+    `INSERT INTO tonight_verdict_acts (user_id, said, title, year, said_at, told, about, judgement)
+     VALUES ($1, 'verdict', 'Heat', 1986, '2019-01-01T20:00:00.000Z', 'volunteered', 'judgement', 'disliked')`,
+    [ALICE],
+  );
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  // One history: the migrated act was placed under the act it shares a film with.
+  const bag = await acts(sql, "BLACK bag");
+  assert.equal(bag.length, 2, "two spellings were read as two films");
+  assert.equal(bag[0]?.said_at.toISOString(), "2019-01-01T19:59:59.999Z");
+
+  // Two films: Heat 1995 and Heat 1986 share a title and nothing else, so the
+  // 1995 migration is dated by its own film rather than by the 1986 history.
+  const heat = await sql.query<{ year: number; said_at: Date }>(
+    `SELECT year, said_at FROM tonight_verdict_acts
+      WHERE user_id = $1 AND title = 'Heat' ORDER BY year`,
+    [ALICE],
+  );
+  assert.deepEqual(heat.map((one) => one.year), [1986, 1995]);
+  assert.notEqual(heat[1]?.said_at.toISOString(), "2019-01-01T19:59:59.999Z");
+});
+
+test("the conversion is one transaction: running twice adds nothing", async () => {
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.000Z");
+
+  assert.ok((await migrate(sql, TASTE_SCHEMA)) > 0);
+  const once = await acts(sql, "Heat");
+  assert.equal(once.length, 1);
+
+  // The claim row is the guard, and it is the same guard as every other step.
+  assert.equal(await migrate(sql, TASTE_SCHEMA), 0, "a second run applied something");
+  assert.deepEqual(await acts(sql, "Heat"), once, "a second run wrote a second act");
+});
+
+test("a failing conversion leaves nothing behind, and a retry writes exactly one act", async () => {
+  // The transaction is what makes a partial conversion impossible. Broken here
+  // by taking away the table the step writes into while leaving the claim that
+  // says it exists — a real failure in the middle of the work rather than a
+  // refusal before it starts, which is the case worth proving.
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.000Z");
+  await legacyMovie(sql, "Solaris", "disliked", "2020-05-05T10:00:00.000Z");
+  await sql.exec("DROP TABLE tonight_verdict_acts; DROP SEQUENCE tonight_verdict_acts_seq;");
+
+  await assert.rejects(() => migrate(sql, TASTE_SCHEMA));
+
+  // The version was not recorded, so it can be retried — and `viewing` was not
+  // left half-populated either, because v10 committed on its own before this.
+  const [claimed] = await sql.query(
+    "SELECT version FROM schema_migrations WHERE module = 'taste' AND version = 11",
+  );
+  assert.equal(claimed, undefined, "a failed conversion recorded itself as applied");
+  assert.equal(await present(sql, "column", "state"), true, "the contract step ran anyway");
+
+  // Put the store back, and the retry converts each film exactly once.
+  await sql.query("DELETE FROM schema_migrations WHERE module = 'verdicts'");
+  await migrate(sql, VERDICTS_SCHEMA);
+  await migrate(sql, TASTE_SCHEMA);
+  assert.equal((await acts(sql, "Heat")).length, 1, "Heat was converted more or less than once");
+  assert.equal((await acts(sql, "Solaris")).length, 1);
+});
+
+test("the conversion will not run before the store it writes to exists", async () => {
+  // The one step that reaches across a module boundary. `migrate` satisfies the
+  // need by bringing the verdict schema up first, so a caller migrating taste
+  // alone still ends up with both — which is what the development store opener
+  // and five suites do.
+  const sql = await fresh();
+  await migrate(sql, TASTE_SCHEMA);
+
+  const [verdicts] = await sql.query<{ present: boolean }>(
+    "SELECT to_regclass('tonight_verdict_acts') IS NOT NULL AS present",
+  );
+  assert.equal(verdicts?.present, true, "the taste migration did not bring up what it needs");
+  assert.equal(await present(sql, "column", "state"), false, "the contract step did not run");
+  assert.equal(await present(sql, "column", "viewing"), true);
+});
+
+test("a fresh database ends in the final schema, whatever order the modules run in", async () => {
+  for (const order of [
+    [TASTE_SCHEMA, VERDICTS_SCHEMA],
+    [VERDICTS_SCHEMA, TASTE_SCHEMA],
+  ]) {
+    const sql = await fresh();
+    for (const schema of order) await migrate(sql, schema);
+
+    assert.equal(await present(sql, "column", "state"), false);
+    assert.equal(await present(sql, "column", "viewing"), true);
+
+    // And no legacy opinion was invented out of an empty table.
+    const [count] = await sql.query<{ n: string }>("SELECT count(*) AS n FROM tonight_verdict_acts");
+    assert.equal(Number(count?.n), 0, "a fresh install manufactured a verdict");
+  }
+});
+
+test("a legacy instant is normalised to the resolution a verdict keeps", async () => {
+  // The convention, stated as a contract. `created_at` is a `timestamptz` and
+  // carries microseconds; a verdict's `at` is the domain's instant and has
+  // always been milliseconds. The conversion normalises rather than inventing a
+  // finer representation for a precision the destination does not otherwise
+  // keep — and the test uses a source with real sub-millisecond digits so that
+  // the normalisation is proved rather than assumed.
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.123456Z");
+
+  // The source really does hold the microseconds, so what follows is about the
+  // conversion rather than about what Postgres stored.
+  const [stored] = await sql.query<{ at: string }>(
+    `SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US') AS at
+       FROM tonight_movies WHERE user_id = $1`,
+    [ALICE],
+  );
+  assert.equal(stored?.at, "2020-05-05T10:00:00.123456");
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  const [written] = await sql.query<{ at: string }>(
+    `SELECT to_char(said_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US') AS at
+       FROM tonight_verdict_acts WHERE user_id = $1`,
+    [ALICE],
+  );
+  assert.equal(written?.at, "2020-05-05T10:00:00.123000", "the microseconds were not normalised away");
+});
+
+test("normalising never closes the gap that keeps a migrated act underneath history", async () => {
+  // The half that could have gone wrong. `Date` truncates toward zero, so a
+  // normalised instant is never *later* than what it came from — and the rule
+  // then subtracts a further millisecond. Both sides carry microseconds here,
+  // and the migrated act still has to sort strictly before the real one by its
+  // true value rather than only by its normalised one.
+  const sql = await beforeTheSplit();
+  await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.999900Z");
+  await sql.query(
+    `INSERT INTO tonight_verdict_acts
+       (user_id, said, title, year, said_at, told, about, judgement)
+     VALUES ($1, 'verdict', 'Heat', 2016, '2020-05-05T10:00:00.000200Z', 'volunteered', 'judgement', 'disliked')`,
+    [ALICE],
+  );
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  const history = await sql.query<{ judgement: string; at: string }>(
+    `SELECT judgement, to_char(said_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US') AS at
+       FROM tonight_verdict_acts WHERE user_id = $1 ORDER BY said_at, seq`,
+    [ALICE],
+  );
+  assert.deepEqual(
+    history.map((one) => one.judgement),
+    ["loved", "disliked"],
+    "the migrated act did not sort underneath the real one",
+  );
+  assert.equal(history[0]?.at, "2020-05-05T09:59:59.999000");
+
+  // And the store agrees, which is the answer that actually matters.
+  assert.equal(
+    (await sqlVerdictStore(sql, { id: ALICE } as never).standing())[0]?.judgement,
+    "disliked",
+  );
+});
+
+test("one user's legacy opinion cannot be dated by another user's history", async () => {
+  // Grouping is by user *and* film, and the dates are arranged so that dropping
+  // the user is visible.
+  //
+  // Ben's verdict is **older** than Ana's film, and that ordering is the whole
+  // test. With the user in the key, Ana has no history and her act is dated by
+  // her own film: 2020. Without it, Ben's 2019 act becomes the oldest known act
+  // about "Heat", the strictly-before rule applies, and Ana's act backdates to
+  // 2018 — a visible change, and the assertion below fails.
+  //
+  // The arrangement matters because the obvious one does not work. With Ben's
+  // history *newer* than Ana's film, `min(2020, 2026 − 1ms)` is 2020 either way,
+  // so a broken key would produce the correct answer and the test would pass
+  // over the bug.
+  const sql = await beforeTheSplit();
+  const BEN = "google:ben";
+
+  await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.000Z");
+  await legacyMovie(sql, "Solaris", "disliked", "2020-05-05T10:00:00.000Z");
+  await sql.query(
+    `INSERT INTO tonight_movies (user_id, title, canonical_title, year, state)
+     VALUES ($1, 'Heat', 'heat', 2016, 'disliked')`,
+    [BEN],
+  );
+  // Ben said something about the same film, years before Ana ever saved hers.
+  await sql.query(
+    `INSERT INTO tonight_verdict_acts
+       (user_id, said, title, year, said_at, told, about, judgement)
+     VALUES ($1, 'verdict', 'Heat', 2016, '2019-01-01T20:00:00.000Z', 'volunteered', 'judgement', 'liked')`,
+    [BEN],
+  );
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  // Ana's act is dated by her own film, untouched by Ben having spoken.
+  const ana = await sql.query<{ title: string; judgement: string; said_at: Date }>(
+    `SELECT title, judgement, said_at FROM tonight_verdict_acts WHERE user_id = $1 ORDER BY title`,
+    [ALICE],
+  );
+  assert.deepEqual(
+    ana.map((one) => `${one.title}: ${one.judgement} @ ${one.said_at.toISOString()}`),
+    [
+      "Heat: loved @ 2020-05-05T10:00:00.000Z",
+      "Solaris: disliked @ 2020-05-05T10:00:00.000Z",
+    ],
+    "Ana's acts were dated from somebody else's history",
+  );
+
+  // Solaris is the control: nobody else has ever mentioned it, so it is dated
+  // the same way with or without the user in the key. Heat differing from it is
+  // exactly what a dropped user_id would look like.
+  assert.equal(
+    ana[0]?.said_at.getTime(),
+    ana[1]?.said_at.getTime(),
+    "the film somebody else had spoken about was dated differently from the one nobody had",
+  );
+
+  // Ben keeps both of his, in the right order, and neither is Ana's.
+  const ben = await sql.query<{ judgement: string }>(
+    `SELECT judgement FROM tonight_verdict_acts WHERE user_id = $1 ORDER BY said_at, seq`,
+    [BEN],
+  );
+  assert.deepEqual(ben.map((one) => one.judgement), ["disliked", "liked"]);
+
+  // And what stands is each person's own.
+  assert.equal(
+    (await sqlVerdictStore(sql, { id: ALICE } as never).standing())[0]?.judgement,
+    "loved",
+  );
+  assert.equal(
+    (await sqlVerdictStore(sql, { id: BEN } as never).standing())[0]?.judgement,
+    "liked",
+  );
 });

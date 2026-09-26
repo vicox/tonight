@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { Films } from "./movie-row";
 import { WayOut } from "./way-out";
-import type { Movie } from "@/lib/taste/model";
+import type { Shown } from "@/lib/web/movie-summary";
 import { refocus } from "@/lib/web/refocus";
 
 /**
@@ -79,7 +79,7 @@ export function Chosen({
    * Still no copy anywhere: the caller derives them from its own props each
    * render, so a mark pressed in here changes the list by the next one.
    */
-  films: readonly Movie[];
+  films: readonly Shown[];
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);

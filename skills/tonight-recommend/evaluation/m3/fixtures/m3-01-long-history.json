@@ -2,81 +2,240 @@
   "id": "m3-01-long-history",
   "title": "Somebody with a real history, and everything M3 has to be able to explain",
   "user": "google:eval-m3-01-long-history",
-  "families": ["A", "B", "C", "D", "G"],
-  "catches": "Whether the whole supported picture can be explained at once: what is saved, what still stands, what was replaced, what was taken back, the evenings, and the three places a verdict governs a saved state. Every class M3 can hold is present exactly once, so an omission is visible.",
+  "families": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "G"
+  ],
+  "catches": "Whether the whole supported picture can be explained at once: what is saved and whether it was watched, what still stands, what was replaced, what was taken back, the evenings, and the scopes a refusal can carry. Every class M3 can hold is present exactly once, so an omission is visible.",
   "writes": false,
   "model": {
     "genres": [
-      { "name": "Slow Burn", "instruction": "I like films that take their time and trust me to wait." },
-      { "name": "Bleak Procedural", "instruction": "Hard work, done properly, at a cost to the person doing it." }
+      {
+        "name": "Slow Burn",
+        "instruction": "I like films that take their time and trust me to wait."
+      },
+      {
+        "name": "Bleak Procedural",
+        "instruction": "Hard work, done properly, at a cost to the person doing it."
+      }
     ],
     "mixes": [
       {
         "name": "Quiet Dread",
-        "genres": ["Slow Burn", "Bleak Procedural"],
+        "genres": [
+          "Slow Burn",
+          "Bleak Procedural"
+        ],
         "instruction": "Dread that arrives on foot rather than in a jump scare."
       }
     ],
     "movies": [
-      { "title": "Heat", "year": 1995, "state": "loved", "mixes": ["Quiet Dread"] },
-      { "title": "Zodiac", "year": 2007, "state": "liked", "mixes": ["Quiet Dread"] },
-      { "title": "Black Bag", "year": 2025, "state": "liked" },
-      { "title": "Solaris", "year": 1972, "state": "loved" },
-      { "title": "Prisoners", "year": 2013, "state": "seen" }
+      {
+        "title": "Heat",
+        "year": 1995,
+        "mixes": [
+          "Quiet Dread"
+        ],
+        "viewing": "seen"
+      },
+      {
+        "title": "Zodiac",
+        "year": 2007,
+        "mixes": [
+          "Quiet Dread"
+        ],
+        "viewing": "seen"
+      },
+      {
+        "title": "Black Bag",
+        "year": 2025,
+        "viewing": "seen"
+      },
+      {
+        "title": "Solaris",
+        "year": 1972,
+        "viewing": "seen"
+      },
+      {
+        "title": "Prisoners",
+        "year": 2013,
+        "viewing": "seen"
+      }
     ]
   },
   "acts": [
     {
       "do": "verdict",
-      "film": { "title": "Black Bag", "year": 2025 },
+      "film": {
+        "title": "Heat",
+        "year": 1995
+      },
       "told": "volunteered",
-      "said": { "about": "judgement", "judgement": "disliked", "because": "it never earned the ending" }
+      "said": {
+        "about": "judgement",
+        "judgement": "loved"
+      }
     },
     {
       "do": "verdict",
-      "film": { "title": "Zodiac", "year": 2007 },
+      "film": {
+        "title": "Zodiac",
+        "year": 2007
+      },
       "told": "volunteered",
-      "said": { "about": "judgement", "judgement": "liked" }
+      "said": {
+        "about": "judgement",
+        "judgement": "liked"
+      }
     },
     {
       "do": "verdict",
-      "film": { "title": "Zodiac", "year": 2007 },
-      "told": "confirmed",
-      "said": { "about": "judgement", "judgement": "loved", "because": "it grew on me the second time" }
-    },
-    {
-      "do": "verdict",
-      "film": { "title": "Prisoners", "year": 2013 },
+      "film": {
+        "title": "Black Bag",
+        "year": 2025
+      },
       "told": "volunteered",
-      "said": { "about": "judgement", "judgement": "loved" }
-    },
-    { "do": "withdraw", "film": { "title": "Prisoners", "year": 2013 } },
-    {
-      "do": "verdict",
-      "film": { "title": "Solaris", "year": 1972 },
-      "told": "confirmed",
-      "said": { "about": "rejection", "reach": "not-ever", "reason": "three hours of misery, never again" }
+      "said": {
+        "about": "judgement",
+        "judgement": "liked"
+      }
     },
     {
       "do": "verdict",
-      "film": { "title": "Heat", "year": 1995 },
+      "film": {
+        "title": "Solaris",
+        "year": 1972
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "loved"
+      }
+    },
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Black Bag",
+        "year": 2025
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "disliked",
+        "because": "it never earned the ending"
+      }
+    },
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Zodiac",
+        "year": 2007
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "liked"
+      }
+    },
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Zodiac",
+        "year": 2007
+      },
       "told": "confirmed",
-      "said": { "about": "rejection", "reach": "not-tonight", "reason": "too long for a Tuesday", "occasion": "evening-tuesday" }
+      "said": {
+        "about": "judgement",
+        "judgement": "loved",
+        "because": "it grew on me the second time"
+      }
+    },
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Prisoners",
+        "year": 2013
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "loved"
+      }
+    },
+    {
+      "do": "withdraw",
+      "film": {
+        "title": "Prisoners",
+        "year": 2013
+      }
+    },
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Solaris",
+        "year": 1972
+      },
+      "told": "confirmed",
+      "said": {
+        "about": "rejection",
+        "reach": "not-ever",
+        "reason": "three hours of misery, never again"
+      }
+    },
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Heat",
+        "year": 1995
+      },
+      "told": "confirmed",
+      "said": {
+        "about": "rejection",
+        "reach": "not-tonight",
+        "reason": "too long for a Tuesday",
+        "occasion": "evening-tuesday"
+      }
     },
     {
       "do": "episode",
       "request": "something quiet",
       "offered": [
-        { "title": "Zodiac", "year": 2007, "lead": true },
-        { "title": "Heat", "year": 1995, "lead": false }
+        {
+          "title": "Zodiac",
+          "year": 2007,
+          "lead": true
+        },
+        {
+          "title": "Heat",
+          "year": 1995,
+          "lead": false
+        }
       ],
-      "outcome": { "chosen": { "title": "Zodiac", "year": 2007 }, "watched": true, "finished": true }
+      "outcome": {
+        "chosen": {
+          "title": "Zodiac",
+          "year": 2007
+        },
+        "watched": true,
+        "finished": true
+      }
     },
     {
       "do": "episode",
       "request": "somethign tense",
-      "offered": [{ "title": "Prisoners", "year": 2013, "lead": true }],
-      "correction": { "request": "something tense" }
+      "offered": [
+        {
+          "title": "Prisoners",
+          "year": 2013,
+          "lead": true
+        }
+      ],
+      "correction": {
+        "request": "something tense"
+      }
     }
   ]
 }

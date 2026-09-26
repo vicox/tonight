@@ -2,21 +2,61 @@
   "id": "m3-03-pending",
   "title": "A question Tonight is carrying, and two chances that went by",
   "user": "google:eval-m3-03-pending",
-  "families": ["I"],
+  "families": [
+    "I"
+  ],
   "catches": "Whether Tonight's own bookkeeping is presented as knowledge about the person. The pending question and its two spent opportunities are operational state; they are not something the user said and must not appear as taste, as memory about them, or as recommendation evidence.",
   "writes": false,
   "model": {
-    "genres": [{ "name": "Slow Burn", "instruction": "I like films that take their time." }],
+    "genres": [
+      {
+        "name": "Slow Burn",
+        "instruction": "I like films that take their time."
+      }
+    ],
     "mixes": [],
-    "movies": [{ "title": "Heat", "year": 1995, "state": "liked" }]
+    "movies": [
+      {
+        "title": "Heat",
+        "year": 1995,
+        "viewing": "seen"
+      }
+    ]
   },
   "acts": [
     {
       "do": "verdict",
-      "film": { "title": "Zodiac", "year": 2007 },
+      "film": {
+        "title": "Heat",
+        "year": 1995
+      },
       "told": "volunteered",
-      "said": { "about": "judgement", "judgement": "loved", "because": "the procedure is the whole story" }
+      "said": {
+        "about": "judgement",
+        "judgement": "liked"
+      }
     },
-    { "do": "question", "film": { "title": "Prisoners", "year": 2013 }, "daysAgo": 10, "opportunities": 2 }
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Zodiac",
+        "year": 2007
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "loved",
+        "because": "the procedure is the whole story"
+      }
+    },
+    {
+      "do": "question",
+      "film": {
+        "title": "Prisoners",
+        "year": 2013
+      },
+      "daysAgo": 10,
+      "opportunities": 2
+    }
   ]
 }

@@ -7,8 +7,8 @@ import {
   MAX_IMDB_ID_LENGTH,
   MAX_YEAR,
   MIN_YEAR,
-  MOVIE_STATES,
   TasteError,
+  VIEWINGS,
 } from "../taste/model.ts";
 import {
   beginEpisode,
@@ -30,16 +30,10 @@ import {
   type Act,
   type Film,
   type Identified,
-  type Judgement,
-  type Reach,
   type Scope,
-  type Standing,
 } from "../verdicts/model.ts";
 import { current, spoken, supersession } from "../verdicts/model.ts";
 import { compose } from "../memory/model.ts";
-import { disagrees } from "../precedence.ts";
-import { filmKey } from "../films/identity.ts";
-import type { MovieState } from "../taste/model.ts";
 import type { QuestionStore } from "../verdicts/questions.ts";
 import type { VerdictStore } from "../verdicts/store.ts";
 import type { TasteStore } from "../taste/store.ts";
@@ -278,26 +272,24 @@ const imdbId = z
       "An empty string is not a way to clear it and is refused.",
   );
 
-const movieState = z
-  .enum(MOVIE_STATES)
+const movieViewing = z
+  .enum(VIEWINGS)
   .nullable()
   .describe(
-    "What the user has said about this film, as one answer: not_seen (they said they have not " +
-      "seen it), seen (they watched it and said nothing about it — not a neutral verdict), " +
-      "liked, loved (strongly liked), disliked — those three also mean they saw it. Take the " +
-      "state from what they said, at its most specific: \"haven't seen it\" / \"want to watch " +
-      "it\" -> not_seen, \"seen it\" -> seen, \"it was good\" -> liked, \"loved it\" -> loved, " +
-      "\"didn't like it\" -> disliked. Omit the " +
-      "field when they have not said; that " +
-      "records nothing, and it is not the same as not_seen. Pass null to go back to having " +
-      "been told nothing — and only where clearing the saved state is itself what they asked " +
-      "for. **Null is not a way to tidy up after something else.** Forgetting or withdrawing a " +
-      "verdict leaves the saved state standing on purpose, because it is what applies once no " +
-      "verdict overlays it; clearing it then destroys a second thing they never asked you to " +
-      "remove. If they asked for both, do both. These are states the user expressed, never a " +
-      "score or star rating — " +
-      "and never where a fresh opinion goes: what they say about a film now is a verdict, and " +
-      "`record_verdict` is what records it.",
+    "Whether they have watched it, as one answer: seen (they said they watched it), unseen " +
+      "(they said they have not). Take it from what they said: \"haven't seen it\" / \"want to " +
+      "watch it\" -> unseen, \"seen it\" / \"watched it years ago\" -> seen. Omit the field when " +
+      "they have not said; that records nothing, and it is not the same as unseen.\n\n" +
+      "**This is a fact, never an opinion.** It says whether they watched the film and nothing " +
+      "about whether they liked it — it is never a score or star rating, and never where a " +
+      "fresh opinion goes. Liked, loved and disliked are verdicts and `record_verdict` " +
+      "is what records them; a judgement already says they watched it, so there is nothing to " +
+      "write here as well.\n\n" +
+      "Pass null to go back to having been told nothing — and only where clearing the saved " +
+      "viewing is itself what they asked for. **Null is not a way to tidy up after something " +
+      "else.** Forgetting or withdrawing a verdict leaves this standing on purpose: it is a " +
+      "different thing they said and it is still true. Clearing it then destroys a second " +
+      "thing they never asked you to remove. If they asked for both, do both.",
   );
 
 const movieMixes = z
@@ -354,20 +346,26 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "films they have told Tonight about. A genre is a reusable piece of what they like, " +
         "with an instruction saying what it means to them. A mix combines one or more genres " +
         "and has an instruction of its own for what the combination means; the films in it are " +
-        "listed by title and year. Each film also appears once in movies, which is where the " +
-        "rest of what the user said about it lives — one state out of not_seen, seen, liked, " +
-        "loved and disliked, or null for never told. A new user has none of it, which is the normal state " +
+        "listed by title and year. Each film also appears once in movies, carrying its identity, " +
+        "where it is filed, and `viewing`: seen, unseen, or null for never told. A new user has " +
+        "none of it, which is the normal state " +
         "rather than an error. It is context and the vocabulary to reuse when writing — not a " +
         "list of what may be recommended, and a genre or mix existing does not by itself say " +
-        "they like it. It is the only record of what they have said they watched. Every genre, " +
+        "they like it. Every genre, " +
         "mix and movie also carries createdAt and updatedAt: when Tonight wrote it, and when " +
         "it last changed — which includes a mix's genres changing and a movie being filed " +
         "differently. Both are Tonight's own, ISO 8601 in UTC. No tool takes either, and " +
         "nothing you send can set or move them. createdAt is null on a film saved before " +
         "Tonight recorded creation times; that is not known rather than not set.\n\n" +
-        "`verdicts` is what they have since said about particular films, in their own words, and " +
-        "it is separate from movies on purpose: a state is how a film is filed, a verdict is what " +
-        "they told you about it. Each entry names the film and either a judgement — liked, loved " +
+        "**A movie says nothing about whether they liked it.** `viewing` is a fact about " +
+        "watching and the only fact a movie carries about them; every opinion is a verdict. So a " +
+        "film in `movies` with no verdict is a film **no current opinion stands about**, however " +
+        "long it has been saved — which is not the same as their having said nothing, because " +
+        "`viewing` may be something they told you. And `viewing` is never evidence for or " +
+        "against recommending it, only for whether it would be new to them.\n\n" +
+        "`verdicts` is what they have said about particular films, in their own words, and it is " +
+        "the whole of what they think: nothing else here holds an opinion. Each entry names the " +
+        "film and either a judgement — liked, loved " +
         "or disliked — or a rejection: `not-ever` turns the film down for good, `not-tonight` " +
         "turns it down for one evening and carries the `occasion` it belongs to. Where they said " +
         "why, `because` holds their words for a judgement and `reason` for a rejection; where " +
@@ -380,20 +378,24 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "that evening: outside it the film stands where it stood, it never becomes a dislike, " +
         "and it is never a reason to avoid films like it. `not-ever` stops that film for good — " +
         "that film, not its genre, its director or anything resembling it. One film refused is " +
-        "one film refused.\n\n" +
+        "one film refused. Neither says they have seen it.\n\n" +
+        "A standing judgement means they watched the film, whether or not a movie here says so " +
+        "— nobody likes a film they have not seen. So a film is new to them when `viewing` is " +
+        "not seen **and** no judgement stands; `unseen` is them saying they have not watched it, " +
+        "and a null `viewing` with no judgement is nobody having said either way, which you may " +
+        "not describe as unseen.\n\n" +
         "Only what currently stands is here. A verdict they corrected shows as the correction and " +
-        "the one it replaced is gone from this list; one they took back is gone too, and the " +
-        "film's state in movies is what is left of what they said — unchanged, and true again. " +
+        "the one it replaced is gone from this list; one they took back is gone too. **A taking-back " +
+        "reaches exactly as far as the verdict it takes back**, so withdrawing a judgement leaves " +
+        "no current judgement about that film — not a weaker one hidden somewhere else — while " +
+        "withdrawing an evening's `not-tonight` removes only that evening's refusal and leaves " +
+        "whatever they said about the film in general standing where it was. They did say it, " +
+        "and `get_memory` still remembers that they did; what changed is that it no longer " +
+        "applies. " +
         "An evening whose refusal they withdrew has nothing of its own once more. Nothing else " +
         "about a film reaches this list: not that you recommended it, not that they watched or " +
         "finished it, not a question of yours waiting on an answer, and not how long any of it " +
-        "has been true.\n\n" +
-        "`disagreements` appears when a film they filed one way and something they still say " +
-        "pull different ways. It names the film, the `saved` state, what is `governedBy` it, and " +
-        "— the part to read carefully — where it `applies`: `everywhere`, or one evening. A " +
-        "`not-tonight` applies **only** in the evening it names, and outside it the saved state " +
-        "is the base as it always was. Nothing here is new: both sides are already above, and " +
-        "this only says which governs and where. It is absent when nothing disagrees.",
+        "has been true.",
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () =>
@@ -403,16 +405,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
         // which of those still stands is resolved by the verdict model rather
         // than assembled here.
         const [taste, said] = await Promise.all([store.taste(), verdicts.standing()]);
-        const clashes = disagreements(taste.movies, said);
-        // Absent rather than empty, both of them: a user with no verdicts and no
-        // disagreement reads exactly as they did before either existed. An empty
-        // list would say there is nothing to say, which is what saying nothing
-        // already does.
-        return {
-          ...taste,
-          ...(said.length === 0 ? {} : { verdicts: said }),
-          ...(clashes.length === 0 ? {} : { disagreements: clashes }),
-        };
+        // Absent rather than empty: a user with no verdicts reads exactly as they
+        // did before verdicts existed. An empty list would say there is nothing
+        // to say, which is what saying nothing already does.
+        return { ...taste, ...(said.length === 0 ? {} : { verdicts: said }) };
       }),
   );
 
@@ -529,29 +525,29 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Save a movie",
       description:
-        "File a film the user told you about, with the state it carries. What they are telling " +
-        "you about a film — that they loved it, that it is not for tonight, that they never want " +
-        "it again — is a verdict and belongs to `record_verdict`; it is never written here as a " +
-        "state. A recommendation " +
+        "File a film the user told you about, and whether they have watched it. What they are " +
+        "telling you they *thought* of a film — that they loved it, that it is not for tonight, " +
+        "that they never want it again — is a verdict and belongs to `record_verdict`; nothing " +
+        "here carries an opinion. A recommendation " +
         "is not a saved movie: naming three films persists nothing, and neither does the user " +
-        "liking your suggestion of one. Write only Movie identity and state the user expressed, " +
+        "liking your suggestion of one. Write only Movie identity and what the user expressed, " +
         "or a meaning you put to them and they confirmed — and a confirmation covers only the " +
         "meaning they were shown, settling that it is theirs rather than granting permission to " +
-        "write. Absence is never not_seen: leave state out when you were not told, because " +
+        "write. Absence is never unseen: leave viewing out when you were not told, because " +
         "having said nothing is not the same as having said they have not seen it. Addressed " +
         "by title and year together, so establish the year before writing.",
       inputSchema: z.object({
         title: movieTitle,
         year: movieYear,
         imdb_id: imdbId.optional(),
-        state: movieState.optional(),
+        viewing: movieViewing.optional(),
         mixes: movieMixes.optional(),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
-    async ({ title, year, imdb_id: imdbId, state, mixes }) =>
+    async ({ title, year, imdb_id: imdbId, viewing, mixes }) =>
       attempt(async () => ({
-        movie: await store.createMovie({ title, year, imdbId, state, mixes }),
+        movie: await store.createMovie({ title, year, imdbId, viewing, mixes }),
       })),
   );
 
@@ -564,9 +560,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "by its current title and year; new_title and new_year change either half and the film " +
         "stays the same object, so its filings follow it. Omitting a field leaves it alone — " +
         "passing null is what clears one back to unknown, and the two are not the same. " +
-        "Absence is never not_seen: say a state only when they said it. What they are telling " +
-        "you now about a film is a verdict, not a state: `record_verdict` records it, and " +
-        "`withdraw_verdict` takes one back, after which the state stored here is what is left. " +
+        "Absence is never unseen: say a viewing only when they said it. What they are telling " +
+        "you now about a film is a verdict, not a viewing: `record_verdict` records it and " +
+        "`withdraw_verdict` takes one back, and neither touches what is stored here. " +
         "A recommendation is " +
         "not a saved movie here either — proposing a film, or the user watching one you " +
         "proposed, is nothing Tonight knows unless they said so. Write only what they " +
@@ -578,7 +574,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         new_title: movieTitle.describe("Retitle the film to this.").optional(),
         new_year: movieYear.describe("Change the release year to this.").optional(),
         imdb_id: imdbId.optional(),
-        state: movieState.optional(),
+        viewing: movieViewing.optional(),
         mixes: movieMixes.optional(),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -589,7 +585,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
       new_title: retitled,
       new_year: reyeared,
       imdb_id: imdbId,
-      state,
+      viewing,
       mixes,
     }) =>
       attempt(async () => ({
@@ -597,7 +593,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
           title: retitled,
           year: reyeared,
           imdbId,
-          state,
+          viewing,
           mixes,
         }),
       })),
@@ -612,9 +608,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "leaves every mix it was in and the mixes themselves are left alone. Addressed by " +
         "title and year together.\n\n" +
         "**Not a way to tidy up after something else.** Forgetting or withdrawing a verdict " +
-        "leaves the saved film standing on purpose, because it is what applies once no verdict " +
-        "overlays it; deleting it then destroys a second thing they never asked you to remove. " +
-        "If they asked for both, do both.",
+        "leaves the saved film standing on purpose: the film is in their collection and whether " +
+        "they watched it is a separate thing they said, and neither stops being true because an " +
+        "opinion was taken back. Deleting it then destroys a second thing they never asked you " +
+        "to remove. If they asked for both, do both.",
       inputSchema: z.object({ title: movieTitle, year: movieYear }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
@@ -822,7 +819,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
       description:
         "They no longer stand by what they told you. This leaves no current verdict for that " +
         "scope — not a neutral one, and certainly not a dislike: taking back \"I loved it\" " +
-        "means they have said nothing, the way it was before they spoke.\n\n" +
+        "leaves no current opinion standing, the way it applied before they spoke. It does not " +
+        "unsay it: that they said it stays true, and `get_memory` still remembers it.\n\n" +
         "Withdraw in the scope the claim was made in. A judgement or a `not-ever` is global, so " +
         "leave the occasion out; an evening's `not-tonight` is taken back by naming that " +
         "evening, and doing so restores whatever applied before it rather than silencing the " +
@@ -850,13 +848,18 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "occasion to see what applies on that evening: an evening's `not-tonight` shows there " +
         "and nowhere else, and where an evening has nothing of its own the global claim shows " +
         "through.\n\n" +
-        "`current` is null when they have said nothing, or when they took back what they said. " +
-        "Both are silence, and neither is a preference you may act on as though it were one." +
+        "`current` is null when no verdict applies **in the scope you asked about** — either they " +
+        "never gave one there, or they took back the one they gave. It is not a statement about " +
+        "every scope: asked without an occasion it says nothing stands in general, and an evening " +
+        "may still carry a `not-tonight` of its own; asked about an evening it says that evening " +
+        "has nothing of its own and nothing general shows through either. Neither is a preference " +
+        "you may act on as though it were one, and a taking-back is not the same as never having " +
+        "spoken — `history` below still holds it." +
         "\n\nThis reads what they said and nothing else: verdicts and takings-back, for one film. " +
-        "It cannot see a saved film's state, a genre, a mix or an evening, so it cannot tell you " +
-        "whether what they said disagrees with any of those. **Never conclude from this read that " +
-        "nothing conflicts.** A question about a contradiction, or about what Tonight holds as a " +
-        "whole, is `get_memory`'s — it names both sides of a disagreement and says which governs.",
+        "It cannot see a saved film, a genre, a mix or an evening, so it cannot tell you " +
+        "whether the film is even in their collection or whether they have said they watched it. " +
+        "**Never conclude from this read what their whole position on a film is.** A question " +
+        "about everything Tonight holds is `get_memory`'s.",
       inputSchema: z.object({ film: verdictFilm, occasion: verdictOccasion.optional() }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -938,22 +941,26 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Everything Tonight remembers about them",
       description:
-        "The whole of what Tonight holds about this user, in three parts, so that \"what do " +
+        "The whole of what Tonight holds about this user, in two parts, so that \"what do " +
         "you know about me?\" has a complete and honest answer.\n\n" +
         "`held` is what it currently holds as theirs: their genres, their mixes, the films they " +
-        "saved, and the verdicts that still stand. `operative` is only the places where two of " +
-        "those disagree about one film — it names both and says which one governs, and it is " +
-        "not a second copy of `held`. `remembered` is what it remembers happening: evenings, " +
+        "saved with whether they have watched them, and the verdicts that still stand. " +
+        "`remembered` is what it remembers happening: evenings, " +
         "verdicts they replaced, verdicts they took back. **Remembered is not evidence about " +
         "them.** An evening is not a preference, and something they stopped saying is not " +
         "something they say.\n\n" +
+        "A film and a verdict are different kinds of thing and neither contradicts the other. A " +
+        "film carries `viewing` — whether they watched it — and no opinion at all; every opinion " +
+        "is a verdict. So there is nothing here to rank against anything else: what they think " +
+        "of a film is whatever verdict stands, and if none stands, no current opinion stands — " +
+        "which `remembered` may still show them having given and taken back.\n\n" +
         "Every entry carries where it came from and, where one exists, the handle you correct " +
         "it by: a genre or mix by its name, a film by title and year, an evening by its id, and " +
         "one thing they said by its `ref`. A verdict's `ref` is what `forget_verdict` takes. An " +
         "evening also says where its own record came from: `requestSource` and `offeredSource` " +
         "are `observed` where Tonight received the request or put the films forward itself, and " +
         "`stated` where the user later corrected it.\n\n" +
-        "`coverage` says what this read answers for — `held`, `operative` and `remembered` are " +
+        "`coverage` says what this read answers for — `held` and `remembered` are " +
         "the whole of Memory — and what it leaves out. A question you are carrying is your own " +
         "note rather than something they told you, so it is excluded here and read with " +
         "`get_open_questions`. It is the same either way, so their absence from this answer is " +
@@ -1000,10 +1007,11 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "stays true and visible. Forgetting says *take it out of what you remember*. Use this " +
         "when they ask you to forget something, and withdraw when they have changed their " +
         "mind.\n\n" +
-        "Only that one act goes. Everything else about the film is worked out again from what " +
-        "is left, so forgetting a withdrawal lets the verdict it silenced stand once more, and " +
-        "forgetting the last thing they said about a film leaves it as though they had never " +
-        "said anything — whatever the saved film says applies again.\n\n" +
+        "Only that one act goes. What stands about the film is worked out again from the acts " +
+        "that are left, so forgetting a withdrawal lets the verdict it silenced stand once more, " +
+        "and forgetting the last thing they said about a film leaves no current opinion standing " +
+        "about it — not a weaker one, and nothing hidden anywhere else. Unlike a withdrawal, " +
+        "this one really is gone: nothing remembers it afterwards.\n\n" +
         "The answer says what the call did: `writeScope` is `verdict-act-only` and `otherRoots` " +
         "is `unchanged`, because this changes that one act and nothing else. Neither field says " +
         "whether the reference named anything, and neither says your whole errand is done — if " +
@@ -1011,8 +1019,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "**This call is the whole of the request.** Do not go on to update or delete the saved " +
         "film, and do not touch any genre, mix, evening or anything else, unless they separately " +
         "ask you to change that. A saved film is a different thing from something they said " +
-        "about it: it stays exactly as it is, and it is what applies once no verdict overlays " +
-        "it. Tidying it away is not part of forgetting — it destroys a second thing they never " +
+        "about it: the film is in their collection and whether they watched it is a separate " +
+        "thing they said, and neither stops being true because an opinion was taken back. " +
+        "Tidying it away is not part of forgetting — it destroys a second thing they never " +
         "asked you to remove.",
       inputSchema: z.object({
         // Shaped here so a reference that is not one is an argument the tool
@@ -1058,7 +1067,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
  * whether a question exists would leak exactly what excluding them protects.
  */
 const COVERAGE = {
-  completeFor: ["held", "operative", "remembered"],
+  completeFor: ["held", "remembered"],
   excluded: { openQuestions: { readWith: "get_open_questions" } },
 } as const;
 
@@ -1085,59 +1094,6 @@ const VERDICT_COVERAGE = {
   completeFor: ["verdictHistory"],
   excluded: { otherMemoryRoots: { readWith: "get_memory" } },
 } as const;
-
-/**
- * Where a saved film and a standing verdict pull different ways, for the
- * recommendation read.
- *
- * Derived, never stored, and never new knowledge: both roots are already in this
- * payload and this only says which of them governs and where. It exists because
- * the alternative is every reader re-deriving it, and the one that does not
- * re-derive it reports the saved state alone and sounds confident about a film
- * the user has since turned down.
- *
- * The comparison is `lib/precedence.ts`'s, shared with the memory view, so there
- * is one matrix rather than two that can drift.
- *
- * `applies` is the point of the shape. A `not-tonight` governs in its own
- * evening and nowhere else, and a reader must not be able to take it for a
- * standing fact about the person — so the scope is carried explicitly beside the
- * disagreement instead of being left to be inferred from an occasion field.
- */
-function disagreements(
-  movies: readonly { title: string; year: number; state: MovieState | null }[],
-  standing: readonly Standing[],
-): Disagreement[] {
-  const filed = new Map(movies.map((movie) => [filmKey(movie), movie] as const));
-
-  const found: Disagreement[] = [];
-  for (const said of standing) {
-    const movie = filed.get(filmKey(said));
-    if (!movie) continue;
-
-    const governedBy: Disagreement["governedBy"] =
-      said.judgement === undefined ? { rejected: said.rejected! } : { judgement: said.judgement };
-    if (!disagrees(movie.state, governedBy)) continue;
-
-    found.push({
-      title: said.title,
-      year: said.year,
-      saved: movie.state as MovieState,
-      governedBy,
-      applies: said.occasion === undefined ? "everywhere" : { occasion: said.occasion },
-    });
-  }
-  return found;
-}
-
-/** One film two roots disagree about, as a recommendation reads it. */
-type Disagreement = {
-  title: string;
-  year: number;
-  saved: MovieState;
-  governedBy: { judgement: Judgement } | { rejected: Reach };
-  applies: "everywhere" | { occasion: string };
-};
 
 /**
  * An act just written, as the caller may have it back.

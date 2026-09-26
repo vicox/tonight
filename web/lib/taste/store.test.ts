@@ -930,7 +930,7 @@ for (const driver of drivers) {
         title: "Arrival",
         year: 2016,
         imdbId: null,
-        state: null,
+        viewing: null,
         mixes: [],
       });
 
@@ -943,9 +943,9 @@ for (const driver of drivers) {
         "createdAt",
         "imdbId",
         "mixes",
-        "state",
         "title",
         "updatedAt",
+        "viewing",
         "year",
       ]);
     });
@@ -997,14 +997,14 @@ for (const driver of drivers) {
       assert.match(await refusal(alice.createMovie({ title: "ⱟ", year: 2000 })), /already exists/);
       assert.equal((await alice.taste()).movies.length, 1);
       // And it is reachable under either spelling, being one film.
-      assert.equal((await alice.updateMovie("ⱟ", 2000, { state: "loved" })).state, "loved");
+      assert.equal((await alice.updateMovie("ⱟ", 2000, { viewing: "seen" })).viewing, "seen");
     });
 
     test("whitespace is not part of a film's name", async () => {
       const { alice } = await fresh();
       await alice.createMovie({ title: "Black Bag", year: 2025 });
       assert.match(await refusal(alice.createMovie({ title: " black   bag ", year: 2025 })), /already exists/);
-      assert.equal((await alice.updateMovie("  BLACK  bag ", 2025, { state: "seen" })).state, "seen");
+      assert.equal((await alice.updateMovie("  BLACK  bag ", 2025, { viewing: "seen" })).viewing, "seen");
       // The stored title is still what they typed.
       assert.equal((await alice.taste()).movies[0]?.title, "Black Bag");
     });
@@ -1023,7 +1023,7 @@ for (const driver of drivers) {
       // `lower(title)` while the lookups canonicalise in JavaScript brings the
       // trap straight back, and this is what catches it.
       assert.match(await refusal(alice.createMovie({ title, year: 2000 })), /already exists/);
-      assert.equal((await alice.updateMovie(title, 2000, { state: "seen" })).state, "seen");
+      assert.equal((await alice.updateMovie(title, 2000, { viewing: "seen" })).viewing, "seen");
       await alice.deleteMovie(title, 2000);
       assert.deepEqual((await alice.taste()).movies, []);
     });
@@ -1120,7 +1120,7 @@ for (const driver of drivers) {
       assert.equal(await identity(), was, "retitling made a different movie");
       assert.deepEqual(await filings(), before, "retitling rewrote a filing row");
 
-      await alice.updateMovie("Dune: Part One", 2021, { state: "seen" });
+      await alice.updateMovie("Dune: Part One", 2021, { viewing: "seen" });
       assert.deepEqual(await filings(), before, "a state change rewrote a filing row");
 
       assert.deepEqual((await movieOf(alice, "Dune: Part One", 2021))?.mixes, ["Space Tension"]);
@@ -1199,7 +1199,7 @@ for (const driver of drivers) {
       const { alice } = await fresh();
       await alice.createMovie({ title: "Shawshank", year: 1994, imdbId: "tt0111161" });
 
-      const kept = await alice.updateMovie("Shawshank", 1994, { state: "seen" });
+      const kept = await alice.updateMovie("Shawshank", 1994, { viewing: "seen" });
       assert.equal(kept.imdbId, "tt0111161", "an update that did not mention the id dropped it");
 
       assert.equal((await alice.updateMovie("Shawshank", 1994, { imdbId: null })).imdbId, null);
@@ -1230,60 +1230,62 @@ for (const driver of drivers) {
       assert.deepEqual((await alice.taste()).movies.length, 1, "the refused create left a movie");
     });
 
-    test("one state holds five answers, and silence is a sixth it never invents", async () => {
+    test("viewing holds two answers, and silence is a third it never invents", async () => {
       const { alice } = await fresh();
 
       const created = await alice.createMovie({ title: "Arrival", year: 2016 });
-      assert.equal(created.state, null, "saving a movie put a statement in the user's mouth");
+      assert.equal(created.viewing, null, "saving a movie put a statement in the user's mouth");
 
-      // Every one of the five persists and reads back as itself. `seen` is in
-      // there twice over: it is a real answer, and it is not the absence of one.
-      for (const state of ["not_seen", "seen", "liked", "loved", "disliked"] as const) {
-        assert.equal((await alice.updateMovie("Arrival", 2016, { state })).state, state);
-        assert.equal((await movieOf(alice, "Arrival", 2016))?.state, state);
+      // Both answers persist and read back as themselves. `unseen` is in there
+      // twice over: it is a real answer, and it is not the absence of one.
+      for (const viewing of ["unseen", "seen"] as const) {
+        assert.equal((await alice.updateMovie("Arrival", 2016, { viewing })).viewing, viewing);
+        assert.equal((await movieOf(alice, "Arrival", 2016))?.viewing, viewing);
       }
 
-      // Cleared from any of them, and clearing is not the same as `not_seen`.
-      for (const from of ["not_seen", "seen", "disliked"] as const) {
-        await alice.updateMovie("Arrival", 2016, { state: from });
-        const cleared = await alice.updateMovie("Arrival", 2016, { state: null });
-        assert.equal(cleared.state, null, `${from} could not be cleared`);
+      // Cleared from either, and clearing is not the same as `unseen`.
+      for (const from of ["unseen", "seen"] as const) {
+        await alice.updateMovie("Arrival", 2016, { viewing: from });
+        const cleared = await alice.updateMovie("Arrival", 2016, { viewing: null });
+        assert.equal(cleared.viewing, null, `${from} could not be cleared`);
       }
 
       // Omitted is not a value either — an unrelated change leaves it standing.
-      await alice.updateMovie("Arrival", 2016, { state: "loved" });
+      await alice.updateMovie("Arrival", 2016, { viewing: "seen" });
       const untouched = await alice.updateMovie("Arrival", 2016, { imdbId: "tt0000001" });
-      assert.equal(untouched.state, "loved", "an unrelated update rewrote the state");
+      assert.equal(untouched.viewing, "seen", "an unrelated update rewrote the viewing");
 
-      for (const wrong of ["yes", "neutral", "watched", true, 1, {}]) {
+      // An opinion is not a viewing, and the three that used to be states here
+      // are refused in the same words as anything else that is not one.
+      for (const wrong of ["yes", "watched", "liked", "loved", "disliked", true, 1, {}]) {
         assert.match(
-          await refusal(alice.updateMovie("Arrival", 2016, { state: wrong })),
-          /must be one of not_seen, seen, liked, loved, disliked/,
+          await refusal(alice.updateMovie("Arrival", 2016, { viewing: wrong })),
+          /must be one of seen, unseen/,
           JSON.stringify(wrong),
         );
       }
-      assert.equal((await movieOf(alice, "Arrival", 2016))?.state, "loved", "a refusal wrote");
+      assert.equal((await movieOf(alice, "Arrival", 2016))?.viewing, "seen", "a refusal wrote");
     });
 
-    test("nothing infers a state: not saving a movie, not filing one", async () => {
+    test("nothing infers a viewing: not saving a movie, not filing one", async () => {
       const { alice, sql } = await fresh();
       await mix(alice, "Space Tension");
 
       const created = await alice.createMovie({ title: "Arrival", year: 2016 });
-      assert.equal(created.state, null);
+      assert.equal(created.viewing, null);
 
       await alice.updateMovie("Arrival", 2016, { mixes: ["Space Tension"] });
       const filed = await movieOf(alice, "Arrival", 2016);
-      assert.equal(filed?.state, null, "filing a movie decided something about it");
+      assert.equal(filed?.viewing, null, "filing a movie decided something about it");
 
-      // And the columns themselves are null rather than false. A `DEFAULT false`
-      // in the schema would satisfy every assertion above through the store while
+      // And the column itself is null rather than a value. A `DEFAULT` in the
+      // schema would satisfy every assertion above through the store while
       // making the model claim something nobody said.
-      const [row] = await sql.query<{ state: string | null }>(
-        `SELECT state FROM tonight_movies WHERE user_id = $1`,
+      const [row] = await sql.query<{ viewing: string | null }>(
+        `SELECT viewing FROM tonight_movies WHERE user_id = $1`,
         [ALICE.id],
       );
-      assert.equal(row!.state, null);
+      assert.equal(row!.viewing, null);
     });
 
     test("a movie is filed under none, one or several mixes, and listed once", async () => {
@@ -1360,13 +1362,13 @@ for (const driver of drivers) {
       await alice.createMovie({
         title: "Under the Skin",
         year: 2013,
-        state: "loved",
+        viewing: "seen",
         mixes: ["Space Tension", "Quiet Dread"],
       });
 
       await alice.deleteMix("Space Tension");
       const survivor = await movieOf(alice, "Under the Skin", 2013);
-      assert.equal(survivor?.state, "loved", "the movie went with the mix");
+      assert.equal(survivor?.viewing, "seen", "the movie went with the mix");
       assert.deepEqual(survivor?.mixes, ["Quiet Dread"], "it kept a filing that no longer exists");
 
       const removed = await alice.deleteMovie("Under the Skin", 2013);
@@ -1454,7 +1456,7 @@ for (const driver of drivers) {
       assert.equal((await movieOf(alice, "DUNE", 1985))?.title, "DUNE");
 
       // The same for every other field that is not the title.
-      await alice.updateMovie("dune", 1985, { state: "seen" });
+      await alice.updateMovie("dune", 1985, { viewing: "seen" });
       await alice.updateMovie("DuNe", 1985, { imdbId: "tt0087182" });
       assert.equal((await movieOf(alice, "DUNE", 1985))?.title, "DUNE");
 
@@ -1469,7 +1471,7 @@ for (const driver of drivers) {
       await alice.createMovie({ title: "Arrival", year: 2016 });
 
       assert.match(await refusal(alice.updateMovie("Arrival", 2016, {})), /nothing to update/);
-      assert.match(await refusal(alice.updateMovie("Nowhere", 1999, { state: "seen" })), /no movie/);
+      assert.match(await refusal(alice.updateMovie("Nowhere", 1999, { viewing: "seen" })), /no movie/);
     });
 
     test("the database refuses a filing that crosses users, from either side", async () => {
@@ -1678,13 +1680,13 @@ for (const driver of drivers) {
       await alice.createMovie({
         title: "Dune",
         year: 1984,
-        state: "disliked",
+        viewing: "seen",
         mixes: ["Space Tension"],
       });
       await alice.createMovie({
         title: "Dune",
         year: 2021,
-        state: "loved",
+        viewing: "seen",
         imdbId: "tt1160419",
         mixes: ["Space Tension", "Quiet Dread"],
       });
@@ -1693,19 +1695,19 @@ for (const driver of drivers) {
       const { mixes, movies } = await alice.taste();
 
       assert.deepEqual(movies.map(orderMovie), [
-        { title: "Arrival", year: 2016, imdbId: null, state: null, mixes: [] },
+        { title: "Arrival", year: 2016, imdbId: null, viewing: null, mixes: [] },
         {
           title: "Dune",
           year: 1984,
           imdbId: null,
-          state: "disliked",
+          viewing: "seen",
           mixes: ["Space Tension"],
         },
         {
           title: "Dune",
           year: 2021,
           imdbId: "tt1160419",
-          state: "loved",
+          viewing: "seen",
           mixes: ["Quiet Dread", "Space Tension"],
         },
       ]);
@@ -1893,7 +1895,7 @@ for (const driver of drivers) {
 
         await alice.updateGenre("Sci-Fi", { instruction: "Ideas over spectacle." });
         await alice.updateMix("Space Tension", { instruction: "The danger is in the room." });
-        await alice.updateMovie("Arrival", 2016, { state: "loved" });
+        await alice.updateMovie("Arrival", 2016, { viewing: "seen" });
 
         const genreNow = await genreStamps(alice, "Sci-Fi");
         const mixNow = await mixStamps(alice, "Space Tension");
@@ -1901,7 +1903,7 @@ for (const driver of drivers) {
 
         after(genreNow.updatedAt, genreWas.updatedAt, "genre instruction");
         after(mixNow.updatedAt, mixWas.updatedAt, "mix instruction");
-        after(movieNow.updatedAt, movieWas.updatedAt, "movie state");
+        after(movieNow.updatedAt, movieWas.updatedAt, "movie viewing");
 
         // Creation happened once. Nothing an update does is allowed to restate it.
         assert.equal(genreNow.createdAt, genreWas.createdAt);
@@ -1974,7 +1976,7 @@ for (const driver of drivers) {
         await alice.createMovie({
           title: "Arrival",
           year: 2016,
-          state: "loved",
+          viewing: "seen",
           mixes: ["Space Tension"],
         });
         await alice.createMovie({ title: "Moon", year: 2009 });
@@ -1996,7 +1998,7 @@ for (const driver of drivers) {
           title: "Arrival",
           year: 2016,
           imdbId: null,
-          state: "loved",
+          viewing: "seen",
           mixes: [],
         });
         after(filedNow.updatedAt, filedWas.updatedAt, "movie unfiled by a deletion");
@@ -2134,10 +2136,10 @@ describe("upgrading films that were saved before they had a canonical name", () 
     // What the user typed is untouched. The canonical name is for matching.
     const read = await sqlTasteStore(sql, ALICE).taste();
     assert.deepEqual(
-      read.movies.map((movie) => ({ title: movie.title, year: movie.year, state: movie.state })),
+      read.movies.map((movie) => ({ title: movie.title, year: movie.year, viewing: movie.viewing })),
       [
-        { title: "Black Bag", year: 2025, state: "loved" },
-        { title: "Heat", year: 1995, state: "loved" },
+        { title: "Black Bag", year: 2025, viewing: "seen" },
+        { title: "Heat", year: 1995, viewing: "seen" },
       ],
     );
     await sql.close();
@@ -2149,9 +2151,9 @@ describe("upgrading films that were saved before they had a canonical name", () 
     const alice = sqlTasteStore(sql, ALICE);
 
     // The same film under another spelling is the same film, through the store.
-    await alice.updateMovie("  BLACK   bag ", 2025, { state: "disliked" });
+    await alice.updateMovie("  BLACK   bag ", 2025, { viewing: "seen" });
     const [movie] = (await alice.taste()).movies;
-    assert.equal(movie?.state, "disliked", "a spelling variant did not reach the film");
+    assert.equal(movie?.viewing, "seen", "a spelling variant did not reach the film");
     assert.equal(movie?.title, "Black Bag", "the stored title was overwritten by a lookup spelling");
     assert.equal((await alice.taste()).movies.length, 1, "a variant created a second film");
     await sql.close();

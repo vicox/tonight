@@ -105,10 +105,10 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   assert.match(flat, /Tonight's evidence is what they told it\*\* — Genres, Mixes, Movies, verdicts/);
   assert.match(flat, /Read a Mix as \*\*its own instruction/);
   assert.match(flat, /arrive with `create_genre` and `create_mix`/);
-  assert.match(flat, /is a verdict —\s+`record_verdict`, never a state; `create_movie` says what a state means/);
+  assert.match(flat, /is a verdict —\s+`record_verdict`, never a Movie field; `create_movie` carries `viewing` and no opinion/);
 
   // And the ratings wording was too broad twice over: liked and disliked are
-  // real Movie state the user gave, and only a score is out of scope. Both of the
+  // real things the user said, and only a score is out of scope. Both of the
   // earlier phrasings would have told the agent not to record them. The positive
   // statement is now on the `state` field itself — see `lib/mcp/tools.test.ts`;
   // what this still guards is that neither over-broad phrasing comes back.
@@ -141,11 +141,11 @@ test("what moved to the tools is no longer stated here as well", () => {
     ],
     ["the score prohibition", /score/i],
     ["the Mix naming test", /already tells you the name|what would I get wrong|the instruction test/i],
-    // `not_seen` itself stays: the instructions still say what a *stored* state
+    // `unseen` itself stays: the instructions still say what a *stored* answer
     // means when recommending. What moved is what *saving* does to the field.
     [
       "what saving does to the state",
-      /never makes it `not_seen`|nothing said is `null`|absence is never not_seen|not the same as not_seen/i,
+      /never makes it `unseen`|nothing said is `null`|absence is never unseen|not the same as unseen/i,
     ],
   ] as [string, RegExp][]) {
     assert.equal(gone.test(flat), false, `${what} is still stated in the instructions as well`);
@@ -154,7 +154,11 @@ test("what moved to the tools is no longer stated here as well", () => {
   // And a pointer is left where the skill still has to refer to the behaviour,
   // so a reader is sent somewhere rather than left with a gap.
   assert.match(flat, /arrive with `create_genre` and `create_mix`/, "no pointer for the write rules");
-  assert.match(flat, /is a verdict —\s+`record_verdict`, never a state; `create_movie` says what a state means/, "no pointer for the state");
+  assert.match(
+    flat,
+    /is a verdict —\s+`record_verdict`, never a Movie field; `create_movie` carries `viewing` and no opinion/,
+    "no pointer for the viewing field",
+  );
 });
 
 test("what is conversation rather than a field stays here", () => {
@@ -163,9 +167,13 @@ test("what is conversation rather than a field stays here", () => {
   // read before the call it describes.
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
-  assert.match(flat, /never ask for what their sentence gave you/, "asking before calling");
+  assert.match(flat, /[Nn]ever ask for what their sentence gave you/, "asking before calling");
   assert.match(flat, /Say so and let them decide/, "how a change is agreed to");
-  assert.match(flat, /already say they saw it/, "why an opinion needs no second question");
+  assert.match(
+    flat,
+    /`create_movie` carries `viewing` and no opinion/,
+    "where an opinion goes instead of a Movie field",
+  );
 });
 
 test("both kinds of request read the model; only an exclusion is mode-dependent", () => {
@@ -270,14 +278,17 @@ test("a Mix is evidence, and the states under it calibrate rather than gate", ()
       /one written last night says as much as one with ten films under it/],
     ["that a Genre is thinner", /A Genre is an ingredient/],
     ["that a Genre name alone justifies nothing", /a Genre name alone is a label/],
-    ["that states calibrate", /States calibrate it, never decide whether it counts/],
+    ["that verdicts calibrate", /Verdicts calibrate it, never decide whether it counts/],
+    ["that a Movie carries no opinion", /A Movie carries no opinion: `viewing` is a fact about watching/],
     ["that loved strengthens", /`loved` strengthens/],
     ["that liked strengthens less", /`liked` more\s*weakly/],
     ["that disliked weakens the similar", /`disliked` weakens something similar/],
     ["that disliked is not a ban", /a sign, not a ban/],
-    ["that not_seen and null are not negative evidence",
-      /`not_seen` and `null` are\s*absence of experience, not evidence against/],
-    ["what seen does and does not say", /`seen` says only that they watched it/],
+    // Not "leaves nothing", which was false of a scoped one: taking back an
+    // evening's refusal leaves a judgement about the film exactly where it was.
+    ["what a withdrawal removes", /a\s*withdrawal removes that act in its own scope/],
+    ["that a withdrawal is not an unsaying", /not a weaker opinion, not an unsaying/],
+    ["that viewing is a fact and not taste", /`viewing` is a fact about watching/],
     ["how an empty Mix is read", /intent certain, their verdict unconfirmed/],
     ["that describing the match stays allowed", /Say how a film fits the Mix/],
     ["that their verdict may not be claimed", /never that \*\*they\*\* like it yet/],
@@ -457,7 +468,7 @@ test("how many Genres to create stays guidance, in both wordings", () => {
 test("a film they have seen or judged is not offered as a new one", () => {
   /**
    * P4 and P10. The target is what they have not seen or judged — which is not the
-   * same as what Tonight has never heard of. `not_seen` is a stored state, and it
+   * same as what Tonight has never heard of. `unseen` is something they said, and it
    * means they told Tonight they have *not* seen the film: that is a reason to offer
    * it, so it is the one state that keeps a Movie eligible. A `loved` film is spent
    * as evidence instead, which is worth more than suggesting it again.
@@ -466,10 +477,13 @@ test("a film they have seen or judged is not offered as a new one", () => {
 
   for (const [what, rule] of [
     ["what the target is", "Lead with what they have not seen or judged"],
-    ["which states rule a film out",
-     "`seen`, `liked`, `loved` and `disliked` rule a Movie out as new"],
-    ["that not_seen does not", "`not_seen` does not"],
-    ["that a not_seen film stays eligible", "so it stays"],
+    ["what rules a film out",
+     "`seen`, and any standing judgement — which\nmeans they watched it — rule a Movie out as new"],
+    ["that unseen does not", "`unseen` does not"],
+    ["that an unseen film stays eligible", "so it stays"],
+    ["that a refusal proves nothing about watching", "a refusal proves nothing about watching"],
+    ["that null may lead", "`null` may lead but is"],
+    ["that null is not unseen", "**nobody having said**"],
     ["that being ruled out covers being called new", "out of being called new or unseen"],
     ["what a loved film is for", "`loved` one is a **reason**, not a suggestion"],
     ["that a stretch needs a positive anchor", "Anchor a stretch in something they like"],
@@ -479,33 +493,34 @@ test("a film they have seen or judged is not offered as a new one", () => {
     assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
   }
 
-  // Negative half: the list that rules a Movie out is exactly the four judgements.
-  // `not_seen` joining it would silently turn "I have not seen this" into a reason to
-  // withhold the film — the precise inversion of the rule.
-  const ruledOut = flat.slice(flat.indexOf("`seen`, `liked`"), flat.indexOf("rule a Movie out as new"));
-  assert.ok(ruledOut.length > 0 && ruledOut.length < 60, "the list that rules a film out moved");
-  assert.doesNotMatch(ruledOut, /not_seen/);
+  // Negative half: what rules a Movie out is having watched it — said outright,
+  // or implied by a standing judgement. `unseen` joining that would silently turn
+  // "I have not seen this" into a reason to withhold the film, which is the
+  // precise inversion of the rule.
+  const ruledOut = flat.slice(flat.indexOf("`seen`, and any"), flat.indexOf("rule a Movie out as new"));
+  assert.ok(ruledOut.length > 0 && ruledOut.length < 120, "the list that rules a film out moved");
+  assert.doesNotMatch(ruledOut, /unseen/);
 
   // Positive half: absence from that list is not enough on its own — a reader could
   // still conclude that a film Tonight has heard of is spent. Somewhere after the
-  // list, `not_seen` must be named and said to remain available, and the sentence
+  // list, `unseen` must be named and said to remain available, and the sentence
   // saying so must not be a negation of eligibility.
   const after = flat.slice(flat.indexOf("rule a Movie out as new"));
-  const eligibility = after.slice(after.indexOf("`not_seen`"), after.indexOf("`loved` one is"));
-  assert.ok(eligibility.includes("`not_seen`"), "`not_seen` is never mentioned as still eligible");
+  const eligibility = after.slice(after.indexOf("`unseen`"), after.indexOf("`loved` one is"));
+  assert.ok(eligibility.includes("`unseen`"), "`unseen` is never mentioned as still eligible");
   assert.match(
     eligibility,
     /does not|still|remains|stays/,
-    "`not_seen` is named but never said to remain available",
+    "`unseen` is named but never said to remain available",
   );
   assert.doesNotMatch(
     eligibility,
     /\bnever (offer|present|suggest)|not (offered|presented|eligible)|rules? (it|a Movie) out/,
-    "the text treats a `not_seen` film as spent",
+    "the text treats an `unseen` film as spent",
   );
 
   // And the target may not be restated as "what Tonight has heard nothing about",
-  // which reads on `not_seen` films as well and is how this rule was wrong before.
+  // which reads on `unseen` films as well and is how this rule was wrong before.
   assert.doesNotMatch(
     flat,
     /told Tonight nothing about|Tonight (has )?(knows|heard) nothing about|no stored state/i,
@@ -671,8 +686,8 @@ test("a proposed Mix is made tangible before it is agreed to", () => {
     ["to offer other names for it", /two or three (names it could have instead|alternative names)/],
     ["that the asking still comes last", /Then ask/],
     ["that the films are illustration", /Those films are illustration only/],
-    ["that they are not written and not filed", /never written, never in (the|a) Mix/],
-    ["that they get no state and no classification", /never given a state or\s+classified/],
+    ["that they are not written and not filed", /never written, never (in a Mix|filed)/],
+    ["that they get no viewing and no verdict", /never given a viewing or a\s+verdict/],
     ["what is actually being saved", /only the film they asked to keep is (being )?saved/i],
     ["that a fitting Mix skips all of it", /a Mix that (genuinely )?fits needs none of this/],
   ] as [string, RegExp][]) {
@@ -687,7 +702,7 @@ test("a proposed Mix is made tangible before it is agreed to", () => {
   );
 
   assert.ok(proposal.length > 200, "the proposal passage could not be found");
-  assert.doesNotMatch(proposal, /`(not_seen|seen|liked|loved|disliked)`/);
+  assert.doesNotMatch(proposal, /`(unseen|seen|liked|loved|disliked)`/);
 });
 
 test("the model can be inspected and changed in the conversation, in plain sentences", () => {
@@ -727,7 +742,11 @@ test("a read-back names both reads, and says which is for what", () => {
   // was "remembers" until the sentence had to carry the disagreement rule as
   // well; what has to hold is that `get_memory` is named for memory and
   // `get_taste` is not, which is the routing the whole section exists for.
-  assert.match(section, /`get_memory` for [^.;]{0,40}\bmemor/iu, "the memory read is no longer tied to memory");
+  assert.match(
+    section,
+    /`get_memory` for the whole of it/iu,
+    "the memory read is no longer named as the complete one",
+  );
   assert.doesNotMatch(
     section,
     /`get_taste` for [^.;]{0,40}\bmemor/iu,
@@ -876,47 +895,23 @@ test("a question about what disagrees is routed to the read that can see both si
   // (6) `get_memory` is named as the read for a read-back, and disagreement is
   // named as one of the things it answers.
   assert.match(asked, /`get_memory`/u, "the memory view is no longer named for a read-back");
-  assert.match(asked, /`get_memory` for [^.;]*\bmemory\b/iu, "the memory view is no longer named for memory");
-  assert.match(asked, /`get_memory` for [^.;]*\bdisagreement/iu, "the memory view is no longer named for disagreements");
-
-  // (7) And `get_verdicts` is named as insufficient — but only for the case
-  // that needs both sides. Two things have to be true at once, and the second
-  // is what the first version of this rule got wrong.
-  assert.match(asked, /`get_verdicts`/u, "the insufficient read is not named");
-  assert.match(asked, /\balone\b/u, "the limit reads as a ban on get_verdicts rather than on using it alone");
-
-  // (7a) The restriction is scoped, and scoped by naming the thing rather than
-  // pointing at it. An earlier version said "on one, never `get_verdicts`
-  // alone", which is the same rule and unreadable: a model has to work out what
-  // "one" refers to before it knows whether the limit applies. So the clause
-  // that carries the scope must contain the word itself.
-  const limit = asked.slice(0, asked.indexOf("`get_verdicts`"));
-  const scope = limit.slice(limit.lastIndexOf(";") + 1);
   assert.match(
-    scope,
-    /\bdisagreement/iu,
-    `the clause scoping the \`get_verdicts\` limit does not name a disagreement: ${JSON.stringify(scope)}`,
+    asked,
+    /`get_memory` for the whole of it/iu,
+    "the memory view is no longer named as the complete read",
   );
-  for (const anaphor of [/\bon one\b/iu, /\bfor one\b/iu, /\bon those\b/iu, /\bon that\b/iu, /\bthere\b/iu]) {
-    assert.doesNotMatch(scope, anaphor, `the scope is carried by a pronoun rather than the word: ${JSON.stringify(scope)}`);
-  }
 
-  // (7b) And it must not read as a blanket rule. `get_verdicts` is the right
-  // read on its own for "what have I said about this film?", and a wording that
-  // forbade that would break a legitimate question to fix an illegitimate
-  // inference. These are the overbroad forms the earlier version allowed.
-  for (const overbroad of [
-    /never use `get_verdicts` alone/iu,
-    /`get_verdicts` (is )?never (to be )?used alone/iu,
-    /always pair `get_verdicts`/iu,
-    /`get_verdicts` (must|has to) (always )?be paired/iu,
-    /never `get_verdicts` (by itself|on its own)\./iu,
-  ]) {
-    assert.doesNotMatch(asked, overbroad, "the limit was widened into a ban on reading one film's history");
-  }
+  // And the disagreement routing is gone rather than reworded. Nothing carries
+  // two opinions any more, so there is no disagreement between roots to route —
+  // a rule still promising one would describe behaviour Tonight does not have.
+  assert.doesNotMatch(asked, /disagreement/iu, "the instructions still promise to resolve a disagreement");
 
-  // (8) And the older rule about *how* to answer survived the addition.
-  assert.match(asked, /in ordinary sentences/u, "a read-back stopped being answered in prose");
+  // (7) And the limit on `get_verdicts` is not restated here. It is a rule about
+  // what one tool's answer covers, it is in that tool's own description, and
+  // this file holds a contract that a rule which moved to a tool is not stated
+  // in the skill as well — see "what moved to the tools is no longer stated
+  // here as well" above.
+  assert.doesNotMatch(asked, /`get_verdicts`/u, "a tool-local rule came back into the skill");
 });
 
 test("recommending still reads the taste model, and never the memory view", () => {
@@ -947,7 +942,7 @@ test("what is remembered is still not what is believed", () => {
   assert.match(flat, /\*\*History is not taste\*\*/);
   assert.match(flat, /nothing is learned from it/);
   // And the one thing that is evidence is still named as the exception.
-  assert.match(flat, /\*\*A saved film is different\*\*: its state is evidence/);
+  assert.match(flat, /\*\*only what they said is evidence\*\*/iu);
 });
 
 test("a taste read that fails is split by what was asked, not by what broke", () => {
@@ -1194,12 +1189,22 @@ test("the compact projection of the write flow says the same thing the skill doe
   const projected = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
 
   const behaviours: [string, RegExp, RegExp][] = [
+    // Watching is a fact the user reported, so it may be written down; what it
+    // may never become is an opinion. Both renderings have to draw that line,
+    // and the compact one used to state the rule without it.
+    ["watching writes no taste", /writes \*\*no taste\*\*/, /writes \*\*no taste\*\*/],
+    ["and the viewing and the evening may still be written",
+      /`viewing` may hold it, and an evening may record what they said they did/,
+      /the viewing and the evening may be recorded/],
     ["keeping a film needs a Mix",
       /Never write a Movie this way without at least one Mix/,
       /Never write a Movie this way without at least one Mix/],
     ["a verdict never invents a Mix",
       /No Mix is needed for one and none may be invented to hold it/,
-      /no Mix needed or\s+invented for one/],
+      /no Mix and no Movie is needed or\s+invented to hold one/],
+    ["a verdict never invents a Movie either",
+      /a Verdict stands on its own root/,
+      /no Mix and no Movie is needed or\s+invented to hold one/],
     ["a later keep still takes a Mix", /a later request to keep the film takes a Mix/,
       /a later request to keep the film takes a Mix/],
     ["the Mix question is classification, not permission",
@@ -1232,9 +1237,9 @@ test("the compact projection of the write flow says the same thing the skill doe
       /two or three alternative names/],
     ["those films are illustration only", /Those films are illustration only/,
       /Those films are illustration only/],
-    ["never written, never filed", /never written, never in the Mix/, /never written, never in a Mix/],
-    ["no state, no classification", /never given a state, nothing to classify/,
-      /never given a state or\s+classified/],
+    ["never written, never filed", /never written, never in the Mix/, /never written, never filed/],
+    ["no viewing, no verdict", /never given a viewing or a verdict/,
+      /never given a viewing or a\s+verdict/],
     ["only the asked-for film is saved", /Only the film they asked to keep is being saved/,
       /only the film they asked to keep is saved/],
     ["a yes covers the whole flow", /A yes is the whole of the permission/,
@@ -1254,6 +1259,17 @@ test("the compact projection of the write flow says the same thing the skill doe
   for (const [what, inSkill, inProjection] of behaviours) {
     assert.match(canonical, inSkill, `the skill lost: ${what}`);
     assert.match(projected, inProjection, `the projection lost: ${what}`);
+  }
+
+  // The unqualified rule, which neither rendering may carry again. A film the
+  // user says they watched writes no *taste*; it does not write nothing, and an
+  // agent told otherwise would decline to record a viewing it was given.
+  for (const [where, said] of [["the skill", canonical], ["the projection", projected]] as const) {
+    assert.doesNotMatch(
+      said,
+      /watch(?:ed|ing)[^.]{0,40}(?:said nothing|no opinion)[^.]{0,30}writes \*\*nothing\*\*/i,
+      `${where} says a watched film writes nothing at all`,
+    );
   }
 
   // The canonical wording must not also reach this target, or the section would ship
@@ -1301,15 +1317,15 @@ test("the compact projection of the taste model says the same thing the skill do
       /nothing under it yet says as much about what\s*they like as one with ten films under it/,
       /one written last night says as much as one with ten films under it/],
     ["a Genre is thinner", /A Genre is an ingredient/, /A Genre is an ingredient/],
-    ["states calibrate rather than gate",
-      /Movie states calibrate that evidence. They never decide whether it counts/,
-      /States calibrate it, never decide whether it counts/],
+    ["verdicts calibrate rather than gate",
+      /Verdicts calibrate that evidence. They never decide whether it counts/,
+      /Verdicts calibrate it, never decide whether it counts/],
     ["loved strengthens", /`loved`\s*strengthens it/, /`loved` strengthens/],
     ["liked less so", /`liked` strengthens it more weakly/, /`liked` more\s*weakly/],
     ["disliked is a sign, not a ban", /negative sign, not a ban/, /a sign, not a ban/],
-    ["absence is not negative evidence",
-      /`not_seen` and `null` are absence of experience, never evidence\s*against/,
-      /`not_seen` and `null` are\s*absence of experience, not evidence against/],
+    ["a Movie carries no opinion at all",
+      /`viewing` says whether they watched it and that is a\s*fact, never a sign for or against/,
+      /A Movie carries no opinion: `viewing` is a fact about watching/],
     ["an empty Mix changes reach, not eligibility",
       /never whether you use it/, /use it, vary\s+reach and certainty/],
     ["intent stays certain while the fit does not",
@@ -1562,14 +1578,14 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Read `get_taste` either",
     "binds only when they asked for their taste",
     "A matching Mix is a reason the recommendation fits",
-    "States calibrate it, never decide whether it counts",
+    "Verdicts calibrate it, never decide whether it counts",
     "exclusions hold",
     "Never print the taste model while",
     "one lead, named as such",
     "distance from the lead",
     "rule a Movie out as new",
     "out of being called new or unseen",
-    "`not_seen` does not",
+    "`unseen` does not",
     "Anchor a stretch in something they like",
     // ownership and semantic confirmation
     // Two rules, and they live in two sections now: persistence under "What may
@@ -1579,7 +1595,11 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "only the meaning they could agree to",
     "is not asking permission",
     "writes **nothing** — what they want now, not what they are like",
-    "watched and said nothing about writes **nothing**",
+    // Not "watched and said nothing writes nothing", which was false: watching
+    // is a fact the user reported, and both the viewing and the evening may be
+    // written from it. What may not be written is an opinion.
+    "Watching writes **no taste**",
+    "the viewing and the evening may be recorded",
     "Never infer a preference from silence",
     "Say so and let them decide",
     // genre against mix
@@ -1587,7 +1607,7 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Never stretch a Mix to avoid making one",
     // movies
     "Never write a Movie this way without at least one Mix",
-    "no Mix needed or",
+    "no Mix and no Movie",
     "not a bucket",
     "do not save the film yet",
     "Never ask which they want",
@@ -1597,8 +1617,8 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "A film in no Mix is legitimate",
     "Do not sort them, propose Mixes for them, or mention them unasked",
     "A recommendation is not a saved Movie",
-    "never ask for what their sentence gave you",
-    "`record_verdict`, never a state",
+    "ever ask for what their sentence gave you",
+    "`record_verdict`, never a Movie field",
     "arrive with `create_genre` and `create_mix`",
     "Settle title and year first",
     // what Tonight is and is not — the boundary, stated so neither half is lost

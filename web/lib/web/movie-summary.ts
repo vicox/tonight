@@ -1,8 +1,11 @@
-import type { Movie, MovieState, Written } from "../taste/model.ts";
+import type { Movie, Written } from "../taste/model.ts";
+import type { Judgement } from "../verdicts/model.ts";
+import { effectivelySeen } from "../seen.ts";
+import type { Positioned } from "./judgements.ts";
 
 /**
- * The film collection at a glance: how many there are, what was said about
- * them, and the films behind each answer.
+ * The film collection at a glance: how many there are, what is known about them,
+ * and the films behind each answer.
  *
  * The overview page shows films where they are filed — inside the mix they
  * belong to, or under "Other movies" when they are in none. That answers "what
@@ -17,55 +20,48 @@ import type { Movie, MovieState, Written } from "../taste/model.ts";
  * pieces of arithmetic that could drift — there is no expression anywhere in
  * which a control could say four and open three films.
  *
- * ## A selection is not a state
+ * ## Two questions, and why they no longer add up to one row
  *
- * This is the part worth reading. There are five `MovieState` values, and there
- * are six things worth asking the collection — because the sixth useful question
- * is not a state at all. `null` is the absence of an answer, and asking for it
- * asks for the films nobody has spoken about yet.
+ * This row used to be six mutually exclusive buckets, and it could be, because a
+ * film had exactly one state out of five and the sixth was having none. That
+ * arrangement is gone and nothing should try to recover it: a film now carries a
+ * *fact* about watching and, separately, whatever the user has *said* about it.
+ * A film can be seen and loved at once. Two of six buckets would hold it.
  *
- * So a `Selection` carries the *set* of states it stands for rather than a
- * single one. As the row stands each of them names exactly one state, which is
- * what makes the counts add up; the set is what lets `null` be asked for beside
- * the five, and what lets a selection be a thing the page displays rather than a
- * thing the database stores.
+ * So there are two rows, each exhaustive over its own question and neither
+ * pretending to be exhaustive over the other:
  *
- * Nothing here adds to the domain. `Without status` is not stored, and `null` is
- * still the absence of an answer rather than a sixth state. Silence is not
- * `not_seen` and nothing here infers one from the other.
+ *     watched       seen + not seen + not said        = every film
+ *     said          loved + liked + disliked + no opinion    = every film
  *
- * ## What the numbers add up to
+ * Each row sums to the collection. The rows do not sum to each other, and
+ * writing them as one line would be the arithmetic that made a film disappear
+ * from the count of what it is.
  *
- * One invariant, held by `movie-summary.test.ts` rather than by arithmetic
- * anywhere in the page:
+ * ## Seen is derived; not said is not a verdict
  *
- *     total = not seen + seen + loved + liked + disliked + without status
+ * A film counts as watched when the user said so, or when they have a standing
+ * judgement — nobody likes a film they have not seen. That derivation is
+ * `lib/seen.ts`'s, so the page and a recommendation cannot disagree about what
+ * "seen" means. The raw fact stays visible underneath: a film that is only
+ * `seen` because it was loved is not shown as something the user said they
+ * watched.
  *
- * Every film is counted once and every film is counted somewhere, which is what
- * lets the six be read as one line. `Seen` is the bare `seen` state and not an
- * aggregate: `liked`, `loved` and `disliked` each already say the film was
- * watched, and they are named beside it, so folding them in would count three of
- * the others a second time and make the row a sum rather than a list.
- *
- * The total is not a selection. It is `movies.length`, it belongs beside the
- * section's heading the way a genre count does, and it includes the films nobody
- * has said anything about — they are films the user saved.
+ * `No opinion` sits outside the three rather than as a fourth, because it is
+ * the absence of a judgement rather than one — and it is *not* the same as
+ * having said nothing: a standing `not-ever` is a great deal said, and lands
+ * there too, because a refusal is not a judgement.
  */
+
+/** A film as this module reads one: what is saved, and what stands about it. */
+export type Shown = Positioned<Written<Movie>>;
 
 /** A named part of the collection: what it stands for, and what to call it. */
 export type Selection = {
   /** Stable identity, so a control can be keyed and a test can name one. */
   readonly key: string;
-  /**
-   * The states this selection stands for.
-   *
-   * One each, as the row stands: every control is exactly its own state, so the
-   * counts add up to the collection with nothing counted twice. A list rather
-   * than a single state because `null` — the films with no state at all — is a
-   * member here too, and it is the only member of its own selection, never mixed
-   * in with a real one.
-   */
-  readonly states: readonly (MovieState | null)[];
+  /** Which films belong to it. */
+  readonly holds: (movie: Shown) => boolean;
   /** What the dialog is called, and how a listener is given the control. */
   readonly label: string;
   /** How it reads inline where the number comes first, if it is written that way. */
@@ -73,92 +69,127 @@ export type Selection = {
   /**
    * What the label leaves out, said to a listener.
    *
-   * Only where the words alone are genuinely ambiguous: read out beside `Loved`,
-   * `Liked` and `Disliked`, "Seen" sounds like it might cover them too, when in
-   * fact it is the films watched with nothing said. The others say what they
-   * are, and giving them a second sentence would be reading the obvious out
-   * twice.
+   * Only where the words alone are genuinely ambiguous. `Seen` counts a film
+   * they never marked but did judge, and that is worth saying out loud; the
+   * others say what they are.
    */
   readonly meaning?: string;
 };
 
-/** Exactly the films the user said they have not seen. */
+/** Whether a standing judgement of this kind is what the film carries. */
+const judged = (judgement: Judgement) => (movie: Shown) => movie.position?.judgement === judgement;
+
+/**
+ * Watched, by either route.
+ *
+ * The user having said so, or a standing judgement implying it. `positions` is
+ * already resolved before it reaches a film here, so a judgement they withdrew
+ * or replaced cannot make a film count as seen.
+ */
+export const SEEN: Selection = {
+  key: "seen",
+  holds: (movie) =>
+    effectivelySeen(
+      movie.viewing,
+      movie.position?.judgement === undefined ? null : { judgement: movie.position.judgement },
+    ),
+  label: "Seen",
+  meaning: "watched, or judged — which means watched",
+};
+
+/**
+ * The films they said they have not watched, and nothing contradicts it.
+ *
+ * `unseen` beside a standing judgement is a contradiction the user can create,
+ * and this row resolves it the way everything else does — the opinion wins,
+ * because nobody likes a film they have not seen. So such a film is counted as
+ * seen and not here, which is what keeps the three buckets exclusive.
+ *
+ * Nothing is hidden by that. The raw fact is still on the film's own mark, where
+ * the user set it and can change it; this row is the count, not the record.
+ */
 export const NOT_SEEN: Selection = {
-  key: "not_seen",
-  states: ["not_seen"],
+  key: "unseen",
+  holds: (movie) => movie.viewing === "unseen" && !SEEN.holds(movie),
   label: "Not seen",
 };
 
 /**
- * Watched, and nothing said about it.
+ * The films nobody has said either way about watching.
  *
- * Exactly the `seen` state, not every film that has been watched: `liked`,
- * `loved` and `disliked` each already say the film was seen, and they are named
- * beside this one. Read as a line, the row is six words that between them
- * account for every film once — an aggregate in the middle of it would count
- * three of the others a second time and make the row a sum rather than a list.
+ * Not "not seen". A film here may well have been watched; what is true is that
+ * Tonight has not been told, and a film that counts as seen through a judgement
+ * is not here either — that is something it does know.
  */
-export const SEEN: Selection = {
-  key: "seen",
-  states: ["seen"],
-  label: "Seen",
-  meaning: "watched, with nothing said about it",
+export const WATCHING_UNSAID: Selection = {
+  key: "watching_unsaid",
+  holds: (movie) => movie.viewing === null && movie.position?.judgement === undefined,
+  label: "Not said",
+  phrase: "not said",
+  meaning: "nobody has said whether they watched it",
 };
 
-export const LOVED: Selection = { key: "loved", states: ["loved"], label: "Loved" };
-export const LIKED: Selection = { key: "liked", states: ["liked"], label: "Liked" };
-export const DISLIKED: Selection = { key: "disliked", states: ["disliked"], label: "Disliked" };
+export const LOVED: Selection = { key: "loved", holds: judged("loved"), label: "Loved" };
+export const LIKED: Selection = { key: "liked", holds: judged("liked"), label: "Liked" };
+export const DISLIKED: Selection = { key: "disliked", holds: judged("disliked"), label: "Disliked" };
 
 /**
- * The films Tonight was never told about.
+ * The films they have not judged.
  *
- * Outside the hierarchy above, deliberately: it is not one of the things the
- * user said, so it belongs neither under `Seen` nor beside `Not seen`. It is the
- * films they have not spoken about yet, and giving it the weight of an opinion
- * would make silence look like a verdict.
+ * Outside the three rather than beside them: it is what is *left over* rather
+ * than something somebody answered, and giving it the weight of an opinion
+ * would make an absence look like a verdict.
+ *
+ * "No opinion" rather than "nothing said", because the two are different and
+ * the difference matters here. A film they turned down for good has a standing
+ * verdict — they said a great deal about it — and it is in this bucket, because
+ * a refusal is not a judgement. So is a film they marked `unseen`. What they
+ * have not done is say what they made of it.
  */
-export const WITHOUT_STATUS: Selection = {
-  key: "without_status",
-  states: [null],
-  label: "Without status",
-  phrase: "without status",
+export const NO_OPINION: Selection = {
+  key: "no_opinion",
+  holds: (movie) => movie.position?.judgement === undefined,
+  label: "No opinion",
+  phrase: "with no opinion",
+  meaning: "nothing said about what they made of it",
 };
 
 /**
- * The two facts, read first: what has not been watched and what has.
+ * What is known about watching. Exhaustive: every film is in exactly one.
  *
- * Not seen before Seen, which is the direction a film moves through them, and
- * the order the mark's own menu offers them in.
+ * `Seen` first because a judgement puts a film there, so it is the largest of
+ * the three for most people, and the other two are what is left — each defined
+ * as what `Seen` did not take, which is what makes the three a partition rather
+ * than three questions that happen not to overlap today.
  */
-export const FACTS: readonly Selection[] = [NOT_SEEN, SEEN];
+export const WATCHED: readonly Selection[] = [SEEN, NOT_SEEN, WATCHING_UNSAID];
 
 /**
- * The three opinions, in the order the mark's own menu offers them.
+ * What they have said. Exhaustive over the same collection, independently.
  *
- * A reader meeting both should not have to learn two orders, and the menu reads
- * them warmest-last: liked, then loved, then the one nobody reaches for.
+ * The order the mark's own menu offers them in, warmest-last: liked, then loved,
+ * then the one nobody reaches for, and then the films they have not judged.
  */
-export const OPINIONS: readonly Selection[] = [LIKED, LOVED, DISLIKED];
+export const SAID: readonly Selection[] = [LIKED, LOVED, DISLIKED, NO_OPINION];
 
 /**
  * The films one selection stands for.
  *
  * Called for a count and again for the list a press opens, and called on the
- * films the page was rendered with — so a state written from either place is
+ * films the page was rendered with — so a change written from either place is
  * reflected by the next render rather than by an adjustment made here.
  */
-export function selected(selection: Selection, movies: readonly Movie[]): Movie[] {
-  return movies.filter((movie) => selection.states.includes(movie.state));
+export function selected(selection: Selection, movies: readonly Shown[]): Shown[] {
+  return movies.filter((movie) => selection.holds(movie));
 }
 
 /**
- * How a selection reads when the number comes first: `30 without status`.
+ * How a selection reads when the number comes first: `30 nothing said`.
  *
  * One template for one and for many, because the phrase does not inflect — it is
- * the number of films and then the thing they are without, and "1 without
- * status" is as English as "2 without status". Written here so that the wording
- * is one decision rather than a string in a component, and so that a test can
- * hold it.
+ * the number of films and then the thing they are without. Written here so that
+ * the wording is one decision rather than a string in a component, and so that a
+ * test can hold it.
  */
 export function sentence(selection: Selection, count: number): string {
   return `${count} ${selection.phrase ?? selection.label}`;
@@ -167,10 +198,10 @@ export function sentence(selection: Selection, count: number): string {
 /**
  * How a control is named to a listener.
  *
- * The words then the number, which is the order the page now sets them in too —
- * so most of these are simply the control's own text and need no label at all.
- * The one that carries a `meaning` gets it appended, because there the visible
- * words are true but not sufficient.
+ * The words then the number, which is the order the page sets them in too — so
+ * most of these are simply the control's own text and need no label at all. The
+ * ones carrying a `meaning` get it appended, because there the visible words are
+ * true but not sufficient.
  */
 export function spoken(selection: Selection, count: number): string | undefined {
   if (selection.meaning === undefined) return undefined;
@@ -225,10 +256,7 @@ const RECENTLY = 7 * 24 * 60 * 60 * 1000;
  * server, where the rest of the render happens — and a test can name an instant
  * instead of racing the clock.
  */
-export function recentlyAdded(
-  movies: readonly Written<Movie>[],
-  now: Date,
-): Written<Movie>[] {
+export function recentlyAdded<T extends Written<Movie>>(movies: readonly T[], now: Date): T[] {
   const since = now.getTime() - RECENTLY;
 
   /** Only the dated ones get this far, which is what makes the sort total. */

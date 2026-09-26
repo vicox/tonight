@@ -87,8 +87,9 @@ export type VerdictStore = {
    *
    * Everything downstream is recomputed from what remains. Forgetting a
    * withdrawal lets the verdict it silenced stand again; forgetting the last
-   * act about a film leaves that film as though nothing was ever said, and
-   * whatever the Movie state says applies once more.
+   * act about a film leaves the user having given no opinion on it. Nothing is
+   * revealed underneath — the saved film carries whether they watched it and
+   * never what they thought, so there is no second opinion to come back.
    *
    * A reference that names nothing, or names another user's act, is not an
    * error and is not distinguishable from one that does: both leave the store

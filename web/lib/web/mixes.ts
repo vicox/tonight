@@ -1,10 +1,11 @@
-import type { Genre, Mix, Movie, MovieState, Written } from "../taste/model.ts";
-import { LIKED, LOVED, selected } from "./movie-summary.ts";
+import type { Genre, Mix, Movie, Written } from "../taste/model.ts";
+import type { Judgement } from "../verdicts/model.ts";
+import { LIKED, LOVED, selected, type Shown } from "./movie-summary.ts";
 
 /**
  * What a mix is worth saying on a card, and the films behind it.
  *
- * A mix carries handles — `{title, year}` — and a film's state lives once, in
+ * A mix carries handles — `{title, year}` — and a film's record lives once, in
  * `Taste.movies`. So the join belongs somewhere both the card and its dialog can
  * ask, because the number on the card and the list inside it are the same
  * question at two levels of detail and must not be able to disagree.
@@ -18,8 +19,8 @@ import { LIKED, LOVED, selected } from "./movie-summary.ts";
  * longer describes. A handle with nothing behind it is dropped rather than
  * counted, so a card's number is always the number of rows its dialog opens.
  *
- * Membership, and nothing about state: a film in a mix is in it whether it has
- * been watched, loved or never mentioned.
+ * Membership, and nothing else: a film in a mix is in it whether it has been
+ * watched, loved or never mentioned.
  */
 export function filmsIn<T extends Movie>(mix: Mix, movies: readonly T[]): T[] {
   // Keyed year-first, so the space that separates the two is unambiguous: a year
@@ -127,7 +128,7 @@ export function spokenMix(name: string, films: number, loved: number): string {
  * store holds it, membership is untouched, and no film is reordered anywhere a
  * count is taken.
  */
-export function preview(films: readonly Written<Movie>[]): string | null {
+export function preview(films: readonly Shown[]): string | null {
   if (!films.length) return null;
 
   const titles = [...films]
@@ -156,17 +157,17 @@ function newestFirst(one: string | null, two: string | null): number {
 }
 
 /** Loved, then liked, then whatever else somebody said or did not say. */
-function standing(state: MovieState | null): number {
-  return state === "loved" ? 0 : state === "liked" ? 1 : 2;
+function standing(judgement: Judgement | undefined): number {
+  return judgement === "loved" ? 0 : judgement === "liked" ? 1 : 2;
 }
 
 /** The handle, which is what makes two films with one date come out in one order. */
 const handle = (film: Movie) => `${film.year} ${film.title}`;
 
-function recognisable(one: Written<Movie>, two: Written<Movie>): number {
-  if (standing(one.state) !== standing(two.state)) {
-    return standing(one.state) - standing(two.state);
-  }
+function recognisable(one: Shown, two: Shown): number {
+  const first = standing(one.position?.judgement);
+  const second = standing(two.position?.judgement);
+  if (first !== second) return first - second;
 
   const byDate = newestFirst(one.createdAt, two.createdAt);
   if (byDate !== 0) return byDate;
@@ -199,10 +200,7 @@ function recognisable(one: Written<Movie>, two: Written<Movie>): number {
  * alone, and nothing here is written down: the store's own order is untouched,
  * and so is the order of the films inside any card, preview or dialog.
  */
-export function inOrder(
-  mixes: readonly Written<Mix>[],
-  movies: readonly Written<Movie>[],
-): Written<Mix>[] {
+export function inOrder(mixes: readonly Written<Mix>[], movies: readonly Shown[]): Written<Mix>[] {
   /** What the five questions are asked of, worked out once per mix. */
   const standings = mixes.map((mix) => {
     const films = filmsIn(mix, movies);
@@ -217,12 +215,12 @@ export function inOrder(
     };
   });
 
-  return standings.sort(liveliest).map((standing) => standing.mix);
+  return standings.sort(liveliest).map((one) => one.mix);
 }
 
-type Standing = { mix: Written<Mix>; loved: number; liked: number; newestFilm: string | null };
+type Liveliness = { mix: Written<Mix>; loved: number; liked: number; newestFilm: string | null };
 
-function liveliest(one: Standing, two: Standing): number {
+function liveliest(one: Liveliness, two: Liveliness): number {
   if (one.loved !== two.loved) return two.loved - one.loved;
   if (one.liked !== two.liked) return two.liked - one.liked;
 

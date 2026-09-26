@@ -57,17 +57,23 @@ import type { SchemaModule } from "../../db/migrate.ts";
  *
  * ## What is not here
  *
- * There is no table of recommendations and nowhere to record that a movie was
- * *shown* to somebody. Recommending reads this and writes nothing.
+ * Nothing about a recommendation. Recommending reads this schema and writes to
+ * it never — that a film was *shown* to somebody is an evening, and an evening
+ * lives in the episodes schema, which this one does not reference and cannot
+ * see. Nothing here is written from one.
  *
- * v4 added Movies, and the distinction it turns on is **state, not history**. A
- * Movie says what the user told us — not seen, seen, liked, loved, disliked — as
- * one column on one row that is overwritten, never as a sequence of events.
- * There is no `watched_at`, no ordering, no count, and no way to ask what
- * happened when, because none of that was ever written down. When history does
- * arrive it will be its own migration and its own tables, referencing
- * `(user_id, id)` so a rename costs it nothing. It will be evidence for
- * *proposing* changes to this model — never a second, invisible model that
+ * No opinion either, since v11. What the user thought of a film is a Verdict
+ * and lives in the verdicts schema, on its own root: a verdict may exist for a
+ * film that has no row here at all, and nothing in this schema is written to
+ * hold one.
+ *
+ * What a Movie does carry is **a fact, not a history**: `viewing` says whether
+ * the user told us they watched it, as one column on one row that is
+ * overwritten. There is no `watched_at`, no ordering, no count, and no way to
+ * ask what happened when, because none of that was ever written down. When
+ * watching history does arrive it will be its own migration and its own tables,
+ * referencing `(user_id, id)` so a rename costs it nothing. It will be evidence
+ * for *proposing* changes to this model — never a second, invisible model that
  * quietly outvotes it.
  */
 /**
@@ -916,6 +922,253 @@ export const TASTE_SCHEMA: SchemaModule = {
             ON tonight_movies (user_id, canonical_title, year);
         `);
       },
+    },
+
+    /**
+     * EXPAND. What the user watched, on its own column at last.
+     *
+     * `state` answers two questions at once. `not_seen` and `seen` say whether
+     * the film was watched; `liked`, `loved` and `disliked` say what they thought
+     * of it and answer the first question too, because an evaluation is something
+     * somebody can only have after watching. One column, two subjects, and the
+     * second silently carrying the first.
+     *
+     * `viewing` is the first subject alone, and the opinions go to the verdict
+     * store in v11. Three answers as before — `seen`, `unseen`, and `NULL` for
+     * never told — and `NULL` still means never told rather than not seen. That
+     * is the rule this whole model rests on and the backfill below keeps it: a
+     * row whose `state` was `NULL` gets no `viewing`, because silence has not
+     * become a statement merely by being copied.
+     *
+     * ## The backfill is the mapping, and it loses nothing
+     *
+     *     state       viewing   why
+     *     ----------------------------------------------------------------
+     *     NULL        NULL      never told stays never told
+     *     not_seen    unseen    they said so
+     *     seen        seen      they said so
+     *     liked       seen      an evaluation implies watching
+     *     loved       seen      the same
+     *     disliked    seen      the same
+     *
+     * The three evaluative rows keep their viewing knowledge here and their
+     * opinion in v11. Neither half is dropped, and this step alone is reversible:
+     * `state` is still the column every reader reads until v12.
+     *
+     * ## Why the trigger comes off
+     *
+     * `tonight_movies_written_at` stamps `updated_at` on every UPDATE, and
+     * `updated_at` is on the read. Writing a column the user cannot see would
+     * otherwise tell every one of them that every film they have was touched
+     * today. v9 had the same problem for the same reason and took the same
+     * measure; this is that pattern, not a new one.
+     */
+    {
+      version: 10,
+      sql: `
+        ALTER TABLE tonight_movies ADD COLUMN viewing text;
+
+        ALTER TABLE tonight_movies
+          ADD CONSTRAINT tonight_movies_viewing
+            CHECK (viewing IS NULL OR viewing IN ('seen', 'unseen'));
+
+        ALTER TABLE tonight_movies DISABLE TRIGGER tonight_movies_written_at;
+
+        -- NULL is not in the CASE and must not be: a row nobody said anything
+        -- about keeps saying nothing.
+        UPDATE tonight_movies
+           SET viewing = CASE state
+                           WHEN 'not_seen' THEN 'unseen'
+                           WHEN 'seen'     THEN 'seen'
+                           WHEN 'liked'    THEN 'seen'
+                           WHEN 'loved'    THEN 'seen'
+                           WHEN 'disliked' THEN 'seen'
+                         END
+         WHERE state IS NOT NULL;
+
+        ALTER TABLE tonight_movies ENABLE TRIGGER tonight_movies_written_at;
+      `,
+    },
+
+    /**
+     * CONVERT. The opinions leave the taste model and become things the user said.
+     *
+     * The other half of v10. A Movie filed `liked` is the user having told
+     * Tonight they liked the film, recorded in the only place Phase 1 had to put
+     * it; a Verdict is that same sentence with the facets a claim is supposed to
+     * carry. So each evaluative state becomes one verdict act and the column is
+     * dropped in v12.
+     *
+     * ## Why this is code, and why it is here rather than in the verdict module
+     *
+     * Code, because matching a converted act against the history it is joining
+     * means asking whether two titles are one film, and that is
+     * `lib/films/identity.ts`'s answer rather than `lower()`'s — the whole reason
+     * v8 and v9 exist. SQL cannot run the rule.
+     *
+     * Here, because it reads `state`, and v12 drops `state`. Migrations run in
+     * order within a module and modules run whole: a conversion living in the
+     * verdict module would run after this module had finished, by which time the
+     * column it reads would be gone. So it sits between the expansion that
+     * precedes it and the contract that follows, and `needs` states the one thing
+     * it cannot provide for itself — that the table it writes exists.
+     *
+     * ## What the migrated act claims
+     *
+     * Exactly what the old row supported and nothing more. The claimant is the
+     * user, because it always was; `told` is `volunteered`, because a Movie state
+     * is what somebody set rather than an answer to a question Tonight put; and
+     * `because` is NULL, because the old shape had nowhere to keep a reason and
+     * inventing one would be putting words in their mouth. The scope is global:
+     * a Movie state was never about an evening.
+     *
+     * ## When it was said, and why that is the delicate part
+     *
+     * A migrated act is the base beneath whatever the user has said since. It
+     * must never be newer than their real history merely because the conversion
+     * ran today — that would make a years-old filing supersede a verdict they
+     * gave last week.
+     *
+     *     baseAt        the film's own created_at, or the moment this module
+     *                   first recorded creation times (v6's applied_at) for a row
+     *                   that predates the column. Not updated_at: that moves
+     *                   whenever anything about the film changes and would date
+     *                   the opinion to the last time they refiled it.
+     *
+     *     migrationAt   baseAt where the film has no verdict history. Where it
+     *                   has, the earlier of baseAt and one millisecond before the
+     *                   oldest act, so the migrated claim is underneath all of it.
+     *
+     * `seq` is Postgres', as everywhere: the sequence orders these among
+     * themselves and nothing here supplies one. Two acts in one millisecond are
+     * separated by it, which is exactly what it is for.
+     *
+     * ## Milliseconds, deliberately
+     *
+     * `created_at` is a `timestamptz` and carries microseconds. A verdict's `at`
+     * is the domain's instant and has always been milliseconds — `checkTime`
+     * accepts an ISO string, every constructor produces one, and nothing in the
+     * verdict model has ever held anything finer. So a legacy instant is
+     * **normalised to milliseconds** on the way across, by `atMillisecond`
+     * below, and that is a convention rather than an accident: preserving a
+     * precision the destination does not otherwise keep would mean a new
+     * timestamp representation, or SQL that bypasses the model, for microseconds
+     * nobody can read back.
+     *
+     * Truncation is safe for the ordering, and the reason is worth writing down.
+     * `Date` truncates toward zero, so a normalised instant is never *later*
+     * than the value it came from — and the strictly-before rule subtracts a
+     * further millisecond. An act stored at `10:00:00.000200Z` normalises to
+     * `10:00:00.000`, the migrated act lands at `09:59:59.999`, and that is
+     * strictly before the real act's true microsecond value as well as its
+     * normalised one. The inequality cannot be closed by rounding because
+     * nothing here rounds up.
+     */
+    {
+      version: 11,
+      // The table this writes belongs to another module, and a module that has
+      // not been migrated has no table. Checked before the claim, so an unmet
+      // need leaves this version unapplied rather than recorded and skipped.
+      needs: [{ module: "verdicts", version: 2 }],
+      run: async (tx) => {
+        const { filmKey } = await import("../../films/identity.ts");
+
+        const evaluative = await tx.query<{
+          user_id: string;
+          title: string;
+          year: number;
+          state: "liked" | "loved" | "disliked";
+          created_at: Date | string | null;
+        }>(
+          `SELECT user_id, title, year, state, created_at
+             FROM tonight_movies
+            WHERE state IN ('liked', 'loved', 'disliked')`,
+        );
+        if (!evaluative.length) return;
+
+        // The moment this module first recorded creation times. Every row older
+        // than v6 shares it, and it is the earliest instant anyone can honestly
+        // say those films already existed.
+        const [baseline] = await tx.query<{ applied_at: Date | string }>(
+          "SELECT applied_at FROM schema_migrations WHERE module = 'taste' AND version = 6",
+        );
+        if (!baseline) {
+          throw new Error(
+            "The taste schema has no record of when it began dating films, so a legacy " +
+              "opinion cannot be given an honest instant. Nothing has been changed.",
+          );
+        }
+
+        // Every act already written, grouped the way the domain groups them: by
+        // user and by film identity, never by raw spelling.
+        const acts = await tx.query<{ user_id: string; title: string; year: number; said_at: Date | string }>(
+          "SELECT user_id, title, year, said_at FROM tonight_verdict_acts",
+        );
+        // Every stored instant reduced to the resolution a verdict keeps. See
+        // the note above: this is the convention, not a rounding accident, and
+        // it never moves an instant later — which is what keeps the
+        // strictly-before rule below strictly before.
+        const atMillisecond = (when: Date | string): number => new Date(when).getTime();
+
+        const oldest = new Map<string, number>();
+        for (const act of acts) {
+          const key = `${act.user_id}\u0000${filmKey(act)}`;
+          const at = atMillisecond(act.said_at);
+          const already = oldest.get(key);
+          if (already === undefined || at < already) oldest.set(key, at);
+        }
+
+        const fallback = atMillisecond(baseline.applied_at);
+        for (const movie of evaluative) {
+          const baseAt = movie.created_at === null ? fallback : atMillisecond(movie.created_at);
+          const earliest = oldest.get(`${movie.user_id}\u0000${filmKey(movie)}`);
+          const at = earliest === undefined ? baseAt : Math.min(baseAt, earliest - 1);
+
+          await tx.query(
+            `INSERT INTO tonight_verdict_acts
+               (user_id, said, title, year, occasion, said_at, told, about, judgement, because)
+             VALUES ($1, 'verdict', $2, $3, NULL, $4, 'volunteered', 'judgement', $5, NULL)`,
+            [movie.user_id, movie.title, movie.year, new Date(at).toISOString(), movie.state],
+          );
+        }
+      },
+    },
+
+    /**
+     * CONTRACT. The column that answered two questions is gone.
+     *
+     * v10 took the viewing half and v11 took the opinion half, so nothing is
+     * lost by removing what they were taken from — and leaving it would leave a
+     * second answer to both questions, which is the arrangement this whole change
+     * exists to end.
+     *
+     * ## Order of the release, and why it is roll-forward only
+     *
+     * Stop the application, back the database up, run this, then deploy. The
+     * README states the same four steps beside the migration command; this is
+     * the reason they are four and not two.
+     *
+     * v7 could be run under traffic because the build serving it had never named
+     * the columns it dropped. This one drops `state`, which the build serving it
+     * writes on every movie — so there is no ordering that leaves the old build
+     * able to serve, and **there is no going back**: re-running nothing restores
+     * the column's contents once it is gone, which is why the backup is a step
+     * rather than advice.
+     *
+     * `requireSchema` is not the protection here and must not be mistaken for
+     * it. It refuses to serve a *new* build against an *old* schema, which is
+     * the opposite direction. An old build against a migrated database is not
+     * guarded by the ledger being ahead of it: it writes a column that no longer
+     * exists and the write fails. Failing loudly beats being quietly forgotten,
+     * but it is still an outage, so the application is stopped rather than
+     * relied upon to fail cleanly.
+     */
+    {
+      version: 12,
+      sql: `
+        ALTER TABLE tonight_movies DROP CONSTRAINT tonight_movies_state;
+        ALTER TABLE tonight_movies DROP COLUMN state;
+      `,
     },
   ],
 };

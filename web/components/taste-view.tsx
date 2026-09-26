@@ -4,6 +4,8 @@ import { MixCards } from "./mix-cards";
 import { MovieSummary } from "./movie-summary";
 import { Section } from "./section";
 import type { Taste } from "@/lib/taste/model";
+import type { Standing } from "@/lib/verdicts/model";
+import { positions, withPositions } from "@/lib/web/judgements";
 import { recentlyAdded } from "@/lib/web/movie-summary";
 
 /**
@@ -61,7 +63,18 @@ import { recentlyAdded } from "@/lib/web/movie-summary";
  * being deleted: a model you cannot take something out of yourself is not quite
  * yours. See `manage.tsx`.
  */
-export function TasteView({ taste }: { taste: Taste }) {
+export function TasteView({ taste, standing }: { taste: Taste; standing: readonly Standing[] }) {
+  /**
+   * The films with what currently stands about each, worked out once.
+   *
+   * Two stores answer this page and neither knows about the other: the taste
+   * model says which films are saved and whether they have been watched, and the
+   * verdict store says what the user thinks of them. Joining them here means
+   * every control below is given the same answer — a count and the list it opens
+   * cannot disagree about what is loved, because they are looking at one array.
+   */
+  const movies = withPositions(taste.movies, positions(standing));
+
   return (
     <>
       {/*
@@ -74,7 +87,7 @@ export function TasteView({ taste }: { taste: Taste }) {
         The instant is settled here, once, where the render happens: `Recently
         added` is a question about the data and not about the reader's clock.
       */}
-      <MovieSummary movies={taste.movies} recent={recentlyAdded(taste.movies, new Date())} />
+      <MovieSummary movies={movies} recent={recentlyAdded(movies, new Date())} />
 
       <Section
         title="Your genres"
@@ -88,7 +101,7 @@ export function TasteView({ taste }: { taste: Taste }) {
             be saved here.
           </Empty>
         ) : (
-          <GenreLabels genres={taste.genres} mixes={taste.mixes} movies={taste.movies} />
+          <GenreLabels genres={taste.genres} mixes={taste.mixes} movies={movies} />
         )}
       </Section>
 
@@ -113,7 +126,7 @@ export function TasteView({ taste }: { taste: Taste }) {
           there is. Rendering the cards only when there are cards left the one
           way to those films off the page exactly when it was needed most.
         */}
-        <MixCards mixes={taste.mixes} movies={taste.movies} />
+        <MixCards mixes={taste.mixes} movies={movies} />
       </Section>
 
       <Prompt taste={taste} />

@@ -9,9 +9,9 @@ import { Manage } from "./manage";
 import { Films } from "./movie-row";
 import { sectionFallback } from "./section";
 import { WayOut } from "./way-out";
-import type { Mix, Movie, Written } from "@/lib/taste/model";
+import type { Mix, Written } from "@/lib/taste/model";
 import { filmsIn, inNoMix, inOrder, preview, spokenMix } from "@/lib/web/mixes";
-import { LOVED, selected } from "@/lib/web/movie-summary";
+import { LOVED, selected, type Shown } from "@/lib/web/movie-summary";
 import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
 
 /**
@@ -72,7 +72,7 @@ export function MixCards({
   movies,
 }: {
   mixes: readonly Written<Mix>[];
-  movies: readonly Written<Movie>[];
+  movies: readonly Shown[];
 }) {
   /** A mix, or the films that are in none of them. */
   const [open, setOpen] = useState<Mix | typeof OTHER | null>(null);
@@ -358,7 +358,7 @@ function Detail({
   onRemoved,
 }: {
   mix: Mix;
-  films: readonly Movie[];
+  films: readonly Shown[];
   onClose: () => void;
   /** Closed because the mix was deleted, which the stack answers differently. */
   onRemoved: () => void;

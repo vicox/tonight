@@ -170,11 +170,11 @@ async function seed(id) {
   for (const genre of spec.model.genres) await call(bearer, "create_genre", genre);
   for (const mix of spec.model.mixes) await call(bearer, "create_mix", mix);
   for (const movie of spec.model.movies) {
-    const { title, year, state, mixes, imdbId } = movie;
+    const { title, year, viewing, mixes, imdbId } = movie;
     await call(bearer, "create_movie", {
       title,
       year,
-      ...(state === null || state === undefined ? {} : { state }),
+      ...(viewing === null || viewing === undefined ? {} : { viewing }),
       ...(mixes?.length ? { mixes } : {}),
       ...(imdbId ? { imdb_id: imdbId } : {}),
     });
@@ -243,8 +243,8 @@ if (flag("token")) {
 
   console.error(
     `Snapshot of ${spec.id}: ${taken.taste.movies.length} movies, ` +
-      `${taken.memory.held.length} held, ${taken.memory.operative.length} operative, ` +
-      `${taken.memory.remembered.length} remembered. Nothing was seeded.`,
+      `${taken.memory.held.length} held, ${taken.memory.remembered.length} remembered. ` +
+      "Nothing was seeded.",
   );
   console.log(`sha256:${digest}`);
 } else {
@@ -253,8 +253,7 @@ if (flag("token")) {
   console.error(
     `Seeded ${spec.id} for ${spec.user}: ${taken.taste.genres.length} genres, ` +
       `${taken.taste.mixes.length} mixes, ${taken.taste.movies.length} movies, ` +
-      `${taken.memory.held.length} held, ${taken.memory.operative.length} operative, ` +
-      `${taken.memory.remembered.length} remembered.`,
+      `${taken.memory.held.length} held, ${taken.memory.remembered.length} remembered.`,
   );
   if (flag("print")) console.log(JSON.stringify(taken, null, 2));
   else console.log(bearer);

@@ -27,15 +27,16 @@
  *
  * ## Why two of these are generated
  *
- * The precedence policy is a matrix — every Movie state against every reach a
- * refusal has, and every state against every judgement — and writing twenty-four
- * films out by hand invites the one omission that matters. The two generators
- * below enumerate it, so a state or a reach added to the product shows up here
- * as a missing case rather than as a case nobody thought to write.
+ * There used to be two generated matrices here — every Movie state against every
+ * reach, and against every judgement — because a Movie carried an opinion and
+ * the view had to say which of two opinions governed. Nothing carries two, so
+ * there is no matrix to enumerate: a film says whether it was watched, a verdict
+ * says what they thought, and the histories below exercise each alone and
+ * together rather than crossing them.
  */
 
 export type Film = { title: string; year: number };
-export type MovieState = "not_seen" | "seen" | "liked" | "loved" | "disliked";
+export type Viewing = "seen" | "unseen";
 export type Told = "volunteered" | "confirmed";
 export type Offer = { title: string; year: number; lead: boolean };
 
@@ -56,7 +57,7 @@ export type Step =
    * also how a mix comes to have films in it — so one scripted movie with a
    * mix name in it is what gives that mix a non-empty membership.
    */
-  | { act: "movie"; film: Film; state: MovieState | null; imdbId?: string; mixes?: string[] }
+  | { act: "movie"; film: Film; viewing: Viewing | null; imdbId?: string; mixes?: string[] }
   /** Something they said about a film. */
   | {
       act: "verdict";
@@ -118,81 +119,12 @@ export const TUESDAY = "evening-tuesday";
 
 const offer = (film: Film, lead = false): Offer => ({ ...film, lead });
 
-/* ------------------------------------------------------- the two matrices */
-
 /**
- * Every Movie state, including the two that are not experience and the one that
- * is silence. A state added to the product and not added here leaves a row of
- * the precedence policy unproven.
- */
-const STATES: readonly (MovieState | null)[] = [
-  "liked",
-  "loved",
-  "disliked",
-  "seen",
-  "not_seen",
-  null,
-];
-
-/** The three states that say how somebody felt, as opposed to what they did. */
-const RATED = ["liked", "loved", "disliked"] as const;
-
-const named = (state: MovieState | null): string => state ?? "never-told";
-
-/** Every state against both reaches a refusal has. */
-function rejectionMatrix(): Step[] {
-  const steps: Step[] = [];
-  for (const state of STATES) {
-    for (const reach of ["not-ever", "not-tonight"] as const) {
-      const film: Film = { title: `Refused ${named(state)} ${reach}`, year: 2001 };
-      steps.push({ act: "movie", film, state });
-      steps.push({
-        act: "verdict",
-        film,
-        told: "confirmed",
-        reach,
-        reason: `turned down ${reach}`,
-        // Each evening belongs to exactly one film here, so a refusal that
-        // escaped its own occasion would land somewhere it can be seen.
-        ...(reach === "not-tonight" ? { occasion: `evening-${named(state)}` } : {}),
-      });
-    }
-  }
-  return steps;
-}
-
-/** Every rated state against every judgement, and the unrated states against one. */
-function judgementMatrix(): Step[] {
-  const steps: Step[] = [];
-  for (const state of STATES) {
-    const rated = RATED.includes(state as (typeof RATED)[number]);
-    for (const judgement of RATED) {
-      // An unrated state cannot agree or disagree with any judgement, so one
-      // case proves the row; a rated state needs all three, because the case
-      // that matters is the judgement that repeats the state.
-      if (!rated && judgement !== "disliked") continue;
-      const film: Film = { title: `Judged ${named(state)} ${judgement}`, year: 2002 };
-      steps.push({ act: "movie", film, state });
-      steps.push({
-        act: "verdict",
-        film,
-        told: "volunteered",
-        judgement,
-        because: `they said ${judgement}`,
-      });
-    }
-  }
-  return steps;
-}
-
-/* ------------------------------------------- the two Unicode counterexamples */
-
-/**
- * `İ` lowercases to `i` plus a combining dot in JavaScript and folds to plain
- * `i` in Postgres; `Ⱟ` and `ⱟ` are a case pair JavaScript knows and some
- * collations do not. They are two films and one film respectively, and Slice 3
- * settled that in `lib/films/identity.ts`. What is proved here is only that
- * every layer still consults that one rule.
+ * The two places a database collation and a language disagree about case.
+ *
+ * `İ` and `i` fold together in Postgres and apart in JavaScript; `Ⱟ` and `ⱟ`
+ * fold together in JavaScript and apart in Postgres. One rule decides, and these
+ * films are how it is held to.
  */
 const ISTANBUL_DOTTED: Film = { title: "İstanbul File", year: 2020 };
 const ISTANBUL_PLAIN: Film = { title: "istanbul File", year: 2020 };
@@ -212,8 +144,8 @@ export const TRAJECTORIES: readonly Trajectory[] = [
       // One film with everything a film can carry, and one with none of it, so
       // that empty membership and empty identifiers are proved to be empty
       // rather than assumed.
-      { act: "movie", film: heat95, state: "loved", imdbId: "tt0113277", mixes: ["Long Nights"] },
-      { act: "movie", film: zodiac, state: "seen" },
+      { act: "movie", film: heat95, viewing: "seen", imdbId: "tt0113277", mixes: ["Long Nights"] },
+      { act: "movie", film: zodiac, viewing: "seen" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved", because: "the tension never lets up" },
       { act: "evening", request: "something tense", offered: [offer(heat95, true), offer(zodiac)] },
       { act: "outcome", chosen: offer(heat95, true), watched: true },
@@ -245,62 +177,53 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   /* -------------------------------------------------- precedence and scope */
 
   {
-    name: "a-verdict-against-a-state",
-    proves: "a film filed one way and spoken of another leaves both roots held and says which governs",
+    name: "a-verdict-beside-a-saved-film",
+    proves: "a film and what they said about it are two roots, both held, neither overriding the other",
     steps: [
-      { act: "movie", film: blackBag, state: "liked" },
+      { act: "movie", film: blackBag, viewing: "seen" },
       { act: "verdict", film: blackBag, told: "volunteered", judgement: "disliked" },
     ],
   },
   {
-    name: "the-state-comes-back",
-    proves: "taking the verdict back removes the overlay and the saved state applies again",
+    name: "a-film-nobody-has-spoken-about",
+    proves: "a film saved with nothing said about watching it, and no verdict either",
+    steps: [{ act: "movie", film: zodiac, viewing: null }],
+  },
+  {
+    name: "a-verdict-with-no-saved-film",
+    proves: "an opinion stands on its own, with no Movie row to hang it on",
+    steps: [{ act: "verdict", film: blackBag, told: "volunteered", judgement: "disliked" }],
+  },
+  {
+    name: "withdrawal-leaves-the-film-alone",
+    proves: "taking the verdict back leaves silence, and the saved film exactly as it was",
     steps: [
-      { act: "movie", film: blackBag, state: "liked" },
+      { act: "movie", film: blackBag, viewing: "unseen" },
       { act: "verdict", film: blackBag, told: "volunteered", judgement: "disliked" },
       { act: "withdraw", film: blackBag },
     ],
   },
   {
     name: "never-again",
-    proves: "a permanent refusal over a loved film is a global conflict and stays a refusal",
+    proves: "a global refusal is a refusal and never becomes a dislike",
     steps: [
-      { act: "movie", film: blackBag, state: "loved" },
-      { act: "verdict", film: blackBag, told: "confirmed", reach: "not-ever", reason: "three hours of misery" },
-    ],
-  },
-  {
-    name: "not-on-a-tuesday",
-    proves: "an evening's refusal governs that evening and makes no global claim",
-    steps: [
-      { act: "movie", film: blackBag, state: "loved" },
-      { act: "verdict", film: blackBag, told: "confirmed", reach: "not-tonight", reason: "too long", occasion: TUESDAY },
-    ],
-  },
-  {
-    name: "two-negatives-agree",
-    proves: "a refusal beside a disliked film is not a disagreement and invents no conflict",
-    steps: [
-      { act: "movie", film: blackBag, state: "disliked" },
+      { act: "movie", film: blackBag, viewing: "seen" },
       { act: "verdict", film: blackBag, told: "confirmed", reach: "not-ever" },
     ],
   },
   {
-    name: "watching-is-not-an-opinion",
-    proves: "a `seen` film is not contradicted by a verdict, because it never said how it went",
+    name: "not-on-a-tuesday",
+    proves: "an evening's refusal belongs to that evening and claims nothing beyond it",
     steps: [
-      { act: "movie", film: blackBag, state: "seen" },
-      { act: "verdict", film: blackBag, told: "volunteered", judgement: "disliked" },
+      { act: "movie", film: blackBag, viewing: "seen" },
+      { act: "verdict", film: blackBag, told: "confirmed", reach: "not-tonight", occasion: "tue" },
     ],
   },
-
-  /* ------------------------------------------------------------ forgetting */
-
   {
     name: "forget-the-first",
     proves: "removing the earliest thing they said leaves the rest, and silence still stands",
     steps: [
-      { act: "movie", film: prisoners, state: "liked" },
+      { act: "movie", film: prisoners, viewing: "seen" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
       { act: "verdict", film: prisoners, told: "confirmed", judgement: "liked" },
       { act: "withdraw", film: prisoners },
@@ -311,7 +234,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "forget-the-second",
     proves: "removing the later verdict leaves the rest, and silence still stands",
     steps: [
-      { act: "movie", film: prisoners, state: "liked" },
+      { act: "movie", film: prisoners, viewing: "seen" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
       { act: "verdict", film: prisoners, told: "confirmed", judgement: "liked" },
       { act: "withdraw", film: prisoners },
@@ -322,7 +245,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "forget-the-taking-back",
     proves: "removing the taking-back lets the verdict it silenced stand again",
     steps: [
-      { act: "movie", film: prisoners, state: "liked" },
+      { act: "movie", film: prisoners, viewing: "seen" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
       { act: "verdict", film: prisoners, told: "confirmed", judgement: "liked" },
       { act: "withdraw", film: prisoners },
@@ -331,9 +254,9 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   },
   {
     name: "forget-all-of-it",
-    proves: "removing everything they said leaves the film as though they never spoke, and the saved state governs alone",
+    proves: "removing everything they said leaves the film as though they never spoke, untouched",
     steps: [
-      { act: "movie", film: prisoners, state: "liked" },
+      { act: "movie", film: prisoners, viewing: "seen" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
       { act: "verdict", film: prisoners, told: "confirmed", judgement: "liked" },
       { act: "withdraw", film: prisoners },
@@ -368,9 +291,9 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "nothing-was-concluded",
     proves: "a history that invites a pattern produces no root nobody wrote",
     steps: [
-      { act: "movie", film: heat95, state: "liked" },
-      { act: "movie", film: zodiac, state: "liked" },
-      { act: "movie", film: prisoners, state: "liked" },
+      { act: "movie", film: heat95, viewing: "seen" },
+      { act: "movie", film: zodiac, viewing: "seen" },
+      { act: "movie", film: prisoners, viewing: "seen" },
       { act: "evening", request: "something tense", offered: [offer(heat95, true)] },
       { act: "outcome", chosen: offer(heat95, true), watched: true, finished: true },
       { act: "evening", request: "something tense again", offered: [offer(zodiac, true)] },
@@ -383,16 +306,16 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "nothing-was-concluded-control",
     proves: "the same taste with none of those evenings — what the history above must still look like",
     steps: [
-      { act: "movie", film: heat95, state: "liked" },
-      { act: "movie", film: zodiac, state: "liked" },
-      { act: "movie", film: prisoners, state: "liked" },
+      { act: "movie", film: heat95, viewing: "seen" },
+      { act: "movie", film: zodiac, viewing: "seen" },
+      { act: "movie", film: prisoners, viewing: "seen" },
     ],
   },
   {
     name: "waiting-to-ask",
     proves: "a question Tonight is carrying, and the chances that went by, are no part of what it knows about them",
     steps: [
-      { act: "movie", film: heat95, state: "liked" },
+      { act: "movie", film: heat95, viewing: "seen" },
       { act: "verdict", film: zodiac, told: "volunteered", judgement: "loved" },
       { act: "question", film: prisoners, daysAgo: 10 },
       { act: "opportunity", film: prisoners },
@@ -403,7 +326,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "waiting-to-ask-control",
     proves: "the same person with nothing waiting — the control the pair is read against",
     steps: [
-      { act: "movie", film: heat95, state: "liked" },
+      { act: "movie", film: heat95, viewing: "seen" },
       { act: "verdict", film: zodiac, told: "volunteered", judgement: "loved" },
     ],
   },
@@ -414,7 +337,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "one-film-many-spellings",
     proves: "case and spacing are how a title was typed, not which film it is — one history, one governor",
     steps: [
-      { act: "movie", film: blackBag, state: "liked" },
+      { act: "movie", film: blackBag, viewing: "seen" },
       { act: "verdict", film: blackBag, told: "volunteered", judgement: "loved" },
       { act: "verdict", film: { title: " black   bag ", year: 2025 }, told: "confirmed", judgement: "disliked" },
     ],
@@ -423,8 +346,8 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "a-remake-is-another-film",
     proves: "the same title in another year is another film, and a verdict about one says nothing about the other",
     steps: [
-      { act: "movie", film: heat86, state: "loved" },
-      { act: "movie", film: heat95, state: "liked" },
+      { act: "movie", film: heat86, viewing: "seen" },
+      { act: "movie", film: heat95, viewing: "seen" },
       { act: "verdict", film: heat86, told: "volunteered", judgement: "disliked" },
     ],
   },
@@ -438,10 +361,10 @@ export const TRAJECTORIES: readonly Trajectory[] = [
       { act: "genre", name: "Slow Burn", instruction: "takes its time" },
       { act: "genre", name: "Bleak Procedural", instruction: "hard work, at a cost" },
       { act: "mix", name: "Quiet Dread", genres: ["Slow Burn", "Bleak Procedural"], instruction: "dread that arrives on foot" },
-      { act: "movie", film: heat95, state: "loved" },
-      { act: "movie", film: zodiac, state: "liked" },
-      { act: "movie", film: blackBag, state: "liked" },
-      { act: "movie", film: prisoners, state: "seen" },
+      { act: "movie", film: heat95, viewing: "seen" },
+      { act: "movie", film: zodiac, viewing: "seen" },
+      { act: "movie", film: blackBag, viewing: "seen" },
+      { act: "movie", film: prisoners, viewing: "seen" },
 
       // Something they still say, something they replaced, something they took back.
       { act: "verdict", film: blackBag, told: "volunteered", judgement: "disliked", because: "not what I hoped" },
@@ -461,16 +384,6 @@ export const TRAJECTORIES: readonly Trajectory[] = [
 
   /* ------------------------------------------- the precedence matrix, in full */
 
-  {
-    name: "the-rejection-matrix",
-    proves: "every Movie state against both reaches: a refusal contradicts a liking and nothing else, and it never leaves the scope it was said in",
-    steps: rejectionMatrix(),
-  },
-  {
-    name: "the-judgement-matrix",
-    proves: "every Movie state against every judgement: a judgement contradicts a state only by differing from it, and never an unrated one",
-    steps: judgementMatrix(),
-  },
 
   /* ---------------------------------------------- a correction that must not take */
 
@@ -502,9 +415,9 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "unicode-is-not-a-collation",
     proves: "İ and i are two films and Ⱟ and ⱟ are one, in every layer at once, because one rule decides and no database does",
     steps: [
-      { act: "movie", film: ISTANBUL_DOTTED, state: "liked" },
-      { act: "movie", film: ISTANBUL_PLAIN, state: "loved" },
-      { act: "movie", film: GLAGOLITIC_UPPER, state: "liked" },
+      { act: "movie", film: ISTANBUL_DOTTED, viewing: "seen" },
+      { act: "movie", film: ISTANBUL_PLAIN, viewing: "seen" },
+      { act: "movie", film: GLAGOLITIC_UPPER, viewing: "seen" },
       // Spoken about in the other case each time: the dotted film must take its
       // verdict alone, and the Glagolitic pair must share one history.
       { act: "verdict", film: ISTANBUL_DOTTED, told: "volunteered", judgement: "disliked", because: "not the one I meant" },
@@ -523,12 +436,12 @@ export const TRAJECTORIES: readonly Trajectory[] = [
  * searching the payload for words that are hers alone would ever notice.
  */
 export const OWNER_HISTORY: readonly Step[] = [
-  { act: "movie", film: blackBag, state: "liked" },
+  { act: "movie", film: blackBag, viewing: "seen" },
   { act: "verdict", film: blackBag, told: "volunteered", judgement: "disliked", because: "hers alone" },
   { act: "evening", request: "an evening that is hers", offered: [offer(heat95, true)] },
 ];
 
-export const STRANGER_HISTORY: readonly Step[] = [{ act: "movie", film: blackBag, state: "liked" }];
+export const STRANGER_HISTORY: readonly Step[] = [{ act: "movie", film: blackBag, viewing: "seen" }];
 
 export const UNICODE_FILMS = {
   dotted: ISTANBUL_DOTTED,

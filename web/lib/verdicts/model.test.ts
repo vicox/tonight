@@ -103,7 +103,7 @@ test("a verdict cannot be observed or derived, only said", () => {
 
 test("only the three states that carry an opinion are judgements", () => {
   assert.deepEqual([...JUDGEMENTS], ["liked", "loved", "disliked"]);
-  for (const notAnOpinion of ["seen", "not_seen", null, "watched", "finished"]) {
+  for (const notAnOpinion of ["seen", "unseen", null, "watched", "finished"]) {
     assert.throws(
       () => judged(notAnOpinion as string, "2026-01-01T20:00:00.000Z"),
       VerdictError,

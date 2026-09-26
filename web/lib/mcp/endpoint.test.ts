@@ -168,7 +168,7 @@ test("every tool is discoverable, and only the intended ones", async () => {
   // happened rather than what somebody likes, five are M2's verdicts, which
   // write what they thought of it, and two are M3's: one that explains all of it
   // back and one that takes a single statement out of it. The sets never mix: no
-  // episode tool reads or writes a genre, a mix or a movie state, and no verdict
+  // episode tool reads or writes a genre, a mix or a saved film, and no verdict
   // tool does either — the chain from watching to liking is never closed for the
   // user. M3's pair read across all of them and write nothing but a deletion the
   // user asked for.

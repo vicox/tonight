@@ -7,8 +7,9 @@ import { Manage } from "./manage";
 import { Films } from "./movie-row";
 import { sectionFallback } from "./section";
 import { WayOut } from "./way-out";
-import type { Genre, Mix, Movie } from "@/lib/taste/model";
+import type { Genre, Mix } from "@/lib/taste/model";
 import { filmsUnder } from "@/lib/web/mixes";
+import type { Shown } from "@/lib/web/movie-summary";
 import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
 
 /**
@@ -49,7 +50,7 @@ export function GenreLabels({
   readonly genres: readonly Genre[];
   /** The mixes, to reach the films: a genre has none of its own. See `filmsUnder`. */
   readonly mixes: readonly Mix[];
-  readonly movies: readonly Movie[];
+  readonly movies: readonly Shown[];
 }) {
   const [open, setOpen] = useState<Genre | null>(null);
   /** The line of labels, which is where focus goes if the one pressed has gone. */
@@ -202,7 +203,7 @@ function Meaning({
 }: {
   genre: Genre;
   /** Worked out by the caller each render, so a mark pressed here shows by the next. */
-  films: readonly Movie[];
+  films: readonly Shown[];
   onClose: () => void;
   /** Closed because the genre was deleted, which the line answers differently. */
   onRemoved: () => void;

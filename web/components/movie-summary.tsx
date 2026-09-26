@@ -4,15 +4,15 @@ import { useEffect, useRef, useState } from "react";
 
 import { Chosen, WAY_IN } from "./chosen";
 import { Section } from "./section";
-import type { Movie } from "@/lib/taste/model";
 import {
-  FACTS,
-  OPINIONS,
-  WITHOUT_STATUS,
+  SAID,
+  WATCHED,
+  NO_OPINION,
   selected,
   sentence,
   spoken,
   type Selection,
+  type Shown,
 } from "@/lib/web/movie-summary";
 import { rescueTo, returnTo } from "@/lib/web/refocus";
 
@@ -31,23 +31,36 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  * one opens the films it counted, which is the only place on the website where a
  * film can be met outside the mix it happens to be in.
  *
- * ## One row, because the numbers account for every film once
+ * ## One line, and two answers rather than one
  *
  * This was a row of five equal tiles, one per state, and `Seen` was an aggregate
  * of four of them — so the first thing anybody tried to do with the tiles, add
  * them up, gave an answer that was not the number in the heading.
  *
- * So the arrangement now says what is true:
+ * What replaced it is two answers, not one arrangement of one:
  *
- *     Not seen 14 · Seen 38 · Liked 5 · ♥ Loved 3 · Disliked 2 · 4 without status
+ *     Not seen 14 · Seen 38 · Not said 4 · Liked 5 · ♥ Loved 3 · Disliked 2 · 44 with no opinion
  *
  *     6 recently added →
  *
- * Six words that between them account for every film exactly once, set as one
- * wrapping line because that is what a list of parts is. `without status` is set
- * quieter than the five answers: it is what is *left over* rather than something
- * somebody said. And `Seen` — the one word that is ambiguous read out beside the
- * three opinions — carries its meaning for a listener.
+ * Watching is the first three and opinion is the last four, and **each of the
+ * two accounts for every film exactly once** — separately. Every film is counted
+ * on both halves: not because it has a stored value on both roots, but because
+ * each half is exhaustive over the whole collection and its last part is the
+ * one for films with nothing stored. A film nobody has said anything about is
+ * `Not said` on the first half and `with no opinion` on the second; a film that
+ * is seen and loved is `Seen` and `Loved`. Neither half cancels the other, so
+ * the line as a whole adds up to twice the heading's count, and that is the
+ * arrangement being honest rather than a fault in it. The single row that did
+ * add up once could only exist while one field held both answers, which is the
+ * thing the model no longer does — see `lib/web/movie-summary.ts` for the two
+ * partitions and why they are kept apart.
+ *
+ * They are set as one wrapping line because reading them is one act, with
+ * `with no opinion` quieter than the answers beside it: it is what is *left
+ * over* rather than something somebody said. And `Seen` — the one word that is
+ * ambiguous read out beside the three opinions — carries its meaning for a
+ * listener.
  *
  * ## Set as text, not as instruments
  *
@@ -62,13 +75,14 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  * line reading "+3 this week" would be a claim about the user's habits, and
  * Tonight is not keeping score.
  *
- * ## Zero is shown
+ * ## An answer nobody is under is left out
  *
- * Every one of the five known-state controls is rendered at nought, because they
- * are the navigation and a navigation that rearranges itself is one nobody can
- * learn. `without status` is the exception and always was: it is absent when
- * there are none, since there is nothing to say and a "0" there would read as a
- * state that happens to be empty.
+ * A selection with nothing in it is not rendered. That is the opposite of what
+ * the five tiles did, and the reason is the second row: a column of noughts
+ * under `Liked · Loved · Disliked` is what a collection nobody has judged would
+ * look like, and it would read as an instrument reporting on the user rather
+ * than a way into their films. What is left is every part that has something in
+ * it, which is also what makes the line short enough to be read at all.
  *
  * ## A dialog the browser opens
  *
@@ -85,7 +99,7 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  *
  * The only state is which selection is open. Both the counts and the open list are
  * derived from the `movies` prop on every render, so a mark pressed inside the
- * dialog needs no adjustment here at all: `MovieState` writes through the same
+ * dialog needs no adjustment here at all: a mark writes through the same
  * route boundary it always does and asks for the page to be re-rendered, the
  * server's answer arrives as a new `movies`, and every count in the row and the
  * list under it are all recomputed from it. A film that no longer
@@ -96,14 +110,14 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  * The films saved this week, as the summary's seventh way in.
  *
  * Shaped like a selection so that one control and one dialog serve all seven,
- * and deliberately holding no states: what it stands for is not something
- * somebody said about a film but when the film arrived, and `selected` is never
- * asked about it — `recentlyAdded` answers instead. The empty `states` is what
- * makes that a shape rather than a promise.
+ * and deliberately holding nothing: what it stands for is not something somebody
+ * said about a film but when the film arrived, and `selected` is never asked
+ * about it — `recentlyAdded` answers instead. A `holds` that is never true is
+ * what makes that a shape rather than a promise.
  */
 const RECENT: Selection = {
   key: "recent",
-  states: [],
+  holds: () => false,
   label: "Recently added",
   phrase: "recently added",
 };
@@ -112,14 +126,14 @@ export function MovieSummary({
   movies,
   recent,
 }: {
-  movies: readonly Movie[];
+  movies: readonly Shown[];
   /**
    * The films saved in the last week, newest first, as `recentlyAdded` chose
    * them. Handed in rather than worked out here: the page renders on the
    * server, and a client component asking the browser what time it is would
    * answer one thing during the render and another during hydration.
    */
-  recent: readonly Movie[];
+  recent: readonly Shown[];
 }) {
   const [open, setOpen] = useState<Selection | null>(null);
   /**
@@ -197,26 +211,27 @@ export function MovieSummary({
   // same reason the "Other movies" section is absent when there are none.
   if (!movies.length) return null;
 
-  const quiet = selected(WITHOUT_STATUS, movies);
+  /**
+   * The ones set quieter than the rest.
+   *
+   * Same kind of control and the same line, but what is *left over* — the films
+   * nothing has been said about — rather than something somebody answered.
+   */
+  const remainders = [NO_OPINION];
 
   /**
-   * The one that is set quieter than the five.
+   * The ways in, in the order they are read.
    *
-   * It is the same kind of control and it sits in the same line, but it is what
-   * is *left over* — the films nothing has been said about at all — rather than
-   * something somebody answered. The five are the answers.
-   */
-  const remainders = [WITHOUT_STATUS];
-
-  /**
-   * The seven ways in, in the order they are read.
+   * Watching first and then opinion, which is the order a film moves through
+   * them. They are two separate exhaustive answers rather than one row of
+   * mutually exclusive buckets, because a film can be both seen and loved and a
+   * single row would have to put it in one place — see `lib/web/movie-summary.ts`.
    *
-   * The two facts, the three opinions, then what is left over — the same order
-   * the model lists them in, laid end to end because they are one line now.
-   * `without status` is left out when there is none: nothing to say, and a zero
-   * there would read as a state that happens to be empty.
+   * A selection with nothing in it is left out. A zero would read as an answer
+   * that happens to be empty, and the one thing worth saying about a collection
+   * nobody has judged is not a column of noughts.
    */
-  const row = [...FACTS, ...OPINIONS, ...(quiet.length > 0 ? [WITHOUT_STATUS] : [])];
+  const row = [...WATCHED, ...SAID].filter((one) => selected(one, movies).length > 0);
 
   return (
     <>
@@ -237,7 +252,7 @@ export function MovieSummary({
         */}
         <p
           ref={lines}
-          // The type the five answers are set in, on the row, so none of them
+          // The type the answers are set in, on the row, so none of them
           // carries one of its own — the two remainders step down from it, and
           // nothing else in here does.
           className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[15px] leading-relaxed text-ink"

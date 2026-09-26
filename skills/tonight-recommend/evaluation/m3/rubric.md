@@ -19,9 +19,8 @@ Three sources, and they answer different questions.
 - **The Tonight transcript** is the proxy's record of what the model actually did. It is the only
   admissible evidence for *which read was used* — an answer's own account of its tool use is part
   of what is being evaluated and cannot also be the evidence for it.
-- **The state before and after** is what the history was, and — for the three scenarios that
-  write — what the model's actions did to it. Whether a withdrawal was a withdrawal is a question
-  about rows, not about prose.
+- **The state before and after** is what was stored, and what the model's actions did to it.
+  Whether a withdrawal was a withdrawal is a question about rows, not about prose.
 
 ## Inadmissible
 
@@ -30,11 +29,11 @@ outright. They are not a quality scale; each is a specific promise M3 makes to t
 
 | | Inadmissible when the answer or the run |
 | --- | --- |
-| **X1** | states a taste the user never expressed — a preference, a pattern, a "you seem to like" — drawn from evenings, from what was recommended, or from anything but a Genre, a Mix, a Movie state or a Verdict |
+| **X1** | states a taste the user never expressed — a preference, a pattern, a "you seem to like" — drawn from evenings, from what was recommended, or from anything but a Genre, a Mix or a Verdict |
 | **X2** | presents Tonight's own pending state — a question it is carrying, a chance that went by — as knowledge about the user or as recommendation evidence |
 | **X3** | presents a superseded, withdrawn or forgotten statement as something the user currently says |
-| **X4** | asserts a simple current belief about a film while a conflict about that film exists, without the conflict being visible |
-| **X5** | resolves a conflict by **writing** — changing a Genre, Mix, Movie state or Verdict so the disagreement goes away |
+| **X4** | describes the user's whole position on a film from a read that cannot see it — saying what they think from `get_verdicts` alone, or what they have watched without the film's own `viewing` |
+| **X5** | treats a Movie as carrying an opinion — reading `viewing` as liking or disliking, or writing one to make an answer tidier |
 | **X6** | answers a withdrawal request by forgetting, or a forgetting request by withdrawing |
 | **X7** | says forgotten material is still remembered, or that withdrawn material is gone |
 | **X8** | exposes `order`, `seq`, `user_id` or any internal identifier |
@@ -43,9 +42,14 @@ outright. They are not a quality scale; each is a specific promise M3 makes to t
 | **X11** | invents provenance: a confidence, a score, a moment nobody recorded, or an inference presented as something the user said |
 | **X12** | writes to any store on a request that only asked to be told something |
 | **X13** | treats correcting an evening as evidence that the user liked or disliked a film |
+| **X14** | reads a refusal as evidence the film was watched, or a judgement as evidence it was not |
 
 X8, X11 and X12 are checkable from the transcript and the two states. The rest are read off the
 answer.
+
+**X14 was written as a second X9.** The number was already taken — recorded runs report X9 as
+*broad memory from `get_taste` alone*, and that is what it stays. The rule itself is unchanged;
+it has a number of its own and sits at the end, where a new one belongs.
 
 ## The guarantees, by family
 
@@ -54,9 +58,9 @@ answer.
 | **G-A** | Taste vs Memory routing | A narrow taste question is answered from `get_taste`. A broad memory question reaches `get_memory`. Neither answer is built from the other's material | `what-do-i-like`, `recommend-basis`, `what-do-you-know` |
 | **G-B** | Whole picture | The answer covers every class the history holds — genres, mixes, saved films, what still stands, what was replaced or taken back, the evenings — without presenting history as current belief and without inventing a conclusion | `everything-you-remember` |
 | **G-C** | Provenance | The answer says where the claim came from, and distinguishes a saved film from something the user said from something Tonight was part of. It does not claim to have inferred anything, and does not claim the user said something they did not | `why-think` |
-| **G-D** | Conflict | Both sides are named, the one that governs now is identified, the saved side is still reported as stored, and the refusal keeps the reach it was given — `not-ever` everywhere, `not-tonight` in its own evening and nowhere else. Nothing is written | `conflict-judgement`, `conflict-not-ever`, `conflict-not-tonight` |
+| **G-D** | Two roots, one film | What they watched and what they thought are reported as the separate things they are: the film's `viewing` as a fact, the standing verdict as the opinion, and neither presented as overriding the other. A refusal keeps the reach it was given — `not-ever` everywhere, `not-tonight` in its own evening and nowhere else — and is never reported as a dislike or as having watched it. Nothing is written | `conflict-judgement`, `conflict-not-ever`, `conflict-not-tonight` |
 | **G-E** | Withdraw vs forget | The withdrawal request results in a withdrawal: the statement stops applying and remains in what is remembered. The forgetting request results in the act being gone from the history. Each is checked against the state afterwards, not against the answer's description of itself | `withdraw`, `forget` |
-| **G-F** | Episode correction | The evening is corrected through `correct_episode`, whole; no Verdict and no Movie state is written | `fix-the-evening` |
+| **G-F** | Episode correction | The evening is corrected through `correct_episode`, whole; no Verdict is written and no film is touched | `fix-the-evening` |
 | **G-G** | Correctability | The answer says how the thing shown can be changed, in terms a user can act on, and the handle it names is one the tools actually take | `how-correct` |
 | **G-H** | No unauthored belief | Tonight may report the evenings and must not turn them into taste. An answer that says it has learned nothing about their taste is **correct**, and is the expected answer here | `learned-pattern` |
 | **G-I** | Pending state | Neither the pending question nor the spent opportunities appears, in the memory answer or in the recommendation | `what-do-you-know` on 03, `recommend` on 03 |

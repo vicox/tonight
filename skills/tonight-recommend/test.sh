@@ -238,14 +238,20 @@ check "a Genre is thinner than a Mix, and a Genre name alone justifies nothing" 
     "$(order_check 'A Genre is an ingredient and' \
         'thinner on its own' \
         'justified only by a Genre name is justified by a label')" "True"
-check "states calibrate the evidence rather than deciding whether it counts" \
-    "$(order_check 'Movie states calibrate that evidence. They never decide whether it counts')" "True"
-check "the four states keep their meanings" \
+check "verdicts calibrate the evidence rather than deciding whether it counts" \
+    "$(order_check 'Verdicts calibrate that evidence. They never decide whether it counts')" "True"
+check "the three judgements keep their meanings" \
     "$(order_check '`loved`' 'strengthens it' '`liked` strengthens it more weakly' \
         '`disliked` weakens something similar' 'negative sign, not a ban')" "True"
-check "absence of experience is never evidence against" \
-    "$(order_check '`not_seen` and `null` are absence of experience, never evidence' \
-        'against' '`seen` says they have watched it and nothing more')" "True"
+# A Movie carries no opinion at all now, so what has to be said is that its one
+# field is a fact rather than a sign — and that giving no opinion is not the same
+# as having said nothing, because `seen` or `unseen` is something they said.
+check "a saved film carries a fact about watching and never an opinion" \
+    "$(order_check 'A Movie carries no opinion at all' \
+        '`viewing` says whether they watched it and that is a' \
+        'fact, never a sign for or against' \
+        'no opinion' \
+        'not the same as having said nothing about')" "True"
 check "an empty Mix changes how you speak, not whether you use it" \
     "$(order_check 'less confidence about specifics and just as' \
         'much about intent' \
@@ -266,10 +272,9 @@ check "describing how well a film answers the Mix stays allowed" \
 check "what is refused is a verdict they have not given" \
     "$(order_check 'What you may not say is that' \
         'like it, or that it is confirmed, proven or settled for them')" "True"
-check "and their verdict comes from a state or from what they said" \
-    "$(order_check 'their verdict comes from a' \
-        'Movie state or from what they have said about the film' \
-        'there is neither yet')" "True"
+check "and their verdict is what they said, of which there is none yet" \
+    "$(order_check 'their verdict is what they said' \
+        'about the film, and there is none yet')" "True"
 # None of the rejected mechanisms may come back with it.
 check "no Mix is graded as provisional" \
     "$(grep -ciE 'aspirational|untested|unproven|provisional' "$SKILL")" "0"
@@ -326,21 +331,34 @@ check "no film count from the old form survives anywhere" \
 echo
 echo "--- unseen by default, and a stretch is anchored ---"
 
-# P4 and P10. `not_seen` is deliberately absent from the list: it means they told
+# P4 and P10. `unseen` is deliberately absent from the list: it means they told
 # Tonight they have not seen it, which is a reason to offer it, not a reason not to.
+# A refusal is absent too, and for a different reason — it says nothing about
+# whether they watched the film.
 check "the target is what they have not seen or judged" \
     "$(order_check 'Lead with what they have not seen or judged' \
-        '`seen`, `liked`, `loved` and `disliked` each' \
-        'rule a Movie out as new')" "True"
+        '`viewing` of `seen` rules a Movie out as new' \
+        'so does a standing judgement' \
+        'nobody likes a film they have not seen')" "True"
 check "and never restated as whatever Tonight has not heard of" \
     "$(grep -ciE 'told Tonight nothing about|Tonight (has )?(knows|heard) nothing about' "$SKILL")" "0"
-# The positive half. Absence from the list is not enough: `not_seen` has to be named and
-# said to stay available, or a reader may still treat a film Tonight knows of as spent.
-check "not_seen is named, and named as still eligible" \
-    "$(order_check 'rule a Movie out as new' '`not_seen` does not' \
-        'so it stays on the table')" "True"
-check "and nothing in that sentence rules a not_seen film out" \
-    "$(sed -n '/rule a Movie out as new/,/`loved` one is a/p' "$SKILL" \
+# The positive half. Absence from the list is not enough: `unseen` has to be named
+# and said to stay available, or a reader may still treat a film Tonight knows of as
+# spent. And `null` has to be told apart from it: it may lead too, but saying they
+# have not seen it would be putting a sentence in their mouth.
+check "unseen is named, and named as still eligible" \
+    "$(order_check 'rules a Movie out as new' '`unseen` does' \
+        'not rule it out' 'so it stays on the table')" "True"
+check "a refusal is not read as having watched it" \
+    "$(order_check 'A refusal is not evidence they saw it' \
+        'neither says they watched it')" "True"
+check "an unknown viewing may lead but is never called unseen" \
+    "$(order_check '`null` is not `unseen`' \
+        'nobody has said either way' \
+        'must never be' \
+        'described as one they have not seen')" "True"
+check "and nothing in that sentence rules an unseen film out" \
+    "$(sed -n '/rules a Movie out as new/,/`loved` one is a/p' "$SKILL" \
         | grep -ciE 'never (offer|present|suggest)|not (offered|presented|eligible)')" "0"
 check "a loved film is spent as a reason rather than suggested again" \
     "$(order_check '`loved` one is a **reason**, not a suggestion')" "True"
@@ -348,10 +366,10 @@ check "a loved film is spent as a reason rather than suggested again" \
 # same clause that it was on the list and unseen. Being in the model reads as novelty
 # unless the rule says which of the two answers "have they seen it", so it says so.
 check "membership in the model is not evidence they have not seen it" \
-    "$(order_check 'rule a Movie out as new' \
+    "$(order_check 'rules a Movie out as new' \
         'Being in the model is never evidence they have not seen it' \
-        'the state is')" "True"
-check "a stateful film is ruled out of being called new, not only of being offered" \
+        'A film that is seen or judged is')" "True"
+check "a watched film is ruled out of being called new, not only of being offered" \
     "$(order_check 'Being in the model is never evidence' \
         'never called new, unseen or not yet watched' \
         'never offered as one')" "True"
@@ -513,7 +531,16 @@ check "both routes may create, and a bare request for tonight may not" \
 check "a recommendation with no feedback persists nothing" \
     "$(order_check 'You recommended a film. They said nothing' '**nothing**')" "True"
 check "silence, recommendations and patterns are all ruled out as evidence" \
-    "$(order_check 'infer a preference from silence, from a film you recommended, or from a pattern')" "True"
+    "$(order_check 'infer a preference from silence, from a pattern, or from a film you recommended')" "True"
+# And the line between the two roots, which the old wording blurred: a
+# recommendation is not taste, and recording the evening it happened on is a
+# fact rather than a way of concluding something about them.
+check "recording an evening is a fact and not the inference this rules out" \
+    "$(order_check 'recording the evening it was offered on is a fact and is not this')" "True"
+check "the Skill never forbids noting what was recommended, which record_episode does" \
+    "$(grep -ciE 'note what you recommended' "$CANONICAL")" "0"
+check "an evening is what holds the offer, as fact" \
+    "$(order_check 'An evening is recorded as fact' 'what they asked for, what was offered')" "True"
 check "the user own words are never widened into a claim about them" \
     "$(order_check 'widen something specific into a claim about the person')" "True"
 check "a suggested change is offered rather than made" \
@@ -582,11 +609,11 @@ check "the record is history and not taste" \
         'Nothing is learned from it automatically')" "True"
 check "a recommended film may return, and a saved one is the exception" \
     "$(order_check 'a film you recommended can come back' \
-        'A film they saved is different' \
-        'its state is evidence')" "True"
+        'What they said about a film is different' \
+        'that is evidence')" "True"
 # And the targeting rule it used to restate is not duplicated back into this section.
-check "what a state means for recommending is stated once, under Recommending" \
-    "$(grep -ciE 'anything but .not_seen. and .null.|do not offer it as new' "$SKILL")" "0"
+check "what viewing means for recommending is stated once, under Recommending" \
+    "$(grep -ciE 'anything but .unseen. and .null.|do not offer it as new' "$SKILL")" "0"
 check "a failed write is reported rather than claimed as a save" \
     "$(order_check 'Never claim something was stored when the tool refused')" "True"
 
@@ -679,10 +706,31 @@ check "the old stop-in-both-cases rule is gone" \
 echo
 echo "--- a Movie is the user's own object ---"
 
-check "a Movie is theirs, by either of the two ways one comes to exist" \
-    "$(order_check 'asked for it to be kept, or said something about it' \
+check "a Movie is the saved, filed, viewing root, and theirs" \
+    "$(order_check 'a film in their library: one they asked Tonight to keep, or' \
+        'one they told it they had watched' \
         'A Movie is theirs, the same way a Genre or a Mix is' \
         'never an entry from a catalogue')" "True"
+# The independence the split introduced, in the direction that is easy to get
+# wrong: a Verdict is its own root, so an opinion does not need a Movie under it
+# and never writes one. The old contract enforced the opposite.
+check "a Verdict stands on its own root, with no Movie under it" \
+    "$(order_check 'a Verdict stands on its own root' \
+        'about a film that was never saved')" "True"
+check "saying something about a film neither needs a Movie nor writes one" \
+    "$(order_check 'saying something about a film neither needs a Movie nor writes one')" "True"
+check "and the write flow says it where a verdict is recorded" \
+    "$(order_check 'No Mix is needed for one and none may be invented to hold it' \
+        'no Movie either' \
+        'a film nobody' \
+        'has saved may still carry one')" "True"
+check "the projection carries the same independence" \
+    "$(tr '\n' ' ' < "$CANONICAL" | grep -coE 'no Mix and no +Movie is needed or +invented to hold one')" "1"
+# And the false rule is gone rather than reworded.
+check "a Movie no longer comes into being because somebody said something" \
+    "$(grep -ciE 'asked for it to be kept, or said something about it' "$CANONICAL")" "0"
+check "the model concepts are counted as the four that exist" \
+    "$(order_check '`get_taste` describes all four in its own text')" "True"
 check "a Movie is named by its title and its year" \
     "$(order_check 'Title and year name it')" "True"
 check "the three Movie tools are the way a direct request is done" \
@@ -693,11 +741,11 @@ check "a recommendation is not persistence, for a film as for a Genre" \
         'Naming three films writes nothing down')" "True"
 check "which sentence means which points at the tools that state it" \
     "$(order_check 'What they say about a film is a verdict' \
-        '`record_verdict`, never a state' \
-        '`create_movie` says what a state means')" "True"
+        '`record_verdict`, never a Movie field' \
+        '`create_movie` carries `viewing` and no opinion')" "True"
 check "an opinion is never asked for twice" \
-    "$(order_check 'already say they saw it' \
-        'never ask for what their sentence gave you')" "True"
+    "$(order_check 'Never ask' \
+        'for what their sentence gave you')" "True"
 check "the handle is settled before a write, and asking which film is not ceremony" \
     "$(order_check 'Settle title and year first' \
         'resolves *which film*' \
@@ -736,7 +784,7 @@ check "a proposed Mix is shown as an idea: other films in it, other names for it
 check "those films illustrate the idea and are never part of the save" \
     "$(order_check 'Those films are illustration only' \
         'never written, never in the Mix' \
-        'never given a state, nothing to classify' \
+        'never given a viewing or a verdict' \
         'Only the film they asked to keep is being saved')" "True"
 check "a Mix that already fits is still saved without any of that" \
     "$(order_check 'One genuinely fits' \
@@ -779,8 +827,8 @@ check "no starter genres and no onboarding vocabulary" \
 check "the sentence-to-state readings live only on the tool" \
     "$(grep -ciE '"seen it"\* → |"it was good"\* → |"loved it"\* → |at its most specific' "$SKILL")" \
     "0"
-check "null against not_seen lives only on the tool" \
-    "$(grep -ciE 'never makes it `not_seen`|nothing said is `null`|absence is never not_seen' "$SKILL")" \
+check "null against unseen lives only on the tool" \
+    "$(grep -ciE 'never makes it `unseen`|nothing said is `null`|absence is never unseen' "$SKILL")" \
     "0"
 check "the instruction's voice lives only on the tool" \
     "$(grep -ciE 'first person' "$SKILL")" "0"
@@ -805,15 +853,51 @@ mix_name_rule="$mix_name_rule|(beyond|more than) its Genres|pair of Genres"
 mix_name_rule="$mix_name_rule|earns? its( own)? name"
 check "the Mix naming test lives only on create_mix" \
     "$(grep -ciE "$mix_name_rule" "$SKILL")" "0"
-check "the score prohibition lives only on the state field" \
+check "the score prohibition lives only on the viewing field" \
     "$(grep -ciE 'score or star rating|never a score' "$SKILL")" "0"
 
 # And the two the Step 2 review sent back: they are conversation, not a field
 # invariant, and the skill is their only home.
 check "asking before calling stays in the skill" \
-    "$(order_check 'never ask for what their sentence gave you')" "True"
+    "$(order_check 'for what their sentence gave you')" "True"
 check "how a rewording is agreed to stays in the skill" \
     "$(order_check 'Say so and let them decide')" "True"
+
+echo
+echo "--- the model that was replaced cannot come back ---"
+
+# A blanket guard rather than one check per sentence. Under the old model a
+# Movie carried one answer out of five, with a sixth meaning nothing had been
+# said, and the skill described it that way throughout. Any of these returning
+# fails here whatever else the text says correctly.
+#
+# Read against $CANONICAL rather than $SKILL on purpose: the raw file holds both
+# the full wording and the compact projection, and a rule must not come back in
+# either of them.
+check "no legacy state spelling survives" \
+    "$(grep -ciE '\bnot_seen\b' "$CANONICAL")" "0"
+check "no Movie is described as carrying a state" \
+    "$(grep -ciE "movie'?s state|movie state|state of (a|the) (movie|film)" "$CANONICAL")" "0"
+check "no five-value enumeration survives" \
+    "$(grep -ciE 'five (states|answers|values)|one state holds five' "$CANONICAL")" "0"
+# The shape of the old enum: an opinion listed beside the viewing answers.
+check "no opinion is listed as a viewing answer" \
+    "$(grep -ciE '`(seen|unseen)`[^.]{0,40}`(liked|loved|disliked)`' "$CANONICAL")" "0"
+check "no Verdict is described as overriding a Movie" \
+    "$(grep -ciE 'outranks? a (disagreeing )?state|verdict outranks|overlays? (the|a) (saved|movie)' "$CANONICAL")" "0"
+check "no withdrawal is described as revealing a Movie opinion" \
+    "$(grep -ciE 'state (is|underneath)[^.]{0,40}(shows|applies) again|the Movie state said is then what is left' "$CANONICAL")" "0"
+check "no film is described as having a state set on it" \
+    "$(grep -ciE 'set (a|the|its) state|change its state|given a state' "$CANONICAL")" "0"
+
+# And the positive half, so the prohibition cannot be satisfied by saying
+# nothing: both wordings have to describe the split that replaced it.
+check "the skill says a Movie carries a viewing and no opinion" \
+    "$(order_check 'A Movie carries no opinion at all' '`viewing` says whether they watched it')" "True"
+check "the compact projection says it too" \
+    "$(grep -ciE 'A Movie carries no opinion' "$CANONICAL")" "2"
+check "and both name the tool an opinion goes to instead" \
+    "$(grep -ciE '`record_verdict`' "$CANONICAL")" "4"
 
 echo
 printf '%s passed, %s failed\n' "$pass" "$fail"

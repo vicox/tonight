@@ -19,7 +19,25 @@ import type { SqlDriver, Transaction } from "./driver.ts";
  */
 
 /** One step, and the SQL that takes it. */
-export type Migration = { version: number } & (
+export type Migration = {
+  version: number;
+  /**
+   * Versions in *other* modules this step reads or writes, and cannot run without.
+   *
+   * Almost nothing needs this. Modules are separate because they have no business
+   * sharing a version sequence, and a step that reaches across one is usually a
+   * step in the wrong module. The exception is a one-time conversion: legacy Movie
+   * opinions become Verdict acts, which means reading one module's table and
+   * writing another's, and there is no version of that which lives in one module.
+   *
+   * `migrate` satisfies a need by migrating the module it names first, so a
+   * caller bringing up one module does not have to know which others it leans on.
+   * The check then runs again inside the step's own transaction and throws if the
+   * need is still unmet — before the claim, so an unmet need leaves no row behind
+   * and the version stays unapplied rather than being recorded as skipped.
+   */
+  needs?: readonly { module: string; version: number }[];
+} & (
   | { sql: string; run?: never }
   /**
    * A step that needs the domain to compute what it writes.
@@ -129,6 +147,12 @@ export async function migrate(driver: SqlDriver, schema: SchemaModule): Promise<
 
   let applied = 0;
   for (const migration of schema.migrations) {
+    // Outside the transaction, because satisfying a need means running another
+    // module's migrations and those claim rows of their own. Their claims make
+    // this safe to do concurrently; `requireNeeds` below is what makes it safe
+    // to be wrong about.
+    await satisfyNeeds(driver, schema, migration);
+
     const ran = await driver.transaction(async (tx) => {
       // Claimed rather than inserted-and-caught. `ON CONFLICT DO NOTHING` returns
       // no row when the version is already recorded, which is the whole of the
@@ -141,6 +165,9 @@ export async function migrate(driver: SqlDriver, schema: SchemaModule): Promise<
       // from the migration's own SQL. That would turn a real uniqueness bug in a
       // migration into a step that silently did not run. Here nothing is caught,
       // so a failure inside `migration.sql` is a failure.
+      // Before the claim, so an unmet need records nothing. See `Migration.needs`.
+      await requireNeeds(tx, schema, migration);
+
       const claimed = await tx.query<{ version: number }>(
         `INSERT INTO schema_migrations (module, version) VALUES ($1, $2)
          ON CONFLICT DO NOTHING
@@ -157,6 +184,67 @@ export async function migrate(driver: SqlDriver, schema: SchemaModule): Promise<
     if (ran) applied += 1;
   }
   return applied;
+}
+
+/**
+ * Brings up the modules a step declares a need on, before the step runs.
+ *
+ * Recurses through `migrate`, which is what makes a chain of needs work and what
+ * keeps the concurrency story the same one everywhere: the needed module's own
+ * claims decide who applies what.
+ *
+ * A need naming a module that does not exist is left to `requireNeeds` to
+ * refuse. Guessing here — skipping it, or treating unknown as satisfied — would
+ * turn a typo in a migration into a step that quietly ran without its
+ * prerequisite.
+ */
+async function satisfyNeeds(
+  driver: SqlDriver,
+  schema: SchemaModule,
+  migration: Migration,
+): Promise<void> {
+  if (!migration.needs?.length) return;
+
+  const { schemaNamed } = await import("./schemas.ts");
+  for (const need of migration.needs) {
+    if (need.module === schema.module) continue;
+    const needed = schemaNamed(need.module);
+    if (needed) await migrate(driver, needed);
+  }
+}
+
+/**
+ * Refuses a step whose cross-module prerequisites are not applied yet.
+ *
+ * Read inside the step's own transaction, against the same tracking table the
+ * claim writes, so what is checked is what is committed. Throwing rather than
+ * skipping: a step quietly not running would let `npm run db:migrate` report
+ * success over an incomplete schema, and the deployment would then fail later at
+ * `requireSchema` with a message about the wrong thing.
+ */
+async function requireNeeds(
+  tx: Transaction,
+  schema: SchemaModule,
+  migration: Migration,
+): Promise<void> {
+  if (!migration.needs?.length) return;
+
+  const missing: string[] = [];
+  for (const need of migration.needs) {
+    const [row] = await tx.query<{ version: number }>(
+      "SELECT version FROM schema_migrations WHERE module = $1 AND version = $2",
+      [need.module, need.version],
+    );
+    if (!row) missing.push(`${need.module} ${String(need.version)}`);
+  }
+  if (!missing.length) return;
+
+  throw new ConfigurationError(
+    `The ${schema.module} schema cannot apply migration ${String(migration.version)} until ` +
+      `${missing.join(" and ")} ${missing.length === 1 ? "has" : "have"} been applied. ` +
+      "Run `npm run db:migrate`, which brings every schema up in an order that satisfies this. " +
+      "Nothing has been changed.",
+  );
 }
 
 /**

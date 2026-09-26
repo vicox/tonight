@@ -64,14 +64,13 @@ export type Film = {
 };
 
 /**
- * The three Phase 1 Movie states that carry an opinion.
+ * The three ways of having an opinion about a film, and the only three.
  *
- * `seen` and `not_seen` are deliberately absent and are not oversights. Phase 1
- * settled what each state means: *"`not_seen` and `null` are absence of
- * experience, not evidence against; `seen` says only that they watched it"*.
- * Neither is a judgement, so neither can be the assertion of a Verdict — a film
- * they watched and said nothing about is exactly the silence this module exists
- * to keep expressible.
+ * Whether somebody *watched* a film is deliberately absent and is not an
+ * oversight. That is a fact and it lives on the Movie as `viewing`; neither
+ * answer it can take is a judgement, so neither can be the assertion of a
+ * Verdict — a film they watched and gave no opinion on is exactly the silence
+ * this module exists to keep expressible.
  */
 export const JUDGEMENTS = ["liked", "loved", "disliked"] as const;
 export type Judgement = (typeof JUDGEMENTS)[number];

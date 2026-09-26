@@ -34,6 +34,7 @@ import {
   STRANGER_HISTORY,
   TRAJECTORIES,
   UNICODE_FILMS,
+  type Film,
   type Step,
   type Trajectory,
 } from "./trajectories.ts";
@@ -143,7 +144,7 @@ describe("M3 — explains itself, and can be corrected", () => {
         case "movie":
           await call("create_movie", {
             ...step.film,
-            state: step.state,
+            viewing: step.viewing,
             ...(step.imdbId === undefined ? {} : { imdb_id: step.imdbId }),
             ...(step.mixes === undefined ? {} : { mixes: step.mixes }),
           });
@@ -293,7 +294,7 @@ describe("M3 — explains itself, and can be corrected", () => {
       for (const step of steps) {
         switch (step.act) {
           case "movie":
-            await ok(tools, "create_movie", { ...step.film, state: step.state });
+            await ok(tools, "create_movie", { ...step.film, viewing: step.viewing });
             break;
           case "verdict":
             await ok(tools, "record_verdict", {
@@ -389,8 +390,13 @@ describe("M3 — explains itself, and can be corrected", () => {
       return result.structuredContent as Record<string, unknown>;
     };
 
-    await call("create_movie", { ...FILMS.heat95, state: "liked" });
-    await call("create_movie", { ...FILMS.zodiac, state: "liked" });
+    // Both films are saved with the one fact a Movie carries, so the round trip
+    // has something real to change and something real to leave alone: heat95's
+    // viewing moves, zodiac's must not. `state: "liked"` stood here before the
+    // split and was silently dropped by the schema, which left both films
+    // carrying nothing and the neighbour check comparing null against null.
+    await call("create_movie", { ...FILMS.heat95, viewing: "seen" });
+    await call("create_movie", { ...FILMS.zodiac, viewing: "seen" });
     await call("record_verdict", {
       film: FILMS.prisoners,
       told: "volunteered",
@@ -400,6 +406,14 @@ describe("M3 — explains itself, and can be corrected", () => {
       film: FILMS.blackBag,
       told: "confirmed",
       said: { about: "judgement", judgement: "disliked", because: "the one to leave alone" },
+    });
+    // And one about the film the round trip refiles, which is the cross-root
+    // neighbour: heat95's viewing changes below, and what was said about heat95
+    // must not.
+    await call("record_verdict", {
+      film: FILMS.heat95,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "liked", because: "the one the film moves under" },
     });
     await call("record_episode", { request: "the night to put right", offered: [{ ...FILMS.heat95, lead: true }] });
     await call("record_episode", { request: "the night to leave alone", offered: [{ ...FILMS.zodiac, lead: true }] });
@@ -437,19 +451,24 @@ describe("M3 — explains itself, and can be corrected", () => {
       episode: String(eveningCalled("the night to leave alone").handle.id),
       film: { title: FILMS.zodiac.title, year: FILMS.zodiac.year },
     };
+    const across = { ref: String(verdictAbout(FILMS.heat95).handle.ref) };
 
     // Only handles from the view, and no store in sight.
     await call("forget_verdict", { ref: used.ref });
     await call("correct_episode", { episode: used.episode, request: ROUND_TRIP.request });
-    await call("update_movie", { title: used.film.title, year: used.film.year, state: ROUND_TRIP.state });
+    await call("update_movie", {
+      title: used.film.title,
+      year: used.film.year,
+      viewing: ROUND_TRIP.viewing,
+    });
 
-    return { before, after: (await call("get_memory")) as unknown as Memory, used, spared };
+    return { before, after: (await call("get_memory")) as unknown as Memory, used, spared, across };
   }
 
   /* --------------------------------------------------------------- the tests */
 
   test("every history says what it proves, and none repeats another", () => {
-    assert.equal(TRAJECTORIES.length, 27);
+    assert.equal(TRAJECTORIES.length, 25);
     for (const trajectory of TRAJECTORIES) {
       assert.ok(trajectory.proves.length > 20, `${trajectory.name} does not say what it proves`);
       assert.ok(trajectory.steps.length > 0);
@@ -477,33 +496,41 @@ describe("M3 — explains itself, and can be corrected", () => {
     assert.ok(steps.some((s) => s.act === "amend" && s.refused === true), "no history is ever refused a correction");
   });
 
-  test("the precedence matrix covers every state against every reach and every judgement", () => {
-    // The matrix is generated, so what is checked here is that the generator
-    // still enumerates what the policy is made of — a state or a reach added to
-    // the product and not added to `STATES` shows up as a missing row.
-    const filed = (name: string) =>
-      TRAJECTORIES.find((one) => one.name === name)!.steps.filter((step) => step.act === "movie");
-    const spoken = (name: string) =>
-      TRAJECTORIES.find((one) => one.name === name)!.steps.filter((step) => step.act === "verdict");
+  test("the two roots are exercised apart and together", () => {
+    // The matrix this replaces was a precedence matrix: every saved state
+    // against every reach and judgement, because something had to rank them.
+    // Nothing ranks anything now, so what has to be covered instead is that a
+    // film and an opinion appear alone and side by side — and that a refusal is
+    // exercised in both of its scopes, which is the one thing about a verdict
+    // that is still scoped.
+    const steps = (name: string) => TRAJECTORIES.find((one) => one.name === name)!.steps;
 
-    const states = ["liked", "loved", "disliked", "seen", "not_seen", null];
-    for (const state of states) {
+    assert.ok(
+      steps("a-verdict-with-no-saved-film").every((step) => step.act !== "movie"),
+      "the standalone-verdict history saves a film after all",
+    );
+    assert.ok(
+      steps("a-verdict-beside-a-saved-film").some((step) => step.act === "movie"),
+      "the side-by-side history does not save a film",
+    );
+
+    // Both viewing answers are filed somewhere, so neither is untested.
+    const filed = TRAJECTORIES.flatMap((one) => one.steps).filter((step) => step.act === "movie");
+    for (const viewing of ["seen", "unseen", null]) {
       assert.ok(
-        filed("the-rejection-matrix").some((s) => s.act === "movie" && s.state === state),
-        `the rejection matrix never files a film as ${String(state)}`,
-      );
-      assert.ok(
-        filed("the-judgement-matrix").some((s) => s.act === "movie" && s.state === state),
-        `the judgement matrix never files a film as ${String(state)}`,
+        filed.some((step) => step.act === "movie" && step.viewing === viewing),
+        `no history ever files a film as ${String(viewing)}`,
       );
     }
-    assert.equal(spoken("the-rejection-matrix").length, 12, "the rejection matrix is not every state against both reaches");
-    assert.equal(spoken("the-judgement-matrix").length, 12, "the judgement matrix lost a row");
 
-    // And the policy the replay states: four disagreements out of twelve
-    // refusals, six out of twelve judgements.
-    assert.equal(expected(TRAJECTORIES.find((one) => one.name === "the-rejection-matrix")!.steps).conflicts.length, 4);
-    assert.equal(expected(TRAJECTORIES.find((one) => one.name === "the-judgement-matrix")!.steps).conflicts.length, 6);
+    // And both reaches, because scope is the thing a refusal still carries.
+    const said = TRAJECTORIES.flatMap((one) => one.steps).filter((step) => step.act === "verdict");
+    for (const reach of ["not-ever", "not-tonight"]) {
+      assert.ok(
+        said.some((step) => step.act === "verdict" && step.reach === reach),
+        `no history ever says ${reach}`,
+      );
+    }
   });
 
   test("the replay works out a refusal for itself rather than taking the script's word", () => {
@@ -665,10 +692,10 @@ describe("M3 — explains itself, and can be corrected", () => {
     });
   });
 
-  test("a film refiled under a state nobody chose is caught", () => {
-    probe("a saved film's state is rewritten", "fidelity", (copy) => {
+  test("a film refiled under a viewing nobody chose is caught", () => {
+    probe("what came back is not what was made", "fidelity", (copy) => {
       const movie = copy.seen["one-of-everything"]!.memory.held.find((root) => root.of === "movie")!;
-      movie.state = "disliked";
+      (movie as { viewing?: unknown }).viewing = "unseen";
     });
   });
 
@@ -778,53 +805,55 @@ describe("M3 — explains itself, and can be corrected", () => {
 
   /* -- precedence, and the matrix it is made of ------------------------------ */
 
-  test("removing the verdict's precedence over a saved state is caught", () => {
-    probe("the disagreement is not explained", "precedence", (copy) => {
-      copy.seen["a-verdict-against-a-state"]!.memory.operative = [];
+  test("a verdict reaching the saved film is caught", () => {
+    probe("a verdict moved Black Bag", "precedence", (copy) => {
+      const seen = copy.seen["a-verdict-beside-a-saved-film"]!;
+      for (const root of seen.memory.held) {
+        if (root.of === "movie") (root as { viewing?: unknown }).viewing = "unseen";
+      }
     });
   });
 
-  test("losing one row of the rejection matrix is caught", () => {
-    probe("a refusal over a loved film stops being a disagreement", "precedence", (copy) => {
-      const seen = copy.seen["the-rejection-matrix"]!;
-      seen.memory.operative = seen.memory.operative.filter((one) => one.saved.state !== "loved");
+  test("a disagreement projection coming back is caught", () => {
+    probe('the memory view carries "operative" again', "precedence", (copy) => {
+      const seen = copy.seen["a-verdict-beside-a-saved-film"]!;
+      (seen.memory as { operative?: unknown[] }).operative = [{ because: "outranks" }];
     });
   });
 
-  test("inventing a row of the judgement matrix is caught", () => {
-    probe("a judgement that agrees with the state is called a disagreement", "precedence", (copy) => {
-      const seen = copy.seen["the-judgement-matrix"]!;
-      const real = seen.memory.operative[0]!;
-      seen.memory.operative = [...seen.memory.operative, structuredClone(real)];
+  test("a refusal arriving as a dislike is caught", () => {
+    probe("a refusal came back as a dislike", "precedence", (copy) => {
+      const seen = copy.seen["never-again"]!;
+      for (const root of seen.memory.held) {
+        if (root.of !== "verdict") continue;
+        // Only the assertion is replaced: the act keeps the film it is about, so
+        // the mutation is a refusal reported as a dislike rather than an act
+        // with no film in it.
+        const act = root as unknown as { act: { assertion: unknown } };
+        act.act.assertion = { about: "judgement", judgement: "disliked", because: null };
+      }
     });
   });
 
-  test("making an evening's refusal global is caught", () => {
-    probe("not-tonight is promoted to everywhere", "precedence", (copy) => {
-      const conflict = copy.seen["not-on-a-tuesday"]!.memory.operative[0]!;
-      conflict.where = "everywhere";
+  test("an evening's refusal reaching beyond its evening is caught", () => {
+    probe("Prisoners", "fidelity", (copy) => {
+      const seen = copy.seen["not-on-a-tuesday"]!;
+      for (const root of seen.memory.held) {
+        if (root.of !== "verdict") continue;
+        const act = (root as unknown as { act: { scope?: unknown } }).act;
+        act.scope = "everywhere";
+      }
     });
   });
 
-  test("reading a refusal as a dislike is caught", () => {
-    probe("a rejection is translated", "precedence", (copy) => {
-      const conflict = copy.seen["never-again"]!.memory.operative[0]!;
-      conflict.governing.act = {
-        ...conflict.governing.act,
-        assertion: { about: "judgement", judgement: "disliked", because: null },
-      };
+  test("a withdrawal that leaves the saved film changed is caught", () => {
+    probe("moved Black Bag", "precedence", (copy) => {
+      const seen = copy.seen["withdrawal-leaves-the-film-alone"]!;
+      for (const root of seen.memory.held) {
+        if (root.of === "movie") (root as { viewing?: unknown }).viewing = "seen";
+      }
     });
   });
-
-  test("failing to restore the saved state after a taking-back is caught", () => {
-    probe("the overlay outlives the claim", "precedence", (copy) => {
-      const seen = copy.seen["the-state-comes-back"]!;
-      const other = copy.seen["a-verdict-against-a-state"]!;
-      seen.memory.operative = structuredClone(other.memory.operative);
-    });
-  });
-
-  /* -- forgetting one thing, and only that thing ----------------------------- */
 
   test("failing to bring back the claim a taking-back silenced is caught", () => {
     probe("forgetting a taking-back changes nothing", "forgetting", (copy) => {
@@ -912,39 +941,54 @@ describe("M3 — explains itself, and can be corrected", () => {
     });
   });
 
-  test("an evening changing what a recommendation thinks of a film is caught", () => {
-    probe("history moves a Movie state without leaving an episode behind", "recommendation-isolation", (copy) => {
-      const movie = copy.seen["nothing-was-concluded"]!.taste.movies[0]!;
-      movie.state = "loved";
+  test("an evening becoming an opinion is caught", () => {
+    // Three finished evenings and not one thing said. The inference this
+    // trajectory invites is *they watched all three, so they must have liked
+    // them*, and under the split model the place that inference would land is
+    // the verdict list a recommendation reads.
+    //
+    // The mutation this replaces set `movie.state`, a field the model no longer
+    // has. It killed the gate — any unexpected key does — but it could not
+    // stand for a bug anybody could write, because no code path can produce it.
+    probe("an evening is read as an opinion", "recommendation-isolation", (copy) => {
+      const seen = copy.seen["nothing-was-concluded"]!;
+      seen.taste.verdicts = [
+        ...(seen.taste.verdicts ?? []),
+        { title: "Heat", year: 1995, judgement: "loved", told: "volunteered" },
+      ];
     });
   });
 
-  test("an evening's refusal reported as a standing one is caught", () => {
-    // The killer Gate H was missing. A `not-tonight` governs in its own evening
-    // and nowhere else; projected as `everywhere` it reads as a standing fact
-    // about the person, which is the mood-into-preference failure the scope
-    // exists to prevent. The gate derives the expected scope from the script's
-    // own conflict, so it disagrees with this and says where.
-    probe("an evening's refusal is widened to everywhere", "recommendation-isolation", (copy) => {
+  test("an evening changing what a saved film says about watching is caught", () => {
+    // The other axis, and the likelier of the two: they said they watched it on
+    // Tuesday, so file the film as seen. Plausible, helpful, and not something
+    // they asked for — an evening is history and the Movie is theirs to write.
+    // `many-evenings` saves no film at all, so a Movie appearing there is the
+    // whole defect with nothing else to explain it.
+    probe("an evening files a film nobody saved", "recommendation-isolation", (copy) => {
+      const seen = copy.seen["many-evenings"]!;
+      seen.taste.movies = [...seen.taste.movies, { title: "Heat", year: 1995, viewing: "seen", mixes: [] }];
+    });
+  });
+
+  test("a disagreement projection reappearing in the recommendation read is caught", () => {
+    // Gate H used to compare a `disagreements` list, because a Movie carried an
+    // opinion and something had to say which governed. Nothing does, so what the
+    // gate holds now is the inverse: the field must be absent. A payload that
+    // explains one root to another is the machinery the split removed.
+    probe("the disagreements a recommendation reads", "recommendation-isolation", (copy) => {
       const seen = copy.seen["not-on-a-tuesday"]!;
-      const clash = seen.taste.disagreements![0]!;
-      clash.applies = "everywhere";
+      (seen.taste as { disagreements?: unknown[] }).disagreements = [
+        { title: "Black Bag", year: 2025, saved: "seen", applies: "everywhere" },
+      ];
     });
   });
 
-  test("dropping the disagreements a recommendation is told about is caught", () => {
-    // The gap itself: before this, production could stop answering with
-    // disagreements and every gate would still pass.
-    probe("the disagreement projection disappears", "recommendation-isolation", (copy) => {
-      delete copy.seen["not-on-a-tuesday"]!.taste.disagreements;
-    });
-  });
-
-  test("an empty disagreement list where the field should be absent is caught", () => {
-    // Absent and empty are two different answers: one says nothing disagrees,
-    // the other says so in a payload shape the contract does not use.
-    probe("nothing disagrees, and the read says so anyway", "recommendation-isolation", (copy) => {
-      copy.seen["one-of-everything"]!.taste.disagreements = [];
+  test("an empty disagreement list is caught too, not only a populated one", () => {
+    // Absent and empty are two different answers, and neither is the contract
+    // any more: there is no field.
+    probe("disagreements a recommendation reads are not the ones", "recommendation-isolation", (copy) => {
+      (copy.seen["one-of-everything"]!.taste as { disagreements?: unknown[] }).disagreements = [];
     });
   });
 
@@ -1038,8 +1082,11 @@ describe("M3 — explains itself, and can be corrected", () => {
       const seen = copy.seen["unicode-is-not-a-collation"]!;
       // Matched by the one identity rule: the film was saved in upper case and
       // spoken about in lower, so a title comparison would find neither.
-      seen.memory.operative = seen.memory.operative.filter(
-        (one) => filmKey(one.film) !== filmKey(UNICODE_FILMS.upper),
+      seen.memory.held = seen.memory.held.filter(
+        (root) =>
+          root.of !== "verdict" ||
+          filmKey((root as unknown as { act: { film: Film } }).act.film) !==
+            filmKey(UNICODE_FILMS.upper),
       );
     });
   });
@@ -1067,6 +1114,31 @@ describe("M3 — explains itself, and can be corrected", () => {
       )!;
       night.request = "the night to put right";
       night.requestSource = "observed";
+    });
+  });
+
+  test("refiling a film reaching what they said about it is caught", () => {
+    // The cross-root half of the round trip. `update_movie` moved heat95's
+    // viewing; the verdict about heat95 is a different root and must come back
+    // word for word. A run that let the film's change reach the opinion — or
+    // that dropped the opinion while refiling — fails here.
+    //
+    // The judgement lives at `act.assertion.judgement`, and the mutation writes
+    // it there. A first attempt set `act.judgement`, which is not a field an Act
+    // has: it was killed as an extra key, which every gate that compares whole
+    // acts would do, and proved nothing about whether an opinion *changing* is
+    // noticed. This leaves the act structurally valid — a verdict about heat95,
+    // volunteered, with its reason intact — and says `loved` where they said
+    // `liked`, which is what refiling a film leaking into its verdict looks
+    // like.
+    probe("refiling a film rewrote what they said about it", "correction-handles", (copy) => {
+      const act = [...copy.handled.after.held, ...copy.handled.after.remembered].find(
+        (root) => root.of === "verdict" && root.handle.ref === copy.handled.across.ref,
+      )!;
+      const said = act.act as { assertion: { about: string; judgement: string } };
+      assert.equal(said.assertion.about, "judgement", "the cross-root neighbour is not a judgement");
+      assert.equal(said.assertion.judgement, "liked", "the cross-root neighbour is not the act that was seeded");
+      said.assertion.judgement = "loved";
     });
   });
 

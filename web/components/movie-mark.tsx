@@ -1,30 +1,39 @@
 "use client";
 
-import { Circle, Eye, EyeOff, Heart, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Circle, Eye, EyeOff, Heart, MessageCircleOff, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
-import { type MovieState } from "@/lib/taste/model";
+import type { Viewing } from "@/lib/taste/model";
+import type { Judgement } from "@/lib/verdicts/model";
 import { pending } from "@/lib/web/pending";
 
 /**
- * What the user said about a film: one mark, and a menu to change it.
+ * One thing the user has said about a film: a mark, and a menu to change it.
  *
- * The row shows a single icon — the state the film is in — and pressing it opens
- * the five states to choose from. One mark rather than five keeps a page of
- * twenty films readable, and it says the thing that matters at a glance: this
- * film is *loved*, not "loved and four other things it is not".
+ * Two of these sit on a row and they say different kinds of thing. The first is
+ * a **fact** — have they watched it — and writes the film. The second is an
+ * **opinion** — what did they make of it — and writes a verdict. They are drawn
+ * alike because they are both "what you said", and they are separate controls
+ * because they are separate answers: a film can be seen and loved at once, and a
+ * single menu offering both would make the user choose which of two true things
+ * to record.
  *
- * ## Six things to draw, five things to choose
+ * ## One component, two marks
  *
- * The sixth is `null`: Tonight was never told. `Circle` is how that is drawn and
- * it is **not a sixth state** — nothing in the model, the store or the tools
- * knows about it, and the menu does not offer it. There is deliberately no way
- * back to `null` from here: a press is a statement, and unsaying one is a real
- * operation that stays with the assistant.
+ * The menu below is the whole of the keyboard, focus and dismissal behaviour,
+ * and none of it differs between the two. So it is written once and given its
+ * choices, its wording and the route it writes to. What each mark *means* lives
+ * in `VIEWING` and `JUDGEMENT` at the bottom of this file, where a reader can
+ * see both vocabularies side by side.
  *
- * `null` and `not_seen` stay distinct throughout — an empty circle against a
- * struck eye — because one is silence and the other is something they said.
+ * ## What "nothing said" is on each
+ *
+ * On the viewing mark it is drawn and cannot be chosen: a press is a statement,
+ * and unsaying one is a real operation that stays with the assistant. On the
+ * judgement mark it *is* choosable, because taking back what you said about a
+ * film is an ordinary thing to want and the verdict model has a word for it —
+ * a withdrawal, which leaves silence rather than a neutral opinion.
  *
  * ## A menu, so the keyboard is a menu's
  *
@@ -45,45 +54,83 @@ import { pending } from "@/lib/web/pending";
  *
  * ## One request, then the server's own answer
  *
- * No optimistic state. The mark renders the `state` it was given, the write goes
- * through the same route boundary and the same store every other change does, and
- * the page is re-rendered from the store afterwards. Holding a local copy would
- * mean two versions of one film — and an assistant writing between the render and
- * the press would leave the wrong one on screen with nothing to correct it.
+ * No optimistic state. The mark renders the value it was given, the write goes
+ * through the same route boundary and the same store every other change does,
+ * and the page is re-rendered from the store afterwards. Holding a local copy
+ * would mean two versions of one film — and an assistant writing between the
+ * render and the press would leave the wrong one on screen with nothing to
+ * correct it.
+ *
+ * A press that repeats what already stands is sent and answered, and the route
+ * writes nothing: confirming what you can see is not a new thing said, and a
+ * verdict history full of clicks would be read back as things the user told
+ * Tonight.
  */
+
+/** One answer a mark offers, and how it is drawn. */
+type Choice<T> = { value: T; label: string; icon: typeof Eye; filled?: boolean };
+
+/** What a mark is: its answers, its words, and where a press goes. */
+type Mark<T> = {
+  /** The answers the menu offers, in the order it offers them. */
+  choices: readonly Choice<T>[];
+  /** How the unset value is drawn. Choosable only if it is also in `choices`. */
+  unset: { label: string; icon: typeof Eye };
+  /** What this mark is asking, for the trigger's label and the menu's. */
+  asks: string;
+  /** The route a press writes to, and the field it sends. */
+  endpoint: string;
+  field: string;
+};
 
 /**
- * The five states, in the order they are offered.
+ * Whether they watched it.
  *
- * The two facts first — the same eye, struck through and not, which is the one
- * pair on this list that is a single question with two answers — and then the
- * three ways of having an opinion. Not seen before seen, which is the direction
- * a film moves through them and the order the summary reads them in, so nobody
- * has to learn two. It is a menu's order and nothing else reads it: `MOVIE_STATES` in the model is the domain's own order, and the store, the
- * tools and the five values themselves are untouched by how they are listed here.
+ * Two answers and no third: the same eye, struck through and not, which is one
+ * question with two answers. `null` is drawn — an empty circle — and is not in
+ * `choices`, so there is no way back to "never told" from here.
  */
-const CHOICES: { state: MovieState; label: string; icon: typeof Eye }[] = [
-  { state: "not_seen", label: "Not seen", icon: EyeOff },
-  { state: "seen", label: "Seen", icon: Eye },
-  { state: "liked", label: "Liked", icon: ThumbsUp },
-  { state: "loved", label: "Loved", icon: Heart },
-  { state: "disliked", label: "Disliked", icon: ThumbsDown },
-];
+export const VIEWING: Mark<Viewing> = {
+  choices: [
+    { value: "unseen", label: "Not seen", icon: EyeOff },
+    { value: "seen", label: "Seen", icon: Eye },
+  ],
+  unset: { label: "Not said", icon: Circle },
+  asks: "Whether you have seen",
+  endpoint: "/api/movies",
+  field: "viewing",
+};
 
-/** How "nothing said" is drawn. Not a state — see the note above. */
-const NOTHING_SAID = { label: "Nothing said", icon: Circle };
+/**
+ * What they made of it.
+ *
+ * The three judgements in the order the summary reads them — liked, loved, then
+ * the one nobody reaches for — and then taking it back, which is a real answer
+ * here and is why `null` appears in `choices` on this mark and not on the other.
+ */
+export const JUDGEMENT: Mark<Judgement | null> = {
+  choices: [
+    { value: "liked", label: "Liked", icon: ThumbsUp, filled: true },
+    { value: "loved", label: "Loved", icon: Heart, filled: true },
+    { value: "disliked", label: "Disliked", icon: ThumbsDown },
+    { value: null, label: "Nothing said", icon: MessageCircleOff },
+  ],
+  unset: { label: "Nothing said", icon: Circle },
+  asks: "What you said about",
+  endpoint: "/api/verdicts",
+  field: "judgement",
+};
 
-const shown = (state: MovieState | null) =>
-  CHOICES.find((choice) => choice.state === state) ?? NOTHING_SAID;
-
-export function MovieState({
+export function MovieMark<T>({
+  mark,
+  value,
   title,
   year,
-  state,
 }: {
+  mark: Mark<T>;
+  value: T | null;
   title: string;
   year: number;
-  state: MovieState | null;
 }) {
   const router = useRouter();
   const menuId = useId();
@@ -99,7 +146,9 @@ export function MovieState({
   // freezing the whole list because one is in flight would make a page of twenty
   // films feel broken. What this does stop is a second press mid-write.
   const busy = sending || refreshing;
-  const current = shown(state);
+  const chosen = mark.choices.find((choice) => choice.value === value);
+  const current = chosen ?? mark.unset;
+  const said = value !== null;
 
   /**
    * Opening puts focus on the current choice, which is where somebody arrived
@@ -131,7 +180,7 @@ export function MovieState({
     if (toTrigger) trigger.current?.focus();
   }
 
-  async function set(to: MovieState) {
+  async function set(to: T) {
     if (busy) return;
     // Focus goes back before the write starts, and stays there: the re-render
     // marks the trigger pending with `aria-disabled`, which does not blur it.
@@ -142,10 +191,10 @@ export function MovieState({
     try {
       let response: Response;
       try {
-        response = await fetch("/api/movies", {
+        response = await fetch(mark.endpoint, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ title, year, state: to }),
+          body: JSON.stringify({ title, year, [mark.field]: to }),
         });
       } catch {
         // The request may never have left, or may have been answered and lost.
@@ -218,7 +267,7 @@ export function MovieState({
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={open ? menuId : undefined}
-          aria-label={`What you said about ${title} (${year}): ${current.label}`}
+          aria-label={`${mark.asks} ${title} (${year}): ${current.label}`}
           {...pending(busy)}
           onClick={() => {
             if (busy) return;
@@ -238,14 +287,14 @@ export function MovieState({
             "focus-visible:outline-beam aria-disabled:cursor-default aria-disabled:opacity-60",
             // Lit when they have said something, muted while they have not. A
             // mark nobody can see is a missing one, so muted is still present.
-            state === null ? "text-ink-faint/50 hover:text-ink-faint" : "text-ink",
+            said ? "text-ink" : "text-ink-faint/50 hover:text-ink-faint",
           ].join(" ")}
         >
           <current.icon
             aria-hidden="true"
             size={15}
             strokeWidth={1.5}
-            fill={state === "loved" || state === "liked" ? "currentColor" : "none"}
+            fill={chosen?.filled === true ? "currentColor" : "none"}
           />
         </button>
 
@@ -254,33 +303,29 @@ export function MovieState({
             ref={menu}
             id={menuId}
             role="menu"
-            aria-label={`What you said about ${title} (${year})`}
+            aria-label={`${mark.asks} ${title} (${year})`}
             onKeyDown={steer}
             className="absolute top-full right-0 z-10 mt-1 flex min-w-40 flex-col rounded-lg border border-rule bg-screen py-1"
           >
-            {CHOICES.map(({ state: choice, label, icon: Icon }) => (
+            {mark.choices.map(({ value: choice, label, icon: Icon, filled }) => (
               <button
-                key={choice}
+                key={label}
                 type="button"
                 role="menuitemradio"
-                aria-checked={state === choice}
+                aria-checked={value === choice}
                 onClick={() => set(choice)}
                 className={[
                   "flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-left",
                   "text-[13px] leading-none transition-colors hover:bg-night",
                   "focus-visible:bg-night focus-visible:outline-none",
-                  state === choice ? "text-ink" : "text-ink-soft",
+                  value === choice ? "text-ink" : "text-ink-soft",
                 ].join(" ")}
               >
                 <Icon
                   aria-hidden="true"
                   size={14}
                   strokeWidth={1.5}
-                  fill={
-                    state === choice && (choice === "loved" || choice === "liked")
-                      ? "currentColor"
-                      : "none"
-                  }
+                  fill={value === choice && filled === true ? "currentColor" : "none"}
                 />
                 {label}
               </button>

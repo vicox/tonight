@@ -7,6 +7,8 @@ import { PROJECT_INSTRUCTIONS, PROJECT_INSTRUCTIONS_VERSION } from "@/lib/instru
 import { setupSteps } from "@/lib/setup-steps";
 import type { Taste } from "@/lib/taste/model";
 import { tasteStore } from "@/lib/taste/store";
+import type { Standing } from "@/lib/verdicts/model";
+import { verdictStore } from "@/lib/verdicts/store";
 import { mcpEndpoint } from "@/lib/web/setup";
 import { currentVisitor, type SignedInVisitor } from "@/lib/web/visitor";
 
@@ -134,7 +136,7 @@ function Landing() {
 
 /** The same address, signed in: this user's taste model, and nobody else's. */
 async function Yours({ visitor }: { visitor: SignedInVisitor }) {
-  const taste = await readTaste(visitor);
+  const held = await readTaste(visitor);
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
@@ -145,7 +147,7 @@ async function Yours({ visitor }: { visitor: SignedInVisitor }) {
         </div>
       </SiteHeader>
 
-      {taste === "unavailable" ? (
+      {held === "unavailable" ? (
         <p className="py-24 text-center text-[14px] text-ink-soft">
           <span className="block text-ink">Your taste could not be read just now</span>
           <span className="mt-1.5 block text-[12.5px] text-ink-faint">
@@ -153,7 +155,7 @@ async function Yours({ visitor }: { visitor: SignedInVisitor }) {
           </span>
         </p>
       ) : (
-        <TasteView taste={taste} />
+        <TasteView taste={held.taste} standing={held.standing} />
       )}
 
       <footer className="mt-14 border-t border-rule pt-5 sm:mt-20">
@@ -175,11 +177,22 @@ async function Yours({ visitor }: { visitor: SignedInVisitor }) {
  * with no taste model is a normal state with an obvious next step, not a page that
  * quietly writes a starter set on its way to being rendered.
  */
-async function readTaste(visitor: SignedInVisitor): Promise<Taste | "unavailable"> {
+async function readTaste(
+  visitor: SignedInVisitor,
+): Promise<{ taste: Taste; standing: Standing[] } | "unavailable"> {
   try {
-    return await (await tasteStore(visitor.user)).taste();
+    // Two stores, read together. The taste model holds the films; the verdict
+    // store holds what the user has said about them, and the page needs both
+    // because a film and an opinion about it are different things kept in
+    // different places. Either failing means the page cannot be drawn honestly,
+    // so neither is read without the other.
+    const [taste, standing] = await Promise.all([
+      (await tasteStore(visitor.user)).taste(),
+      (await verdictStore(visitor.user)).standing(),
+    ]);
+    return { taste, standing };
   } catch (error) {
-    report("could not read the taste model", error);
+    report("could not read what Tonight holds", error);
     return "unavailable";
   }
 }

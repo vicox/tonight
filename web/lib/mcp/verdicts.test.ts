@@ -108,29 +108,39 @@ describe("the verdict tools", () => {
       /(genre|mix|evening)[^.]*unless they separately ask/iu,
       "the boundary names only the film, not the other roots",
     );
+    // Why the film is left, stated as a consequence of the model rather than as
+    // an arbitrary prohibition — and stated without promising that an opinion
+    // reappears underneath, because there is no second evaluative root for one
+    // to be left in.
     assert.match(
       said,
-      /(stays exactly as it is|applies once no verdict overlays it)/iu,
-      "nothing says the saved film survives and applies again",
+      /whether they watched it is a separate\s+thing they said/iu,
+      "nothing says why the saved film survives",
+    );
+    assert.doesNotMatch(
+      said,
+      /applies once no verdict overlays it|whatever the saved film says applies again/iu,
+      "the description still promises a Movie opinion coming back",
     );
   });
 
   test("a verdict history says what it cannot settle", async () => {
-    // One run read this alone and answered "No superseded or conflicting entries
-    // exist for it" about a film whose saved state and standing verdict plainly
-    // disagreed. The read was honest; the conclusion drawn from it was not.
+    // Runs read this alone and then described the user's whole position on a
+    // film — "there is no standing opinion", "this is the only thing on record".
+    // The read was honest; the conclusion drawn from it was not, because it is
+    // one film's history and cannot see whether the film is even saved.
     const said = ana.get_verdicts!.description ?? "";
 
     assert.match(said, /reads what they said and nothing else/iu, "it does not say what it covers");
 
     // (A) The saved Movie, named on its own. This is the limitation the failing
-    // run walked into — a film filed `liked` and a standing verdict of
-    // `disliked` — and an alternation that accepted any one root would still
-    // pass with exactly this clause deleted.
+    // run walked into, back when a film carried an opinion of its own and the
+    // standing verdict said something else — and an alternation that accepted
+    // any one root would still pass with exactly this clause deleted.
     assert.match(
       said,
       /cannot (see|tell)[^.]*saved film/iu,
-      "the description does not say it cannot see the saved film's state",
+      "the description does not say it cannot see the saved film",
     );
 
     // (B) And the other typed roots, so this is stated as a general limit on a
@@ -145,10 +155,15 @@ describe("the verdict tools", () => {
 
     assert.match(
       said,
-      /never conclude from this read that[^.]*nothing conflicts/iu,
-      "it does not forbid concluding that nothing conflicts",
+      /never conclude from this read what their whole position on a film is/iu,
+      "it does not forbid claiming the whole position from a partial read",
     );
-    assert.match(said, /`get_memory`/u, "it does not name the read that can answer a conflict question");
+    assert.match(said, /`get_memory`/u, "it does not name the read that answers the whole question");
+
+    // And it no longer promises to resolve one root against another. Nothing
+    // carries two opinions, so a description offering to say "which governs"
+    // would describe behaviour Tonight does not have.
+    assert.doesNotMatch(said, /which governs|disagrees with/iu, "it still promises a resolution");
   });
 
   test("the memory view says which absence is not evidence", async () => {
@@ -788,17 +803,18 @@ describe("the verdict tools", () => {
     // (B) The same, with a saved Movie that agrees with the verdict.
     const agreeing = film();
     await said(ana, "record_verdict", { film: agreeing, ...told });
-    await said(ana, "create_movie", { ...agreeing, state: "loved" });
+    await said(ana, "create_movie", { ...agreeing, viewing: "seen" });
 
-    // (C) And the case the false claims were made about: a saved Movie the
-    // standing verdict disagrees with.
+    // (C) And the case the false claims were made about: a saved Movie beside a
+    // standing verdict. Two roots about one film, which is the ordinary shape
+    // and not a disagreement — the read still cannot see one of them.
     const clashing = film();
     await said(ana, "record_verdict", {
       film: clashing,
       told: "volunteered",
       said: { about: "judgement", judgement: "disliked" },
     });
-    await said(ana, "create_movie", { ...clashing, state: "liked" });
+    await said(ana, "create_movie", { ...clashing, viewing: "seen" });
 
     // (D) And a film nobody has said anything about at all.
     const silent = film();
@@ -820,7 +836,7 @@ describe("the verdict tools", () => {
       told: "volunteered",
       said: { about: "judgement", judgement: "liked" },
     });
-    await said(ana, "create_movie", { ...f, state: "disliked" });
+    await said(ana, "create_movie", { ...f, viewing: "seen" });
 
     const answer = await said(ana, "get_verdicts", { film: f });
     assert.deepEqual(
@@ -829,9 +845,11 @@ describe("the verdict tools", () => {
       "the verdict read answers with a different set of fields than agreed",
     );
 
-    // And the parts that were there still mean what they meant. The saved
-    // `disliked` above is deliberately the opposite of the standing `liked`, and
-    // none of it shows here — which is the limitation the coverage declares.
+    // And the parts that were there still mean what they meant. The film above
+    // is saved `seen`, and that fact belongs to the other root: nothing about
+    // watching shows here, which is the limitation the coverage declares. The
+    // assertion that replaced this one looked for a `disliked` no part of the
+    // fixture could have produced, so it held nothing.
     const read = answer as unknown as {
       current: { assertion: { judgement: string } };
       history: unknown[];
@@ -840,7 +858,9 @@ describe("the verdict tools", () => {
     assert.equal(read.current.assertion.judgement, "liked");
     assert.equal(read.history.length, 1);
     assert.deepEqual(read.superseded, []);
-    assert.equal(JSON.stringify(answer).includes("disliked"), false, "the saved state reached this read");
+    const payload = JSON.stringify(answer);
+    assert.equal(payload.includes("viewing"), false, "the saved viewing field reached this read");
+    assert.equal(payload.includes('"seen"'), false, "the saved viewing value reached this read");
   });
 
   test("asking for two things still gets two things", async () => {
@@ -856,19 +876,19 @@ describe("the verdict tools", () => {
       told: "volunteered",
       said: { about: "judgement", judgement: "disliked" },
     })) as unknown as { verdict: { ref: string } };
-    await said(ana, "create_movie", { ...f, state: "liked" });
+    await said(ana, "create_movie", { ...f, viewing: "seen" });
 
-    // "Forget my verdict, and clear the saved state too."
+    // "Forget my verdict, and clear what you have saved about my watching it."
     await said(ana, "forget_verdict", { ref: stated.verdict.ref });
-    await said(ana, "update_movie", { ...f, state: null });
+    await said(ana, "update_movie", { ...f, viewing: null });
 
     assert.deepEqual(await history(ana, f), [], "the verdict act survived");
     const taste = (await said(ana, "get_taste")) as unknown as {
-      movies: { title: string; state: string | null }[];
+      movies: { title: string; viewing: string | null }[];
     };
     const movie = taste.movies.find((one) => one.title === f.title);
-    assert.ok(movie, "clearing the state removed the film, which is delete_movie's job");
-    assert.equal(movie.state, null, "the explicitly requested clearing did not happen");
+    assert.ok(movie, "clearing the viewing removed the film, which is delete_movie's job");
+    assert.equal(movie.viewing, null, "the explicitly requested clearing did not happen");
   });
 
   test("stripping the handles did not change what the answer means", async () => {

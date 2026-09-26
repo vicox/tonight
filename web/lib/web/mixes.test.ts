@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { Mix, Movie, MovieState, Written } from "../taste/model.ts";
+import type { Mix, Movie, Viewing, Written } from "../taste/model.ts";
+import type { Judgement } from "../verdicts/model.ts";
+import type { Shown } from "./movie-summary.ts";
 import { LOVED, selected } from "./movie-summary.ts";
 import { filmsIn, filmsUnder, inNoMix, inOrder, preview, spokenMix } from "./mixes.ts";
 
@@ -14,19 +16,26 @@ import { filmsIn, filmsUnder, inNoMix, inOrder, preview, spokenMix } from "./mix
  * else. That is what these hold; the rendering is in `overview.test.ts`.
  */
 
-const film = (title: string, state: MovieState | null): Movie => ({
+const film = (
+  title: string,
+  judgement: Judgement | null,
+  viewing: Viewing | null = null,
+): Shown => ({
   title,
   year: 2000,
   imdbId: null,
-  state,
+  viewing,
   mixes: ["Quiet Dread"],
+  createdAt: null,
+  updatedAt: "2024-01-01T00:00:00.000000Z",
+  position: judgement === null ? undefined : { judgement },
 });
 
-const MOVIES: Movie[] = [
+const MOVIES: Shown[] = [
   film("Solaris", "loved"),
   film("Stalker", "loved"),
-  film("Dune", "not_seen"),
-  film("Heat", "seen"),
+  film("Dune", null, "unseen"),
+  film("Heat", null, "seen"),
   film("Nosferatu", null),
   { ...film("Arrival", "loved"), mixes: ["Space Tension"] },
 ];
@@ -44,15 +53,15 @@ const MIX: Mix = {
   ],
 };
 
-const loved = (mix: Mix, movies: readonly Movie[]) => selected(LOVED, filmsIn(mix, movies)).length;
+const loved = (mix: Mix, movies: readonly Shown[]) => selected(LOVED, filmsIn(mix, movies)).length;
 
 test("the count is membership, whatever was said about the films", () => {
   // Two loved, one not seen, one seen and one nobody has mentioned: five films
   // in the mix, and the count is five.
   assert.equal(filmsIn(MIX, MOVIES).length, 5);
   assert.deepEqual(
-    filmsIn(MIX, MOVIES).map((movie) => movie.state),
-    ["loved", "loved", "not_seen", "seen", null],
+    filmsIn(MIX, MOVIES).map((movie) => movie.position?.judgement ?? null),
+    ["loved", "loved", null, null, null],
   );
 });
 
@@ -76,7 +85,7 @@ const BOTH: Mix = {
   ],
 };
 
-const SHARED: Movie[] = MOVIES.map((movie) =>
+const SHARED: Shown[] = MOVIES.map((movie) =>
   movie.title === "Solaris" ? { ...movie, mixes: ["Quiet Dread", "Space Tension"] } : movie,
 );
 
@@ -110,11 +119,11 @@ test("the films a genre reaches keep the collection's own order", () => {
     collection.map((movie) => movie.title),
   );
 
-  // Membership and nothing about state: this reorders nothing and drops nothing
-  // for want of an opinion.
+  // Membership and nothing about what was said: this reorders nothing and drops
+  // nothing for want of an opinion.
   assert.deepEqual(
-    filmsUnder(genre("Mystery"), [MIX], MOVIES).map((movie) => movie.state),
-    ["loved", "loved", "not_seen", "seen", null],
+    filmsUnder(genre("Mystery"), [MIX], MOVIES).map((movie) => movie.position?.judgement ?? null),
+    ["loved", "loved", null, null, null],
   );
 });
 
@@ -150,7 +159,7 @@ test("the loved signal counts exactly the loved films", () => {
 
 test("no loved films is nothing to show, not a zero", () => {
   const nobody = MOVIES.map((movie) =>
-    movie.state === "loved" ? { ...movie, state: "seen" as MovieState } : movie,
+    movie.position?.judgement === "loved" ? { ...movie, position: undefined } : movie,
   );
   assert.equal(loved(MIX, nobody), 0);
 });
@@ -159,13 +168,13 @@ test("a new mark moves the loved count and leaves membership alone", () => {
   // Pressed inside the dialog: the film is still in the mix, so the count after
   // the title does not move, and the heart beside it does.
   const after = MOVIES.map((movie) =>
-    movie.title === "Dune" ? { ...movie, state: "loved" as MovieState } : movie,
+    movie.title === "Dune" ? { ...movie, position: { judgement: "loved" as Judgement } } : movie,
   );
-  assert.equal(filmsIn(MIX, after).length, 5, "membership changed with a state");
+  assert.equal(filmsIn(MIX, after).length, 5, "membership changed with a verdict");
   assert.equal(loved(MIX, after), 3);
 
   const away = MOVIES.map((movie) =>
-    movie.title === "Solaris" ? { ...movie, state: "liked" as MovieState } : movie,
+    movie.title === "Solaris" ? { ...movie, position: { judgement: "liked" as Judgement } } : movie,
   );
   assert.equal(filmsIn(MIX, away).length, 5, "membership changed with a state");
   assert.equal(loved(MIX, away), 1);
@@ -202,23 +211,28 @@ test("what a listener is given is the mix, said", () => {
  */
 
 /** A film with a date, for the ordering to have something to order by. */
-const dated = (title: string, state: MovieState | null, createdAt: string | null): Written<Movie> => ({
+const dated = (
+  title: string,
+  judgement: Judgement | null,
+  createdAt: string | null,
+): Shown => ({
   title,
   year: 2000,
   imdbId: null,
-  state,
+  viewing: judgement === null ? null : "seen",
   mixes: ["Quiet Dread"],
   createdAt,
   updatedAt: "2026-01-01T00:00:00.000Z",
+  position: judgement === null ? undefined : { judgement },
 });
 
-const of = (...films: Written<Movie>[]): Mix => ({
+const of = (...films: Shown[]): Mix => ({
   ...MIX,
   movies: films.map((film) => ({ title: film.title, year: film.year })),
 });
 
 /** The line a card would show for these films. Empty mixes are their own test. */
-function lineFor(films: Written<Movie>[]): string {
+function lineFor(films: Shown[]): string {
   const line = preview(filmsIn(of(...films), films));
   if (line === null) throw new Error("these films previewed as nothing");
   return line;
@@ -226,18 +240,18 @@ function lineFor(films: Written<Movie>[]): string {
 
 test("a preview is three titles at most, joined with commas", () => {
   const films = [
-    dated("Zodiac", "seen", "2026-03-01T00:00:00.000Z"),
-    dated("Memories of Murder", "seen", "2026-02-01T00:00:00.000Z"),
-    dated("Se7en", "seen", "2026-01-01T00:00:00.000Z"),
+    dated("Zodiac", null, "2026-03-01T00:00:00.000Z"),
+    dated("Memories of Murder", null, "2026-02-01T00:00:00.000Z"),
+    dated("Se7en", null, "2026-01-01T00:00:00.000Z"),
   ];
   assert.equal(lineFor(films), "Zodiac, Memories of Murder, Se7en");
 });
 
 test("what is left over is counted, and only when there is any", () => {
   const three = [
-    dated("Zodiac", "seen", "2026-03-01T00:00:00.000Z"),
-    dated("Memories of Murder", "seen", "2026-02-01T00:00:00.000Z"),
-    dated("Se7en", "seen", "2026-01-01T00:00:00.000Z"),
+    dated("Zodiac", null, "2026-03-01T00:00:00.000Z"),
+    dated("Memories of Murder", null, "2026-02-01T00:00:00.000Z"),
+    dated("Se7en", null, "2026-01-01T00:00:00.000Z"),
   ];
   // A preview that is the whole mix promises nothing after it, and does not say
   // "and 0 more" — there is nothing to open it for.
@@ -247,16 +261,16 @@ test("what is left over is counted, and only when there is any", () => {
 
   // One left over is one, said as one: the line is a sentence, not a template
   // with a plural to keep in step with a number.
-  const four = [...three, dated("Prisoners", "seen", "2025-12-01T00:00:00.000Z")];
+  const four = [...three, dated("Prisoners", null, "2025-12-01T00:00:00.000Z")];
   assert.equal(lineFor(four), "Zodiac, Memories of Murder, Se7en, and 1 more");
 
   // And it counts the films the preview left out rather than the mix: what a
   // reader is deciding against is what is behind the glance.
   const seven = [
     ...four,
-    dated("Prisoners II", "seen", "2025-11-01T00:00:00.000Z"),
-    dated("Prisoners III", "seen", "2025-10-01T00:00:00.000Z"),
-    dated("Prisoners IV", "seen", "2025-09-01T00:00:00.000Z"),
+    dated("Prisoners II", null, "2025-11-01T00:00:00.000Z"),
+    dated("Prisoners III", null, "2025-10-01T00:00:00.000Z"),
+    dated("Prisoners IV", null, "2025-09-01T00:00:00.000Z"),
   ];
   assert.equal(lineFor(seven), "Zodiac, Memories of Murder, Se7en, and 4 more");
 
@@ -272,8 +286,8 @@ test("an empty mix has no preview at all", () => {
 
 test("loved comes before liked, and liked before everything else", () => {
   const films = [
-    dated("Heat", "seen", "2026-05-01T00:00:00.000Z"),
-    dated("Dune", "not_seen", "2026-04-01T00:00:00.000Z"),
+    dated("Heat", null, "2026-05-01T00:00:00.000Z"),
+    dated("Dune", null, "2026-04-01T00:00:00.000Z"),
     dated("Arrival", "liked", "2026-01-01T00:00:00.000Z"),
     dated("Solaris", "loved", "2025-01-01T00:00:00.000Z"),
   ];
@@ -290,10 +304,10 @@ test("within one standing, the most recently saved comes first", () => {
   ];
   assert.equal(lineFor(loved), "Solaris, Andrei Rublev, Stalker");
 
-  const liked = loved.map((film) => ({ ...film, state: "liked" as MovieState }));
+  const liked = loved.map((film) => ({ ...film, position: { judgement: "liked" as Judgement } }));
   assert.equal(lineFor(liked), "Solaris, Andrei Rublev, Stalker");
 
-  const rest = loved.map((film) => ({ ...film, state: "not_seen" as MovieState }));
+  const rest = loved.map((film) => ({ ...film, position: undefined }));
   assert.equal(lineFor(rest), "Solaris, Andrei Rublev, Stalker");
 });
 
@@ -311,9 +325,9 @@ test("a film nobody dated comes after the dated films of its own standing", () =
 test("two films with one date come out in one order, every time", () => {
   const same = "2026-01-01T00:00:00.000Z";
   const films = [
-    dated("Se7en", "seen", same),
-    dated("Zodiac", "seen", same),
-    dated("Memories of Murder", "seen", same),
+    dated("Se7en", null, same),
+    dated("Zodiac", null, same),
+    dated("Memories of Murder", null, same),
   ];
   const once = lineFor(films);
   assert.equal(once, lineFor([...films].reverse()), "the answer depends on the order given");
@@ -324,8 +338,8 @@ test("previewing a mix moves nothing that is counted", () => {
   const films = [
     dated("Solaris", "loved", "2026-01-01T00:00:00.000Z"),
     dated("Stalker", "loved", null),
-    dated("Dune", "not_seen", "2026-06-01T00:00:00.000Z"),
-    dated("Heat", "seen", "2026-05-01T00:00:00.000Z"),
+    dated("Dune", null, "2026-06-01T00:00:00.000Z"),
+    dated("Heat", null, "2026-05-01T00:00:00.000Z"),
   ];
   const mix = of(...films);
   const before = filmsIn(mix, films);
@@ -366,21 +380,22 @@ function mixOf(
   };
 }
 
-/** A film in a named mix, with a state and a date. */
+/** A film in a named mix, with a standing judgement and a date. */
 function inMix(
   mix: string,
   title: string,
-  state: MovieState | null,
+  judgement: Judgement | null,
   createdAt: string | null,
-): Written<Movie> {
+): Shown {
   return {
     title,
     year: 2000,
     imdbId: null,
-    state,
+    viewing: judgement === null ? null : "seen",
     mixes: [mix],
     createdAt,
     updatedAt: "2026-01-01T00:00:00.000Z",
+    position: judgement === null ? undefined : { judgement },
   };
 }
 
@@ -431,7 +446,7 @@ test("the newest film is the newest of all of them, whatever was said about it",
   // Both have one loved film, dated the same. What separates them is a film
   // nobody has an opinion on, which still counts as something added to the mix.
   const quiet = [inMix("Quiet", "Solaris", "loved", JAN), inMix("Quiet", "Nosferatu", null, JUN)];
-  const still = [inMix("Still", "Stalker", "loved", JAN), inMix("Still", "Dune", "not_seen", JAN)];
+  const still = [inMix("Still", "Stalker", "loved", JAN), inMix("Still", "Dune", null, JAN)];
   const mixes = [mixOf("Still", JUN, still), mixOf("Quiet", JAN, quiet)];
   assert.deepEqual(names(inOrder(mixes, [...quiet, ...still])), ["Quiet", "Still"]);
 });
@@ -527,9 +542,9 @@ test("ordering the mixes moves nothing inside them", () => {
  */
 
 test("the remainder is every film in no mix, and nothing else", () => {
-  const movies: Written<Movie>[] = [
+  const movies: Shown[] = [
     { ...dated("Loose one", "loved", JAN), mixes: [] },
-    { ...dated("Filed", "seen", JAN), mixes: ["Quiet Dread"] },
+    { ...dated("Filed", null, JAN), mixes: ["Quiet Dread"] },
     { ...dated("Loose two", null, null), mixes: [] },
     { ...dated("Filed twice", "liked", JAN), mixes: ["Quiet Dread", "Slow Cinema"] },
     { ...dated("Loose three", "disliked", JUN), mixes: [] },
@@ -544,8 +559,8 @@ test("the remainder is every film in no mix, and nothing else", () => {
 
 test("the remainder keeps the order it was given", () => {
   // Deliberately not alphabetical and not by date, so any sort would show.
-  const movies: Written<Movie>[] = ["Zulu", "Alpha", "Mike"].map((title, index) => ({
-    ...dated(title, "seen", index === 1 ? JUN : JAN),
+  const movies: Shown[] = ["Zulu", "Alpha", "Mike"].map((title, index) => ({
+    ...dated(title, null, index === 1 ? JUN : JAN),
     mixes: [],
   }));
 
@@ -553,7 +568,7 @@ test("the remainder keeps the order it was given", () => {
 });
 
 test("every film filed somewhere, and the remainder is empty", () => {
-  const movies = [{ ...dated("Filed", "seen", JAN), mixes: ["Quiet Dread"] }];
+  const movies = [{ ...dated("Filed", null, JAN), mixes: ["Quiet Dread"] }];
   assert.deepEqual(inNoMix(movies), []);
   assert.deepEqual(inNoMix([]), []);
 });
@@ -561,7 +576,7 @@ test("every film filed somewhere, and the remainder is empty", () => {
 test("no mixes at all, and every film is the remainder", () => {
   // What the page looks like before anybody has made a mix: the films are all
   // in none of them, and the one way to them has to be there.
-  const movies: Written<Movie>[] = ["One", "Two", "Three"].map((title) => ({
+  const movies: Shown[] = ["One", "Two", "Three"].map((title) => ({
     ...dated(title, null, JAN),
     mixes: [],
   }));
@@ -571,9 +586,9 @@ test("no mixes at all, and every film is the remainder", () => {
 });
 
 test("the films it was given are left as they were", () => {
-  const movies: Written<Movie>[] = [
+  const movies: Shown[] = [
     { ...dated("Loose", "loved", JAN), mixes: [] },
-    { ...dated("Filed", "seen", JAN), mixes: ["Quiet Dread"] },
+    { ...dated("Filed", null, JAN), mixes: ["Quiet Dread"] },
   ];
   const given = [...movies];
   inNoMix(movies);

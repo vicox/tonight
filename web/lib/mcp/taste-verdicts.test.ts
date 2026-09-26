@@ -88,7 +88,7 @@ describe("what recommendation work is handed", () => {
   const film = () => ({ title: `Subject ${String(++next)}`, year: 2013 });
 
   const taste = async (tools = ana) => (await said(tools, "get_taste")) as {
-    movies?: { title: string; state: string | null }[];
+    movies?: { title: string; viewing: string | null }[];
     verdicts?: Standing[];
   };
   const about = async (f: { title: string }, tools = ana): Promise<Standing[]> =>
@@ -165,24 +165,32 @@ describe("what recommendation work is handed", () => {
 
   /* -------------------------------------------------------------- against a state */
 
-  test("a verdict and the state it disagrees with are both visible, and distinct", async () => {
+  test("a verdict and the film it is about are both visible, and distinct", async () => {
     const f = film();
-    await said(ana, "create_movie", { title: f.title, year: f.year, state: "liked" });
+    await said(ana, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "disliked" } });
 
     const model = await taste();
-    assert.equal(model.movies?.find((m) => m.title === f.title)?.state, "liked", "the state was rewritten");
+    assert.equal(
+      model.movies?.find((m) => m.title === f.title)?.viewing,
+      "seen",
+      "recording a verdict rewrote the film",
+    );
     assert.equal((await about(f))[0]?.judgement, "disliked", "the verdict did not reach the answer");
   });
 
-  test("taking the verdict back leaves the state exactly as it was", async () => {
+  test("taking the verdict back leaves the film exactly as it was", async () => {
     const f = film();
-    await said(ana, "create_movie", { title: f.title, year: f.year, state: "liked" });
+    await said(ana, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "disliked" } });
     await said(ana, "withdraw_verdict", { film: f });
 
     assert.deepEqual(await about(f), [], "a withdrawn verdict still reached recommendation work");
-    assert.equal((await taste()).movies?.find((m) => m.title === f.title)?.state, "liked", "the state did not return");
+    assert.equal(
+      (await taste()).movies?.find((m) => m.title === f.title)?.viewing,
+      "seen",
+      "withdrawing a verdict changed the film",
+    );
   });
 
   test("a correction replaces what it corrected, and leaves no trace of it", async () => {
@@ -210,7 +218,7 @@ describe("what recommendation work is handed", () => {
 
   test("an evening's refusal never arrives as a claim about the film", async () => {
     const f = film();
-    await said(ana, "create_movie", { title: f.title, year: f.year, state: "loved" });
+    await said(ana, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
     await said(ana, "record_verdict", {
       film: f,
       told: "confirmed",
@@ -220,7 +228,7 @@ describe("what recommendation work is handed", () => {
     assert.equal(one?.occasion, "evening-1", "the refusal lost the evening it belongs to");
     assert.equal(one?.judgement, undefined, "an evening's refusal became a judgement");
     // And the film still stands where it stood everywhere else.
-    assert.equal((await taste()).movies?.find((m) => m.title === f.title)?.state, "loved");
+    assert.equal((await taste()).movies?.find((m) => m.title === f.title)?.viewing, "seen");
   });
 
   test("a global claim and an evening's refusal arrive as two things, not one", async () => {
@@ -254,14 +262,14 @@ describe("what recommendation work is handed", () => {
   test("a film refused for good says nothing about any other film", async () => {
     const refused = film();
     const other = film();
-    await said(ana, "create_movie", { title: other.title, year: other.year, state: "loved" });
+    await said(ana, "create_movie", { title: other.title, year: other.year, viewing: "seen" });
     await said(ana, "record_verdict", {
       film: refused,
       told: "volunteered",
       said: { about: "rejection", reach: "not-ever", reason: "too bleak" },
     });
     assert.deepEqual(await about(other), [], "a refusal of one film reached another");
-    assert.equal((await taste()).movies?.find((m) => m.title === other.title)?.state, "loved");
+    assert.equal((await taste()).movies?.find((m) => m.title === other.title)?.viewing, "seen");
     // Nothing categorical is derived anywhere: no genre, no mix, no rule.
     const model = await taste();
     assert.equal(
@@ -285,7 +293,7 @@ describe("what recommendation work is handed", () => {
     const withHistory = toolsFor("google:with-history");
     const without = toolsFor("google:without-history");
     for (const tools of [withHistory, without]) {
-      await said(tools, "create_movie", { title: f.title, year: f.year, state: "seen" });
+      await said(tools, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
     }
 
     const written = await said(withHistory, "record_episode", {
@@ -308,7 +316,7 @@ describe("what recommendation work is handed", () => {
     const waiting = toolsFor("google:waiting");
     const quiet = toolsFor("google:quiet-too");
     for (const tools of [waiting, quiet]) {
-      await said(tools, "create_movie", { title: f.title, year: f.year, state: "seen" });
+      await said(tools, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
     }
     const questions = sqlQuestionStore(driver, asUser("google:waiting"));
     await questions.open(askAbout(f, new Date(Date.now() - 20 * 86_400_000).toISOString()));
@@ -357,11 +365,31 @@ describe("what recommendation work is handed", () => {
 
   test("the description says what the payload is and what it is not", () => {
     const text = ana.get_taste?.description ?? "";
-    assert.match(text, /`verdicts` is what they have since said about particular films/u);
+    assert.match(text, /`verdicts` is what they have said about particular films/u);
     assert.match(text, /Only what currently stands is here/u);
     assert.match(text, /`not-tonight` is about\s+that evening/u);
     assert.match(text, /that film, not its genre, its director or anything resembling it/u);
-    assert.match(text, /the\s+film's state in movies is what is left of what they said/u);
+    // A taking-back reaches as far as the verdict reached and no further. Said
+    // both ways round, because each half is a mistake a reader actually makes:
+    // that withdrawing a judgement leaves a weaker opinion somewhere, and that
+    // withdrawing one evening's refusal clears the film. And it does not unsay
+    // anything — "they have said nothing" is false about somebody who spoke and
+    // then withdrew.
+    assert.match(text, /\*\*A taking-back reaches exactly as far as the verdict it takes back\*\*/u);
+    assert.match(text, /withdrawing a judgement leaves no current judgement about that film/u);
+    assert.match(
+      text,
+      /withdrawing an evening's `not-tonight` removes only that evening's refusal/u,
+      "a scoped withdrawal is described as clearing the film",
+    );
+    assert.match(text, /leaves whatever they said about the film in general standing where it was/u);
+    assert.match(text, /They did say it, and `get_memory` still remembers that they did/u);
+    assert.doesNotMatch(text, /state in movies/u, "the payload still promises a Movie opinion");
+    assert.doesNotMatch(
+      text,
+      /they have said nothing about that film/u,
+      "a withdrawal is described as never having spoken",
+    );
     assert.match(text, /not that you recommended it, not that they watched or\s+finished it/u);
     assert.match(text, /not a question of yours waiting\s+on an answer/u);
     assert.match(text, /neither is a number/u);

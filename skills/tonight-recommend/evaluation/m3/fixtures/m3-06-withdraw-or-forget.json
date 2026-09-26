@@ -2,20 +2,47 @@
   "id": "m3-06-withdraw-or-forget",
   "title": "One thing said about one film, and two different ways of taking it away",
   "user": "google:eval-m3-06-withdraw-or-forget",
-  "families": ["E"],
+  "families": [
+    "E"
+  ],
   "catches": "Whether withdrawing and forgetting are two operations or one word. Withdrawing leaves the statement in what Tonight remembers and stops it applying; forgetting takes the statement out. A model that answers either request with the other tool has changed what the user asked for.",
   "writes": true,
   "model": {
     "genres": [],
     "mixes": [],
-    "movies": [{ "title": "Black Bag", "year": 2025, "state": "liked" }]
+    "movies": [
+      {
+        "title": "Black Bag",
+        "year": 2025,
+        "viewing": "seen"
+      }
+    ]
   },
   "acts": [
     {
       "do": "verdict",
-      "film": { "title": "Black Bag", "year": 2025 },
+      "film": {
+        "title": "Black Bag",
+        "year": 2025
+      },
       "told": "volunteered",
-      "said": { "about": "judgement", "judgement": "disliked", "because": "it never earned the ending" }
+      "said": {
+        "about": "judgement",
+        "judgement": "liked"
+      }
+    },
+    {
+      "do": "verdict",
+      "film": {
+        "title": "Black Bag",
+        "year": 2025
+      },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "disliked",
+        "because": "it never earned the ending"
+      }
     }
   ]
 }

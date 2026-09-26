@@ -85,7 +85,7 @@ describe("M1 — remembers the evening", () => {
     // tools, so what gate 7 compares is what Tonight would actually answer.
     const setup = tools("google:ana");
     await setup.create_genre!.handler({ name: "Slow Burn", instruction: "takes its time" });
-    await setup.create_movie!.handler({ title: "Zodiac", year: 2007, state: "loved" });
+    await setup.create_movie!.handler({ title: "Zodiac", year: 2007, viewing: "seen" });
 
     results = [];
     for (const trajectory of TRAJECTORIES) {
@@ -179,14 +179,14 @@ describe("M1 — remembers the evening", () => {
     );
   });
 
-  test("no trajectory left a verdict or any taste state behind", () => {
+  test("no trajectory left a verdict or touched the taste model", () => {
     // Gate 7 compares the whole model; this says the same thing from the shape
     // of what was read, so a taste model that changed in a way JSON ordering hid
     // is still caught.
     for (const result of results) {
-      const after = result.tasteAfter as { movies?: { title: string; state: string | null }[] };
+      const after = result.tasteAfter as { movies?: { title: string; viewing: string | null }[] };
       const zodiac = after.movies?.find((movie) => movie.title === "Zodiac");
-      assert.equal(zodiac?.state, "loved", `${result.trajectory.name} moved a movie state`);
+      assert.equal(zodiac?.viewing, "seen", `${result.trajectory.name} moved a movie's viewing`);
       assert.equal(after.movies?.length, 1, `${result.trajectory.name} added a movie`);
     }
   });

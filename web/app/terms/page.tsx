@@ -29,16 +29,29 @@ export default function Terms() {
         <p>
           Tonight keeps a <strong>taste model that belongs to you</strong>: genres, each with an
           instruction saying what that genre means to you, mixes that combine them and say what the
-          combination means, and the films you have told it about, in whichever of your mixes you
-          put them or in none. It stores that model, enforces the rules over it, and makes it
-          available to you on this website and to an assistant you connect over MCP.
+          combination means, the films you have told it about, in whichever of your mixes you
+          put them or in none, and what you thought of a film — that you liked, loved or disliked
+          it, or that you turned it down — which is kept separately from the film and is the only
+          place an opinion is stored. It also records the evenings it took part in. It stores all
+          of that and enforces the rules over it.
+        </p>
+        <p>
+          <strong>An assistant you connect over MCP can read all of it. This website shows you
+          part of it.</strong> The signed-in page is a view built around your saved films: it
+          shows a film with what currently stands about it, so a verdict about a film you never
+          saved is not on it, nor is a <em>not tonight</em> given for one evening, nor a verdict
+          you replaced or took back, nor the evenings Tonight recorded. All of that is still
+          stored, still yours, and still covered by the same retention and deletion terms — the{" "}
+          <a href="/privacy">Privacy Policy</a> says which parts the page leaves out and why.
         </p>
         <p>
           <strong>Tonight does not choose films for you.</strong> It contains no recommendation engine,
           no language model and no film database — the films it holds are the ones you put there,
           and nothing about them is looked up. Recommending happens in whatever MCP client you
-          connect — it reads your genres and mixes and brings its own knowledge of films and whatever
-          other tools it has. Anything it tells you about a film comes from it, not from Tonight, and
+          connect — it reads what you have written down, which is your genres and mixes, the films
+          you saved, and the verdicts that currently stand; the evenings Tonight recorded are
+          history and are read separately, if at all. It brings its own knowledge of films and
+          whatever other tools it has. Anything it tells you about a film comes from it, not from Tonight, and
           the operator makes no promise that it is accurate, complete or up to date. That assistant is
           a separate service on its own terms.
         </p>
@@ -103,15 +116,17 @@ export default function Terms() {
         <p>
           What is processed, and for how long, is described in the{" "}
           <a href="/privacy">Privacy Policy</a>. In short: Tonight stores your genres, your mixes,
-          and the films you told it about — including the one state you gave each. It also records the
+          the films you told it about — including whether you have said you watched each — and
+          what you have said about particular films. It also records the
           evenings it took part in: what you asked for, what it offered, and whatever you said you
           did with it. Anything you do not say stays unknown, and that record is history rather
           than taste — nothing about what you like is learned from it, and you can correct or
           delete any of it. What Tonight still does not build is a profile from how you use it.
-          Everything you create — genres, mixes, the films you saved with the state you gave each,
-          and the evenings it recorded — is intended
-          to be kept until the closed beta ends and deleted by the operator then, or earlier on
-          request.
+          Everything you create is intended to be kept until the closed beta ends and deleted by
+          the operator then, or earlier on request. That means each of these, kept in its own
+          right: your genres; your mixes; the films you saved, with whether you said you watched
+          each; every verdict you gave, <strong>whether or not the film it is about is one you
+          saved</strong>; and the evenings Tonight recorded.
         </p>
       </section>
 
@@ -121,8 +136,8 @@ export default function Terms() {
           You can stop using Tonight whenever you like and ask for your data to be deleted. You can
           delete any mix yourself, and any genre no mix is built from — a genre a mix refers to stays
           until you take it out of that mix or delete the mix. For a film, the website lets you
-          set the state of a film; adding or removing one is done through your
-          assistant, which does it on request. The operator may withdraw access at any time, in
+          say whether you have seen it and what you thought of it; adding or removing one is done
+          through your assistant, which does it on request. The operator may withdraw access at any time, in
           particular if these terms are not respected or when the closed beta ends.
         </p>
       </section>

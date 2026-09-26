@@ -3,6 +3,8 @@ import { wrongOrigin } from "../oauth/origin.ts";
 import { configurationFault, json } from "../oauth/responses.ts";
 import { TasteError } from "../taste/model.ts";
 import { tasteStore, type TasteStore } from "../taste/store.ts";
+import { VerdictError } from "../verdicts/model.ts";
+import { verdictStore, type VerdictStore } from "../verdicts/store.ts";
 import { sessionOf } from "./cookies.ts";
 import { signedInVisitor, type SignedInVisitor } from "./session.ts";
 import { crossSite } from "./signin.ts";
@@ -24,8 +26,8 @@ import { crossSite } from "./signin.ts";
  * boundaries differ only in what they accept as proof — a bearer token there, a
  * session cookie here — and they meet at one `tasteStore(user)`.
  *
- * Everything routed through here changes the taste model, so the CSRF check is
- * unconditional rather than per-route. It is the same function the sign-in and
+ * Everything routed through here changes something of the user's, so the CSRF
+ * check is unconditional rather than per-route. It is the same function the sign-in and
  * sign-out endpoints use, so "another site cannot act here" is one rule with one
  * implementation.
  *
@@ -34,10 +36,20 @@ import { crossSite } from "./signin.ts";
  * see `app/page.tsx`.
  */
 
-/** What a handler is given: who is asking, their store, and what they sent. */
+/** What a handler is given: who is asking, their stores, and what they sent. */
 export type Authorized = {
   visitor: SignedInVisitor;
   store: TasteStore;
+  /**
+   * Opened for the same user, and separate on purpose.
+   *
+   * The website changes two things and they are different kinds of thing: a film
+   * is saved and may be marked as watched, which is the taste model; what the
+   * user thinks of it is a verdict, which has a scope, an instant and a history
+   * the taste model could not carry. One boundary, two stores, and no route that
+   * writes to both.
+   */
+  verdicts: VerdictStore;
   /** The parsed JSON body. Handlers read fields off it and the domain validates. */
   body: Record<string, unknown>;
 };
@@ -102,12 +114,18 @@ export async function authorized(
   }
 
   try {
-    const result = await handler({ visitor, store: await tasteStore(visitor.user), body });
+    const [store, verdicts] = await Promise.all([
+      tasteStore(visitor.user),
+      verdictStore(visitor.user),
+    ]);
+    const result = await handler({ visitor, store, verdicts, body });
     return json(result ?? {}, 200);
   } catch (error) {
-    // A `TasteError` is a decision the domain reached before writing anything, so
-    // it keeps its own words and its own certainty.
-    if (error instanceof TasteError) return json({ error: "refused", message: error.message }, 400);
+    // A `TasteError` or a `VerdictError` is a decision a domain reached before
+    // writing anything, so it keeps its own words and its own certainty.
+    if (error instanceof TasteError || error instanceof VerdictError) {
+      return json({ error: "refused", message: error.message }, 400);
+    }
 
     // Anything else was thrown somewhere between here and the database, and the
     // handler reads the model back after changing it — so a failure may be a write

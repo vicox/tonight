@@ -1,7 +1,6 @@
 import type { Episode, Recorded } from "../episodes/model.ts";
 import { filmKey } from "../films/identity.ts";
-import { disagrees as pullsAgainst, evaluative } from "../precedence.ts";
-import type { Movie, MovieHandle, MovieState, Taste, Written } from "../taste/model.ts";
+import type { Movie, MovieHandle, Taste, Viewing, Written } from "../taste/model.ts";
 import {
   current,
   spoken,
@@ -23,7 +22,7 @@ import {
  * entry is a root that already exists in the taste model, the verdict history
  * or the episode record, carried across unchanged and placed.
  *
- * ## Why three places and not one list
+ * ## Why two places and not one list
  *
  * Because *"I know you dislike this"* and *"I remember you watched this"* are
  * different claims, and a reader that meets them in one list will treat them as
@@ -35,19 +34,21 @@ import {
  * So:
  *
  * - **held** — what Tonight currently holds as knowledge about them, and can
- *   act on. Genres, Mixes, Movies, and the verdicts that stand.
- * - **operative** — only the places where two held roots disagree about one
- *   film, naming both and saying which governs. Not a copy of everything held.
+ *   act on. Genres, Mixes, Movies with what is known about watching them, and
+ *   the verdicts that stand.
  * - **remembered** — what Tonight remembers happening: evenings, and the things
  *   they said that no longer stand. True, and not evidence.
  *
- * ## Nothing here decides anything new
+ * ## Nothing here decides anything
  *
- * There is exactly one rule in this file, `PRECEDENCE`, and it is not this
- * file's rule — it is the one the instructions already give the model, written
- * out so an explanation cannot drift from the behaviour it explains. Everything
- * else is placement: which store a root came from, and what the verdict model
- * already says became of it.
+ * Not one rule. This file is placement: which store a root came from, and what
+ * the verdict model already says became of it.
+ *
+ * There used to be a third section and a rule to go with it, because a Movie
+ * carried an opinion and a Verdict carried an opinion and something had to say
+ * which governed. Only Verdicts carry opinions now, so there is no second
+ * opinion to rank against and nothing left to resolve. A Movie says the film is
+ * theirs and whether they watched it; what they thought of it is in one place.
  */
 
 /* ------------------------------------------------------------- provenance */
@@ -163,13 +164,13 @@ export type MixRoot = {
   handle: Handle;
 };
 
-/** A film they filed, and the state they filed it under. */
+/** A film they filed, and whether they have said they watched it. */
 export type MovieRoot = {
   placement: "held";
   of: "movie";
   film: Film;
-  /** `null` is never told, which is not the same as `not_seen`. */
-  state: MovieState | null;
+  /** `null` is never told, which is not the same as `unseen`. */
+  viewing: Viewing | null;
   imdbId: string | null;
   mixes: readonly string[];
   basis: Saved;
@@ -222,57 +223,8 @@ export type Root = HeldRoot | EveningRoot;
 
 /* --------------------------------------------------------------- the rule */
 
-/**
- * The one rule this file applies, and it is not this file's rule.
- *
- * `SKILL.md` already tells the model this, and `get_taste` already hands over a
- * Movie state and a verdict side by side without resolving them. So the
- * resolution lives in the instructions, and M3 has to describe the same
- * resolution or it will explain behaviour Tonight does not have.
- *
- * Written as a string so a contract can hold it against the instruction text.
- * If somebody changes the wording there, that contract fails and this constant
- * has to be looked at — which is the whole point of it being here rather than
- * reimplemented in prose a second time.
- */
-export const PRECEDENCE = "A verdict outranks a disagreeing state";
-
-/**
- * A film two held roots disagree about, and which of them governs.
- *
- * Only a disagreement earns an entry. Two roots that say the same thing are not
- * a conflict and listing them would turn `operative` into a second copy of
- * `held` — which is exactly what it must not be, because then a reader would
- * have two places to look for one fact and no way to tell which was authoritative.
- *
- * The saved state is named as well as the verdict, and it is **not** removed
- * from `held`. It is still stored, the user can still see and correct it, and
- * it applies again by itself the moment the verdict is withdrawn or forgotten —
- * because this whole structure is recomputed from roots every time and there is
- * nowhere for a stale resolution to live.
- */
-export type Conflict = {
-  film: Film;
-  /**
-   * Where the governing claim applies, exactly as the claim says it.
-   *
-   * `"everywhere"` for a judgement or a `not-ever`; one evening for a
-   * `not-tonight`, which governs there and leaves the saved preference as the
-   * base everywhere else — including underneath it, in that same evening, if the
-   * refusal is taken back.
-   */
-  where: Scope;
-  /** The Movie root, still stored and still in `held`. */
-  saved: { state: MovieState; handle: Handle };
-  /** The verdict that governs, and how to take it back. */
-  governing: { act: Verdict; handle: Handle };
-  /** The rule being applied, verbatim. */
-  because: typeof PRECEDENCE;
-};
-
 export type Memory = {
   held: readonly HeldRoot[];
-  operative: readonly Conflict[];
   remembered: readonly RememberedRoot[];
 };
 
@@ -355,7 +307,7 @@ export function compose({ taste, acts, episodes }: Roots): Memory {
     });
   }
 
-  return { held, operative: conflicts(held), remembered };
+  return { held, remembered };
 }
 
 /* ------------------------------------------------------------- the pieces */
@@ -370,7 +322,7 @@ const movieRoot = (movie: Written<Movie>): MovieRoot => ({
   placement: "held",
   of: "movie",
   film: { title: movie.title, year: movie.year },
-  state: movie.state,
+  viewing: movie.viewing,
   imdbId: movie.imdbId,
   mixes: movie.mixes,
   basis: savedAs(movie),
@@ -439,74 +391,3 @@ function everyScope(line: readonly Act[]): Scope[] {
   );
   return ["everywhere", ...[...occasions].map((occasion) => ({ occasion }))];
 }
-
-/**
- * Where two held roots disagree about one film, and where the disagreement runs.
- *
- * A conflict is claimed only where the two roots actually pull recommendation in
- * different directions, and it is always reported with the scope the governing
- * claim has. That scope is the whole difference between *"you never want to see
- * this"* and *"not on a Tuesday"*, and flattening it would turn an evening's
- * mood into a standing fact about the person.
- *
- * Three disagreements exist:
- *
- * - a **judgement** unlike the saved state. Judgements are global by
- *   construction, so this governs everywhere.
- * - **`not-ever`** against a film they filed as liked or loved. The refusal is
- *   global and governs the film everywhere.
- * - **`not-tonight`** against a film they filed as liked or loved. It governs in
- *   its own evening and nowhere else; the saved preference is still the base
- *   everywhere including, underneath, in that evening.
- *
- * What is deliberately **not** a conflict:
- *
- * - `seen`, `not_seen` and `null`. The first is explicitly non-evaluative and
- *   the other two are the absence of experience, so a verdict beside them adds
- *   an opinion rather than contradicting one.
- * - A refusal against a film they filed as `disliked`. Both point the same way,
- *   and a system that called that a contradiction would be inventing one.
- *
- * A refusal is never turned into a rating. `governing.act` is the verdict
- * itself, rejection and all, so a reader can say what they said rather than a
- * translation of it — and nothing here reaches any other film.
- */
-function conflicts(held: readonly HeldRoot[]): Conflict[] {
-  const rated = new Map<string, MovieRoot>();
-  for (const root of held) {
-    if (root.of === "movie" && evaluative(root.state)) rated.set(filmKey(root.film), root);
-  }
-
-  const found: Conflict[] = [];
-  for (const root of held) {
-    if (root.of !== "verdict" || root.act.said !== "verdict") continue;
-    const saved = rated.get(filmKey(root.act.film));
-    if (!saved || !disagrees(saved.state, root.act)) continue;
-
-    found.push({
-      film: root.act.film,
-      // The governing claim's own scope, never widened. A `not-tonight` says
-      // where it applies and this carries that word for word.
-      where: root.act.scope,
-      saved: { state: saved.state as MovieState, handle: saved.handle },
-      governing: { act: root.act, handle: root.handle },
-      because: PRECEDENCE,
-    });
-  }
-  return found;
-}
-
-/**
- * Whether what they said pulls against how the film is filed.
- *
- * The comparison itself is `lib/precedence.ts`'s, shared with the taste model
- * so that a recommendation and an explanation cannot disagree about what
- * disagrees. This reduces a verdict to the two facts that rule needs.
- */
-const disagrees = (state: MovieState | null, verdict: Verdict): boolean =>
-  pullsAgainst(
-    state,
-    verdict.assertion.about === "judgement"
-      ? { judgement: verdict.assertion.judgement }
-      : { rejected: verdict.assertion.rejection.reach },
-  );

@@ -1,23 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { Movie, MovieState, Written } from "../taste/model.ts";
+import type { Movie, Viewing, Written } from "../taste/model.ts";
+import type { Judgement, Standing } from "../verdicts/model.ts";
+import { positions, withPositions, type Position } from "./judgements.ts";
 import {
   DISLIKED,
-  FACTS,
   LIKED,
   LOVED,
+  NO_OPINION,
   NOT_SEEN,
-  OPINIONS,
   OTHER_MOVIES,
+  SAID,
   SEEN,
-  WITHOUT_STATUS,
+  WATCHED,
+  WATCHING_UNSAID,
   filedUnder,
   recentlyAdded,
   selected,
   sentence,
   spoken,
   type Selection,
+  type Shown,
 } from "./movie-summary.ts";
 
 /**
@@ -29,212 +33,312 @@ import {
  * a write and a re-render, and what this holds is that the same films always
  * produce the same answers. The rendering decisions are in `overview.test.ts`.
  *
- * The thing to protect is that the row is a list of parts and not a sum. Every
- * control is exactly one state, so each film is counted once and somewhere; the
- * invariant below is what stops `Seen` drifting back into an aggregate that
- * counts the three opinions a second time.
+ * ## Two rows, and why the old invariant is gone rather than adjusted
+ *
+ * This used to hold that six controls summed to the collection with nothing
+ * counted twice. They could, because a film had exactly one state out of five
+ * and the sixth was having none. A film now answers two independent questions —
+ * whether it was watched, and what the user said about it — and is in one
+ * bucket of each. A film can be seen *and* loved, so a single row cannot be
+ * exhaustive and must not be made to look as though it is.
+ *
+ * So the invariant is per row, asserted twice, and the thing being protected is
+ * that neither row quietly stops accounting for every film.
  */
 
 /** A film, with only the parts a count or a row cares about spelled out. */
-function film(title: string, state: MovieState | null, mixes: string[] = []): Movie {
-  return { title, year: 2000, imdbId: null, state, mixes };
+function film(
+  title: string,
+  viewing: Viewing | null,
+  judgement: Judgement | null = null,
+  mixes: string[] = [],
+): Shown {
+  const position: Position | undefined = judgement === null ? undefined : { judgement };
+  return {
+    title,
+    year: 2000,
+    imdbId: null,
+    viewing,
+    mixes,
+    createdAt: null,
+    updatedAt: "2024-01-01T00:00:00.000000Z",
+    position,
+  };
 }
 
 /**
- * A collection with every state in it, more than one of some, and two films
- * nobody has said anything about — so a count that matched by accident is a
- * count that fails here.
+ * A collection covering both axes and their combinations.
+ *
+ * Every viewing answer, every judgement, a film that is seen *and* judged, one
+ * that is explicitly unseen while judged — the contradiction a user can create —
+ * and two nobody has said anything about at all. A count that matched by
+ * accident is a count that fails here.
  */
-const COLLECTION: Movie[] = [
+const COLLECTION: Shown[] = [
   film("Heat", "seen"),
   film("Sunset", "seen"),
-  film("Dune", "not_seen", ["Space Tension"]),
-  film("Arrival", "liked", ["Space Tension"]),
-  film("Solaris", "loved", ["Quiet Dread"]),
-  film("Stalker", "loved", ["Quiet Dread", "Slow Cinema"]),
-  film("Cats", "disliked", ["Popcorn Chaos"]),
-  film("Sunrise", null, ["Slow Cinema"]),
+  film("Dune", "unseen", null, ["Space Tension"]),
+  film("Arrival", "seen", "liked", ["Space Tension"]),
+  film("Solaris", null, "loved", ["Quiet Dread"]),
+  film("Stalker", "seen", "loved", ["Quiet Dread", "Slow Cinema"]),
+  film("Cats", "unseen", "disliked", ["Popcorn Chaos"]),
+  film("Sunrise", null, null, ["Slow Cinema"]),
   film("Nosferatu", null),
 ];
 
-const titles = (movies: readonly Movie[]) => movies.map((movie) => movie.title);
-const count = (selection: Selection, movies: readonly Movie[] = COLLECTION) =>
+const titles = (movies: readonly Shown[]) => movies.map((movie) => movie.title);
+const count = (selection: Selection, movies: readonly Shown[] = COLLECTION) =>
   selected(selection, movies).length;
 
-/** Every control the summary renders, whatever the collection looks like. */
-const KNOWN: readonly Selection[] = [...FACTS, ...OPINIONS];
+/** Every control the summary can render. */
+const KNOWN: readonly Selection[] = [...WATCHED, ...SAID];
 
 test("the total is the collection, films nobody has spoken about included", () => {
   // Not a selection at all: it belongs beside the heading the way a genre count
   // does, and a film Tonight was never told about is still a film the user saved.
   assert.equal(COLLECTION.length, 9);
   assert.equal(
-    COLLECTION.filter((one) => one.state === null).length,
+    COLLECTION.filter((one) => one.viewing === null && one.position === undefined).length,
     2,
     "the collection has no silent films to include",
   );
-  assert.equal(
-    KNOWN.some((selection) => selection.states.length === 0),
-    false,
-    "a selection stands for no state at all",
-  );
 });
 
-test("Not seen is exactly what the user said they have not seen", () => {
-  assert.deepEqual(NOT_SEEN.states, ["not_seen"]);
-  assert.deepEqual(titles(selected(NOT_SEEN, COLLECTION)), ["Dune"]);
-  assert.equal(count(NOT_SEEN), 1);
-});
+test("Seen is what they said, and what a judgement implies", () => {
+  // The derived one. `Solaris` has no viewing at all and is here because it is
+  // loved — nobody likes a film they have not seen — and `Cats` is here despite
+  // saying `unseen`, because the opinion is the stronger evidence about
+  // watching. That is `lib/seen.ts`'s rule, so the page and a recommendation
+  // cannot disagree about what "seen" means.
+  assert.deepEqual(titles(selected(SEEN, COLLECTION)), [
+    "Heat",
+    "Sunset",
+    "Arrival",
+    "Solaris",
+    "Stalker",
+    "Cats",
+  ]);
 
-test("Seen is exactly the bare seen state", () => {
-  // Not an aggregate. `Loved`, `Liked` and `Disliked` are named beside it in the
-  // same row, so counting them here would count three of the others twice and
-  // make the row read as a sum of itself.
-  assert.deepEqual(SEEN.states, ["seen"]);
-  assert.deepEqual(titles(selected(SEEN, COLLECTION)), ["Heat", "Sunset"]);
-  assert.equal(count(SEEN), 2);
-
-  for (const opinion of OPINIONS) {
-    for (const state of opinion.states) {
-      assert.equal(
-        SEEN.states.includes(state),
-        false,
-        `Seen also counts ${String(state)}, which ${opinion.label} already counts`,
-      );
-    }
-  }
-
-  // And it never claims a film nobody has spoken about.
+  // And it never claims a film nobody has said anything about.
   assert.equal(
-    selected(SEEN, COLLECTION).some((one) => one.state === null),
+    selected(SEEN, COLLECTION).some((one) => one.viewing === null && one.position === undefined),
     false,
     "silence was counted as having watched something",
   );
+});
+
+test("Not seen is what they said, where nothing contradicts it", () => {
+  // `Cats` says `unseen` and is judged, which is a contradiction the user can
+  // create. The row resolves it the way everything else does — the opinion wins
+  // — so `Cats` is counted as seen and not here, and the three buckets stay
+  // exclusive. Nothing is hidden: the raw `unseen` is still on the film's mark.
+  assert.deepEqual(titles(selected(NOT_SEEN, COLLECTION)), ["Dune"]);
+  assert.equal(count(SEEN, [film("Cats", "unseen", "disliked")]), 1);
+  assert.equal(count(NOT_SEEN, [film("Cats", "unseen", "disliked")]), 0);
+});
+
+test("Not said is nobody having said, and never the same as not seen", () => {
+  // `null` is the absence of an answer and `unseen` is something the user said.
+  // A film that counts as seen through a judgement is not here either — that is
+  // something Tonight does know.
+  assert.deepEqual(titles(selected(WATCHING_UNSAID, COLLECTION)), ["Sunrise", "Nosferatu"]);
   assert.equal(
-    selected(SEEN, COLLECTION).some((one) => one.state === "not_seen"),
+    selected(WATCHING_UNSAID, COLLECTION).some((one) => one.viewing === "unseen"),
     false,
-    "a film they said they had not seen was counted as seen",
+    "something they said was counted as silence",
+  );
+  assert.equal(
+    selected(WATCHING_UNSAID, COLLECTION).some((one) => one.position?.judgement !== undefined),
+    false,
+    "a judged film was counted as nobody having said",
   );
 });
 
-test("each opinion is exactly its own state", () => {
-  assert.deepEqual(LOVED.states, ["loved"]);
-  assert.deepEqual(LIKED.states, ["liked"]);
-  assert.deepEqual(DISLIKED.states, ["disliked"]);
-
+test("each opinion is exactly its own standing judgement", () => {
   assert.deepEqual(titles(selected(LOVED, COLLECTION)), ["Solaris", "Stalker"]);
   assert.deepEqual(titles(selected(LIKED, COLLECTION)), ["Arrival"]);
   assert.deepEqual(titles(selected(DISLIKED, COLLECTION)), ["Cats"]);
+
+  // A viewing is never an opinion. Two films here are `seen` with nothing said,
+  // and no opinion control may claim them.
+  for (const opinion of [LOVED, LIKED, DISLIKED]) {
+    assert.equal(
+      selected(opinion, COLLECTION).some((one) => one.position?.judgement === undefined),
+      false,
+      `${opinion.label} counted a film with no standing judgement`,
+    );
+  }
 });
 
-test("without status is exactly the films with no state", () => {
-  // `null` is the absence of an answer and `not_seen` is something the user
-  // said. Counting silence there would put films nobody has mentioned into a
-  // list of films they told us they have not watched.
-  assert.deepEqual(WITHOUT_STATUS.states, [null]);
-  assert.deepEqual(titles(selected(WITHOUT_STATUS, COLLECTION)), ["Sunrise", "Nosferatu"]);
-  assert.equal(count(WITHOUT_STATUS), 2);
+test("No opinion is exactly the films with no standing judgement, refusals included", () => {
+  assert.deepEqual(titles(selected(NO_OPINION, COLLECTION)), [
+    "Heat",
+    "Sunset",
+    "Dune",
+    "Sunrise",
+    "Nosferatu",
+  ]);
+
+  assert.equal(NO_OPINION.label, "No opinion");
 });
 
-test("the row accounts for every film exactly once", () => {
-  // The invariant the one-line summary rests on, over the collection above and
-  // over a handful of shapes that have caught this kind of thing before. If a
-  // control ever aggregates another, a film lands in two of these and the sum
-  // overshoots the number in the heading.
-  const ROW = [...FACTS, ...OPINIONS, WITHOUT_STATUS];
+test("a film turned down for good is in No opinion, and is not seen either", () => {
+  // The reason the bucket is not called "nothing said", built the way the page
+  // builds it rather than asserted about a film with nothing on it. A standing
+  // `not-ever` is a great deal said — and it is still not a judgement, so the
+  // film belongs here.
+  const refused: Standing[] = [
+    { title: "Solaris", year: 1972, rejected: "not-ever", reason: "three hours of misery", told: "confirmed" },
+  ];
+  const [shown] = withPositions(
+    [{ ...film("Solaris", null), title: "Solaris", year: 1972 }],
+    positions(refused),
+  );
+  assert.ok(shown);
 
+  // The refusal reached the page as a refusal and not as an opinion: nothing
+  // about it became a judgement on the way through.
+  assert.equal(shown.position?.judgement, undefined, "a refusal arrived as a judgement");
+
+  assert.equal(count(NO_OPINION, [shown]), 1, "a refused film is not counted as unjudged");
+  for (const opinion of [LIKED, LOVED, DISLIKED]) {
+    assert.equal(count(opinion, [shown]), 0, `a refusal was counted as ${opinion.label}`);
+  }
+
+  // And it says nothing about watching, in either direction: `not ever` is most
+  // often said about a film somebody has never seen.
+  assert.equal(count(SEEN, [shown]), 0, "a refusal was read as having watched it");
+  assert.equal(count(WATCHING_UNSAID, [shown]), 1, "the refusal decided the watching question");
+});
+
+test("an evening's refusal never reaches a page showing a collection", () => {
+  // `positions` takes global claims only. A `not-tonight` belongs to one evening
+  // and a collection is not an evening — carrying it here would turn a Tuesday's
+  // mood into a fact about the film.
+  const tonight: Standing[] = [
+    { title: "Heat", year: 1995, rejected: "not-tonight", occasion: "evening-tuesday", told: "confirmed" },
+  ];
+  assert.equal(positions(tonight).size, 0);
+
+  // And neither does an evening-scoped judgement, which is the same rule and
+  // the easier one to get wrong.
+  const loved: Standing[] = [
+    { title: "Heat", year: 1995, judgement: "loved", occasion: "evening-tuesday", told: "volunteered" },
+  ];
+  assert.equal(positions(loved).size, 0, "an evening's judgement became the standing one");
+});
+
+test("a film the user marked unseen and never judged is in No opinion", () => {
+  assert.equal(count(NO_OPINION, [film("Unwatched", "unseen")]), 1);
+  assert.equal(count(NOT_SEEN, [film("Unwatched", "unseen")]), 1, "the raw fact stopped being shown");
+});
+
+test("each row accounts for every film exactly once, and the rows are independent", () => {
+  // The invariant the summary rests on, now asserted per row. A film is in one
+  // bucket of *each*, so the two rows each sum to the collection and the two
+  // sums are of the same films counted two different ways.
   for (const movies of [
     COLLECTION,
     [],
     [film("only", null)],
-    [film("a", "seen"), film("b", "loved")],
-    [film("a", "not_seen"), film("b", "not_seen")],
-    [film("a", "loved"), film("b", "loved"), film("c", "disliked")],
-    COLLECTION.filter((one) => one.state !== null),
+    [film("a", "seen"), film("b", null, "loved")],
+    [film("a", "unseen"), film("b", "unseen")],
+    [film("a", "seen", "loved"), film("b", null, "loved"), film("c", "unseen", "disliked")],
+    COLLECTION.filter((one) => one.viewing !== null),
   ]) {
     const shape = JSON.stringify(titles(movies));
-    assert.equal(
-      ROW.reduce((sum, selection) => sum + count(selection, movies), 0),
-      movies.length,
-      `the row does not account for ${shape}`,
-    );
-    for (const movie of movies) {
+
+    for (const [name, row] of [["watched", WATCHED], ["said", SAID]] as const) {
       assert.equal(
-        ROW.filter((selection) => selection.states.includes(movie.state)).length,
-        1,
-        `${movie.title} is counted by more than one control in ${shape}`,
+        row.reduce((sum, selection) => sum + count(selection, movies), 0),
+        movies.length,
+        `the ${name} row does not account for ${shape}`,
       );
+      for (const movie of movies) {
+        assert.equal(
+          row.filter((selection) => selection.holds(movie)).length,
+          1,
+          `${movie.title} is in more than one ${name} control in ${shape}`,
+        );
+      }
     }
   }
+});
+
+test("a film can be in both rows at once, which is why they are two rows", () => {
+  // The thing the six-bucket arrangement could not express, stated as its own
+  // contract so nobody folds the rows back together.
+  const both = [film("Stalker", "seen", "loved")];
+  assert.equal(count(SEEN, both), 1);
+  assert.equal(count(LOVED, both), 1);
+  assert.equal(
+    WATCHED.reduce((sum, one) => sum + count(one, both), 0) +
+      SAID.reduce((sum, one) => sum + count(one, both), 0),
+    2,
+    "one film did not land in both rows",
+  );
 });
 
 test("what a control counts is what it opens, for every one of them", () => {
   // The guarantee the summary rests on: one function is asked for the number and
   // asked again for the list, so a control saying two and opening three films is
   // not a state this can be in.
-  for (const selection of [...KNOWN, WITHOUT_STATUS]) {
+  for (const selection of KNOWN) {
     const list = selected(selection, COLLECTION);
     assert.equal(list.length, count(selection), `${selection.key} counts and lists differently`);
     for (const movie of list) {
-      assert.ok(
-        selection.states.includes(movie.state),
-        `${movie.title} is in ${selection.key}, which does not stand for ${String(movie.state)}`,
-      );
+      assert.ok(selection.holds(movie), `${movie.title} is in ${selection.key} and does not belong`);
     }
   }
 });
 
-test("every known-state control still exists when its count is nought", () => {
+test("the controls are a fixed list in a fixed order, countable to nought", () => {
   // The navigation has to be learnable, so it does not rearrange itself around
-  // an empty collection. The controls are a fixed list; only the numbers move.
-  const silent = [film("Sunrise", null), film("Nosferatu", null)];
-
-  for (const selection of KNOWN) {
-    assert.equal(count(selection, silent), 0, `${selection.key} found something`);
-  }
+  // an empty collection. The page is what leaves an empty one out; the list here
+  // does not move.
   assert.deepEqual(
     KNOWN.map((selection) => selection.key),
-    ["not_seen", "seen", "liked", "loved", "disliked"],
-    "the five controls are not a fixed list in a fixed order",
+    ["seen", "unseen", "watching_unsaid", "liked", "loved", "disliked", "no_opinion"],
+    "the controls are not a fixed list in a fixed order",
   );
 
-  // And without status is the one that comes and goes, so it has to be countable
-  // to nought as well — the page is what leaves it out.
-  assert.equal(count(WITHOUT_STATUS, [film("Heat", "seen")]), 0);
+  const nothing: Shown[] = [];
+  for (const selection of KNOWN) {
+    assert.equal(count(selection, nothing), 0, `${selection.key} found something in nothing`);
+  }
 });
 
-test("a mark pressed in the dialog moves the film through the hierarchy", () => {
-  // What a re-render does, as arithmetic. Nothing here adjusts a count: the page
-  // is given new films and asks the same questions again.
-  const before = [film("Heat", "seen"), film("Dune", "not_seen"), film("Sunrise", null)];
-  assert.deepEqual([count(SEEN, before), count(LOVED, before)], [1, 0]);
+test("a mark pressed in the dialog moves the film through both rows", () => {
+  // Pressing is a write and a re-render, so what this holds is that the same
+  // film with a different answer is counted somewhere else — and that changing
+  // one axis leaves the other exactly where it was.
+  const watched = [film("Heat", "seen")];
+  assert.equal(count(SEEN, watched), 1);
+  assert.equal(count(NO_OPINION, watched), 1, "a film with no verdict is not in No opinion");
 
-  // Watched, nothing said → loved. It leaves Seen for Loved rather than staying
-  // in both: the row is a list of parts, so a film is only ever in one of them.
-  const loved = before.map((one) => (one.title === "Heat" ? film("Heat", "loved") : one));
-  assert.deepEqual([count(SEEN, loved), count(LOVED, loved)], [0, 1]);
+  const judged = [film("Heat", "seen", "loved")];
+  assert.equal(count(SEEN, judged), 1, "recording an opinion changed what is known about watching");
+  assert.equal(count(LOVED, judged), 1);
+  assert.equal(count(NO_OPINION, judged), 0);
 
-  // Never told → not seen. It leaves the quiet line and joins a fact, and the
-  // total is unchanged because no film went anywhere.
-  const stated = loved.map((one) => (one.title === "Sunrise" ? film("Sunrise", "not_seen") : one));
-  assert.deepEqual(
-    [count(NOT_SEEN, stated), count(WITHOUT_STATUS, stated), count(SEEN, stated)],
-    [2, 0, 0],
-  );
-  assert.equal(
-    count(NOT_SEEN, stated) + count(SEEN, stated) + count(LOVED, stated) + count(WITHOUT_STATUS, stated),
-    stated.length,
-  );
+  const taken = [film("Heat", "seen")];
+  assert.equal(count(LOVED, taken), 0, "a withdrawn opinion still counted");
+  assert.equal(count(SEEN, taken), 1, "taking an opinion back changed the viewing fact");
 });
 
-test("the sentence-shaped control reads as a sentence", () => {
+test("the sentence-shaped controls read as sentences", () => {
   // One template for one and for many, because the phrase does not inflect.
-  assert.equal(sentence(WITHOUT_STATUS, 4), "4 without status");
-  assert.equal(sentence(WITHOUT_STATUS, 1), "1 without status");
-  assert.equal(sentence(WITHOUT_STATUS, 0), "0 without status");
+  for (const [selection, words] of [
+    [NO_OPINION, "with no opinion"],
+    [WATCHING_UNSAID, "not said"],
+  ] as const) {
+    assert.equal(sentence(selection, 4), `4 ${words}`);
+    assert.equal(sentence(selection, 1), `1 ${words}`);
+    assert.equal(sentence(selection, 0), `0 ${words}`);
+  }
 
-  // The others are set the other way round and are not phrased at all.
-  for (const selection of [...FACTS, ...OPINIONS]) {
+  // The answers are set the other way round and are not phrased at all.
+  for (const selection of [SEEN, NOT_SEEN, LIKED, LOVED, DISLIKED]) {
     assert.equal(selection.phrase, undefined, `${selection.key} has an inline phrase`);
   }
 });
@@ -247,16 +351,21 @@ test("only the one ambiguous word is given a second sentence to a listener", () 
   assert.equal(spoken(LOVED, 3), undefined);
   assert.equal(spoken(LIKED, 5), undefined);
   assert.equal(spoken(DISLIKED, 0), undefined);
+  assert.equal(spoken(NO_OPINION, 4), "No opinion 4, nothing said about what they made of it");
 
-  // This one is true but not sufficient on its own: read out beside the three
-  // opinions, "Seen" sounds like it might cover them too.
-  assert.equal(spoken(SEEN, 38), "Seen 38, watched, with nothing said about it");
-  assert.equal(spoken(WITHOUT_STATUS, 4), undefined);
+  // These two are true but not sufficient on their own. "Seen" counts films
+  // nobody ever marked, because a judgement puts them there; "Not said" is about
+  // watching and sits in a row beside an opinion control with a similar name.
+  assert.equal(spoken(SEEN, 38), "Seen 38, watched, or judged — which means watched");
+  assert.equal(
+    spoken(WATCHING_UNSAID, 4),
+    "Not said 4, nobody has said whether they watched it",
+  );
 });
 
 test("a film in no mix is filed under the words the page already uses", () => {
   assert.deepEqual(filedUnder(film("Nosferatu", null)), [OTHER_MOVIES]);
-  assert.deepEqual(filedUnder(film("Stalker", "loved", ["Quiet Dread", "Slow Cinema"])), [
+  assert.deepEqual(filedUnder(film("Stalker", "seen", "loved", ["Quiet Dread", "Slow Cinema"])), [
     "Quiet Dread",
     "Slow Cinema",
   ]);
@@ -273,12 +382,16 @@ const NOW = new Date("2026-09-09T12:00:00.000Z");
 const daysAgo = (days: number) =>
   new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
 
-/** A film with a date, and a mark that must not matter. */
-const saved = (title: string, createdAt: string | null, state: MovieState | null = null): Written<Movie> => ({
+/** A film with a date, and marks that must not matter. */
+const saved = (
+  title: string,
+  createdAt: string | null,
+  viewing: Viewing | null = null,
+): Written<Movie> => ({
   title,
   year: 2000,
   imdbId: null,
-  state,
+  viewing,
   mixes: [],
   createdAt,
   // Deliberately today for every one of them: a list built on this would put
@@ -364,10 +477,10 @@ test("what was said about a film decides neither whether it is recent nor where"
   // the opposite order. And the input is scrambled, so input order cannot pass
   // for date order either.
   const movies = [
-    saved("Loved", daysAgo(4.5), "loved"),
-    saved("Not seen", daysAgo(2.5), "not_seen"),
-    saved("Disliked", daysAgo(0.5), "disliked"),
-    saved("Liked", daysAgo(3.5), "liked"),
+    saved("Loved", daysAgo(4.5), "seen"),
+    saved("Not seen", daysAgo(2.5), "unseen"),
+    saved("Disliked", daysAgo(0.5), "seen"),
+    saved("Liked", daysAgo(3.5), "seen"),
     saved("Nothing said", daysAgo(1.5), null),
   ];
 

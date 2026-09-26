@@ -1,5 +1,5 @@
 import { MAX_OPPORTUNITIES, MAX_PENDING_DAYS } from "../questions.ts";
-import { TUESDAY, WEDNESDAY, type Film, type Step, type Trajectory } from "./trajectories.ts";
+import { BASELINE, TUESDAY, WEDNESDAY, type Film, type Step, type Trajectory } from "./trajectories.ts";
 
 /**
  * The M2 gates: is what the user said the only thing that counts, and does it
@@ -61,7 +61,7 @@ export type Question = { film: Film; since: string; opportunities: number };
 export type Taste = {
   genres: { name: string; instruction: string }[];
   mixes: { name: string; instruction: string; genres: string[] }[];
-  movies: { title: string; year: number; state: string | null }[];
+  movies: { title: string; year: number; viewing: string | null }[];
   verdicts?: Standing[];
 };
 
@@ -175,6 +175,21 @@ const besideVerdicts = (taste: Taste) => ({
  */
 export function expectedStanding(steps: readonly Step[]): Standing[] {
   const held = new Map<string, Map<string, Standing>>();
+
+  // Everybody starts with the baseline opinion standing, so what a trajectory
+  // should end with is that plus whatever it said itself. A gate asking whether
+  // a trajectory said anything is asking whether it said anything *beyond* this.
+  for (const one of BASELINE.said) {
+    held.set(
+      filmKey(one.film),
+      new Map([
+        [
+          "everywhere",
+          { title: one.film.title, year: one.film.year, judgement: one.judgement, told: one.told },
+        ],
+      ]),
+    );
+  }
 
   for (const step of steps) {
     if (step.act !== "verdict" && step.act !== "withdraw") continue;
@@ -315,7 +330,7 @@ export function selfConfirmation(world: World): Failure[] {
   if (comparable(lived.after) !== comparable(lived.before)) {
     fail("an evening moved the taste model between the start and end of the trajectory");
   }
-  if ((lived.after.verdicts ?? []).length > 0) {
+  if (asSet(lived.after.verdicts ?? []) !== asSet(expectedStanding([]))) {
     fail(`an evening produced a verdict: ${JSON.stringify(lived.after.verdicts)}`);
   }
 
@@ -329,7 +344,7 @@ export function selfConfirmation(world: World): Failure[] {
   }
   // And what they said moved nothing else: the same films, in the same states.
   if (comparable(spoke.after.movies) !== comparable(lived.after.movies)) {
-    fail("a verdict rewrote the Movie states underneath it");
+    fail("a verdict rewrote the saved films beside it");
   }
   return fail.failures;
 }
@@ -342,17 +357,18 @@ export function selfConfirmation(world: World): Failure[] {
  * The comparison is against a user who never spoke at all, because that is the
  * claim: *"the way it was before they spoke"*. A withdrawal must not leave a
  * neutral verdict, a tombstone, or — worst and most plausible — the opposite of
- * what was withdrawn. It must also stop hiding the Movie state underneath it.
+ * what was withdrawn. And the saved film is untouched: a verdict operation
+ * reaches the verdict store and nothing else.
  */
 export function withdrawal(world: World): Failure[] {
   const fail = failer("withdrawal", "withdrawal-*");
-  const took = need(world, "withdrawal-reveals-the-state");
+  const took = need(world, "withdrawal-leaves-silence");
   const never = need(world, "withdrawal-control");
 
   if (comparable(took.after) !== comparable(never.after)) {
     fail("a withdrawn verdict left something behind that never saying it would not have");
   }
-  if ((took.after.verdicts ?? []).length > 0) {
+  if (asSet(took.after.verdicts ?? []) !== asSet(expectedStanding([]))) {
     fail(`a withdrawal left a standing verdict: ${JSON.stringify(took.after.verdicts)}`);
   }
 
@@ -364,10 +380,12 @@ export function withdrawal(world: World): Failure[] {
     fail(`the history should keep both acts; it holds ${String(asked.history.length)}`);
   }
 
-  // The state the verdict was covering is visible again, unchanged.
+  // The saved film is exactly as it was. Withdrawing an opinion is not a way to
+  // change a fact about watching, and there is no opinion left underneath for it
+  // to reveal — a withdrawal leaves silence.
   const movie = took.after.movies.find((held) => held.title === "Prisoners");
-  if (movie?.state !== "liked") {
-    fail(`the Movie state underneath the withdrawn verdict is ${String(movie?.state)}, not the "liked" it was filed as`);
+  if (movie?.viewing !== "seen") {
+    fail(`withdrawing a verdict changed the saved film: viewing is ${String(movie?.viewing)}, not "seen"`);
   }
   return fail.failures;
 }
@@ -390,16 +408,20 @@ export function correction(world: World): Failure[] {
   const displaced = said.at(0);
 
   const standing = seen.after.verdicts ?? [];
-  if (standing.length !== 1) {
-    fail(`a corrected verdict should leave exactly one standing claim; there are ${String(standing.length)}`);
+  // About the corrected film, rather than the whole payload: everybody carries
+  // the baseline opinion about another film, and a count over all of them would
+  // be answering a different question.
+  const about = standing.filter((held) => filmKey(held) === filmKey(said[0]!.film));
+  if (about.length !== 1) {
+    fail(`a corrected verdict should leave exactly one standing claim; there are ${String(about.length)}`);
   }
   if (asSet(standing) !== asSet(expectedStanding(seen.trajectory.steps))) {
     fail(`what stands is not the latest thing they said: ${JSON.stringify(standing)}`);
   }
-  if (standing.some((held) => held.judgement === displaced?.judgement)) {
+  if (about.some((held) => held.judgement === displaced?.judgement)) {
     fail("the superseded judgement is still standing");
   }
-  if (displaced?.because !== undefined && standing.some((held) => held.because === displaced.because)) {
+  if (displaced?.because !== undefined && about.some((held) => held.because === displaced.because)) {
     fail("the superseded reason was carried forward onto the verdict that replaced it");
   }
 
@@ -446,14 +468,17 @@ export function scope(world: World): Failure[] {
   if (asSet(standing) !== asSet(expectedStanding(evening.trajectory.steps))) {
     fail(`the scoped picture is wrong: ${JSON.stringify(standing)}`);
   }
-  const global = standing.filter((held) => held.occasion === undefined);
+  // About this film: the baseline opinion is about another one, and counting it
+  // here would answer a different question.
+  const mine = standing.filter((held) => filmKey(held) === prisoners);
+  const global = mine.filter((held) => held.occasion === undefined);
   if (global.length !== 1 || global[0]?.judgement !== "loved") {
     fail(`the global claim should still be the "loved" they gave; it is ${JSON.stringify(global)}`);
   }
   if (global.some((held) => held.rejected !== undefined)) {
     fail("an evening's refusal reached the global picture");
   }
-  const local = standing.filter((held) => held.occasion !== undefined);
+  const local = mine.filter((held) => held.occasion !== undefined);
   if (local.length !== 1 || local[0]?.rejected !== "not-tonight") {
     fail(`the evening's refusal should stand in its own evening only; it is ${JSON.stringify(local)}`);
   }
@@ -522,15 +547,21 @@ function nothingElseMoved(observed: Observed, fail: (detail: string) => void): v
     const was = observed.before.movies.find(
       (held) => held.title === movie.title && held.year === movie.year,
     );
-    if (was?.state !== movie.state) {
-      fail(`a refusal moved ${movie.title} from ${String(was?.state)} to ${String(movie.state)}`);
+    if (was?.viewing !== movie.viewing) {
+      fail(`a refusal moved ${movie.title} from ${String(was?.viewing)} to ${String(movie.viewing)}`);
     }
   }
 
   // No category-level generalisation: every standing claim is about a film they
   // actually spoke about, and none of them is a genre or a mix wearing a film's
   // shape.
-  const spokenAbout = new Set(verdictSteps(observed.trajectory.steps).map((step) => filmKey(step.film)));
+  // The baseline opinion is something they said too — everybody said it — so it
+  // belongs in what may legitimately stand. Leaving it out would make the
+  // baseline itself read as a claim nobody made.
+  const spokenAbout = new Set([
+    ...BASELINE.said.map((one) => filmKey(one.film)),
+    ...verdictSteps(observed.trajectory.steps).map((step) => filmKey(step.film)),
+  ]);
   const categories = new Set([
     ...observed.after.genres.map((genre) => genre.name),
     ...observed.after.mixes.map((mix) => mix.name),
@@ -565,7 +596,19 @@ export function reasonFidelity(world: World): Failure[] {
 
   for (const observed of Object.values(world.seen)) {
     const fail = failer("reason-fidelity", observed.trajectory.name);
-    const said = verdictSteps(observed.trajectory.steps);
+    // The baseline opinion is a statement like any other — everybody made it —
+    // so it is one of the statements a standing claim may be traced back to.
+    // It carries no reason, which is exactly the case this gate cares most
+    // about: a reason appearing on it would be words nobody said.
+    const said = [
+      ...BASELINE.said.map((one) => ({
+        act: "verdict" as const,
+        film: one.film,
+        told: one.told,
+        judgement: one.judgement,
+      })),
+      ...verdictSteps(observed.trajectory.steps),
+    ];
     const standing = observed.after.verdicts ?? [];
 
     for (const held of standing) {
@@ -708,7 +751,7 @@ export function nonInfluence(world: World): Failure[] {
         fail(`recommendation-active evidence moved ${where}: ${comparable(taste).slice(0, 240)}`);
       }
     });
-    if ((seen.after.verdicts ?? []).length > 0) {
+    if (asSet(seen.after.verdicts ?? []) !== asSet(expectedStanding([]))) {
       fail(`a verdict appeared out of nothing the user said: ${JSON.stringify(seen.after.verdicts)}`);
     }
     failures.push(...fail.failures);
@@ -827,7 +870,7 @@ export function expiry(world: World): Failure[] {
       );
     }
     // Whatever became of it, nothing was concluded from it.
-    if ((seen.after.verdicts ?? []).length > 0) {
+    if (asSet(seen.after.verdicts ?? []) !== asSet(expectedStanding([]))) {
       fail(`a question produced a verdict: ${JSON.stringify(seen.after.verdicts)}`);
     }
     if (comparable(seen.after) !== comparable(seen.before)) {

@@ -46,7 +46,9 @@ type Fixture = {
     not_binding_looks_like?: string[];
   };
   prompts: string[];
-  model: { genres: unknown[]; mixes: unknown[]; movies: unknown[] } | null;
+  model: { genres: unknown[]; mixes: unknown[]; movies: { viewing?: string | null }[] } | null;
+  /** What they said about particular films, seeded after the model. */
+  acts?: { do: string; said?: { about?: string } }[];
 };
 
 /**
@@ -91,7 +93,7 @@ const run = (answer: string, header: Record<string, string> = {}) => ({
   answer,
   snapshotBody: "",
   stored: [] as { name: string; kind: string }[],
-  stateful: [] as { title: string; state: string }[],
+  watched: [] as { title: string; why: string }[],
 });
 
 test("there are eight fixtures, and each says what it is for", () => {
@@ -200,11 +202,12 @@ test("a prohibition is only counted once a fixture could have broken it", () => 
       fixture.construction_note,
       `${fixture.id} claims AC4 without saying how the model could break it`,
     );
-    const states = (fixture.model?.movies as { state: string | null }[]).map((movie) => movie.state);
-    assert.ok(
-      states.some((state) => state !== null),
-      `${fixture.id} claims AC4 with no film carrying a state`,
-    );
+    // The opportunity AC4 needs is a film the snapshot says was watched, by
+    // either route: the film says `seen`, or a judgement stands about it.
+    const watched =
+      (fixture.model?.movies ?? []).some((movie) => movie.viewing === "seen") ||
+      (fixture.acts ?? []).some((act) => act.said?.about === "judgement");
+    assert.ok(watched, `${fixture.id} claims AC4 with no film the user has watched`);
   }
 
   // AC5's hardest case is the empty model, where there is nothing to anchor to.
@@ -677,7 +680,7 @@ test("the model is pinned to an exact name, never an alias", () => {
  * criterion would put two evaluators in charge of one verdict.
  */
 const stateRich = { fixture: "03-state-rich", get_taste: "ok" };
-const watched = (title: string, state: string) => [{ title, state }];
+const seen = (title: string, why: string) => [{ title, why }];
 const flagsOf = (r: ReturnType<typeof run>, ac?: string) =>
   scorer.flags([r]).filter((f: { ac: string }) => !ac || f.ac === ac);
 
@@ -857,29 +860,31 @@ test("AC3a says nothing when the taste read never succeeded", () => {
 
 /* -- AC4: a contradiction flag, with no offer parser ----------------------- */
 
-test("AC4 flags novelty language against a stored state, with title and state", () => {
+test("AC4 flags novelty language against a watched film, with title and why", () => {
   const r = {
     ...run(
       "- **If you want the dread without the bleakness:** *The Vanishing* (1988) is already " +
         "on your list and unseen by you.",
       stateRich,
     ),
-    stateful: watched("The Vanishing", "seen"),
+    watched: seen("The Vanishing", "viewing: seen"),
   };
   const [flag] = flagsOf(r, "AC4");
-  assert.equal(flag.kind, "novelty-against-state");
+  assert.equal(flag.kind, "novelty-against-watching");
   assert.equal(flag.title, "The Vanishing");
-  assert.equal(flag.state, "seen");
+  assert.equal((flag as unknown as { why: string }).why, "viewing: seen");
   assert.match(flag.quote, /already on your list and unseen by you/);
 });
 
-test("AC4 flags every judged state, not only seen", () => {
-  for (const state of ["seen", "liked", "loved", "disliked"]) {
+test("AC4 flags a watched film however the snapshot knows it was watched", () => {
+  // The two routes to the same fact. A film marked `seen` and a film with a
+  // standing judgement are both films this answer cannot call new.
+  for (const why of ["viewing: seen", "verdict: liked", "verdict: loved", "verdict: disliked"]) {
     const r = {
       ...run("I'd start with **Zodiac** (2007) — a new one for you.", stateRich),
-      stateful: watched("Zodiac", state),
+      watched: seen("Zodiac", why),
     };
-    assert.equal(flagsOf(r, "AC4").length, 1, `a ${state} film was not flagged`);
+    assert.equal(flagsOf(r, "AC4").length, 1, `a film watched by ${why} was not flagged`);
   }
 });
 
@@ -892,22 +897,24 @@ test("AC4 may flag an evidence mention, and never fails it", () => {
         "and you haven't told me you've seen it.",
       stateRich,
     ),
-    stateful: watched("Memories of Murder", "loved"),
+    watched: seen("Memories of Murder", "verdict: loved"),
   };
   assert.equal(flagsOf(r, "AC4").length, 1, "the ambiguous case is not surfaced at all");
   assert.deepEqual(scorer.admissibility([r]), [], "an ambiguous mention became a fault");
 });
 
-test("AC4 leaves not_seen and unstored films alone", () => {
-  const notSeen = {
+test("AC4 leaves unwatched, unknown and unstored films alone", () => {
+  // Three different reasons a film is still on the table, and none of them is a
+  // contradiction with novelty language. `watchedTitles` lists none of them.
+  const unwatched = {
     ...run("I'd start with **Past Lives** (2023) — you haven't seen it.", stateRich),
-    stateful: [], // statefulTitles never lists not_seen or null
+    watched: [], // `unseen`, a null viewing and a refusal all leave this empty
   };
-  assert.deepEqual(flagsOf(notSeen, "AC4"), []);
+  assert.deepEqual(flagsOf(unwatched, "AC4"), []);
 
   const unstored = {
     ...run("I'd start with **No Country for Old Men** (2007) — new to you.", stateRich),
-    stateful: watched("Zodiac", "loved"),
+    watched: seen("Zodiac", "verdict: loved"),
   };
   assert.deepEqual(flagsOf(unstored, "AC4"), []);
 });
@@ -915,24 +922,60 @@ test("AC4 leaves not_seen and unstored films alone", () => {
 test("AC4 matches a stored title whole, never inside a longer one", () => {
   const r = {
     ...run("I'd start with **Moonlight** (2016) — new to you.", { fixture: "04-contradictory", get_taste: "ok" }),
-    stateful: watched("Moon", "liked"),
+    watched: seen("Moon", "verdict: liked"),
   };
   assert.deepEqual(flagsOf(r, "AC4"), [], "Moon was found inside Moonlight");
 });
 
-test("statefulTitles reads states from the snapshot and omits the stateless", () => {
-  const titles = scorer.statefulTitles({
+test("watchedTitles joins the viewing fact and a standing judgement, and nothing else", () => {
+  const titles = scorer.watchedTitles({
     movies: [
-      { title: "The Vanishing", state: "seen" },
-      { title: "Past Lives", state: null },
-      { title: "Anticipated", state: "not_seen" },
-      { title: "Zodiac", state: "loved" },
+      { title: "The Vanishing", year: 1988, viewing: "seen" },
+      { title: "Past Lives", year: 2023, viewing: null },
+      { title: "Anticipated", year: 2026, viewing: "unseen" },
+      // No viewing, but they said they loved it — nobody loves a film they have
+      // not seen, so this is watched by derivation.
+      { title: "Zodiac", year: 2007, viewing: null },
+      // A refusal proves nothing about watching, in either reach.
+      { title: "Solaris", year: 1972, viewing: null },
+      { title: "Heat", year: 1995, viewing: null },
+    ],
+    verdicts: [
+      { title: "Zodiac", year: 2007, judgement: "loved" },
+      { title: "Solaris", year: 1972, rejected: "not-ever" },
+      { title: "Heat", year: 1995, rejected: "not-tonight", occasion: "tue" },
+      // Judged without ever being saved: watched, and callable new by mistake.
+      { title: "Moon", year: 2009, judgement: "liked" },
     ],
   });
+
   assert.deepEqual(
-    titles.map((t: { title: string }) => t.title),
-    ["The Vanishing", "Zodiac"],
+    titles.map((t: { title: string }) => t.title).sort(),
+    ["Moon", "The Vanishing", "Zodiac"],
   );
+  assert.deepEqual(
+    titles.map((t: { title: string; why: string }) => `${t.title}: ${t.why}`).sort(),
+    ["Moon: verdict: liked", "The Vanishing: viewing: seen", "Zodiac: verdict: loved"],
+  );
+});
+
+test("watchedTitles never reads an evening-scoped judgement as a standing one", () => {
+  // `verdicts` carries one entry per evening that holds a claim of its own. A
+  // judgement scoped to an evening is not the standing position, and reading it
+  // as one would make a film spent on the strength of one night.
+  const titles = scorer.watchedTitles({
+    movies: [{ title: "Heat", year: 1995, viewing: null }],
+    verdicts: [{ title: "Heat", year: 1995, judgement: "loved", occasion: "tue" }],
+  });
+  assert.deepEqual(titles, []);
+});
+
+test("watchedTitles on a snapshot from before verdicts existed finds nothing", () => {
+  // Older recorded evidence has no `verdicts` key at all. It must read as "no
+  // judgement stands" rather than throwing — those artifacts are history and
+  // are not reinterpreted under the new model.
+  assert.deepEqual(scorer.watchedTitles({ movies: [{ title: "Heat", year: 1995 }] }), []);
+  assert.deepEqual(scorer.watchedTitles({}), []);
 });
 
 /* -- the retained corpora -------------------------------------------------- */
@@ -941,16 +984,27 @@ test("the retained candidates still surface their known findings", () => {
   const of = (dir: string) =>
     scorer.score(scorer.loadRuns(fileURLToPath(new URL(dir, EVALUATION))));
 
-  // a3357c1c — the defect the paired blind comparison found. It is a flag now,
-  // adjudicated blind, and it must still be impossible to miss.
+  // a3357c1c — the defect the paired blind comparison found.
+  //
+  // Its AC4 finding is **not** asserted here any more, and that is deliberate
+  // rather than a gap. These snapshots were recorded against the Movie-state
+  // model: they carry `state: "seen"` and no `viewing`, and no verdicts at all.
+  // `watchedTitles` reads the model the product has now, so re-deriving the
+  // contradiction from them would mean teaching the scorer to read the old
+  // shape — which is reinterpreting historical evidence as though it had been
+  // recorded under the new one. The artifacts stay exactly as they were
+  // recorded, and what they proved was proved at the time.
+  //
+  // What is still asserted is everything that does not depend on the model:
+  // the recording is well-formed, and the findings that turn on the *answer*
+  // rather than on the snapshot still surface.
   const repaired = of("results/phase-1-repaired/");
   assert.deepEqual(repaired.faults, [], "the repaired candidate is no longer admissible");
-  const vanishing = repaired.flags.filter(
-    (f: { ac: string; title?: string }) => f.ac === "AC4" && f.title === "The Vanishing",
+  assert.equal(
+    repaired.flags.filter((f: { ac: string }) => f.ac === "AC4").length,
+    0,
+    "a pre-refactor snapshot was read as though it used the new model",
   );
-  assert.equal(vanishing.length, 1, "The Vanishing contradiction no longer surfaces");
-  assert.equal(vanishing[0].run, "03-state-rich__plain__04.md");
-  assert.equal(vanishing[0].state, "seen");
 
   // 645a831f — the four runs that produced no recommendation, and the three
   // maximal-fit claims. Both were criterion failures under the old scorer; both

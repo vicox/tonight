@@ -78,6 +78,51 @@ test("every scenario names a request that exists, and every request is used", ()
   }
 });
 
+// --- the multi-root control -------------------------------------------------
+
+test("the D2 control asks for a second operation the product can actually perform", () => {
+  // The control exists to prove the repair did not teach *never write after
+  // forgetting*, and it can only prove that if the second half names something a
+  // run could do. Both requests used to ask for the saved *state* or *rating* to
+  // be cleared; a Movie carries neither, so a model that forgot the verdict and
+  // stopped was indistinguishable from one that did both, and the control
+  // scored a pass either way.
+  const control = scenarios.filter((one) => one.family === "D2-multi-root");
+  assert.ok(control.length > 0, "the multi-root control is gone");
+
+  for (const one of control) {
+    const request = requests.get(one.prompt) ?? "";
+    assert.ok(request, `${one.prompt}: no such request`);
+
+    // (A) It names the verdict, which is the first operation.
+    assert.match(request, /verdict/iu, `${one.prompt} does not ask for the verdict`);
+
+    // (B) And the film's own record of having been watched, which is the
+    // second — in the user's words, since nothing here may name a tool.
+    assert.match(
+      request,
+      /watched it|seen it/iu,
+      `${one.prompt} does not ask for the saved viewing fact as well`,
+    );
+
+    // (C) And not the fields the model no longer has. A request for a saved
+    // state or rating authorizes nothing, which is how the control went blind.
+    for (const gone of [/\bstate\b/iu, /\brating\b/iu]) {
+      assert.doesNotMatch(request, gone, `${one.prompt} asks for a field a Movie does not carry`);
+    }
+  }
+
+  // And the fixture makes the second operation real: clearing a viewing that was
+  // never set changes nothing, and a control whose second half is a no-op is the
+  // same blindness wearing different words.
+  const fixture = JSON.parse(read(`fixtures/${control[0]!.fixture}.json`)) as {
+    model: { movies: { title: string; viewing?: string | null }[] };
+  };
+  const saved = fixture.model.movies.find((one) => one.title === "Black Bag");
+  assert.ok(saved, "the control's fixture saves no film to clear");
+  assert.equal(saved.viewing, "seen", "the control's fixture has nothing for the second operation to clear");
+});
+
 // --- the two occasions ------------------------------------------------------
 
 test("the two Heat occasions are mechanically opposite, not two shades of the same question", () => {
@@ -120,18 +165,34 @@ test("the two Heat occasions are mechanically opposite, not two shades of the sa
   for (const one of heat) assert.equal(one.family, "X4", `${one.prompt} left X4`);
 });
 
-test("the rubric says which side governs in each occasion, and never both", () => {
+test("the rubric scores the two occasions differently, and never as a conflict", () => {
   // A scenario pair is only worth having if the rubric scores them differently.
+  // The difference is the verdict's own scope: it applies inside its evening and
+  // nowhere else. Nothing here is a contest between roots.
   assert.match(
     rubric,
-    /`heat-that-evening`[^#]*refusal governs/iu,
-    "the rubric does not say the refusal governs on its own evening",
+    /`heat-that-evening`[^#]*refusal applies there/iu,
+    "the rubric does not say the refusal applies in its own evening",
   );
   assert.match(
     rubric,
-    /`heat-other-evening`[^#]*saved `loved` is the base/iu,
-    "the rubric does not say the saved state is the base outside it",
+    /`heat-other-evening`[^#]*Nothing is refused there/iu,
+    "the rubric does not say the refusal reaches no other evening",
   );
+
+  // And it does not describe either root as overriding the other, which is the
+  // machinery the split removed.
+  for (const gone of [/\bgoverns?\b/iu, /saved `loved` is the base/iu, /governing side/iu]) {
+    assert.doesNotMatch(rubric, gone, `the rubric still says ${String(gone)}`);
+  }
+
+  // "Disagreement between roots" may appear, but only as the thing being denied
+  // — a rubric that dropped the sentence would leave a reader to assume the old
+  // model, and one that asserted it would be describing behaviour Tonight does
+  // not have.
+  for (const [, phrase] of rubric.matchAll(/([^.]*disagreement between roots[^.]*)/giu)) {
+    assert.match(phrase!, /\bNone of these is\b/u, `an unnegated disagreement claim: ${phrase!.trim()}`);
+  }
 
   // And the semantics an evening's refusal must keep: its own evening, not a
   // weekday and not evenings at large.

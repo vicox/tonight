@@ -6,7 +6,7 @@ Tonight is a personal movie recommender in which you own the recommender. Instea
 that watches what you do and never shows you what it concluded, you write down what you like —
 and you can read it, edit it and delete it at any time.
 
-There are three things in it.
+There are four things in it.
 
 **Genres** are the reusable pieces of what you like. A Genre has a name and an *instruction*,
 and the instruction is the genre: `Action` means whatever you say Action means. Two people can
@@ -23,9 +23,18 @@ of their own for what the combination means to you.
 
 **Movies** are the films you have told Tonight about. A Movie has a title and a release year —
 together they are its name, so `Dune / 1984` and `Dune / 2021` are two of them — and it may carry
-an IMDb id and one state: not seen, seen, liked, loved or disliked. A sixth possibility is that
-you have said nothing, which is not the same as not seen. A Movie may be in no Mix, one, or several, and it is yours in
-its own right either way: nothing is looked up, and no film is here unless you put it there.
+an IMDb id and a **viewing**: seen, not seen, or nothing said either way, which is not the same
+as not seen. That is the whole of what a Movie says about you, and it is a fact about watching
+rather than an opinion. A Movie may be in no Mix, one, or several, and it is yours in its own
+right either way: nothing is looked up, and no film is here unless you put it there.
+
+**Verdicts** are what you thought. One film, one thing said: `liked`, `loved` or `disliked`, or
+a refusal — `not-tonight` for one evening, `not-ever` for good — with your own words for why if
+you gave them, whether you volunteered it or answered a question, and when. They have a history:
+changing your mind supersedes what you said before without erasing it, withdrawing one takes that
+verdict out of what stands — in the scope it was given in, so withdrawing an evening's
+`not-tonight` leaves a global judgement standing — and forgetting one removes it. Nothing else
+anywhere holds an opinion.
 
 A Mix is not the intersection of its Genres. `Sci-Fi` and `Thriller` are the ingredients; what
 you meant by putting them together — contained settings, mystery and pressure rather than
@@ -64,7 +73,9 @@ choosing films for a Mix are all done by the host agent, guided by the skills in
 [`skills/`](skills).
 
 It also owns no film catalogue. Tonight holds the films a user told it about — a title, a year,
-an optional IMDb id, the one state they gave it, and which of their Mixes it is in — and nothing else: no film exists here until somebody names one, and nothing about it is
+an optional IMDb id, whether they said they watched it, and which of their Mixes it is in —
+plus, kept separately, whatever they have said about it. Nothing else: no film exists here until
+somebody names one, and nothing about it is
 ever looked up. Catalogues, search, streaming availability and current releases are independent
 capabilities a host combines with Tonight at run time. That separation is the architecture rather
 than a stage of it: Tonight holds the one thing nobody else can hold for you, and stays useful
@@ -118,7 +129,7 @@ may be terser; it may not mean anything else.
 
 ## The MCP tools
 
-Eleven, all deterministic, and all of them operations on persisted state. None interprets a
+Twenty-two, all deterministic, and all of them operations on persisted state. None interprets a
 sentence, invents a Genre or chooses a film. A tool description carries the rules for using that
 tool and nothing else — what a Mix's name has to earn belongs to `create_mix`, which is where it
 is read at the moment a name is chosen. Everything true across more than one call is method, and
@@ -127,16 +138,27 @@ method ships in the skill beside the server rather than as a runtime tool.
 | Tool | What it does |
 | --- | --- |
 | `get_server_info` | reachable, authenticated, and which opaque user this session is |
-| `get_taste` | the whole model: Genres, Mixes and Movies |
+| `get_taste` | what to write from: the Genres, the Mixes, the Movies, and the verdicts that currently stand |
 | `create_genre` | a Genre, with the instruction that says what it means to this user |
 | `update_genre` | reword or rename. A rename rewrites every Mix built from it |
 | `delete_genre` | refused while a Mix is built from it, and the refusal names the Mixes |
 | `create_mix` | a Mix over one or more existing Genres |
 | `update_mix` | reword, rename, or replace the Genres it is built from |
 | `delete_mix` | always allowed; the Genres it combined are untouched |
-| `create_movie` | a film the user named, with what they said about it |
-| `update_movie` | retitle, correct the year, change its state, or change which Mixes it is in |
-| `delete_movie` | always allowed; the Mixes it was in are untouched |
+| `create_movie` | a film the user named, and whether they said they watched it |
+| `update_movie` | retitle, correct the year, change its viewing, or change which Mixes it is in |
+| `delete_movie` | removes the film they asked to remove; the Mixes it was in are untouched |
+| `record_verdict` | what they said about one film: a judgement, or a refusal with its reach |
+| `withdraw_verdict` | they no longer stand by it. The claim stops applying; that they said it stays |
+| `forget_verdict` | one act removed outright, by the reference `get_memory` gave it |
+| `get_verdicts` | everything said about one film, and which of it stands now |
+| `get_memory` | the whole of what Tonight holds: what is current, and what it remembers |
+| `record_episode` | an evening: what was asked for, and the films put forward |
+| `correct_episode` | putting an evening right, including what they said they did with it |
+| `forget_episode` | an evening removed |
+| `get_episodes` | the evenings, as history rather than as taste |
+| `record_opportunity` | a chance to ask about a film went by |
+| `get_open_questions` | which films Tonight has something to ask about |
 
 Whose model a tool acts on is never an argument. The store is opened for the authenticated user
 before any tool exists to call it, so there is no `user_id` in any schema and nowhere for a
@@ -168,9 +190,14 @@ addressed from outside, and there is no id in any tool schema or any answer.
   refused — the instruction is written from what that person actually said.
 - **A Movie is named by its title and year together**, unique per user ignoring case, so one
   person's list can hold both `Dune`s.
-- **A Movie's `state` has no default**, and is constrained to five values. The column is
-  nullable and nothing fills it in: `null` means Tonight was never told, `not_seen` means the
+- **A Movie's `viewing` has no default**, and is constrained to two values. The column is
+  nullable and nothing fills it in: `null` means Tonight was never told, `unseen` means the
   user said so, and turning the first into the second would put a statement in their mouth.
+- **A Movie carries no opinion.** What somebody thought of a film is a Verdict, with a scope, a
+  provenance, an instant and a history no column here could hold — so there is nowhere on a
+  Movie to put one. Taking a Verdict back removes that act from what stands and reaches exactly
+  as far as the act did: no weaker opinion is revealed underneath it in that scope, and a
+  withdrawn evening's `not-tonight` leaves a global judgement applying where it was.
 - **Deleting a Movie is always allowed**, and takes only its Mix memberships with it. A Mix is
   *defined by* its Genres and merely *holds* Movies, which is why one restricts and the other
   cascades.
@@ -182,8 +209,8 @@ and — for whoever is signed in — their own taste model, read and managed thr
 the MCP tools use. There is no second surface and no second copy of the rules.
 
 The website shows a Mix-oriented view of the model and edits part of it: Genres and Mixes are
-managed there, a Movie's state can be set there, and everything else about a
-Movie is done through an assistant. It does not recommend, and it has no
+managed there, whether a film has been seen and what the user thought of it can be set there, and
+everything else about a Movie is done through an assistant. It does not recommend, and it has no
 model inside it to recommend with: the panel at the foot of the page names the sentence to take
 to your assistant. It is *a* place to manage the model rather than the only one — an assistant
 asked outright to rename a Genre or delete a Mix uses the same tools and does it there and then.
@@ -207,6 +234,27 @@ The embedded Postgres means a checkout works with no database installed. See
 never migrates from a request** — `npm run db:migrate` is a deploy step, run before the code
 that needs it.
 
+### Deploying a migration
+
+Most migrations only add. Some remove something the running build still writes, and those are
+**roll-forward only**: once the column is gone, the build that wrote it cannot serve, and there
+is no ordering that makes it safe to leave running. Taste v12, which drops the Movie `state`
+column, is one of these.
+
+So the contract for any release carrying one is four steps and their order is the whole of it:
+
+1. **Stop the application.** Traffic quiesced, nothing writing.
+2. **Back the database up.** The step after this one is not reversible by re-running anything.
+3. **`npm run db:migrate`.** Every schema, in one invocation.
+4. **Deploy the new build.**
+
+`requireSchema` enforces one half of that and only one half: it refuses to serve a build whose
+migrations are missing, which protects a **new** build from an **old** schema. It does nothing
+in the other direction. An old build against a migrated database is not protected by the ledger
+being ahead of it — after v12 it writes a column that does not exist, and the write simply
+fails. That failure is the honest outcome and is better than silence, but it is an outage, so
+the application is stopped rather than relied upon to fail cleanly.
+
 ```bash
 npm run test        # node --test over lib/**/*.test.ts
 npm run typecheck
@@ -221,12 +269,15 @@ skills/tonight-recommend/test.sh
 
 ## Deliberately not here yet
 
-- **Watch history.** A Movie carries one *state* — not seen, seen, liked, loved, disliked, or
-  nothing said — and
-  never a sequence of events: there is no timestamp on it, so no timeline exists to read back.
-  Tonight also records nothing about what was recommended. The model is designed for both — a
-  recommendation would reference the Genre or Mix that caused it by uuid, the way every relation
-  here does, so a later rename would cost it nothing — but future behavioural history must be
+- **Watch history.** A Movie says *whether* a film was watched and never a sequence of events:
+  its `viewing` has no timestamp on it, so no timeline exists to read back. A Verdict is dated,
+  but its instant is when somebody spoke rather than when they watched, and an Episode's is the
+  evening it was written down.
+- **Recommendations joined to what caused them.** An Episode already records an evening — what
+  was asked for, the films put forward, and what the user said they did with one — so what was
+  recommended is written down. What is not here is the join: an offered film names no Genre or
+  Mix as its reason. The model is designed for it — the reference would be by uuid, the way every
+  relation here does it, so a later rename would cost nothing — but behavioural history must stay
   *evidence for proposing changes* to the explicit model, never a second invisible model that
   outvotes it.
 - **Self-service account deletion.** `/privacy`, `/terms` and `/impressum` are published, and a

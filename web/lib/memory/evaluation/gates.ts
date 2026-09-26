@@ -1,6 +1,6 @@
 import { filmKey } from "../../films/identity.ts";
 import { OWNER_HISTORY, STRANGER_HISTORY, UNICODE_FILMS } from "./trajectories.ts";
-import type { Film, MovieState, Offer, Step, Trajectory } from "./trajectories.ts";
+import type { Film, Offer, Step, Trajectory, Viewing } from "./trajectories.ts";
 
 /**
  * The M3 gates: can Tonight say what it knows, and can it be corrected?
@@ -64,24 +64,16 @@ export type Root = {
   handle: Handle;
 } & Record<string, unknown>;
 
-export type Conflict = {
-  film: Film;
-  where: unknown;
-  saved: { state: string; handle: Handle };
-  governing: { act: Record<string, unknown>; handle: Handle };
-  because: string;
-};
-
-export type Memory = { held: Root[]; operative: Conflict[]; remembered: Root[] };
+export type Memory = { held: Root[]; remembered: Root[] };
 
 /** The taste model, as `get_taste` hands it to recommendation work. */
 export type Taste = {
+  /** Never present any more. Read so that its return is a failure, not a silence. */
+  disagreements?: Record<string, unknown>[];
   genres: Record<string, unknown>[];
   mixes: Record<string, unknown>[];
   movies: Record<string, unknown>[];
   verdicts?: Record<string, unknown>[];
-  /** Absent when nothing disagrees — never an empty list. That is the contract. */
-  disagreements?: Record<string, unknown>[];
 };
 
 /** A row as its own store holds it: the two instants persistence keeps. */
@@ -154,6 +146,15 @@ export type Handled = {
   used: { ref: string; episode: string; film: { title: string; year: number } };
   /** Their neighbours, which nothing touched and which must not have moved. */
   spared: { ref: string; episode: string; film: { title: string; year: number } };
+  /**
+   * The act about the film that *is* changed — the cross-root neighbour.
+   *
+   * `spared` proves one act, one evening and one film survive their own kind
+   * being changed. This proves the other direction, which only exists because
+   * the roots were split: what somebody said about a film is not touched by
+   * refiling that same film, even though both are about it.
+   */
+  across: { ref: string };
 };
 
 export type World = { seen: Record<string, Observed>; crossing: Crossing; handled: Handled };
@@ -200,12 +201,6 @@ export type ExpectedEvening = {
   finished: Established;
 };
 
-export type ExpectedConflict = {
-  film: Film;
-  where: string;
-  savedState: string;
-  governing: Assertion;
-};
 
 export type ExpectedMix = {
   name: string;
@@ -217,7 +212,7 @@ export type ExpectedMix = {
 
 export type ExpectedMovie = {
   film: Film;
-  state: MovieState | null;
+  viewing: Viewing | null;
   imdbId: string | null;
   mixes: string[];
 };
@@ -228,7 +223,6 @@ export type Expected = {
   movies: ExpectedMovie[];
   acts: ExpectedAct[];
   evenings: ExpectedEvening[];
-  conflicts: ExpectedConflict[];
   /** The steps this replay works out the product is obliged to refuse whole. */
   refusals: number[];
 };
@@ -243,7 +237,6 @@ const stated = (value: unknown): Established => ({ known: true, value, source: "
  * but the whole discipline of this file is that an expectation is stated twice
  * and compared. A one-line rule is exactly the kind of thing that should be.
  */
-const PRECEDENCE = "A verdict outranks a disagreeing state";
 
 /**
  * What a history should have come to, worked out from the script alone.
@@ -257,8 +250,9 @@ const PRECEDENCE = "A verdict outranks a disagreeing state";
  * - an evening is a fact, never a preference, and a correction to one either
  *   applies whole or is refused whole — a choice they stated has to stay inside
  *   the list of films Tonight offered, and is rebound to the entry in it;
- * - a saved state and a standing claim disagree when the claim judges the film
- *   differently, or refuses a film they liked.
+ * - a saved film and a verdict are two roots about one film, and neither is
+ *   read from the other: the film says whether it was watched, the verdict says
+ *   what they thought, and nothing ranks them.
  *
  * None of it is computed by asking the implementation. That is the point.
  */
@@ -292,7 +286,7 @@ export function expected(steps: readonly Step[]): Expected {
       case "movie":
         movies.set(filmKey(step.film), {
           film: step.film,
-          state: step.state,
+          viewing: step.viewing,
           imdbId: step.imdbId ?? null,
           mixes: step.mixes ?? [],
         });
@@ -396,28 +390,6 @@ export function expected(steps: readonly Step[]): Expected {
     act.placement = current ? "held" : "remembered";
   }
 
-  // Conflicts: an evaluative saved state against a standing claim that pulls the
-  // other way. A judgement disagrees when it differs; a refusal only against a
-  // liking, because a refusal is not a rating.
-  const conflicts: ExpectedConflict[] = [];
-  for (const act of stands) {
-    if (act.said !== "verdict" || !act.assertion) continue;
-    const saved = movies.get(filmKey(act.film));
-    if (!saved || !evaluative(saved.state)) continue;
-    const disagrees =
-      act.assertion.about === "judgement"
-        ? act.assertion.judgement !== saved.state
-        : saved.state === "liked" || saved.state === "loved";
-    if (disagrees) {
-      conflicts.push({
-        film: act.film,
-        where: act.scope,
-        savedState: saved.state as string,
-        governing: act.assertion,
-      });
-    }
-  }
-
   return {
     genres: [...genres.values()],
     mixes: [...mixes.values()],
@@ -427,7 +399,6 @@ export function expected(steps: readonly Step[]): Expected {
       return act;
     }),
     evenings,
-    conflicts,
     refusals,
   };
 }
@@ -486,9 +457,6 @@ function correction(
     finished: flag(night.finished, "finished"),
   };
 }
-
-const evaluative = (state: MovieState | null): boolean =>
-  state === "liked" || state === "loved" || state === "disliked";
 
 /* ----------------------------------------------------------------- helpers */
 
@@ -653,7 +621,7 @@ function observedRoot(root: Root): string {
         // the key and change what the user sees.
         title: (root.film as Film).title,
         year: (root.film as Film).year,
-        state: root.state ?? null,
+        viewing: root.viewing ?? null,
         imdbId: root.imdbId ?? null,
         mixes: membership(root.mixes),
       });
@@ -713,7 +681,7 @@ const wantedMovie = (one: ExpectedMovie) =>
     film: filmKey(one.film),
     title: asFiled(one.film.title),
     year: one.film.year,
-    state: one.state,
+    viewing: one.viewing,
     imdbId: one.imdbId,
     mixes: membership(one.mixes),
   });
@@ -836,7 +804,7 @@ function wantedTaste(want: Expected): Record<string, string> {
       want.movies.map((one) => ({
         title: asFiled(one.film.title),
         year: one.film.year,
-        state: one.state,
+        viewing: one.viewing,
         imdbId: one.imdbId,
         mixes: membership(one.mixes),
       })),
@@ -847,32 +815,11 @@ function wantedTaste(want: Expected): Record<string, string> {
         .map(standingOf)
         .sort(),
     ),
-    // Worked out from the replay's own conflicts — the ones `expected()` derived
-    // from the script — and deliberately not from `lib/precedence.ts`. A gate
-    // that asked the production resolver what to expect would reproduce its bug
-    // and agree with it.
-    //
-    // `ABSENT` rather than an empty set, because absent and empty are two
-    // different answers here and the contract is that no disagreement means no
-    // field at all.
-    disagreements:
-      want.conflicts.length === 0
-        ? ABSENT
-        : asSet(
-            want.conflicts.map((one) => ({
-              title: asSpoken(one.film.title),
-              year: one.film.year,
-              saved: one.savedState,
-              governedBy:
-                one.governing.about === "judgement"
-                  ? { judgement: one.governing.judgement }
-                  : { rejected: one.governing.reach },
-              // The scope the claim was made in, carried word for word. An
-              // evening's refusal that came back as `everywhere` would be a
-              // mood reported as a standing fact.
-              applies: one.where === "everywhere" ? "everywhere" : { occasion: one.where },
-            })),
-          ),
+    // Nothing carries two opinions, so a recommendation is never told that two
+    // roots disagree. The expectation is that the field is not there at all — a
+    // projection reappearing is a payload explaining one root to another, which
+    // is the machinery this split removed.
+    disagreements: ABSENT,
   };
 }
 
@@ -892,6 +839,8 @@ function observedTaste(taste: Taste): Record<string, string> {
       taste.movies.map((one) => ({ ...without(one, CLOCKS), mixes: membership(one.mixes) })),
     ),
     verdicts: JSON.stringify((taste.verdicts ?? []).map((one) => canon(one)).sort()),
+    // Read rather than assumed, so a projection reappearing is a difference
+    // against the expectation rather than something nobody looked at.
     disagreements:
       taste.disagreements === undefined ? ABSENT : asSet(taste.disagreements.map((one) => one)),
   };
@@ -1011,23 +960,6 @@ export function placement(world: World): Failure[] {
       if (["genre", "mix", "movie"].includes(root.of)) fail(`a saved ${root.of} was demoted to remembered`);
     }
 
-    // What governs a disagreement is a root that genuinely stands.
-    const standing = new Map(
-      of(seen.memory.held, "verdict").map((root) => [String(root.handle.ref), root] as const),
-    );
-    for (const conflict of seen.memory.operative) {
-      const governor = standing.get(String(conflict.governing.handle.ref));
-      if (!governor) {
-        fail(`a disagreement is governed by an act that is not held: ${canon(conflict.governing.handle)}`);
-        continue;
-      }
-      if (canon(governor.act) !== canon(conflict.governing.act)) {
-        fail("the governing act shown in a disagreement is not the held act it names");
-      }
-      // And a conflict is an explanation, not a root: it carries no placement.
-      if ("placement" in conflict) fail("a conflict was given a placement, as though it were stored");
-      if ("of" in conflict) fail("a conflict was given a root kind");
-    }
     failures.push(...fail.failures);
   }
   return failures;
@@ -1100,7 +1032,6 @@ export function traceability(world: World): Failure[] {
     // assertion, which is where a score would naturally be put.
     for (const [part, value] of [
       ["held", seen.memory.held],
-      ["operative", seen.memory.operative],
       ["remembered", seen.memory.remembered],
     ] as const) {
       invented(value, part, (where) => {
@@ -1226,8 +1157,8 @@ export function unauthored(world: World): Failure[] {
   if (alike(tempted.memory.held) !== alike(plain.memory.held)) {
     fail("three evenings changed what Tonight holds about the person");
   }
-  if (alike(tempted.memory.operative) !== alike(plain.memory.operative)) {
-    fail("three evenings produced a conflict");
+  if (alike(tempted.memory.remembered) === alike(plain.memory.remembered)) {
+    fail("three evenings left nothing remembered that the control did not have");
   }
   failures.push(...fail.failures);
 
@@ -1256,82 +1187,68 @@ export function unauthored(world: World): Failure[] {
 /* ------------------------------------------------------------------ gate E */
 
 /**
- * Precedence and restoration: the overlay governs, and lifting it restores.
+ * Independence: two roots about one film, and neither reaching the other.
  *
- * The whole M2/M3 arrangement in one gate, and the two matrix histories walk
- * every case of it: each Movie state against both reaches a refusal has, and
- * each state against every judgement. A verdict outranks a state it disagrees
- * with; taking the verdict back removes the overlay and the state applies again
- * by itself, because the picture is recomputed and there is nowhere for a stale
- * resolution to live. A refusal stays a refusal, and an evening's refusal stays
- * in its evening.
+ * This gate used to be about precedence, because a Movie carried an opinion and
+ * a Verdict carried an opinion and the view had to say which governed. Only
+ * Verdicts carry opinions now, so there is nothing to rank — and what has to be
+ * proved instead is that the split actually holds: saying, withdrawing and
+ * forgetting a verdict leave the saved film exactly as it was, and a refusal
+ * never arrives as a rating.
  *
- * Conflicts are matched by canonical film **and exact scope**, never by film
- * alone: the difference between *"never"* and *"not on a Tuesday"* is the whole
- * of what a scope is for.
+ * The comparison is against the replay's own expectation rather than against
+ * the production resolver, for the reason every gate here is: a gate that asked
+ * the implementation what to expect would reproduce its bug and agree with it.
  */
 export function precedence(world: World): Failure[] {
   const failures: Failure[] = [];
 
-  const wantedConflict = (one: ExpectedConflict) =>
-    canon({
-      film: filmKey(one.film),
-      where: one.where,
-      savedState: one.savedState,
-      governing: one.governing,
-      because: PRECEDENCE,
-    });
-  const observedConflict = (one: Conflict) =>
-    canon({
-      film: filmKey(one.film),
-      where: scopeName(one.where),
-      savedState: one.saved.state,
-      governing: assertionOf(one.governing.act as unknown as SpokenAct),
-      because: one.because,
-    });
-
-  for (const seen of Object.values(world.seen)) {
-    const fail = failer("precedence", seen.trajectory.name);
+  for (const name of [
+    "a-verdict-beside-a-saved-film",
+    "withdrawal-leaves-the-film-alone",
+    "never-again",
+    "not-on-a-tuesday",
+  ]) {
+    const seen = need(world, name);
+    const fail = failer("precedence", name);
     const want = expected(seen.trajectory.steps);
 
-    const gap = differ(want.conflicts.map(wantedConflict), seen.memory.operative.map(observedConflict));
-    if (gap) fail(`the disagreements are not the ones the history has — ${gap}`);
-
-    for (const conflict of seen.memory.operative) {
-      const governing = conflict.governing.act as unknown as SpokenAct;
-      const said = assertionOf(governing);
-
-      // A refusal is never rewritten into a rating, anywhere in the explanation.
-      if (said?.about === "rejection") {
-        if (JSON.stringify(conflict).includes('"judgement"')) {
-          fail(`${conflict.film.title}'s refusal was explained as a judgement`);
-        }
-        // And it reaches exactly as far as they said.
-        const reach = said.reach;
-        const where = scopeName(conflict.where);
-        if (reach === "not-ever" && where !== "everywhere") {
-          fail(`a permanent refusal was confined to ${where}`);
-        }
-        if (reach === "not-tonight" && where === "everywhere") {
-          fail(`an evening's refusal was made global`);
-        }
-        if (reach === "not-tonight" && where !== scopeName(governing.scope)) {
-          fail(`an evening's refusal was moved from ${scopeName(governing.scope)} to ${where}`);
-        }
-      }
-
-      // The saved root is still held, and still says what it said.
-      const saved = of(seen.memory.held, "movie").find(
-        (root) => filmKey(root.film as Film) === filmKey(conflict.film),
+    // The film is what the script filed, whatever was said about it afterwards.
+    for (const one of want.movies) {
+      const held = of(seen.memory.held, "movie").find(
+        (root) => filmKey(root.film as Film) === filmKey(one.film),
       );
-      if (!saved) fail(`${conflict.film.title} left held because something else governs it`);
-      else if (saved.state !== conflict.saved.state) fail(`${conflict.film.title}'s saved state was rewritten`);
-      else if (canon(saved.handle) !== canon(conflict.saved.handle)) {
-        fail(`${conflict.film.title}'s disagreement points at a film that is not the one held`);
+      if (!held) {
+        fail(`${one.film.title} left what Tonight holds when a verdict was recorded`);
+        continue;
       }
+      if (held.viewing !== one.viewing) {
+        fail(
+          `a verdict moved ${one.film.title} from ${String(one.viewing)} to ${String(held.viewing)}`,
+        );
+      }
+    }
+
+    // And nothing anywhere resolves one root against the other. A field naming a
+    // governor, a saved side or a precedence rule is the machinery this removed.
+    const whole = JSON.stringify(seen.memory);
+    for (const word of ["operative", "governedBy", "governing", "outranks", "disagree"]) {
+      if (whole.includes(word)) fail(`the memory view carries "${word}" again`);
+    }
+
+    failures.push(...fail.failures);
+  }
+
+  // A refusal is not a rating, wherever it appears.
+  for (const name of ["never-again", "not-on-a-tuesday"]) {
+    const seen = need(world, name);
+    const fail = failer("precedence", name);
+    if (JSON.stringify(seen.memory).includes("disliked")) {
+      fail("a refusal came back as a dislike");
     }
     failures.push(...fail.failures);
   }
+
   return failures;
 }
 
@@ -1419,8 +1336,8 @@ export function forgetting(world: World): Failure[] {
       if ((seen.taste.verdicts ?? []).length !== 0) {
         fail("a recommendation still reads a verdict after all of them were forgotten");
       }
-      if (of(seen.memory.held, "movie")[0]?.state !== "liked") {
-        fail("the saved film no longer governs alone once nothing they said is left");
+      if (of(seen.memory.held, "movie")[0]?.viewing !== "seen") {
+        fail("forgetting everything they said changed the film they saved");
       }
     }
     failures.push(...fail.failures);
@@ -1497,7 +1414,7 @@ export function correcting(world: World): Failure[] {
  * Proved by building the taste model the script says a recommendation should be
  * handed — from the scripted genres, mixes and films, and from the
  * independently determined standing verdicts — and comparing it whole. A key
- * search cannot do this: an evening that changed a Movie's state leaves no
+ * search cannot do this: an evening that changed a saved film leaves no
  * episode-shaped key behind, and a superseded reason copied onto a current
  * verdict looks exactly like a reason.
  */
@@ -1582,7 +1499,7 @@ export function pending(world: World): Failure[] {
   const waiting = need(world, "waiting-to-ask");
   const quiet = need(world, "waiting-to-ask-control");
 
-  for (const part of ["held", "operative", "remembered"] as const) {
+  for (const part of ["held", "remembered"] as const) {
     if (alike(waiting.memory[part]) !== alike(quiet.memory[part])) {
       fail(`a question Tonight is carrying changed what it says it knows: ${part}`);
     }
@@ -1672,9 +1589,9 @@ export function ownership(world: World): Failure[] {
  * live defects in opposite directions for as long as two folds existed. What
  * this asks is only whether the taste model, the verdict history and the memory
  * view all still consult that one rule. A regression here looks like one layer
- * quietly folding a title its own way again, and it shows up as two governors
- * for one film, a remake swallowed by its original, or a disagreement filed
- * against a film nobody spoke about.
+ * quietly folding a title its own way again, and it shows up as one film
+ * appearing twice, a remake swallowed by its original, or a verdict attached to
+ * a film nobody spoke about.
  */
 export function identity(world: World): Failure[] {
   const failures: Failure[] = [];
@@ -1686,8 +1603,8 @@ export function identity(world: World): Failure[] {
   if (of(one.memory.held, "verdict").length !== 1) {
     spellings("two spellings of one film produced two standing claims");
   }
-  if (one.memory.operative.length !== 1) {
-    spellings(`one film disagrees with its saved state and ${String(one.memory.operative.length)} conflicts were explained`);
+  if (of(one.memory.held, "movie").length !== 1) {
+    spellings("two spellings of one film produced two saved films");
   }
   if (new Set(acts.map((root) => filmKey(actOf(root).film))).size !== 1) {
     spellings("the two spellings were treated as two films");
@@ -1696,11 +1613,12 @@ export function identity(world: World): Failure[] {
 
   const remake = need(world, "a-remake-is-another-film");
   const apart = failer("film-identity", "a-remake-is-another-film");
-  if (remake.memory.operative.length !== 1) {
-    apart(`a remake and its original produced ${String(remake.memory.operative.length)} conflicts, not one`);
+  const spoken = of(remake.memory.held, "verdict");
+  if (spoken.length !== 1) {
+    apart(`a remake and its original produced ${String(spoken.length)} standing claims, not one`);
   }
-  if (remake.memory.operative[0]?.film.year !== 1986) {
-    apart(`the disagreement was placed on ${String(remake.memory.operative[0]?.film.year)}, not the film they spoke about`);
+  if ((actOf(spoken[0]!).film as Film).year !== 1986) {
+    apart(`what they said was placed on ${String((actOf(spoken[0]!).film as Film).year)}, not the film they spoke about`);
   }
   if (of(remake.memory.held, "movie").length !== 2) apart("a remake and its original were merged into one film");
   failures.push(...apart.failures);
@@ -1711,29 +1629,27 @@ export function identity(world: World): Failure[] {
   const films = of(unicode.memory.held, "movie");
   if (films.length !== 3) hard(`three films were saved and ${String(films.length)} came back`);
 
-  const disagreed = new Set(unicode.memory.operative.map((one) => filmKey(one.film)));
-  const wanted = new Set([filmKey(UNICODE_FILMS.dotted), filmKey(UNICODE_FILMS.upper)]);
-  if (canon([...disagreed].sort()) !== canon([...wanted].sort())) {
-    hard(`the films in disagreement are ${JSON.stringify([...disagreed])}, not ${JSON.stringify([...wanted])}`);
-  }
   // İ and i: the undotted film was never spoken about and must be untouched.
   const plain = films.find((root) => filmKey(root.film as Film) === filmKey(UNICODE_FILMS.plain));
   if (!plain) hard("the undotted film is not held at all");
-  else if (plain.state !== "loved") hard(`the undotted film reads ${String(plain.state)}; a verdict about the dotted one reached it`);
-  // Ⱟ and ⱟ: one film, spoken about in the other case — so the disagreement has
-  // to join the film as saved to the act as spoken, across the two layers.
-  const glagolitic = unicode.memory.operative.find(
-    (one) => filmKey(one.film) === filmKey(UNICODE_FILMS.upper),
+  else if (plain.viewing !== "seen") {
+    hard(`the undotted film reads ${String(plain.viewing)}; a verdict about the dotted one reached it`);
+  }
+
+  // Ⱟ and ⱟ: one film, spoken about in the other case. The act and the film have
+  // to be recognised as one film's across the two layers, which is what the
+  // collation could not do — so the history is one act, and the saved film that
+  // shares its identity is still there.
+  const spokenAbout = of(unicode.memory.held, "verdict").map((root) => filmKey(actOf(root).film as Film));
+  const aboutUpper = spokenAbout.filter((key) => key === filmKey(UNICODE_FILMS.upper));
+  if (aboutUpper.length !== 1) {
+    hard(`the Ⱟ/ⱟ pair produced ${String(aboutUpper.length)} standing claims, not one`);
+  }
+  const glagolitic = films.find(
+    (root) => filmKey(root.film as Film) === filmKey(UNICODE_FILMS.upper),
   );
   if (!glagolitic) hard("a case pair one rule calls one film was left as two");
-  else {
-    if (canon(glagolitic.saved.handle) !== canon({ by: "film", ...UNICODE_FILMS.upper })) {
-      hard(`the disagreement points at ${canon(glagolitic.saved.handle)} rather than the film as saved`);
-    }
-    if ((glagolitic.governing.act as { film?: Film }).film?.title !== UNICODE_FILMS.lower.title) {
-      hard("the governing act was rewritten into the spelling the film was saved under");
-    }
-  }
+
   failures.push(...hard.failures);
 
   return failures;
@@ -1744,7 +1660,7 @@ export function identity(world: World): Failure[] {
 /** What the public round trip changes, so the gate and the driver agree on it. */
 export const ROUND_TRIP = {
   request: "put right from the view",
-  state: "loved",
+  viewing: "unseen",
 } as const;
 
 /**
@@ -1820,14 +1736,6 @@ export function handles(world: World): Failure[] {
     if (new Set(refs).size !== refs.length) fail("two acts share one reference and cannot be told apart");
     if (new Set(ids).size !== ids.length) fail("two evenings share one id");
 
-    // A conflict names both sides by a handle too, or it cannot be acted on.
-    for (const conflict of seen.memory.operative) {
-      if (conflict.saved.handle.by !== "film") fail("a conflict does not say which saved film it is about");
-      if (conflict.governing.handle.by !== "ref") fail("a conflict does not say which act governs");
-      if (!refs.includes(String(conflict.governing.handle.ref))) {
-        fail("a conflict names an act by a reference no root carries");
-      }
-    }
     // No machinery.
     const payload = JSON.stringify(seen.memory);
     for (const internal of ["order", "seq", "user_id", "id\":\"tonight"]) {
@@ -1877,13 +1785,22 @@ export function handles(world: World): Failure[] {
   // The film named is refiled, its neighbour is untouched.
   const film = movieBy(after, used.film);
   if (!film) fail("updating a film by the handle the view gave removed it");
-  else if (film.state !== ROUND_TRIP.state) {
-    fail(`updating by the handle the view gave left the film as ${String(film.state)}`);
+  else if (film.viewing !== ROUND_TRIP.viewing) {
+    fail(`updating by the handle the view gave left the film as ${String(film.viewing)}`);
   }
   const otherFilm = movieBy(after, spared.film);
   if (!otherFilm) fail("updating one film removed another");
   else if (observedRoot(otherFilm) !== observedRoot(movieBy(before, spared.film)!)) {
     fail("updating one film changed another");
+  }
+
+  // And across the two roots: the opinion about the film that was refiled is
+  // still exactly what it was. A film and what was said about it are two roots
+  // now, so changing the first must not reach the second.
+  const opinion = verdictBy(after, world.handled.across.ref);
+  if (!opinion) fail("refiling a film removed what they said about it");
+  else if (canon(opinion.act) !== canon(verdictBy(before, world.handled.across.ref)!.act)) {
+    fail("refiling a film rewrote what they said about it");
   }
   failures.push(...fail.failures);
 
@@ -1919,7 +1836,7 @@ export function wholePicture(world: World): Failure[] {
   // the distinction is untested rather than proved.
   if (of(seen.memory.held, "verdict").length === 0) fail("nothing stands in a history that has standing claims");
   if (of(seen.memory.remembered, "verdict").length === 0) fail("nothing is historical in a history that has history");
-  if (seen.memory.operative.length === 0) fail("a disagreement in the history was not explained");
+  if (of(seen.memory.held, "movie").length === 0) fail("no film is held in a history that saves films");
 
   // Every piece can be traced and every piece can be reached.
   for (const root of all) {

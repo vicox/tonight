@@ -11,9 +11,9 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * Nothing here references a genre, a mix, a movie row or an episode. A film is
  * named by title and year as text, exactly as an offer is in the episode schema,
  * because pointing a verdict at a Movie row would make saying *"I loved it"* a
- * way of editing the taste model — and Phase 1 settled that only a Movie state
- * carries the user's verdict, written when they ask for it and not as a side
- * effect of something else.
+ * way of editing the taste model. This table is the only place an opinion
+ * lives: a Movie says the film is theirs and whether they watched it, and there
+ * is nowhere on it to put what they thought.
  *
  * ## One table of acts, not two of verdicts and withdrawals
  *

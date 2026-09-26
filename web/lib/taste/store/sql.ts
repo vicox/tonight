@@ -10,7 +10,7 @@ import {
   checkMovieMixes,
   checkMovieTitle,
   checkName,
-  checkMovieState,
+  checkViewing,
   checkYear,
   genreExists,
   genreInUse,
@@ -33,7 +33,7 @@ import {
   type Genre,
   type Mix,
   type Movie,
-  type MovieState,
+  type Viewing,
   type MovieHandle,
   type Written,
 } from "../model.ts";
@@ -328,10 +328,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           MOVIE_UNIQUENESS,
           () =>
             tx.query<{ id: string }>(
-              `INSERT INTO tonight_movies (user_id, title, canonical_title, year, imdb_id, state)
+              `INSERT INTO tonight_movies (user_id, title, canonical_title, year, imdb_id, viewing)
                VALUES ($1, $2, $3, $4, $5, $6)
                RETURNING id`,
-              [owner, entry.title, canonicalTitle(entry.title), entry.year, entry.imdbId, entry.state],
+              [owner, entry.title, canonicalTitle(entry.title), entry.year, entry.imdbId, entry.viewing],
             ),
           () => movieConflict(tx, owner, entry),
         );
@@ -382,7 +382,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           title: changes.title === undefined ? current.title : checkMovieTitle(changes.title),
           year: changes.year === undefined ? current.year : checkYear(changes.year),
           imdbId: changes.imdbId === undefined ? current.imdbId : changes.imdbId,
-          state: changes.state === undefined ? current.state : changes.state,
+          viewing: changes.viewing === undefined ? current.viewing : changes.viewing,
         });
 
         /**
@@ -409,10 +409,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           () =>
             tx.query(
               `UPDATE tonight_movies
-                  SET title = $3, canonical_title = $7, year = $4, imdb_id = $5, state = $6
+                  SET title = $3, canonical_title = $7, year = $4, imdb_id = $5, viewing = $6
                 WHERE user_id = $1 AND id = $2
                RETURNING id`,
-              [owner, current.id, entry.title, entry.year, entry.imdbId, entry.state, canonicalTitle(entry.title)],
+              [owner, current.id, entry.title, entry.year, entry.imdbId, entry.viewing, canonicalTitle(entry.title)],
             ),
           () => movieConflict(tx, owner, entry, current.id),
         );
@@ -925,7 +925,7 @@ type MovieRow = Stored<{
   title: string;
   year: number;
   imdbId: string | null;
-  state: MovieState | null;
+  viewing: Viewing | null;
 }>;
 
 /**
@@ -967,9 +967,9 @@ async function lockMovies(
       title: string;
       year: number;
       imdb_id: string | null;
-      state: MovieState | null;
+      viewing: Viewing | null;
     }>(
-      `SELECT id, title, year, imdb_id, state FROM tonight_movies
+      `SELECT id, title, year, imdb_id, viewing FROM tonight_movies
         WHERE user_id = $1 AND canonical_title = $2 AND year = $3
         FOR UPDATE`,
       [owner, at.title, at.year],
@@ -980,7 +980,7 @@ async function lockMovies(
         title: row.title,
         year: row.year,
         imdbId: row.imdb_id,
-        state: row.state,
+        viewing: row.viewing,
       });
     }
   }
@@ -1163,11 +1163,11 @@ async function readMovies(sql: Transaction, owner: string): Promise<Written<Movi
     title: string;
     year: number;
     imdb_id: string | null;
-    state: MovieState | null;
+    viewing: Viewing | null;
     created_at: string | null;
     updated_at: string;
   }>(
-    `SELECT id, title, year, imdb_id, state, ${WRITTEN_AT}
+    `SELECT id, title, year, imdb_id, viewing, ${WRITTEN_AT}
        FROM tonight_movies WHERE user_id = $1`,
     [owner],
   );
@@ -1186,7 +1186,7 @@ async function readMovies(sql: Transaction, owner: string): Promise<Written<Movi
     title: row.title,
     year: row.year,
     imdbId: row.imdb_id,
-    state: row.state,
+    viewing: row.viewing,
     mixes: [] as string[],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -1212,13 +1212,13 @@ function validateMovie(draft: {
   title: unknown;
   year: unknown;
   imdbId?: unknown;
-  state?: unknown;
+  viewing?: unknown;
 }): Omit<Movie, "mixes"> {
   return {
     title: checkMovieTitle(draft.title),
     year: checkYear(draft.year),
     imdbId: draft.imdbId === undefined ? null : checkImdbId(draft.imdbId),
-    state: draft.state === undefined ? null : checkMovieState(draft.state),
+    viewing: draft.viewing === undefined ? null : checkViewing(draft.viewing),
   };
 }
 

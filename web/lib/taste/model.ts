@@ -5,7 +5,7 @@
  *
  *     Genre   a reusable piece of what this person likes, in their own words
  *     Mix     one or more Genres, plus what the combination means to them
- *     Movie   a film this person told us about, and what they said about it
+ *     Movie   a film this person told us about, and whether they watched it
  *
  * A Genre is not a row from a movie database. `Action` here is whatever this
  * user says Action is, and two users with a Genre of that name may mean opposite
@@ -31,10 +31,16 @@
  * stored as what the user said. Two users who both saw the same film have two
  * Movies, because what is kept is not the film.
  *
- * What they said about it is one field with five answers, and it is nullable
- * because "we were never told" is a different thing from any of them. Nothing in
- * this file may turn the absence of information into a statement — see
- * `checkMovieState`.
+ * Whether they watched it is one field with two answers, and it is nullable
+ * because "we were never told" is a different thing from either of them. Nothing
+ * in this file may turn the absence of information into a statement — see
+ * `checkViewing`.
+ *
+ * What they *thought* of a film is not in this file at all. An opinion is a
+ * Verdict — `lib/verdicts/model.ts` — with a scope, a provenance, an instant and
+ * a history, none of which a field on a Movie could carry. A Movie says the film
+ * is theirs and whether they have seen it; everything evaluative is somewhere
+ * else, and there is deliberately nowhere here to put one.
  *
  * This is the definition — what the objects are, what spellings are accepted,
  * and how one is rejected. Every way into the product goes through it: the MCP
@@ -126,34 +132,42 @@ export type Mix = {
 export type MovieHandle = { title: string; year: number };
 
 /**
- * What the user has said about a film, as one answer rather than several.
+ * Whether the user has watched a film, where that is known.
  *
- * The five are ordered as somebody moves through them — not seen, seen, and then
- * three ways of having an opinion — and they are exhaustive on purpose: an
- * evaluation implies having watched it, so there is no combination to keep
- * consistent and no pair of fields that can contradict each other.
+ * Two answers here and a third outside it — `null` — because *"they said they
+ * have not seen it"* and *"nobody has said"* are different things to know and
+ * folding them together would put a sentence in somebody's mouth. Keeping
+ * "unknown" out of the union is what stops an exhaustive `switch` from quietly
+ * acquiring a branch that treats silence as a statement.
  *
- * `seen` is deliberately non-evaluative. It is what somebody who watched a film
- * and said nothing about it has told you, and it is not a neutral verdict.
+ * Factual, and only factual. It says whether they watched it and nothing about
+ * whether they liked it — that is a Verdict, it is the only thing that carries
+ * an opinion, and there is deliberately nowhere here to put one. A film they
+ * loved is a film they have seen, but the loving lives in `lib/verdicts` and
+ * what is left here is the watching.
  */
-export const MOVIE_STATES = ["not_seen", "seen", "liked", "loved", "disliked"] as const;
+export const VIEWINGS = ["seen", "unseen"] as const;
 
-export type MovieState = (typeof MOVIE_STATES)[number];
+export type Viewing = (typeof VIEWINGS)[number];
 
 /**
  * A film the user told us about.
  *
- * `state` is nullable and the null is the point: it means Tonight was never told,
- * which is not the same as `not_seen` — one is silence, the other is something
- * they said. Storing a movie is evidence of neither.
+ * Identity, a pointer, where it is filed, and whether they watched it. What they
+ * *thought* of it is not here and cannot be: an opinion is a Verdict, and a film
+ * being in somebody's collection says nothing about whether they liked it.
+ *
+ * `viewing` is nullable and the null is the point: it means Tonight was never
+ * told, which is not the same as `unseen` — one is silence, the other is
+ * something they said. Storing a movie is evidence of neither.
  */
 export type Movie = {
   title: string;
   year: number;
   /** An outbound pointer, or nothing. Never verified, never fetched. */
   imdbId: string | null;
-  /** What they said about it, or `null` when they have not said. */
-  state: MovieState | null;
+  /** Whether they watched it, or `null` when they have not said. */
+  viewing: Viewing | null;
   /** The mixes it is in, by name. May be empty. */
   mixes: string[];
 };
@@ -481,22 +495,23 @@ export function checkImdbId(value: unknown): string | null {
 }
 
 /**
- * Checks what the user said about a film.
+ * Checks what the user said about having watched a film.
  *
  * `null` is a value and not a refusal: it says Tonight has not been told. The one
- * thing this must never do is turn silence into `not_seen` — that would put a
+ * thing this must never do is turn silence into `unseen` — that would put a
  * statement in the user's mouth, which is the rule the whole taste model rests
  * on. An omitted field never reaches here; the store keeps what it had.
  */
-export function checkMovieState(value: unknown): MovieState | null {
+export function checkViewing(value: unknown): Viewing | null {
   if (value === null) return null;
-  if (typeof value === "string" && (MOVIE_STATES as readonly string[]).includes(value)) {
-    return value as MovieState;
+  if (typeof value === "string" && (VIEWINGS as readonly string[]).includes(value)) {
+    return value as Viewing;
   }
 
   throw new TasteError(
-    `a movie's state must be one of ${MOVIE_STATES.join(", ")} — or null, meaning you were ` +
-      `not told. Not ${typeof value === "string" ? `"${value}"` : kindOf(value)}.`,
+    `a movie's viewing must be one of ${VIEWINGS.join(", ")} — or null, meaning you were ` +
+      `not told. Not ${typeof value === "string" ? `"${value}"` : kindOf(value)}. ` +
+      "What they thought of the film is a verdict, not a viewing.",
   );
 }
 
@@ -563,7 +578,7 @@ export function orderMovie(movie: Movie): Movie {
     title: movie.title,
     year: movie.year,
     imdbId: movie.imdbId,
-    state: movie.state,
+    viewing: movie.viewing,
     mixes: [...movie.mixes],
   };
 }
@@ -670,7 +685,7 @@ export function nothingToUpdate(what: "genre" | "mix" | "movie"): TasteError {
       );
     default:
       return new TasteError(
-        "nothing to update: pass a new title or year, an IMDb id, a state, or new mixes",
+        "nothing to update: pass a new title or year, an IMDb id, a viewing, or new mixes",
       );
   }
 }

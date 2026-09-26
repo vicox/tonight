@@ -13,7 +13,7 @@ import type { TasteStore } from "../taste/store.ts";
 import { stateVerdict, withdrawVerdict, type Film } from "../verdicts/model.ts";
 import { sqlVerdictStore, VERDICTS_SCHEMA } from "../verdicts/store/sql.ts";
 import type { VerdictStore } from "../verdicts/store.ts";
-import { compose, PRECEDENCE, type Conflict, type Memory, type Root } from "./model.ts";
+import { compose, type Memory, type Root } from "./model.ts";
 
 /**
  * The memory composer, held to the one thing it must never do.
@@ -36,22 +36,9 @@ const asUser = (id: string): AuthenticatedUser => ({ id }) as AuthenticatedUser;
 
 const BLACK_BAG: Film = { title: "Black Bag", year: 2025 };
 const HEAT_1995: Film = { title: "Heat", year: 1995 };
-const HEAT_1986: Film = { title: "Heat", year: 1986 };
 
 const judged = (film: Film, judgement: "liked" | "loved" | "disliked", at: string, because: string | null = null) =>
   stateVerdict(film, { about: "judgement", judgement, because }, "volunteered", at);
-
-const refused = (film: Film, at: string) =>
-  stateVerdict(film, { about: "rejection", rejection: { reach: "not-ever", reason: null } }, "confirmed", at);
-
-const notTonight = (film: Film, at: string, occasion: string) =>
-  stateVerdict(
-    film,
-    { about: "rejection", rejection: { reach: "not-tonight", reason: null } },
-    "confirmed",
-    at,
-    { occasion },
-  );
 
 describe("the memory composer", () => {
   let driver: SqlDriver;
@@ -97,8 +84,8 @@ describe("the memory composer", () => {
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
     await her.taste.createGenre({ name: "Heist", instruction: "a crew and a plan" });
     await her.taste.createMix({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" });
-    await her.taste.createMovie({ ...HEAT_1995, state: "loved" });
-    await her.taste.createMovie({ ...BLACK_BAG, state: null });
+    await her.taste.createMovie({ ...HEAT_1995, viewing: "seen" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: null });
     await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z", "the tension"));
 
     const { held } = await her.memory();
@@ -115,7 +102,7 @@ describe("the memory composer", () => {
   test("a held mix carries what it is made of and what is in it", async () => {
     const her = someone();
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
-    await her.taste.createMovie({ ...HEAT_1995, state: "loved" });
+    await her.taste.createMovie({ ...HEAT_1995, viewing: "seen" });
     await her.taste.createMix({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" });
     await her.taste.updateMovie(HEAT_1995.title, HEAT_1995.year, { mixes: ["Long Nights"] });
 
@@ -164,7 +151,7 @@ describe("the memory composer", () => {
 
   test("no root is in two places at once", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...HEAT_1995, state: "loved" });
+    await her.taste.createMovie({ ...HEAT_1995, viewing: "seen" });
     await her.verdicts.say(judged(HEAT_1995, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
     await her.verdicts.say(judged(BLACK_BAG, "liked", "2026-01-02T20:00:00.000Z"));
@@ -192,196 +179,30 @@ describe("the memory composer", () => {
     assert.equal(held.length, 0, "a finished evening produced something held");
   });
 
-  /* --------------------------------------------------------------- operative */
-
-  test("a disagreeing state and verdict make exactly one conflict, and the verdict governs", async () => {
-    const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "liked" });
-    await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
-
-    const { held, operative } = await her.memory();
-    assert.equal(operative.length, 1);
-    const [conflict] = operative as [Conflict];
-    assert.deepEqual(conflict.film, BLACK_BAG);
-    assert.equal(conflict.saved.state, "liked");
-    assert.deepEqual(conflict.saved.handle, { by: "film", title: "Black Bag", year: 2025 });
-    assert.equal(conflict.governing.act.assertion.about === "judgement" && conflict.governing.act.assertion.judgement, "disliked");
-    assert.equal(conflict.because, PRECEDENCE);
-
-    // Both roots stay in held. The Movie is not overwritten and not moved.
-    assert.equal(of(held, "movie").length, 1);
-    assert.equal(of(held, "verdict").length, 1);
-    const [movie] = of(held, "movie");
-    assert.equal(movie?.of === "movie" && movie.state, "liked", "the saved state was rewritten by the verdict");
-  });
-
-  test("a state and a verdict that agree are not a conflict", async () => {
-    const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "loved" });
-    await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
-    assert.deepEqual((await her.memory()).operative, []);
-  });
-
-  test("a non-evaluative state is not contradicted by a verdict", async () => {
-    // `seen` says they watched it, never how it went, so a verdict beside it
-    // adds an opinion rather than disagreeing with one.
-    for (const state of ["seen", "not_seen", null] as const) {
-      const her = someone();
-      await her.taste.createMovie({ ...BLACK_BAG, state });
-      await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
-      assert.deepEqual((await her.memory()).operative, [], `${String(state)} was treated as an opinion`);
-    }
-  });
-
-  /**
-   * A refusal is a conflict, and it stays a refusal.
-   *
-   * *"Never again"* against a film they filed as loved is two roots pulling
-   * recommendation opposite ways, which is exactly what `operative` is for. What
-   * must not happen is the translation: a refusal is not a rating, and turning
-   * it into `disliked` would put an opinion in their mouth that they never gave.
-   */
-  test("a global not-ever governs the film, and is still a refusal", async () => {
-    const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "loved" });
-    await her.verdicts.say(refused(BLACK_BAG, "2026-01-01T20:00:00.000Z"));
-
-    const { held, operative } = await her.memory();
-    assert.equal(operative.length, 1, "a permanent refusal over a loved film explained nothing");
-    const [conflict] = operative as [Conflict];
-    assert.deepEqual(conflict.where, "everywhere", "a global refusal was scoped to an evening");
-    assert.equal(conflict.saved.state, "loved", "the saved preference was rewritten");
-    assert.equal(
-      conflict.governing.act.assertion.about === "rejection" &&
-        conflict.governing.act.assertion.rejection.reach,
-      "not-ever",
-    );
-    assert.equal(JSON.stringify(conflict).includes("disliked"), false, "a refusal was read as a dislike");
-    assert.equal(of(held, "movie").length, 1);
-    assert.equal(of(held, "verdict").length, 1);
-  });
-
-  test("a not-tonight governs its own evening and claims nothing beyond it", async () => {
-    const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "loved" });
-    await her.verdicts.say(notTonight(BLACK_BAG, "2026-01-01T20:00:00.000Z", "tue"));
-
-    const { held, operative } = await her.memory();
-    assert.equal(operative.length, 1, "an evening's refusal over a loved film explained nothing");
-    const [conflict] = operative as [Conflict];
-    assert.deepEqual(conflict.where, { occasion: "tue" }, "the evening's refusal was made global");
-    assert.equal(
-      conflict.governing.act.assertion.about === "rejection" &&
-        conflict.governing.act.assertion.rejection.reach,
-      "not-tonight",
-    );
-    assert.equal(JSON.stringify(conflict).includes("disliked"), false, "not tonight was read as a dislike");
-
-    const [movie] = of(held, "movie");
-    assert.equal(movie?.of === "movie" && movie.state, "loved", "the base preference was rewritten");
-    assert.equal(
-      operative.filter((one) => JSON.stringify(one.where) !== JSON.stringify({ occasion: "tue" })).length,
-      0,
-      "the refusal was claimed to govern somewhere it was not said",
-    );
-  });
-
-  test("a refusal against a film they already disliked is not a disagreement", async () => {
-    const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "disliked" });
-    await her.verdicts.say(refused(BLACK_BAG, "2026-01-01T20:00:00.000Z"));
-    assert.deepEqual((await her.memory()).operative, []);
-  });
-
-  test("a refusal manufactures no preference from a non-evaluative state", async () => {
-    for (const state of ["seen", "not_seen", null] as const) {
-      const her = someone();
-      await her.taste.createMovie({ ...BLACK_BAG, state });
-      await her.verdicts.say(refused(BLACK_BAG, "2026-01-01T20:00:00.000Z"));
-      assert.deepEqual(
-        (await her.memory()).operative,
-        [],
-        `a refusal beside ${String(state)} was read as a contradicted preference`,
-      );
-    }
-  });
-
-  test("taking a refusal back removes the overlay and leaves the film as they filed it", async () => {
-    const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "loved" });
-    await her.verdicts.say(refused(BLACK_BAG, "2026-01-01T20:00:00.000Z"));
-    assert.equal((await her.memory()).operative.length, 1);
-
-    await her.verdicts.say(withdrawVerdict(BLACK_BAG, "2026-01-02T20:00:00.000Z"));
-    const after = await her.memory();
-    assert.deepEqual(after.operative, [], "the refusal still governed after it was taken back");
-    assert.equal(of(after.held, "verdict").length, 0);
-    const [movie] = of(after.held, "movie");
-    assert.equal(movie?.of === "movie" && movie.state, "loved", "the base did not come back");
-  });
-
-  test("taking an evening's refusal back restores that evening to the base too", async () => {
-    const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "loved" });
-    await her.verdicts.say(notTonight(BLACK_BAG, "2026-01-01T20:00:00.000Z", "tue"));
-    await her.verdicts.say(withdrawVerdict(BLACK_BAG, "2026-01-02T20:00:00.000Z", { occasion: "tue" }));
-
-    const after = await her.memory();
-    assert.deepEqual(after.operative, [], "an evening kept a refusal that was taken back");
-    assert.equal(of(after.held, "verdict").length, 0);
-  });
-
-  test("two films sharing a title are two films, and the conflict names the right one", async () => {
-    // They speak about the *earlier* film on purpose. The taste model comes back
-    // ordered by title then year, so a key that dropped the year would end up
-    // holding the later film — and a fixture that spoke about that one would
-    // pass by accident.
-    const her = someone();
-    await her.taste.createMovie({ ...HEAT_1986, state: "loved" });
-    await her.taste.createMovie({ ...HEAT_1995, state: "liked" });
-    await her.verdicts.say(judged(HEAT_1986, "disliked", "2026-01-01T20:00:00.000Z"));
-
-    const { operative } = await her.memory();
-    assert.equal(operative.length, 1, "a remake was merged with the film it remade");
-    assert.equal(operative[0]?.film.year, 1986);
-    // Which saved film is in the conflict matters as much as how many there are:
-    // pairing the 1995 verdict with the 1986 Movie would be a count of one and
-    // an explanation about the wrong film.
-    assert.deepEqual(operative[0]?.saved.handle, { by: "film", title: "Heat", year: 1986 });
-    assert.equal(operative[0]?.saved.state, "loved", "the conflict named the other film's state");
-  });
-
-  test("a verdict agreeing with its own film is no conflict, whatever the other film says", async () => {
-    // The sharper half of the same rule. Here the film they spoke about agrees
-    // with what they said, so there is nothing to explain — and only a key that
-    // ignored the year could find a disagreement, by reaching the remake.
-    const her = someone();
-    await her.taste.createMovie({ ...HEAT_1986, state: "disliked" });
-    await her.taste.createMovie({ ...HEAT_1995, state: "liked" });
-    await her.verdicts.say(judged(HEAT_1986, "disliked", "2026-01-01T20:00:00.000Z"));
-
-    assert.deepEqual((await her.memory()).operative, [], "a conflict was invented from the wrong film");
-  });
+  /* ------------------------------------------------------ one film, one history */
 
   test("a film saved and spoken about in different case is one film", async () => {
-    // The taste store holds a Movie unique on its folded title; the verdict
-    // store matches exactly. They describe one film, so the conflict must be
-    // found rather than missed on a capital letter.
+    // The taste store holds a Movie under its canonical name; the verdict store
+    // holds the title as the user spelled it. They describe one film, and the
+    // memory view must show one film rather than two roots that look unrelated.
     const her = someone();
-    await her.taste.createMovie({ title: "black bag", year: 2025, state: "liked" });
+    await her.taste.createMovie({ title: "black bag", year: 2025, viewing: "seen" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
-    assert.equal((await her.memory()).operative.length, 1, "one film was read as two");
+
+    const held = (await her.memory()).held;
+    assert.equal(of(held, "movie").length, 1, "one film was saved twice");
+    assert.equal(of(held, "verdict").length, 1);
   });
 
-  test("a superseded verdict never governs", async () => {
+  test("a superseded verdict is remembered and never held", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "liked" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.verdicts.say(judged(BLACK_BAG, "liked", "2026-01-02T20:00:00.000Z"));
 
-    // The latest verdict agrees with the saved state, so nothing is in conflict
-    // — and the displaced one must not resurrect the disagreement.
-    assert.deepEqual((await her.memory()).operative, []);
+    const { held, remembered } = await her.memory();
+    assert.equal(of(held, "verdict").length, 1, "two verdicts stand about one film");
+    assert.equal(of(remembered, "verdict").length, 1, "the displaced verdict was lost");
   });
 
   /* -------------------------------------------------------------- provenance */
@@ -449,7 +270,7 @@ describe("the memory composer", () => {
 
   test("nothing derived, scored or inferred appears anywhere", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "liked" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.episodes.record(beginEpisode("something tense", [{ ...HEAT_1995, lead: true }]));
 
@@ -466,7 +287,7 @@ describe("the memory composer", () => {
 
   test("composing writes nothing and moves nothing", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "liked" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.episodes.record(beginEpisode("something tense", [{ ...HEAT_1995, lead: true }]));
 
@@ -486,49 +307,60 @@ describe("the memory composer", () => {
   test("one person's memory holds nothing of another's", async () => {
     const her = someone("mine");
     const him = someone("theirs");
-    await her.taste.createMovie({ ...BLACK_BAG, state: "liked" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.episodes.record(beginEpisode("hers alone", [{ ...HEAT_1995, lead: true }]));
 
     const his = await him.memory();
-    assert.deepEqual(his, { held: [], operative: [], remembered: [] });
+    assert.deepEqual(his, { held: [], remembered: [] });
     assert.equal(JSON.stringify(his).includes("Black Bag"), false);
     assert.equal(JSON.stringify(his).includes("hers alone"), false);
   });
 
   /* ------------------------------------------------- correction and deletion */
 
-  test("forgetting the standing verdict returns the saved state to governing alone", async () => {
+  test("forgetting the standing verdict leaves nothing evaluative, and no hidden opinion", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "liked" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen", mixes: [] });
     const act = await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
-    assert.equal((await her.memory()).operative.length, 1);
+    assert.equal(of((await her.memory()).held, "verdict").length, 1);
 
     await her.verdicts.forget(act.ref);
     const after = await her.memory();
-    assert.deepEqual(after.operative, [], "the conflict outlived the verdict");
     assert.equal(of(after.held, "verdict").length, 0);
     assert.equal(of(after.remembered, "verdict").length, 0, "a forgotten act lingered in remembered");
-    // The Movie is untouched and is now the only thing said about the film.
+
+    // The film is untouched, and there is no second place for an opinion to be
+    // left behind: the Movie carries a viewing fact and nothing evaluative.
     const [movie] = of(after.held, "movie");
-    assert.equal(movie?.of === "movie" && movie.state, "liked");
+    assert.equal(movie?.of === "movie" && movie.viewing, "seen");
+    assert.equal(
+      /liked|loved|disliked/.test(JSON.stringify(after)),
+      false,
+      "an opinion survived forgetting the only act that carried one",
+    );
   });
 
   test("forgetting a withdrawal brings the verdict it silenced back to held", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "liked" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     const taken = await her.verdicts.say(withdrawVerdict(BLACK_BAG, "2026-01-02T20:00:00.000Z"));
-    assert.deepEqual((await her.memory()).operative, [], "a withdrawn verdict was still governing");
+
+    // While the withdrawal stands, nothing evaluative does. A withdrawal leaves
+    // silence, and there is nowhere else for an opinion to be hiding.
+    const silent = await her.memory();
+    assert.equal(of(silent.held, "verdict").length, 0, "a withdrawn verdict was still held");
 
     await her.verdicts.forget(taken.ref);
     const after = await her.memory();
-    assert.equal(of(after.held, "verdict").length, 1, "the silenced verdict did not come back");
-    assert.equal(after.operative.length, 1, "the conflict did not recompute");
+    const [back] = of(after.held, "verdict");
     assert.equal(
-      after.operative[0]?.governing.act.assertion.about === "judgement" &&
-        after.operative[0].governing.act.assertion.judgement,
+      back?.of === "verdict" && back.act.said === "verdict" && back.act.assertion.about === "judgement"
+        ? back.act.assertion.judgement
+        : null,
       "disliked",
+      "the silenced verdict did not come back",
     );
   });
 
@@ -546,19 +378,19 @@ describe("the memory composer", () => {
     assert.equal(evening.offeredSource, "stated");
     assert.deepEqual(evening.chosen.known ? evening.chosen.value : null, { ...HEAT_1995, lead: false });
     assert.deepEqual(after.held, before.held, "correcting an evening changed what is held");
-    assert.deepEqual(after.operative, [], "correcting an evening produced a conflict");
+    assert.equal(of(after.held, "verdict").length, 0, "correcting an evening said something");
   });
 
   test("deleting a saved film removes it and leaves what they said standing", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "liked" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
-    assert.equal((await her.memory()).operative.length, 1);
+    assert.equal(of((await her.memory()).held, "verdict").length, 1);
 
     await her.taste.deleteMovie(BLACK_BAG.title, BLACK_BAG.year);
     const after = await her.memory();
     assert.equal(of(after.held, "movie").length, 0);
-    assert.deepEqual(after.operative, [], "a conflict survived the root it was about");
+    assert.equal(of(after.held, "movie").length, 0, "a deleted film survived");
     assert.equal(of(after.held, "verdict").length, 1, "deleting a film took the verdict with it");
   });
 
@@ -569,7 +401,7 @@ describe("the memory composer", () => {
     assert.equal(of(first.held, "genre").length, 1);
 
     await her.taste.deleteGenre("Slow Burn");
-    assert.deepEqual(await her.memory(), { held: [], operative: [], remembered: [] });
+    assert.deepEqual(await her.memory(), { held: [], remembered: [] });
   });
 
   /**
@@ -584,7 +416,7 @@ describe("the memory composer", () => {
    */
   test("case variants are one film's history, with one governor", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "loved" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     const first = await her.verdicts.say(judged(BLACK_BAG, "liked", "2026-01-01T20:00:00.000Z"));
     const second = await her.verdicts.say(
       judged({ title: "black bag", year: 2025 }, "disliked", "2026-01-02T20:00:00.000Z"),
@@ -602,75 +434,16 @@ describe("the memory composer", () => {
     const standing = await her.verdicts.standing();
     assert.equal(standing.length, 1, "one film had two standing claims");
 
-    // The memory side: one governor, and it is the later act.
-    const { held, operative, remembered } = await her.memory();
-    assert.equal(operative.length, 1, "one Movie had two governors");
-    assert.deepEqual(operative[0]?.governing.handle, { by: "ref", ref: second.ref });
+    // The memory side: one act stands, and it is the later one.
+    const { held, remembered } = await her.memory();
     assert.equal(of(held, "verdict").length, 1, "a superseded spelling is still held");
+    assert.deepEqual(of(held, "verdict")[0]?.handle, { by: "ref", ref: second.ref });
     // And the earlier act is not lost — it is remembered, by its own reference.
     assert.deepEqual(
       of(remembered, "verdict").map((root) => root.handle),
       [{ by: "ref", ref: first.ref }],
     );
   });
-
-  /* ------------------------------------------- the rejection matrix, in full */
-
-  for (const state of ["liked", "loved"] as const) {
-    test(`${state} and a global not-ever is one conflict, governing everywhere`, async () => {
-      const her = someone();
-      await her.taste.createMovie({ ...BLACK_BAG, state });
-      await her.verdicts.say(refused(BLACK_BAG, "2026-01-01T20:00:00.000Z"));
-
-      const { operative } = await her.memory();
-      assert.equal(operative.length, 1);
-      assert.deepEqual(operative[0]?.where, "everywhere");
-      assert.equal(operative[0]?.saved.state, state);
-      assert.equal(
-        operative[0]?.governing.act.assertion.about === "rejection" &&
-          operative[0].governing.act.assertion.rejection.reach,
-        "not-ever",
-      );
-      assert.equal(JSON.stringify(operative[0]).includes("disliked"), false);
-    });
-
-    test(`${state} and a not-tonight is one conflict, governing only that evening`, async () => {
-      const her = someone();
-      await her.taste.createMovie({ ...BLACK_BAG, state });
-      await her.verdicts.say(notTonight(BLACK_BAG, "2026-01-01T20:00:00.000Z", "tue"));
-
-      const { held, operative } = await her.memory();
-      assert.equal(operative.length, 1);
-      assert.deepEqual(operative[0]?.where, { occasion: "tue" });
-      assert.equal(
-        operative[0]?.governing.act.assertion.about === "rejection" &&
-          operative[0].governing.act.assertion.rejection.reach,
-        "not-tonight",
-      );
-      assert.equal(JSON.stringify(operative[0]).includes("disliked"), false);
-      const [movie] = of(held, "movie");
-      assert.equal(movie?.of === "movie" && movie.state, state, "the base preference moved");
-    });
-  }
-
-  for (const state of ["disliked", "seen", "not_seen", null] as const) {
-    test(`${String(state)} and a rejection is no conflict`, async () => {
-      for (const reach of ["ever", "tonight"] as const) {
-        const her = someone();
-        await her.taste.createMovie({ ...BLACK_BAG, state });
-        await her.verdicts.say(
-          reach === "ever"
-            ? refused(BLACK_BAG, "2026-01-01T20:00:00.000Z")
-            : notTonight(BLACK_BAG, "2026-01-01T20:00:00.000Z", "tue"),
-        );
-        assert.deepEqual(
-          (await her.memory()).operative,
-          [],
-          `not-${reach} beside ${String(state)} was read as a contradicted preference`,
-        );
-      }
-    });
-  }
 
   /* ----------------------------------- recomputation across title variants */
 
@@ -680,7 +453,7 @@ describe("the memory composer", () => {
    */
   test("acts spelled differently are one history, and forgetting reaches the right one", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, state: "liked" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     const v1 = await her.verdicts.say(judged(BLACK_BAG, "liked", "2026-01-01T20:00:00.000Z"));
     const v2 = await her.verdicts.say(
       stateVerdict(
@@ -697,9 +470,9 @@ describe("the memory composer", () => {
     assert.deepEqual(history.map((act) => act.ref).sort(), [v1.ref, v2.ref, v3.ref].sort());
     assert.equal((await her.verdicts.standing()).length, 0, "a withdrawal left something standing");
 
-    // Nothing stands, so nothing governs, and the saved state is alone.
+    // Nothing stands, so nothing is held — and the three acts are all still
+    // remembered, which is exactly why this is not them having said nothing.
     let memory = await her.memory();
-    assert.deepEqual(memory.operative, []);
     assert.equal(of(memory.held, "verdict").length, 0);
     assert.equal(of(memory.remembered, "verdict").length, 3);
 
@@ -707,16 +480,13 @@ describe("the memory composer", () => {
     // the one said first, even though all three were spelled differently.
     await her.verdicts.forget(v3.ref);
     memory = await her.memory();
-    assert.equal(memory.operative.length, 1, "the revived refusal did not govern");
-    assert.deepEqual(memory.operative[0]?.governing.handle, { by: "ref", ref: v2.ref });
-    assert.equal(of(memory.held, "verdict").length, 1, "two governors appeared for one film");
+    assert.deepEqual(of(memory.held, "verdict").map((root) => root.handle), [{ by: "ref", ref: v2.ref }]);
+    assert.equal(of(memory.held, "verdict").length, 1, "two acts stood for one film");
 
     // Forgetting that one leaves the first, and only the first.
     await her.verdicts.forget(v2.ref);
     memory = await her.memory();
     assert.deepEqual(of(memory.held, "verdict").map((root) => root.handle), [{ by: "ref", ref: v1.ref }]);
-    // It agrees with the saved state, so there is nothing to explain.
-    assert.deepEqual(memory.operative, []);
     assert.equal(of(memory.remembered, "verdict").length, 0, "a forgotten act lingered");
   });
 
@@ -751,36 +521,7 @@ describe("the memory composer", () => {
    * is said to outrank a state, and that taking one back returns the film to
    * what it was.
    */
-  test("the instructions still establish that a verdict outranks a state", async () => {
-    const skill = await import("node:fs").then((fs) =>
-      fs.readFileSync(new URL("../../../skills/tonight-recommend/SKILL.md", import.meta.url), "utf8"),
-    );
-    const flat = skill.replace(/\s+/gu, " ");
-
-    // A verdict beats a state it disagrees with, however that is worded.
-    assert.match(
-      flat,
-      /verdict[^.]{0,60}\b(outranks|overrides|beats|wins over|takes precedence over)\b[^.]{0,40}state/iu,
-      "the instructions no longer say a verdict outranks a state; the memory view would explain a rule Tonight does not follow",
-    );
-    // And the two are named as different things, which is what makes one able
-    // to outrank the other rather than replace it.
-    assert.match(flat, /a verdict is what they told you|what they say about a film is a verdict/iu);
-  });
-
-  test("the instructions still establish that taking a verdict back restores what was there", async () => {
-    const skill = await import("node:fs").then((fs) =>
-      fs.readFileSync(new URL("../../../skills/tonight-recommend/SKILL.md", import.meta.url), "utf8"),
-    );
-    const flat = skill.replace(/\s+/gu, " ");
-    assert.match(
-      flat,
-      /taking it back[^.]{0,80}Movie state[^.]{0,40}what is left|taking back[^.]{0,80}means they have said nothing/iu,
-      "the instructions no longer say a withdrawal leaves silence; the overlay this view removes would have no basis",
-    );
-  });
-
-  test("the composer states no rule of its own beyond that one", async () => {
+  test("the composer states no rule of its own at all", async () => {
     const source = await import("node:fs").then((fs) =>
       fs.readFileSync(new URL("model.ts", import.meta.url), "utf8"),
     );
@@ -788,6 +529,70 @@ describe("the memory composer", () => {
     // No persistence, no second recommendation vocabulary, no caching.
     for (const word of ["INSERT", "UPDATE", "DELETE", "driver", "query(", "cache"]) {
       assert.equal(code.includes(word), false, `${word} appears in the memory composer`);
+    }
+
+    // And no resolution either. There used to be one rule here, because a Movie
+    // carried an opinion and a Verdict carried an opinion and something had to
+    // rank them. Only Verdicts carry opinions now, so there is no second opinion
+    // to rank and nothing left for this file to decide.
+    for (const word of ["PRECEDENCE", "Conflict", "conflicts", "operative", "governs"]) {
+      assert.equal(code.includes(word), false, `${word} came back to the memory composer`);
+    }
+  });
+
+  /* ------------------------------ the two roots, and what each does not touch */
+
+  test("a judgement stands without a saved film, and is held on its own", async () => {
+    // A verdict does not need a Movie row to exist, and the memory view must
+    // show it rather than dropping an opinion for want of something to hang it
+    // on. This is also what makes a judgement able to imply they watched a film
+    // Tonight has never been told they saved.
+    const her = someone();
+    await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
+
+    const { held } = await her.memory();
+    assert.equal(of(held, "movie").length, 0, "a film appeared that nobody saved");
+    assert.equal(of(held, "verdict").length, 1, "an opinion was dropped for want of a film");
+  });
+
+  test("saying, withdrawing and forgetting a verdict leave the film untouched", async () => {
+    // The library, the viewing fact and the filing are one root; what the user
+    // thinks is another. No verdict operation may reach across.
+    const her = someone();
+    await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
+    await her.taste.createMix({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "unseen", mixes: ["Long Nights"] });
+
+    const film = async () => {
+      const [movie] = of((await her.memory()).held, "movie");
+      return movie?.of === "movie" ? { viewing: movie.viewing, mixes: [...movie.mixes] } : null;
+    };
+    const before = await film();
+    assert.deepEqual(before, { viewing: "unseen", mixes: ["Long Nights"] });
+
+    const act = await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
+    assert.deepEqual(await film(), before, "recording a verdict changed the film");
+
+    await her.verdicts.say(withdrawVerdict(BLACK_BAG, "2026-01-02T20:00:00.000Z"));
+    assert.deepEqual(await film(), before, "withdrawing a verdict changed the film");
+
+    await her.verdicts.forget(act.ref);
+    assert.deepEqual(await film(), before, "forgetting a verdict changed the film");
+
+    // And the film is still the only thing that says anything about watching:
+    // the `unseen` they set is exactly as they left it, contradiction and all.
+    assert.equal((await film())?.viewing, "unseen");
+  });
+
+  test("a movie root carries whether they watched it, and nothing evaluative", async () => {
+    const her = someone();
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+
+    const [movie] = of((await her.memory()).held, "movie");
+    assert.ok(movie && movie.of === "movie");
+    assert.equal(movie.viewing, "seen");
+    for (const gone of ["state", "judgement", "liked", "loved", "disliked"]) {
+      assert.equal(gone in movie, false, `a movie root carries ${gone}`);
     }
   });
 });

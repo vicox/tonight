@@ -1,6 +1,5 @@
-import { MovieState } from "./movie-state";
-import type { Movie } from "@/lib/taste/model";
-import { filedUnder } from "@/lib/web/movie-summary";
+import { JUDGEMENT, MovieMark, VIEWING } from "./movie-mark";
+import { filedUnder, type Shown } from "@/lib/web/movie-summary";
 
 /**
  * The user's films as a list, and deliberately only a list.
@@ -11,9 +10,12 @@ import { filedUnder } from "@/lib/web/movie-summary";
  * title's own type for the same reason: it is half of the film's name here, not
  * metadata about it.
  *
- * A row is a line of text and one control. That control is the one thing on this
- * page that can be changed without an assistant — see `MovieState` for why it
- * offers five choices while the model keeps a sixth.
+ * A row is a line of text and two marks. They are the things on this page that
+ * can be changed without an assistant, and they are two rather than one because
+ * they answer two questions: whether the film was watched, and what the user
+ * made of it. A film can be both seen and loved, and one control offering both
+ * would make somebody choose which of two true things to record. See
+ * `movie-mark.tsx` for what each offers.
  *
  * ## One list, in two places
  *
@@ -25,7 +27,7 @@ import { filedUnder } from "@/lib/web/movie-summary";
  *
  * This file has no `"use client"` of its own. Rendered from the server page it
  * stays on the server, rendered from the dialog it goes to the browser, and
- * `MovieState` is the client boundary either way round.
+ * the marks are the client boundary either way round.
  */
 export function Films({
   movies,
@@ -39,7 +41,7 @@ export function Films({
   filed = false,
   className = "mt-4",
 }: {
-  movies: readonly Movie[];
+  movies: readonly Shown[];
   filed?: boolean;
   className?: string;
 }) {
@@ -74,7 +76,15 @@ export function Films({
             </span>
             {filed && <Filed movie={movie} />}
           </span>
-          <MovieState title={movie.title} year={movie.year} state={movie.state} />
+          <span className="flex shrink-0 items-center gap-0.5">
+            <MovieMark mark={VIEWING} value={movie.viewing} title={movie.title} year={movie.year} />
+            <MovieMark
+              mark={JUDGEMENT}
+              value={movie.position?.judgement ?? null}
+              title={movie.title}
+              year={movie.year}
+            />
+          </span>
         </li>
       ))}
     </ul>
@@ -92,7 +102,7 @@ export function Films({
  * how a mix appears when it is the subject — here it is a footnote to a film, and
  * three chips on a row would out-shout the film's own name.
  */
-function Filed({ movie }: { movie: Movie }) {
+function Filed({ movie }: { movie: Shown }) {
   return (
     <span className="min-w-0 text-[12.5px] text-ink-faint">{filedUnder(movie).join(", ")}</span>
   );

@@ -27,7 +27,16 @@ nothing about the evaluation, and nothing that names a tool.
 | --- | --- |
 | `why-think` | *"Why do you think I like Zodiac? Where did that come from — did I tell you, or did you work it out?"* |
 
-## Conflict
+## What stands, and how far it reaches
+
+The keys still say `conflict-*` and stay that way: recorded runs name them in
+their own provenance, and renaming would leave that evidence pointing at
+scenarios that do not exist. What they exercise is no longer a conflict between
+roots — a film says whether it was watched and a verdict says what they thought,
+and neither overrides the other. Black Bag was judged twice, so one verdict
+supersedes another; Solaris carries a standing `not-ever`; Heat carries a
+`not-tonight` scoped to one evening. The questions are unchanged because a user
+asking *"which one counts?"* is asking about verdict history either way.
 
 | key | request |
 | --- | --- |

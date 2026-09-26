@@ -24,11 +24,14 @@ const createGenre = (await import("../../app/api/genres/route.ts")).POST;
 const genre = await import("../../app/api/genres/[name]/route.ts");
 const createMix = (await import("../../app/api/mixes/route.ts")).POST;
 const mix = await import("../../app/api/mixes/[name]/route.ts");
-const setMovieState = (await import("../../app/api/movies/route.ts")).PATCH;
+const setViewing = (await import("../../app/api/movies/route.ts")).PATCH;
+const setJudgement = (await import("../../app/api/verdicts/route.ts")).PATCH;
 
 const { webStore } = await import("./store.ts");
 const { SESSION_COOKIE } = await import("./cookies.ts");
 const { tasteStore } = await import("../taste/store.ts");
+const { verdictStore } = await import("../verdicts/store.ts");
+const { filmKey } = await import("../films/identity.ts");
 const { orderGenre, orderMovie } = await import("../taste/model.ts");
 
 type Taste = import("../taste/model.ts").Taste;
@@ -264,7 +267,7 @@ test("a session cannot change, delete or borrow another account's genres", async
 // --- a film's two marks ---------------------------------------------------
 
 /** A signed-in user with one film in one mix, which is what a mark sits on. */
-async function withFilm(state: { state?: unknown } = {}) {
+async function withFilm(said: { viewing?: "seen" | "unseen" } = {}) {
   const { cookie, id } = await signedIn();
   await createGenre(
     request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
@@ -281,7 +284,7 @@ async function withFilm(state: { state?: unknown } = {}) {
     title: "Arrival",
     year: 2016,
     mixes: ["Space Tension"],
-    ...state,
+    ...said,
   });
   return { cookie, id };
 }
@@ -298,22 +301,22 @@ async function film(id: string) {
 }
 
 const mark = (cookie: string, body: unknown) =>
-  setMovieState(request("/api/movies", "PATCH", body, { cookie }));
+  setViewing(request("/api/movies", "PATCH", body, { cookie }));
 
 test("a successful press answers the outcome, and does not read the model back", async () => {
   // The genre and mix routes hand back the whole taste model because the editor
-  // reads it as its success signal. Nothing does that here: `MovieState` looks at
+  // reads it as its success signal. Nothing does that here: `Viewing` looks at
   // the status, and at the message only when something went wrong. Returning the
   // model would be nine statements per press thrown away — over a network, per
   // click — so the contract is pinned as *not* carrying one, and the write is
   // confirmed by reading the store rather than by trusting the reply.
   const { cookie, id } = await withFilm();
 
-  const response = await mark(cookie, { title: "Arrival", year: 2016, state: "seen" });
+  const response = await mark(cookie, { title: "Arrival", year: 2016, viewing: "seen" });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {}, "the success answer carries a payload");
 
-  assert.equal((await film(id))?.state, "seen", "the press did not reach the store");
+  assert.equal((await film(id))?.viewing, "seen", "the press did not reach the store");
 
   // Structural, because the assertion above cannot tell the two failures apart: a
   // route that never reads the model and one that reads it and drops the result
@@ -331,7 +334,7 @@ test("a successful press answers the outcome, and does not read the model back",
 test("a refusal still carries the reason, which is the part a caller can act on", async () => {
   const { cookie } = await withFilm();
 
-  const refused = await answer(await mark(cookie, { title: "Gone", year: 1999, state: "seen" }));
+  const refused = await answer(await mark(cookie, { title: "Gone", year: 1999, viewing: "seen" }));
   assert.equal(refused.status, 400);
   assert.equal(refused.error, "refused");
   assert.match(refused.message ?? "", /no movie "Gone" \(1999\)/);
@@ -339,44 +342,44 @@ test("a refusal still carries the reason, which is the part a caller can act on"
 
 test("pressing a choice on a film nobody has said anything about records it", async () => {
   const { cookie, id } = await withFilm();
-  assert.equal((await film(id))?.state, null, "a saved film starts with nothing said");
+  assert.equal((await film(id))?.viewing, null, "a saved film starts with nothing said");
 
-  const marked = await answer(await mark(cookie, { title: "Arrival", year: 2016, state: "seen" }));
+  const marked = await answer(await mark(cookie, { title: "Arrival", year: 2016, viewing: "seen" }));
   assert.equal(marked.status, 200);
-  assert.equal((await film(id))?.state, "seen");
+  assert.equal((await film(id))?.viewing, "seen");
 
-  // And each of the five replaces the last: one answer, not a set of flags.
-  for (const state of ["liked", "loved", "disliked", "not_seen"] as const) {
-    await mark(cookie, { title: "Arrival", year: 2016, state });
-    assert.equal((await film(id))?.state, state);
+  // And each answer replaces the last: one answer, not a set of flags.
+  for (const viewing of ["unseen", "seen"] as const) {
+    await mark(cookie, { title: "Arrival", year: 2016, viewing });
+    assert.equal((await film(id))?.viewing, viewing);
   }
 });
 
 test("a press never returns a film to having been said nothing about", async () => {
-  // The page draws five choices; the store keeps a sixth. `null` is silence and
-  // `not_seen` is something they said, and pressing anything is a statement — so
+  // The page draws two choices; the store keeps a third. `null` is silence and
+  // `unseen` is something they said, and pressing anything is a statement — so
   // this route cannot write the silence back, and refuses rather than guess.
-  const { cookie, id } = await withFilm({ state: "loved" });
+  const { cookie, id } = await withFilm({ viewing: "seen" });
 
-  const refused = await answer(await mark(cookie, { title: "Arrival", year: 2016, state: null }));
+  const refused = await answer(await mark(cookie, { title: "Arrival", year: 2016, viewing: null }));
   assert.equal(refused.status, 400);
   assert.equal(refused.error, "refused");
-  assert.match(refused.message ?? "", /"state" must be one of not_seen, seen, liked, loved, disliked/);
+  assert.match(refused.message ?? "", /"viewing" must be one of seen, unseen/);
 
-  assert.equal((await film(id))?.state, "loved", "a refused null cleared a stated answer");
+  assert.equal((await film(id))?.viewing, "seen", "a refused null cleared a stated answer");
 });
 
-test("a press changes the state and leaves the rest of the film alone", async () => {
-  const { cookie, id } = await withFilm({ state: "liked" });
+test("a press changes the viewing and leaves the rest of the film alone", async () => {
+  const { cookie, id } = await withFilm({ viewing: "seen" });
   await (await tasteStore({ id })).updateMovie("Arrival", 2016, { imdbId: "tt2543164" });
 
-  await mark(cookie, { title: "Arrival", year: 2016, state: "loved" });
+  await mark(cookie, { title: "Arrival", year: 2016, viewing: "seen" });
 
   assert.deepEqual(await film(id), {
     title: "Arrival",
     year: 2016,
     imdbId: "tt2543164",
-    state: "loved",
+    viewing: "seen",
     mixes: ["Space Tension"],
   });
 });
@@ -390,7 +393,7 @@ test("the route takes the two marks and nothing else", async () => {
   await mark(cookie, {
     title: "Arrival",
     year: 2016,
-    state: "seen",
+    viewing: "seen",
     new_title: "Something else",
     year_: 1999,
     imdb_id: "tt0000001",
@@ -402,7 +405,7 @@ test("the route takes the two marks and nothing else", async () => {
     title: "Arrival",
     year: 2016,
     imdbId: null,
-    state: "seen",
+    viewing: "seen",
     mixes: ["Space Tension"],
   });
 });
@@ -410,33 +413,35 @@ test("the route takes the two marks and nothing else", async () => {
 test("a mark on a film that is not there is the domain's own refusal", async () => {
   const { cookie, id } = await withFilm();
 
-  const missing = await answer(await mark(cookie, { title: "Dune", year: 1984, state: "seen" }));
+  const missing = await answer(await mark(cookie, { title: "Dune", year: 1984, viewing: "seen" }));
   assert.equal(missing.status, 400);
   assert.match(missing.message ?? "", /no movie "Dune" \(1984\)/);
 
   // A handle the domain cannot read is refused in the same words, and the route
   // coerces nothing on the way — the year is judged, not parsed.
   for (const handle of [{ title: "Arrival" }, { title: "Arrival", year: "2016" }, { year: 2016 }]) {
-    const refused = await answer(await mark(cookie, { ...handle, state: "seen" }));
+    const refused = await answer(await mark(cookie, { ...handle, viewing: "seen" }));
     assert.equal(refused.status, 400, JSON.stringify(handle));
     assert.equal(refused.error, "refused");
   }
 
-  assert.equal((await film(id))?.state, null, "a refused press changed something");
+  assert.equal((await film(id))?.viewing, null, "a refused press changed something");
 });
 
-test("a value that is not one of the five is refused before the store is asked", async () => {
+test("a value that is not one of the two is refused before the store is asked", async () => {
   const { cookie, id } = await withFilm();
 
-  for (const value of ["yes", "neutral", "Seen", true, 1, {}]) {
+  // The three that used to be states here are refused like anything else: an
+  // opinion is a verdict and this route does not take one.
+  for (const value of ["yes", "Seen", "liked", "loved", "disliked", true, 1, {}]) {
     const refused = await answer(
-      await mark(cookie, { title: "Arrival", year: 2016, state: value }),
+      await mark(cookie, { title: "Arrival", year: 2016, viewing: value }),
     );
     assert.equal(refused.status, 400, JSON.stringify(value));
-    assert.match(refused.message ?? "", /"state" must be one of/);
+    assert.match(refused.message ?? "", /"viewing" must be one of/);
   }
 
-  assert.equal((await film(id))?.state, null, "a refused value reached the store");
+  assert.equal((await film(id))?.viewing, null, "a refused value reached the store");
 });
 
 test("a mark cannot be pressed on somebody else's film", async () => {
@@ -445,29 +450,267 @@ test("a mark cannot be pressed on somebody else's film", async () => {
 
   // The store the route opens belongs to whoever the cookie names, so this is
   // not a film they are forbidden to change — it is a film they do not have.
-  const refused = await answer(await mark(theirs, { title: "Arrival", year: 2016, state: "seen" }));
+  const refused = await answer(await mark(theirs, { title: "Arrival", year: 2016, viewing: "seen" }));
   assert.equal(refused.status, 400);
   assert.match(refused.message ?? "", /no movie "Arrival" \(2016\)/);
-  assert.equal((await film(mine))?.state, null, "their press reached my film");
+  assert.equal((await film(mine))?.viewing, null, "their press reached my film");
 });
 
 test("a mark with no session, or from another site, writes nothing", async () => {
   const { cookie, id } = await withFilm();
 
-  const out = await answer(await mark("", { title: "Arrival", year: 2016, state: "seen" }));
+  const out = await answer(await mark("", { title: "Arrival", year: 2016, viewing: "seen" }));
   assert.equal(out.status, 401);
 
   const forged = await answer(
-    await setMovieState(
+    await setViewing(
       request(
         "/api/movies",
         "PATCH",
-        { title: "Arrival", year: 2016, state: "seen" },
+        { title: "Arrival", year: 2016, viewing: "seen" },
         { cookie, origin: "https://elsewhere.example" },
       ),
     ),
   );
   assert.equal(forged.status, 403);
 
-  assert.equal((await film(id))?.state, null, "a refused press reached the store");
+  assert.equal((await film(id))?.viewing, null, "a refused press reached the store");
+});
+
+// --- what they thought of it ------------------------------------------------
+
+/**
+ * The other half of the split that took opinions off the Movie.
+ *
+ * `/api/movies` says whether a film was watched; this says what they made of
+ * it, and they are separate routes because they are separate facts. Two things
+ * are worth driving through the boundary rather than reading off the source: a
+ * repeat press writing nothing, and a judgement leaving the film alone. Both
+ * are behaviours of the route rather than of either store, and both are easy to
+ * lose in a refactor that looks correct.
+ */
+
+const judge = (cookie: string, body: unknown) =>
+  setJudgement(request("/api/verdicts", "PATCH", body, { cookie }));
+
+/**
+ * What currently stands globally about one film, read through the store.
+ *
+ * Matched by `filmKey`, because a verdict carries the title as the user spelled
+ * it — so a helper comparing raw spellings would fail to find a film the domain
+ * considers the same one, which is the very thing some of these tests are about.
+ */
+async function standing(id: string, film: { title: string; year: number } = { title: "Arrival", year: 2016 }) {
+  const all = await (await verdictStore({ id })).standing();
+  return all.find((one) => one.occasion === undefined && filmKey(one) === filmKey(film));
+}
+
+/** Every act ever written about that user's films, oldest first. */
+async function history(id: string, film = { title: "Arrival", year: 2016 }) {
+  return (await verdictStore({ id })).history(film);
+}
+
+test("pressing a judgement records it as something they volunteered", async () => {
+  const { cookie, id } = await withFilm();
+  assert.equal(await standing(id), undefined, "a saved film starts with nothing said about it");
+
+  const out = await answer(await judge(cookie, { title: "Arrival", year: 2016, judgement: "loved" }));
+  assert.equal(out.status, 200);
+  assert.deepEqual(out, { status: 200 }, "the route read the model back");
+
+  const held = await standing(id);
+  assert.equal(held?.judgement, "loved");
+  // A press is the user saying so unprompted. Tonight asked nothing, and
+  // recording it as the weaker provenance would understate what happened.
+  assert.equal(held?.told, "volunteered");
+  // And no words were invented for why: a press has none in it.
+  assert.equal("because" in (held ?? {}), false, "a reason appeared that nobody gave");
+  // Global, because a page showing a collection is not an evening.
+  assert.equal(held?.occasion, undefined);
+});
+
+test("each judgement replaces the last, and the one it replaced is kept", async () => {
+  const { cookie, id } = await withFilm();
+
+  for (const judgement of ["liked", "loved", "disliked"] as const) {
+    await judge(cookie, { title: "Arrival", year: 2016, judgement });
+    assert.equal((await standing(id))?.judgement, judgement);
+  }
+  assert.equal((await history(id)).length, 3, "changing their mind lost what they used to say");
+});
+
+test("pressing the judgement that already stands writes nothing at all", async () => {
+  // A "set the current value" control: pressing *Loved* on a film that already
+  // stands as loved is the user confirming what they see, not saying something
+  // new. An act for it would fill their history with clicks, and `get_memory`
+  // would read them back as things they told Tonight.
+  const { cookie, id } = await withFilm();
+  await judge(cookie, { title: "Arrival", year: 2016, judgement: "loved" });
+  const before = await history(id);
+
+  const again = await answer(await judge(cookie, { title: "Arrival", year: 2016, judgement: "loved" }));
+  assert.equal(again.status, 200, "a repeat is answered as success, not refused");
+
+  assert.deepEqual(await history(id), before, "a repeated press wrote a second act");
+});
+
+test("clearing takes the judgement back, and leaves them having said nothing", async () => {
+  const { cookie, id } = await withFilm();
+  await judge(cookie, { title: "Arrival", year: 2016, judgement: "loved" });
+
+  const out = await answer(await judge(cookie, { title: "Arrival", year: 2016, judgement: null }));
+  assert.equal(out.status, 200);
+
+  // Silence, not a weaker opinion: there is no second evaluative root for one
+  // to be left in.
+  assert.equal(await standing(id), undefined, "taking it back left something standing");
+  const acts = await history(id);
+  assert.deepEqual(acts.map((one) => one.said), ["verdict", "withdrawal"], "the taking-back was not recorded");
+});
+
+test("clearing when nothing stands writes nothing", async () => {
+  // Withdrawing where there is nothing to withdraw would record the user
+  // retracting something they never said.
+  const { cookie, id } = await withFilm();
+
+  const out = await answer(await judge(cookie, { title: "Arrival", year: 2016, judgement: null }));
+  assert.equal(out.status, 200);
+  assert.deepEqual(await history(id), [], "a withdrawal was recorded against silence");
+
+  // And the same once a judgement has been taken back already.
+  await judge(cookie, { title: "Arrival", year: 2016, judgement: "liked" });
+  await judge(cookie, { title: "Arrival", year: 2016, judgement: null });
+  const settled = await history(id);
+  await judge(cookie, { title: "Arrival", year: 2016, judgement: null });
+  assert.deepEqual(await history(id), settled, "a second clearing wrote a second withdrawal");
+});
+
+test("a judgement reaches the film however the title is spelled", async () => {
+  // A verdict names a film as the user spelled it; matching by raw spelling
+  // would make two spellings two positions, and pressing twice would look like
+  // two different films rather than one repeat.
+  const { cookie, id } = await withFilm();
+  await judge(cookie, { title: "Arrival", year: 2016, judgement: "loved" });
+
+  const again = await judge(cookie, { title: "  ARRIVAL  ", year: 2016, judgement: "loved" });
+  assert.equal((await answer(again)).status, 200);
+  assert.equal((await history(id)).length, 1, "a spelling variant was read as a second film");
+
+  // And a different spelling does change it when the judgement differs.
+  await judge(cookie, { title: "arrival", year: 2016, judgement: "disliked" });
+  assert.equal((await standing(id))?.judgement, "disliked");
+  assert.equal((await history(id)).length, 2);
+
+  // A different year is a different film, and gets its own history.
+  await judge(cookie, { title: "Arrival", year: 1996, judgement: "liked" });
+  assert.equal((await history(id, { title: "Arrival", year: 1996 })).length, 1);
+  assert.equal((await history(id)).length, 2, "another year reached this film's history");
+});
+
+test("a judgement never touches the film, and a viewing never touches the verdict", async () => {
+  // The whole point of the split. A judgement already means they watched it —
+  // that is derived — so writing `viewing` here as well would store a second
+  // copy of a fact that could outlive what it came from.
+  const { cookie, id } = await withFilm({ viewing: "unseen" });
+  const before = await film(id);
+
+  await judge(cookie, { title: "Arrival", year: 2016, judgement: "loved" });
+  assert.deepEqual(await film(id), before, "recording a judgement changed the film");
+
+  await judge(cookie, { title: "Arrival", year: 2016, judgement: null });
+  assert.deepEqual(await film(id), before, "taking a judgement back changed the film");
+
+  // And the other direction: pressing the viewing mark says nothing about what
+  // they thought.
+  await judge(cookie, { title: "Arrival", year: 2016, judgement: "loved" });
+  await mark(cookie, { title: "Arrival", year: 2016, viewing: "seen" });
+  assert.equal((await standing(id))?.judgement, "loved", "a viewing press moved the verdict");
+  assert.equal((await film(id))?.viewing, "seen");
+});
+
+test("a judgement can be given about a film that was never saved", async () => {
+  // A verdict does not need a Movie row: the two stores know nothing about each
+  // other, and an opinion about a film nobody filed is an ordinary thing.
+  const { cookie, id } = await signedIn();
+
+  const out = await answer(await judge(cookie, { title: "Solaris", year: 1972, judgement: "loved" }));
+  assert.equal(out.status, 200);
+  assert.equal((await standing(id, { title: "Solaris", year: 1972 }))?.judgement, "loved");
+  assert.deepEqual((await taste(id)).movies, [], "judging a film saved it");
+});
+
+test("the route takes the three judgements and taking one back, and nothing else", async () => {
+  const { cookie, id } = await withFilm();
+
+  for (const wrong of ["yes", "Loved", "seen", "unseen", "not-tonight", "not-ever", true, 1, {}, []]) {
+    const refused = await answer(await judge(cookie, { title: "Arrival", year: 2016, judgement: wrong }));
+    assert.equal(refused.status, 400, JSON.stringify(wrong));
+    assert.equal(refused.error, "refused");
+    assert.match(refused.message ?? "", /"judgement" must be one of liked, loved, disliked/);
+  }
+  // A refusal reaching turning a film down for one evening is worth its own
+  // sentence: it is a real operation, and it is not one this page can do.
+  assert.match(
+    (await answer(await judge(cookie, { title: "Arrival", year: 2016, judgement: "not-tonight" }))).message ?? "",
+    /one evening is a rejection rather than a judgement/,
+  );
+
+  assert.deepEqual(await history(id), [], "a refused value reached the store");
+});
+
+test("a malformed handle is refused in the domain's own words", async () => {
+  const { cookie, id } = await withFilm();
+
+  for (const body of [
+    { year: 2016, judgement: "loved" },
+    { title: "Arrival", judgement: "loved" },
+    { title: "   ", year: 2016, judgement: "loved" },
+    { title: "Arrival", year: 2016.5, judgement: "loved" },
+  ]) {
+    const refused = await answer(await judge(cookie, body));
+    assert.equal(refused.status, 400, JSON.stringify(body));
+  }
+  assert.deepEqual(await history(id), []);
+});
+
+test("a judgement cannot be pressed without a session, or from another site", async () => {
+  const { cookie, id } = await withFilm();
+
+  const out = await answer(await judge("", { title: "Arrival", year: 2016, judgement: "loved" }));
+  assert.equal(out.status, 401);
+
+  const forged = await answer(
+    await setJudgement(
+      request(
+        "/api/verdicts",
+        "PATCH",
+        { title: "Arrival", year: 2016, judgement: "loved" },
+        { cookie, origin: "https://elsewhere.example" },
+      ),
+    ),
+  );
+  assert.equal(forged.status, 403);
+
+  assert.deepEqual(await history(id), [], "a refused press reached the store");
+});
+
+test("one person's judgement is invisible and untouchable to another", async () => {
+  const mine = await withFilm();
+  const theirs = await signedIn();
+
+  await judge(mine.cookie, { title: "Arrival", year: 2016, judgement: "loved" });
+
+  // The store the route opens belongs to whoever the cookie names, so the other
+  // person writing about the same film writes their own act, not over mine.
+  await judge(theirs.cookie, { title: "Arrival", year: 2016, judgement: "disliked" });
+
+  assert.equal((await standing(mine.id))?.judgement, "loved", "somebody else's press moved my verdict");
+  assert.equal((await standing(theirs.id))?.judgement, "disliked");
+  assert.equal((await history(mine.id)).length, 1, "somebody else's act joined my history");
+  assert.equal((await history(theirs.id)).length, 1);
+
+  // And clearing theirs leaves mine standing.
+  await judge(theirs.cookie, { title: "Arrival", year: 2016, judgement: null });
+  assert.equal((await standing(mine.id))?.judgement, "loved");
+  assert.equal(await standing(theirs.id), undefined);
 });

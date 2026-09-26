@@ -367,7 +367,7 @@ test("the write tools say where persistence begins, because a host may read noth
     const description = tools.find((tool) => tool.name === name)?.description ?? "";
 
     assert.match(description, /recommendation is not a saved movie/i, `${name}: recommending`);
-    assert.match(description, /absence is never not_seen/i, `${name}: absence`);
+    assert.match(description, /absence is never unseen/i, `${name}: absence`);
     assert.match(description, /covers only the meaning they were shown/i, `${name}: confirmation`);
     assert.match(description, /permission to write/i, `${name}: confirming is not approving`);
   }
@@ -414,38 +414,39 @@ test("the write tools carry the rules that apply at the moment they are called",
   // this way rather than as a search for the whole sentence, so that rewrapping
   // or rewording around the mapping does not fail a test about its meaning.
   for (const name of ["create_movie", "update_movie"]) {
-    const described = fieldOf(tools, name, "state");
-    assert.ok(described.length > 0, `${name} has no description for state`);
+    const described = fieldOf(tools, name, "viewing");
+    assert.ok(described.length > 0, `${name} has no description for viewing`);
 
-    for (const [phrase, state] of [
-      [`"haven't seen it"`, "not_seen"],
-      [`"want to watch it"`, "not_seen"],
+    for (const [phrase, viewing] of [
+      [`"haven't seen it"`, "unseen"],
+      [`"want to watch it"`, "unseen"],
       [`"seen it"`, "seen"],
-      [`"it was good"`, "liked"],
-      [`"loved it"`, "loved"],
-      [`"didn't like it"`, "disliked"],
+      [`"watched it years ago"`, "seen"],
     ] as [string, string][]) {
       const at = described.indexOf(phrase);
-      assert.notEqual(at, -1, `${name}: nothing reads ${phrase} into a state`);
+      assert.notEqual(at, -1, `${name}: nothing reads ${phrase} into a viewing`);
 
-      // Longest first, so `not_seen` is not read as `seen` and `disliked` is not
-      // read as `liked`; word boundaries so neither is matched inside the other.
-      const next = described
-        .slice(at + phrase.length)
-        .match(/\b(not_seen|disliked|liked|loved|seen)\b/)?.[1];
-      assert.equal(next, state, `${name}: ${phrase} does not read as ${state}`);
+      // Longest first and on word boundaries, so `unseen` is not matched inside
+      // `seen` and the reading pointed at is the one that follows the phrase.
+      const next = described.slice(at + phrase.length).match(/\b(unseen|seen)\b/)?.[1];
+      assert.equal(next, viewing, `${name}: ${phrase} does not read as ${viewing}`);
     }
 
-    // As one passage rather than six sentences that drifted apart: the readings
-    // have to arrive together to be read as a mapping at all. This assertion
-    // moved here from `lib/instructions.test.ts` with the rule it guards.
-    const from = described.indexOf("Take the state from what they said");
-    const to = described.indexOf(`"didn't like it"`);
+    // And an opinion is explicitly routed away, because a field that took one
+    // was where the two subjects got mixed up in the first place.
+    assert.match(described, /liked, loved and disliked are verdicts/iu, `${name}: opinions`);
+    assert.match(described, /`record_verdict`/u, `${name}: names the tool that takes one`);
+
+    // As one passage rather than sentences that drifted apart: the readings have
+    // to arrive together to be read as a mapping at all. This assertion moved
+    // here from `lib/instructions.test.ts` with the rule it guards.
+    const from = described.indexOf("Take it from what they said");
+    const to = described.indexOf(`"watched it years ago"`);
     assert.ok(from >= 0 && to > from, `${name}: the mapping is not one thought`);
     assert.ok(to - from < 500, `${name}: the mapping has been spread out`);
 
     // And the two rules about this field that are not a reading.
-    assert.match(described, /not the same as not_seen/, `${name}: silence is not a state`);
+    assert.match(described, /not the same as unseen/, `${name}: silence is not a state`);
     assert.match(described, /never a score or star rating/, `${name}: a state is not a rating`);
   }
 
@@ -529,14 +530,14 @@ test("a movie is saved with what the user said, and appears once in the model", 
     title: "Arrival",
     year: 2016,
     imdb_id: "tt2543164",
-    state: "loved",
+    viewing: "seen",
     mixes: ["Space Tension"],
   });
   assert.deepEqual(created.movie, {
     title: "Arrival",
     year: 2016,
     imdbId: "tt2543164",
-    state: "loved",
+    viewing: "seen",
     mixes: ["Space Tension"],
   });
 
@@ -562,9 +563,9 @@ test("a movie is saved with what the user said, and appears once in the model", 
     "createdAt",
     "imdbId",
     "mixes",
-    "state",
     "title",
     "updatedAt",
+    "viewing",
     "year",
   ]);
   assert.deepEqual(Object.keys(taste.mixes[0].movies[0]).sort(), ["title", "year"]);
@@ -610,14 +611,14 @@ test("when a thing was written is Tonight's answer, and not a caller's argument"
   assert.equal(genre.createdAt, genre.updatedAt);
 });
 
-test("omitted, a state and null are three different answers over the wire", async () => {
+test("omitted, a viewing and null are three different answers over the wire", async () => {
   const token = await tokenFor(someone());
 
   const saved = await ok(token, "create_movie", { title: "Arrival", year: 2016 });
-  assert.equal(saved.movie.state, null, "an omitted field became an answer");
+  assert.equal(saved.movie.viewing, null, "an omitted field became an answer");
 
-  const said = await ok(token, "update_movie", { title: "Arrival", year: 2016, state: "loved" });
-  assert.equal(said.movie.state, "loved");
+  const said = await ok(token, "update_movie", { title: "Arrival", year: 2016, viewing: "seen" });
+  assert.equal(said.movie.viewing, "seen");
 
   // Omitting leaves the answer standing; sending null is what withdraws it.
   const kept = await ok(token, "update_movie", {
@@ -625,27 +626,27 @@ test("omitted, a state and null are three different answers over the wire", asyn
     year: 2016,
     imdb_id: "tt2543164",
   });
-  assert.equal(kept.movie.state, "loved", "an unrelated change withdrew a stated answer");
+  assert.equal(kept.movie.viewing, "seen", "an unrelated change withdrew a stated answer");
 
-  const cleared = await ok(token, "update_movie", { title: "Arrival", year: 2016, state: null });
-  assert.equal(cleared.movie.state, null);
+  const cleared = await ok(token, "update_movie", { title: "Arrival", year: 2016, viewing: null });
+  assert.equal(cleared.movie.viewing, null);
 
   // And null survives serialisation rather than being dropped from the JSON —
   // an absent key would be indistinguishable from one the reader failed to read.
   const { result } = await callTool(token, "get_taste");
-  assert.match(result?.content?.[0]?.text ?? "", /"state":\s*null/);
+  assert.match(result?.content?.[0]?.text ?? "", /"viewing":\s*null/);
 });
 
-test("not_seen is a state the user gave, and never what silence means", async () => {
+test("unseen is something the user said, and never what silence means", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_movie", { title: "Dune", year: 2021 });
 
   const quiet = (await ok(token, "get_taste")).movies[0];
-  assert.equal(quiet.state, null, "saving a film said they had not seen it");
+  assert.equal(quiet.viewing, null, "saving a film said they had not seen it");
 
-  const said = await ok(token, "update_movie", { title: "Dune", year: 2021, state: "not_seen" });
-  assert.equal(said.movie.state, "not_seen");
-  assert.notEqual(said.movie.state, null, "the two would be one answer");
+  const said = await ok(token, "update_movie", { title: "Dune", year: 2021, viewing: "unseen" });
+  assert.equal(said.movie.viewing, "unseen");
+  assert.notEqual(said.movie.viewing, null, "the two would be one answer");
 });
 
 test("a handle the schema cannot make sense of never reaches the store", async () => {
@@ -657,10 +658,10 @@ test("a handle the schema cannot make sense of never reaches the store", async (
   assert.match(await refused(token, "create_movie", { title: "Dune", year: "2021" }), /year/);
   assert.match(await refused(token, "create_movie", { title: "Dune", year: 2021.5 }), /year/);
   assert.match(await refused(token, "delete_movie", { title: "Dune" }), /year/);
-  for (const bad of ["yes", "neutral", "Seen", true]) {
+  for (const bad of ["yes", "neutral", "Seen", "liked", "loved", "disliked", true]) {
     assert.match(
-      await refused(token, "create_movie", { title: "Dune", year: 2021, state: bad }),
-      /state/,
+      await refused(token, "create_movie", { title: "Dune", year: 2021, viewing: bad }),
+      /viewing/,
       JSON.stringify(bad),
     );
   }
@@ -712,7 +713,7 @@ test("a valid IMDb id survives the boundary, spaces and all", async () => {
 
   // Null still clears it, and omitting it still leaves it alone.
   assert.equal(
-    (await ok(token, "update_movie", { title: "Shawshank", year: 1994, state: "seen" })).movie
+    (await ok(token, "update_movie", { title: "Shawshank", year: 1994, viewing: "seen" })).movie
       .imdbId,
     "tt0111161",
   );
@@ -734,7 +735,7 @@ test("retitling a movie keeps it the same film, filed where it was", async () =>
   await ok(token, "create_movie", {
     title: "Dune",
     year: 1984,
-    state: "seen",
+    viewing: "seen",
     mixes: ["Space Tension"],
   });
 
@@ -748,7 +749,7 @@ test("retitling a movie keeps it the same film, filed where it was", async () =>
     title: "Dune (Lynch)",
     year: 1985,
     imdbId: null,
-    state: "seen",
+    viewing: "seen",
     mixes: ["Space Tension"],
   });
 
@@ -851,13 +852,13 @@ test("the tools that change a saved film say that clearing it is its own request
       description?: string;
     }).description ?? "";
 
-  // (A) `update_movie` with `state: null`, which is how eleven of the twelve
+  // (A) `update_movie` with `viewing: null`, which is how eleven of the twelve
   // cleanup attempts across all sweeps were actually performed.
-  const state = fieldOf("update_movie", "state");
-  assert.match(state, /only where clearing the saved state is itself what they asked for/iu, "state: not its own request");
-  assert.match(state, /not a way to tidy up after something else/iu, "state: not cleanup");
-  assert.match(state, /forgetting or withdrawing a verdict/iu, "state: does not name the operation it must not follow");
-  assert.match(state, /if they asked for both, do both/iu, "state: does not keep explicit multi-root work allowed");
+  const viewing = fieldOf("update_movie", "viewing");
+  assert.match(viewing, /only where clearing the saved viewing is itself what they asked for/iu, "viewing: not its own request");
+  assert.match(viewing, /not a way to tidy up after something else/iu, "viewing: not cleanup");
+  assert.match(viewing, /forgetting or withdrawing a verdict/iu, "viewing: does not name the operation it must not follow");
+  assert.match(viewing, /if they asked for both, do both/iu, "viewing: does not keep explicit multi-root work allowed");
 
   // (B) `delete_movie`, which is how the twelfth was. Its old opening — "Always
   // allowed" — was a sentence about the operation never being refused, and it
@@ -871,7 +872,11 @@ test("the tools that change a saved film say that clearing it is its own request
 
   // (C) And both say why the saved film is left standing, so the rule is a
   // consequence of the model rather than an arbitrary prohibition.
-  for (const [what, said] of [["state", state], ["delete_movie", deleting]] as const) {
-    assert.match(said, /applies once no verdict overlays it/iu, `${what}: does not say why it is left`);
+  for (const [what, said] of [["viewing", viewing], ["delete_movie", deleting]] as const) {
+    assert.match(
+      said,
+      /still true|separate thing they said/iu,
+      `${what}: does not say why it is left`,
+    );
   }
 });
