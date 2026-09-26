@@ -635,7 +635,14 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "and the films that were put forward. Record only what you actually observed — the " +
         "request as they phrased it and the films you named. What they went on to do is not " +
         "something you saw, so leave it out here and record it later if they say. Offering a " +
-        "film is not the same as them choosing it.",
+        "film is not the same as them choosing it.\n\n" +
+        "**Writing this down does not answer them, and it never finishes a request for a " +
+        "film.** Nothing here is shown to the user: this is Tonight's own record of an evening, " +
+        "and a reply that reports having saved it — *\"logged this evening's recommendation\"* " +
+        "— has told them nothing they can act on. Every film in `offered` must already be in " +
+        "the reply they can read, named there and said in full. **A film that exists only in " +
+        "this call was never recommended.** If the reply does not carry them, do not repair it " +
+        "by calling this: write the recommendation first, then record it.",
       inputSchema: z.object({ request: episodeRequest, offered: episodeOffers }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
@@ -969,6 +976,14 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "recommendation reads; this holds history beside belief on purpose, and using the " +
         "history as though it were taste is the one thing it must not be used for. Reading it " +
         "writes nothing and changes nothing.\n\n" +
+        "**A question about what they *like* is `get_taste`'s, not this one's** — *\"what do I " +
+        "like?\"*, *\"what are you recommending from?\"*, *\"what do you know about my " +
+        "taste?\"*. Those ask what currently stands about them, which is exactly what " +
+        "`get_taste` answers, and reaching for this read instead is the wrong read even when the " +
+        "answer you write from it happens to be right: everything remembered comes with it, and " +
+        "a superset is not a narrower question answered. It asks like explaining and it is not. " +
+        "This read is for the wider question — *\"what do you know about me?\"*, *\"show me " +
+        "everything you remember\"* — and for putting any of it right.\n\n" +
         "One thing is deliberately not here: a question you are carrying about a film is your " +
         "own note, not something Tonight knows about them, so it is left out on purpose. Its " +
         "absence here is therefore no evidence that there is none — **never say there are no " +

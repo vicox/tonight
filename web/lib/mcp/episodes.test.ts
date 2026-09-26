@@ -250,6 +250,53 @@ describe("episode tools", () => {
     ]);
   });
 
+  test("recording an evening is not an answer, said where the evening is written", () => {
+    // Phase-1 certification, three runs of sixty: `get_taste`, then
+    // `record_episode` with four real films in `offered`, then a reply that read
+    // in full *"Logged this evening's recommendation."* Every run that called
+    // this tool in that sweep did it. The films existed only in the call, and
+    // the user was handed nothing they could act on.
+    //
+    // The skill says a tool call is not an answer; the projection carries it as
+    // one short clause, and this tool — the one that makes the substitution
+    // available — said nothing at all. So the rule is stated here, at the point
+    // where a model is deciding to write an evening down.
+    const said = ana.record_episode!.description ?? "";
+
+    assert.match(
+      said,
+      /Writing this down does not answer them, and it never finishes a request for a film/u,
+      "record_episode does not say that recording is not answering",
+    );
+    assert.match(said, /Nothing here is shown to the user/u, "it does not say the call is invisible");
+    assert.match(
+      said,
+      /Every film in `offered` must already be in the reply they can read/u,
+      "it does not require the offered films to be in the visible reply",
+    );
+    assert.match(
+      said,
+      /A film that exists only in this call was never recommended/u,
+      "it does not name the failure the certification found",
+    );
+    // And the repair a model might reach for instead, refused: the answer is
+    // written first, and this is not the way to fix a reply that lacks one.
+    assert.match(
+      said,
+      /write the recommendation first, then record it/u,
+      "it does not say which comes first",
+    );
+
+    // The tool still does its job. This is an addition to what it says, never a
+    // discouragement from using it — an evening is a fact and stays recordable.
+    assert.match(said, /Write down an evening Tonight was part of/u, "the tool lost its own purpose");
+    assert.equal(
+      /do not record|avoid recording|refrain from/iu.test(said),
+      false,
+      "the description now discourages recording an evening",
+    );
+  });
+
   test("the descriptions define where an evening's own record came from", () => {
     // Two fields were added to every public Episode payload and nothing told a
     // model what they meant. A field a model can see and cannot interpret is

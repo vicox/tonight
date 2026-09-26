@@ -105,7 +105,11 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   assert.match(flat, /Tonight's evidence is what they told it\*\* — Genres, Mixes, Movies, verdicts/);
   assert.match(flat, /Read a Mix as \*\*its own instruction/);
   assert.match(flat, /arrive with `create_genre` and `create_mix`/);
-  assert.match(flat, /is a verdict —\s+`record_verdict`, never a Movie field; `create_movie` carries `viewing` and no opinion/);
+  // The projection states the verdict routing once, where the two requests are
+  // told apart, and keeps only the `viewing` pointer here — the sentence used to
+  // carry both and said the first of them twice.
+  assert.match(flat, /that is a verdict: `record_verdict`/);
+  assert.match(flat, /`create_movie` carries `viewing` and no opinion/);
 
   // And the ratings wording was too broad twice over: liked and disliked are
   // real things the user said, and only a score is out of scope. Both of the
@@ -156,7 +160,7 @@ test("what moved to the tools is no longer stated here as well", () => {
   assert.match(flat, /arrive with `create_genre` and `create_mix`/, "no pointer for the write rules");
   assert.match(
     flat,
-    /is a verdict —\s+`record_verdict`, never a Movie field; `create_movie` carries `viewing` and no opinion/,
+    /`create_movie` carries `viewing` and no opinion/,
     "no pointer for the viewing field",
   );
 });
@@ -273,9 +277,9 @@ test("a Mix is evidence, and the states under it calibrate rather than gate", ()
   for (const [what, rule] of [
     ["that a matching Mix is a reason, not a filter",
       /A matching Mix is a reason the recommendation fits/],
-    ["that it counts immediately", /counts from the moment it exists/],
+    ["that it counts immediately", /from the moment it exists/],
     ["that an empty Mix says as much as a full one",
-      /one written last night says as much as one with ten films under it/],
+      /A Mix with nothing under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
     ["that a Genre is thinner", /A Genre is an ingredient/],
     ["that a Genre name alone justifies nothing", /a Genre name alone is a label/],
     ["that verdicts calibrate", /Verdicts calibrate it, never decide whether it counts/],
@@ -742,10 +746,19 @@ test("a read-back names both reads, and says which is for what", () => {
   // was "remembers" until the sentence had to carry the disagreement rule as
   // well; what has to hold is that `get_memory` is named for memory and
   // `get_taste` is not, which is the routing the whole section exists for.
+  // Not an inclusive "get_taste, or get_memory for the whole of it": that named
+  // both reads and gave no criterion, and four certification runs sent a narrow
+  // taste question to the wider read. The section states which question each
+  // read answers.
   assert.match(
     section,
-    /`get_memory` for the whole of it/iu,
-    "the memory read is no longer named as the complete one",
+    /`get_taste` for what they like, `get_memory` for the wider\s+question of what Tonight holds/iu,
+    "the read-back no longer says which read answers which question",
+  );
+  assert.doesNotMatch(
+    section,
+    /`get_taste`, or `get_memory`/iu,
+    "the read-back offers both reads again without a criterion",
   );
   assert.doesNotMatch(
     section,
@@ -817,7 +830,7 @@ test("authorising a direct operation does not authorise tidying another root", (
   // read-back routing, so nothing sits between the permission and its limit.
   const authorises = asked.search(/\*\*do those\*\*/u);
   const boundary = asked.search(/Never add an unasked write/u);
-  const readback = asked.search(/Read back with/u);
+  const readback = asked.search(/Read back in ordinary sentences/u);
   assert.ok(authorises >= 0 && boundary >= 0 && readback >= 0, "the section lost one of its three parts");
   assert.ok(
     authorises < boundary,
@@ -897,8 +910,8 @@ test("a question about what disagrees is routed to the read that can see both si
   assert.match(asked, /`get_memory`/u, "the memory view is no longer named for a read-back");
   assert.match(
     asked,
-    /`get_memory` for the whole of it/iu,
-    "the memory view is no longer named as the complete read",
+    /`get_memory` for the wider\s+question of what Tonight holds/iu,
+    "the memory view is no longer named for the wider question",
   );
 
   // And the disagreement routing is gone rather than reworded. Nothing carries
@@ -1312,10 +1325,12 @@ test("the compact projection of the taste model says the same thing the skill do
     ["a matching Mix is a reason",
       /a Mix that matches is a reason\s*the recommendation fits/,
       /A matching Mix is a reason the recommendation fits/],
-    ["it counts immediately", /counts from\s*the moment it exists/, /counts from the moment it exists/],
+    ["it counts immediately", /counts from\s*the moment it exists/, /from the moment it exists/],
     ["an empty Mix says as much as a full one",
       /nothing under it yet says as much about what\s*they like as one with ten films under it/,
-      /one written last night says as much as one with ten films under it/],
+      // The projection carries the consequence rather than the illustration:
+      // an empty Mix is used, with reach and certainty varied.
+      /A Mix with nothing under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
     ["a Genre is thinner", /A Genre is an ingredient/, /A Genre is an ingredient/],
     ["verdicts calibrate rather than gate",
       /Verdicts calibrate that evidence. They never decide whether it counts/,
@@ -1618,7 +1633,7 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Do not sort them, propose Mixes for them, or mention them unasked",
     "A recommendation is not a saved Movie",
     "ever ask for what their sentence gave you",
-    "`record_verdict`, never a Movie field",
+    "that is a verdict: `record_verdict`",
     "arrive with `create_genre` and `create_mix`",
     "Settle title and year first",
     // what Tonight is and is not — the boundary, stated so neither half is lost
@@ -1627,7 +1642,7 @@ test("every rule the agent cannot work out for itself is in the text it is given
     // the model is inspected and managed in conversation, in plain sentences
     "## Asked about the model directly",
     "**do those**",
-    "Read back with `get_taste`, or `get_memory` for",
+    "`get_taste` for what they like, `get_memory` for the wider",
     "in ordinary sentences",
     // failures
     "offer to retry",

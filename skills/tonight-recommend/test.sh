@@ -201,6 +201,18 @@ check "a non-binding exclusion is not mentioned either" \
     "$(order_check 'one that does not bind is **not mentioned either**' \
         'not raised, not contrasted with, not waived out loud' \
         'no part in tonight')" "True"
+# And the same three verbs in the projection. The compact form carried only
+# "never mentioned", and one certification run waived the exclusion aloud —
+# "I'm going with your ask tonight rather than your saved taste, since what's
+# filed there is built to rule out exactly this kind of gore" — which is not
+# what "mentioned" warns a reader against. The failure form has to survive the
+# compression, and it sits beside "show the positive evidence you used", which
+# is what a model resolves it against.
+check "the projection carries the failure form, not only the conclusion" \
+    "$(tr '\n' ' ' < "$CANONICAL" | grep -coE 'never mentioned\*\* +— not raised, not contrasted with, not waived aloud')" "1"
+check "and the weaker compact wording is gone rather than kept beside it" \
+    "$(tr '\n' ' ' < "$CANONICAL" | grep -coE 'it is +\*\*never mentioned\*\*\. ')" "0"
+
 check "and the positive preference that shaped it is recognisable in the answer" \
     "$(order_check 'the positive preference that shaped' \
         'the answer is recognisable in it')" "True"
@@ -499,7 +511,7 @@ check "a direct operation is authorised, and its limit follows immediately" \
     "$(order_check 'Asked to rename, delete, or say what Tonight knows' \
         '**do those**' \
         'Never add an unasked write to tidy another root' \
-        'Read back with `get_taste`')" "True"
+        'Read back in ordinary sentences')" "True"
 # The second route into the model, and the reason it is not the first: a pattern
 # the agent noticed may be put to the user, and their yes is what makes the
 # meaning theirs. Pinned because the rule above it, read alone, forbids it.
@@ -559,7 +571,7 @@ check "and the reverse is what must not happen" \
 check "the CRUD tools are named as the way to do it" \
     "$(order_check '## Asked about the model directly' \
         '**do those**' \
-        'Read back with `get_taste`')" "True"
+        'Read back in ordinary sentences')" "True"
 # M3 gave the skill a second read. Which one answers which question is a rule,
 # and the skill has to carry it in the order somebody meets it: the taste read
 # first, because that is the older and commoner case, then the memory read named
@@ -572,9 +584,10 @@ check "the CRUD tools are named as the way to do it" \
 # long form. Pinning the gloss here would have forced an ambiguous pronoun into
 # the rule instead.
 check "the two reads are told apart where a read-back is decided" \
-    "$(order_check 'Read back with `get_taste`' \
-        '`get_memory` for' \
-        'memory')" "True"
+    "$(order_check '`get_taste` for what they like' \
+        '`get_memory` for the wider')" "True"
+check "and the read-back names a criterion rather than offering both reads" \
+    "$(grep -ciE 'Read back with .get_taste., or .get_memory.' "$CANONICAL")" "0"
 check "the skill explains why they are two reads, not one" \
     "$(order_check 'is a different question from' \
         '`get_taste` is what a recommendation stands on' \

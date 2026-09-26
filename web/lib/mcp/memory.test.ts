@@ -633,6 +633,28 @@ describe("the memory tools", () => {
 
     // The one thing the memory view must not be mistaken for.
     assert.match(memoryText, /not for recommending|get_taste is what a recommendation reads/iu);
+
+    // And the axis that boundary leaves open. "Recommending against explaining"
+    // does not partition the question *"what do I like?"*, which asks what
+    // stands about them and reads like explaining — four certification runs sent
+    // it here on exactly that reading. The read that answers it has to be named
+    // where the wrong read is being considered.
+    assert.match(
+      memoryText,
+      /A question about what they \*like\* is `get_taste`'s, not this one's/u,
+      "the memory read does not send a taste question to get_taste",
+    );
+    assert.match(memoryText, /what do I like\?/u, "the taste question is not named as an example");
+    assert.match(
+      memoryText,
+      /the wrong read even when the answer you write from it happens to be right/u,
+      "a clean answer from the wrong read is described as acceptable",
+    );
+    assert.match(
+      memoryText,
+      /a superset is not a narrower question answered/u,
+      "the description does not say why the wider read is not a safe default",
+    );
     assert.match(memoryText, /remembered is not evidence/iu);
     assert.ok(memoryText.includes("held") && memoryText.includes("remembered"));
     assert.equal(

@@ -32,15 +32,15 @@ way**: what they wrote is evidence on any night.
 
 **What they said tonight binds** — what they asked for, ruled out just now, and can watch. **A
 stored exclusion binds only when they asked for their taste**, and when it does not bind it is
-**never mentioned**. Everything else is evidence either way — **show the positive evidence you used**.
+**never mentioned** — not raised, not contrasted with, not waived aloud. Everything else is
+evidence either way — **show the positive evidence you used**.
 
 **Discovery is the default** — *"recommend me a film"*: you are exploring, from what they wrote.
 **Taste-aware is what they ask for** — *"what would I like?"*: the model is the brief, and its
 exclusions hold.
 
-- **A matching Mix is a reason the recommendation fits.** It counts from the moment it exists:
-  one written last night says as much as one with ten films under it. A Genre is an ingredient;
-  a Genre name alone is a label.
+- **A matching Mix is a reason the recommendation fits**, from the moment it exists. A Genre is
+  an ingredient; a Genre name alone is a label.
 - **Verdicts calibrate it, never decide whether it counts.** \`loved\` strengthens, \`liked\` more
   weakly, \`disliked\` weakens something similar — a sign, not a ban. Only what stands counts; a
   withdrawal removes that act in its own scope — not a weaker opinion, not an unsaying.
@@ -114,16 +114,16 @@ that fits needs none of this.
 lists them under **Other movies**. Do not sort them, propose Mixes for them, or mention them
 unasked.
 
-**A recommendation is not a saved Movie.** What they say about a film is a verdict —
-\`record_verdict\`, never a Movie field; \`create_movie\` carries \`viewing\` and no opinion. Never ask
-for what their sentence gave you. Settle title and year first — \`Dune\` names two films; ask if
-ambiguous: that resolves *which film*, not permission.
+**A recommendation is not a saved Movie**, and \`create_movie\` carries \`viewing\` and no opinion.
+Never ask for what their sentence gave you. Settle title and year first — \`Dune\` names two films;
+ask if ambiguous: that resolves *which film*, not permission.
 
 ## Asked about the model directly
 
 Asked to rename, delete, or say what Tonight knows — **do those**, in the conversation. **Never add
 an unasked write to tidy another root.** The website is *a* management surface, not *the* one. Read
-back with \`get_taste\`, or \`get_memory\` for the whole of it, in ordinary sentences. A rename needs
+back in ordinary sentences: **\`get_taste\` for what they like, \`get_memory\` for the wider
+question of what Tonight holds** and for putting any of it right. A rename needs
 no ceremony; changing what something *means* unasked is off-limits.
 
 ## What Tonight remembers
@@ -141,8 +141,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   answer not based on it; claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version fb113f75 · replace these when tonight.movie shows a different version.
+Tonight project instructions · version 427a4074 · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "fb113f75";
+export const PROJECT_INSTRUCTIONS_VERSION = "427a4074";

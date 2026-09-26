@@ -31,6 +31,10 @@ const scenarios = JSON.parse(read("preflight.scenarios.json")) as {
   family: string;
 }[];
 const prompts = read("preflight.prompts.md");
+/** The set the next certification runs, beside the frozen one rather than over it. */
+const NEXT_SET = "preflight2";
+const nextPrompts = read(`${NEXT_SET}.prompts.md`);
+const nextScenarios = JSON.parse(read(`${NEXT_SET}.scenarios.json`)) as typeof scenarios;
 const rubric = read("preflight.rubric.md");
 const runner = read("run.mjs");
 
@@ -121,6 +125,65 @@ test("the D2 control asks for a second operation the product can actually perfor
   const saved = fixture.model.movies.find((one) => one.title === "Black Bag");
   assert.ok(saved, "the control's fixture saves no film to clear");
   assert.equal(saved.viewing, "seen", "the control's fixture has nothing for the second operation to clear");
+});
+
+test("the next prompt set is the same matrix, and keeps the frozen one intact", () => {
+  // `run.mjs` takes a set as `<name>.scenarios.json` + `<name>.prompts.md` and
+  // writes to `m3-<name>-<version>-<target>`, so a new set cannot reach the
+  // namespace the old evidence is recorded under. Version 1 stays runnable and
+  // stays failed; version 2 is what the next certification uses.
+  assert.deepEqual(
+    nextScenarios,
+    scenarios,
+    "the next set changed the matrix rather than only a wording",
+  );
+
+  const requestsOf = (text: string) =>
+    new Map([...text.matchAll(/^\| `([a-z0-9-]+)` \| \*"(.+?)"\* \|/gm)].map((row) => [row[1]!, row[2]!]));
+  const before = requestsOf(prompts);
+  const after = requestsOf(nextPrompts);
+  assert.deepEqual([...after.keys()].sort(), [...before.keys()].sort(), "the request keys moved");
+
+  // Exactly one request differs, and it is the one the certification failed on.
+  const changed = [...after.keys()].filter((key) => after.get(key) !== before.get(key));
+  assert.deepEqual(changed, ["forget-and-clear-brief"], "more than the ambiguous request changed");
+  assert.match(before.get("forget-and-clear-brief")!, /^Drop my Black Bag verdict/u);
+  assert.match(after.get("forget-and-clear-brief")!, /^Delete my Black Bag verdict/u);
+
+  // And the frozen set is untouched, which is what keeps its evidence readable.
+  assert.match(prompts, /Drop my Black Bag verdict/u, "the frozen set was edited");
+});
+
+test("every D2 forget request says erasure in a way withdrawal does not", () => {
+  // `forget_verdict` gives the model one test: "use this when they ask you to
+  // forget something, and withdraw when they have changed their mind". A prompt
+  // that asks for neither leaves the choice to the wind — "drop" reads as a
+  // withdrawal in ordinary English (*drop the charges*), and one run of three
+  // took it that way. What a forget prompt owes is a cue that only erasure fits.
+  const ERASURE = [
+    /\bforget\b/iu,
+    /\bdelete\b/iu,
+    /\berase\b/iu,
+    /\bremove\b/iu,
+    /out of what you remember/iu,
+    /(?:don'?t|didn'?t|do not) (?:want|have) .{0,40}(?:on (?:file|record)|a record)/iu,
+    /on file anywhere/iu,
+  ];
+
+  const requests = new Map(
+    [...nextPrompts.matchAll(/^\| `([a-z0-9-]+)` \| \*"(.+?)"\* \|/gm)].map((row) => [row[1]!, row[2]!]),
+  );
+  const forgetting = nextScenarios.filter((one) => one.family.startsWith("D2"));
+  assert.ok(forgetting.length > 0, "the next set has no D2 scenarios");
+
+  for (const one of forgetting) {
+    const request = requests.get(one.prompt) ?? "";
+    assert.ok(request, `${one.prompt}: no such request`);
+    assert.ok(
+      ERASURE.some((cue) => cue.test(request)),
+      `${one.prompt} asks for forgetting with nothing that rules out a withdrawal: "${request}"`,
+    );
+  }
 });
 
 // --- the two occasions ------------------------------------------------------
