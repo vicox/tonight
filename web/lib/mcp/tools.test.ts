@@ -339,6 +339,11 @@ test("the endpoint offers twenty-two tools, and a movie is addressed by title an
       "get_open_questions",
       "record_opportunity",
       "get_memory",
+      "record_observation",
+      "propose_change",
+      "get_proposals",
+      "accept_proposal",
+      "reject_proposal",
       "forget_verdict",
     ],
   );

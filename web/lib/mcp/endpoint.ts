@@ -13,6 +13,7 @@ import { wrongOrigin } from "../oauth/origin.ts";
 import { configurationFault } from "../oauth/responses.ts";
 import { accessTokenVerifier } from "../oauth/tokens.ts";
 import { episodeStore } from "../episodes/store.ts";
+import { reflectionStore } from "../reflection/store.ts";
 import { questionStore } from "../verdicts/questions.ts";
 import { verdictStore } from "../verdicts/store.ts";
 import { tonightMcpServer } from "./server.ts";
@@ -65,6 +66,7 @@ function mcpHandler(): McpHttpHandler {
       episodes: await episodeStore(user),
       verdicts: await verdictStore(user),
       questions: await questionStore(user),
+      reflection: await reflectionStore(user),
     });
   });
   return handler;

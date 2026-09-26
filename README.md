@@ -129,7 +129,7 @@ may be terser; it may not mean anything else.
 
 ## The MCP tools
 
-Twenty-two, all deterministic, and all of them operations on persisted state. None interprets a
+Twenty-seven, all deterministic, and all of them operations on persisted state. None interprets a
 sentence, invents a Genre or chooses a film. A tool description carries the rules for using that
 tool and nothing else — what a Mix's name has to earn belongs to `create_mix`, which is where it
 is read at the moment a name is chosen. Everything true across more than one call is method, and
@@ -153,6 +153,11 @@ method ships in the skill beside the server rather than as a runtime tool.
 | `forget_verdict` | one act removed outright, by the reference `get_memory` gave it |
 | `get_verdicts` | everything said about one film, and which of it stands now |
 | `get_memory` | the whole of what Tonight holds: what is current, and what it remembers |
+| `record_observation` | something Tonight noticed and was not told. Its own, never theirs, and never evidence |
+| `propose_change` | a change Tonight wants and has not made, carrying exactly what accepting it would create |
+| `get_proposals` | what Tonight noticed and what it offered, with what became of each |
+| `accept_proposal` | they said yes. The proposal's own target is written, in the same transaction |
+| `reject_proposal` | they said no, and it stays no |
 | `record_episode` | an evening: what was asked for, and the films put forward |
 | `correct_episode` | putting an evening right, including what they said they did with it |
 | `forget_episode` | an evening removed |

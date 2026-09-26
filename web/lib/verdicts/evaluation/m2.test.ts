@@ -25,6 +25,7 @@ import {
   type Taste,
   type World,
 } from "./gates.ts";
+import { sqlReflectionStore } from "../../reflection/store/sql.ts";
 import {
   BASELINE,
   FILMS,
@@ -96,6 +97,7 @@ describe("M2 — only what they said", () => {
         episodes: sqlEpisodeStore(driver, asUser(who)),
         verdicts: sqlVerdictStore(driver, asUser(who)),
         questions: sqlQuestionStore(driver, asUser(who)),
+        reflection: sqlReflectionStore(driver, asUser(who)),
       }) as unknown as { _registeredTools: Record<string, Tool> }
     )._registeredTools;
 

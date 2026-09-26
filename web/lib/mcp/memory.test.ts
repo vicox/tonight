@@ -11,6 +11,7 @@ import { askAbout } from "../verdicts/questions.ts";
 import { QUESTIONS_SCHEMA, sqlQuestionStore } from "../verdicts/questions/sql.ts";
 import { sqlVerdictStore, VERDICTS_SCHEMA } from "../verdicts/store/sql.ts";
 import { tonightMcpServer } from "./server.ts";
+import { sqlReflectionStore } from "../reflection/store/sql.ts";
 
 /**
  * The memory surface, as an agent actually meets it.
@@ -85,6 +86,7 @@ describe("the memory tools", () => {
         episodes: sqlEpisodeStore(driver, who),
         verdicts: sqlVerdictStore(driver, who),
         questions: sqlQuestionStore(driver, who),
+        reflection: sqlReflectionStore(driver, who),
       }) as unknown as { _registeredTools: Record<string, Tool> }
     )._registeredTools;
   };

@@ -11,6 +11,7 @@ import { askAbout } from "../verdicts/questions.ts";
 import { QUESTIONS_SCHEMA, sqlQuestionStore } from "../verdicts/questions/sql.ts";
 import { VERDICTS_SCHEMA, sqlVerdictStore } from "../verdicts/store/sql.ts";
 import { tonightMcpServer } from "./server.ts";
+import { sqlReflectionStore } from "../reflection/store/sql.ts";
 
 /**
  * The verdict tools, held to the boundary they exist to keep.
@@ -49,6 +50,7 @@ describe("the verdict tools", () => {
         episodes: sqlEpisodeStore(driver, asUser(who)),
         verdicts: sqlVerdictStore(driver, asUser(who)),
         questions: sqlQuestionStore(driver, asUser(who)),
+        reflection: sqlReflectionStore(driver, asUser(who)),
       }) as unknown as { _registeredTools: Record<string, Tool> }
     )._registeredTools;
 

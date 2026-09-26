@@ -28,6 +28,7 @@ import {
   type Taste,
   type World,
 } from "./gates.ts";
+import { sqlReflectionStore } from "../../reflection/store/sql.ts";
 import {
   FILMS,
   OWNER_HISTORY,
@@ -86,6 +87,7 @@ describe("M3 — explains itself, and can be corrected", () => {
         episodes: sqlEpisodeStore(driver, asUser(who)),
         verdicts: sqlVerdictStore(driver, asUser(who)),
         questions: sqlQuestionStore(driver, asUser(who)),
+        reflection: sqlReflectionStore(driver, asUser(who)),
       }) as unknown as { _registeredTools: Record<string, Tool> }
     )._registeredTools;
 
@@ -114,6 +116,7 @@ describe("M3 — explains itself, and can be corrected", () => {
       verdicts: sqlVerdictStore(driver, asUser(who)),
       episodes: sqlEpisodeStore(driver, asUser(who)),
       questions: sqlQuestionStore(driver, asUser(who)),
+        reflection: sqlReflectionStore(driver, asUser(who)),
     };
 
     const call = async (name: string, args: Record<string, unknown> = {}) => {

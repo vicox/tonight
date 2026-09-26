@@ -11,6 +11,7 @@ import { sqlTasteStore } from "../../taste/store/sql.ts";
 import { EPISODES_SCHEMA, sqlEpisodeStore } from "../store/sql.ts";
 import { gate, LIMITS, OUTCOMES, type ReadEpisode, type Result } from "./gates.ts";
 import { TRAJECTORIES } from "./trajectories.ts";
+import type { ReflectionStore } from "../../reflection/store.ts";
 
 /**
  * M1's evaluation: does Tonight remember the evening, and only the evening?
@@ -78,6 +79,9 @@ describe("M1 — remembers the evening", () => {
           // every path an episode tool could actually take.
           verdicts: refusingExcept("verdict", { standing: async () => [] }),
           questions: refusing("question"),
+          // Reflection is one more store an episode tool must never reach: an
+          // evening is a fact, and noticing something about it is M4's, not M1's.
+          reflection: refusing<ReflectionStore>("reflection"),
         }) as unknown as { _registeredTools: Record<string, Tool> }
       )._registeredTools;
 

@@ -115,7 +115,7 @@ const TOOL_NAMES = Object.keys(
 
 /** How a count reads in prose, for the small numbers a document spells out. */
 function numberWord(count: number): string {
-  const words: Record<number, string> = { 11: "eleven", 21: "twenty-one", 22: "twenty-two", 23: "twenty-three" };
+  const words: Record<number, string> = { 11: "eleven", 21: "twenty-one", 22: "twenty-two", 23: "twenty-three", 26: "twenty-six", 27: "twenty-seven", 28: "twenty-eight" };
   return words[count] ?? String(count);
 }
 

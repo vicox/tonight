@@ -136,6 +136,7 @@ test("every tool is discoverable, and only the intended ones", async () => {
   const tools = json.result?.tools;
   assert.ok(tools);
   assert.deepEqual(tools.map((tool) => tool.name).sort(), [
+    "accept_proposal",
     "correct_episode",
     "create_genre",
     "create_mix",
@@ -148,12 +149,16 @@ test("every tool is discoverable, and only the intended ones", async () => {
     "get_episodes",
     "get_memory",
     "get_open_questions",
+    "get_proposals",
     "get_server_info",
     "get_taste",
     "get_verdicts",
+    "propose_change",
     "record_episode",
+    "record_observation",
     "record_opportunity",
     "record_verdict",
+    "reject_proposal",
     "update_genre",
     "update_mix",
     "update_movie",
@@ -172,7 +177,7 @@ test("every tool is discoverable, and only the intended ones", async () => {
   // tool does either — the chain from watching to liking is never closed for the
   // user. M3's pair read across all of them and write nothing but a deletion the
   // user asked for.
-  assert.equal(tools.length, 22);
+  assert.equal(tools.length, 27);
 
   const info = tools.find((tool) => tool.name === "get_server_info");
   assert.equal(info?.title, "Server information");

@@ -9,9 +9,10 @@ import type { AuthenticatedUser } from "../../identity.ts";
 import { tonightMcpServer } from "../../mcp/server.ts";
 import { sqlTasteStore, TASTE_SCHEMA } from "../../taste/store/sql.ts";
 import { QUESTIONS_SCHEMA, sqlQuestionStore } from "../../verdicts/questions/sql.ts";
+import { REFLECTION_SCHEMA, sqlReflectionStore } from "../store/sql.ts";
 import { sqlVerdictStore, VERDICTS_SCHEMA } from "../../verdicts/store/sql.ts";
 import { gate, GATES, LIMITS, type Observed, type World } from "./gates.ts";
-import { TRAJECTORIES, type Step, type Trajectory } from "./trajectories.ts";
+import { RESTRAINT, TRAJECTORIES, type Step, type Target, type Trajectory } from "./trajectories.ts";
 
 /**
  * M4's reflection-safety gate: thinking may persist its own work, belief
@@ -47,12 +48,13 @@ describe("M4 — reflection proposes, the user decides", () => {
         episodes: sqlEpisodeStore(driver, asUser(who)),
         verdicts: sqlVerdictStore(driver, asUser(who)),
         questions: sqlQuestionStore(driver, asUser(who)),
+        reflection: sqlReflectionStore(driver, asUser(who)),
       }) as unknown as { _registeredTools: Record<string, Tool> }
     )._registeredTools;
 
   before(async () => {
     driver = await embeddedDriver();
-    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA, QUESTIONS_SCHEMA]) {
+    for (const schema of [TASTE_SCHEMA, EPISODES_SCHEMA, VERDICTS_SCHEMA, QUESTIONS_SCHEMA, REFLECTION_SCHEMA]) {
       await migrate(driver, schema);
     }
     const seen: Record<string, Observed> = {};
@@ -69,10 +71,14 @@ describe("M4 — reflection proposes, the user decides", () => {
   /**
    * One history, observed either side of the reflection steps.
    *
-   * The user's steps are performed. The reflection steps are not: there is
-   * nothing to perform them against, and inventing a stand-in would make this
-   * file test its own stub. `performed: false` records that, so a reader can
-   * never mistake a vacuous pass for a demonstrated one.
+   * The user's half runs first and is then photographed: `before` is the model
+   * they established, with nothing of Tonight's in it. Then reflection runs —
+   * through the same public tools an agent has — and `after` is what that left
+   * behind. Every gate compares the two.
+   *
+   * Both halves go through the tool surface. A trajectory that reached the
+   * store directly could write something no agent could actually write, and
+   * would prove the boundary held against an attack nobody can mount.
    */
   async function walk(trajectory: Trajectory): Promise<Observed> {
     const tools = toolsFor(`google:m4-${trajectory.name}`);
@@ -82,13 +88,59 @@ describe("M4 — reflection proposes, the user decides", () => {
       return result.structuredContent as Record<string, unknown>;
     };
 
-    for (const step of trajectory.steps) await perform(step, call);
+    const mine = trajectory.steps.filter((step) => !REFLECTS.has(step.act));
+    const tonights = trajectory.steps.filter((step) => REFLECTS.has(step.act));
+    for (const step of mine) await perform(step, call);
+
     const before = await observe(call);
-    // Where the reflection steps would run. Nothing does.
-    const performed = false;
+    let observation: string | null = null;
+    let proposal: string | null = null;
+    let accepted: Target | null = null;
+
+    for (const step of tonights) {
+      switch (step.act) {
+        case "observe": {
+          const written = (await call("record_observation", { noticed: step.noticed })) as unknown as {
+            observation: { ref: string };
+          };
+          observation = written.observation.ref;
+          break;
+        }
+        case "propose": {
+          const offered = (await call("propose_change", {
+            ...(observation === null ? {} : { from: observation }),
+            noticed: step.noticed,
+            target: step.target,
+          })) as unknown as { proposal: { ref: string } };
+          proposal = offered.proposal.ref;
+          break;
+        }
+        case "ignore":
+          // The conversation moves on. Nothing is called, which is the point:
+          // leaving a proposal pending is an act of omission and has to be
+          // driven as one.
+          break;
+        case "reject":
+          assert.ok(proposal, "nothing to reject");
+          await call("reject_proposal", { ref: proposal });
+          break;
+        case "accept": {
+          assert.ok(proposal, "nothing to accept");
+          const said = (await call("accept_proposal", { ref: proposal })) as unknown as {
+            accepted: { target: Target };
+          };
+          accepted = said.accepted.target;
+          break;
+        }
+      }
+    }
+
     const after = await observe(call);
-    return { trajectory, before, after, performed, accepted: null };
+    return { trajectory, before, after, performed: tonights.length > 0, accepted };
   }
+
+  /** The acts that belong to Tonight rather than to the user. */
+  const REFLECTS = new Set<Step["act"]>(["observe", "propose", "ignore", "reject", "accept"]);
 
   /** The user's own acts, through the tools any history here goes through. */
   async function perform(
@@ -116,13 +168,14 @@ describe("M4 — reflection proposes, the user decides", () => {
           said: { about: "judgement", judgement: step.judgement },
         });
         return;
-      // Reflection's acts. No surface yet; see the file comment and LIMITS.
+      // Reflection's acts are driven in `walk`, which needs the references
+      // each one returns; they are filtered out before this runs.
       case "observe":
       case "propose":
       case "ignore":
       case "reject":
       case "accept":
-        return;
+        throw new Error(`${step.act} is driven by walk, not by perform`);
     }
   }
 
@@ -174,14 +227,17 @@ describe("M4 — reflection proposes, the user decides", () => {
     assert.deepEqual(gate(world), []);
   });
 
-  test("the gate says plainly that reflection has not been performed", () => {
-    // The honest half. Every trajectory holds because nothing ran, and that has
-    // to be legible rather than hidden behind a green result.
+  test("every trajectory actually performed its reflection steps", () => {
+    // The gate is worth nothing if the prohibitions hold because nothing ran.
+    // All five drive the real tools; four of them end with no acceptance, and
+    // the fifth records what was accepted so the positive control has something
+    // to be true about.
     for (const seen of Object.values(world.seen)) {
-      assert.equal(seen.performed, false, `${seen.trajectory.name} claims reflection ran`);
-      assert.equal(seen.accepted, null);
+      assert.equal(seen.performed, true, `${seen.trajectory.name} performed no reflection`);
     }
-    assert.match(LIMITS[0]!, /reflection has no implementation yet/u);
+    const accepted = Object.values(world.seen).filter((seen) => seen.accepted !== null);
+    assert.equal(accepted.length, 1, "exactly one trajectory should have accepted something");
+    assert.deepEqual(accepted[0]!.accepted, RESTRAINT);
   });
 
   /* ------------------------------------------------------------- the probes */
@@ -204,19 +260,20 @@ describe("M4 — reflection proposes, the user decides", () => {
     );
   };
 
-  const RESTRAINT = '{"name":"Restrained Thriller","instruction":"Tension carried by what is withheld rather than what is shown."}';
+  const AS_GENRE =
+    '{"name":"Restrained Thriller","instruction":"Tension carried by what is withheld rather than what is shown."}';
 
   test("a noticed pattern writing itself in as a genre is caught", () => {
     probe("observing creates a Declaration", "authority", (copy) => {
       const seen = copy.seen["observed-only"]!;
-      seen.after.authority.genres = `[${RESTRAINT}]`;
+      seen.after.authority.genres = `[${AS_GENRE}]`;
     });
   });
 
   test("a proposal counting as agreement is caught", () => {
     probe("proposing creates a Declaration", "authority", (copy) => {
       const seen = copy.seen["proposed"]!;
-      seen.after.authority.genres = `[${RESTRAINT}]`;
+      seen.after.authority.genres = `[${AS_GENRE}]`;
     });
   });
 
@@ -251,20 +308,18 @@ describe("M4 — reflection proposes, the user decides", () => {
   test("a refusal that writes anyway is caught", () => {
     probe("the refused reading becomes real", "rejection-stands", (copy) => {
       const seen = copy.seen["proposed-and-rejected"]!;
-      seen.after.authority.genres = `[${RESTRAINT}]`;
+      seen.after.authority.genres = `[${AS_GENRE}]`;
     });
   });
 
   test("an acceptance that did not take is caught", () => {
-    // The positive control, proved the only way an implication can be: give it
-    // an acceptance to be true about, and withhold the write.
+    // The positive control, and the one probe that removes rather than adds:
+    // the acceptance stands in the record and the genre it authorised is not
+    // there. A gate that only ever forbade writing would be silent about this.
     probe("the accepted change never happened", "acceptance-takes", (copy) => {
       const seen = copy.seen["proposed-and-accepted"]!;
-      seen.accepted = {
-        kind: "genre",
-        name: "Restrained Thriller",
-        instruction: "Tension carried by what is withheld rather than what is shown.",
-      };
+      seen.after.authority.genres = seen.before.authority.genres;
+      seen.after.taste = seen.before.taste;
     });
   });
 

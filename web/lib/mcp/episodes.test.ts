@@ -11,6 +11,7 @@ import type { TasteStore } from "../taste/store.ts";
 import type { QuestionStore } from "../verdicts/questions.ts";
 import type { VerdictStore } from "../verdicts/store.ts";
 import { tonightMcpServer } from "./server.ts";
+import type { ReflectionStore } from "../reflection/store.ts";
 
 /**
  * The episode tools, held to the boundary they exist to keep.
@@ -37,6 +38,7 @@ const refusing = <T>(what: string): T =>
 const refusingTaste = refusing<TasteStore>("taste");
 const refusingVerdicts = refusing<VerdictStore>("verdict");
 const refusingQuestions = refusing<QuestionStore>("question");
+const refusingReflection = refusing<ReflectionStore>("reflection");
 
 type Tool = {
   description?: string;
@@ -52,6 +54,7 @@ function toolsOf(episodes: EpisodeStore): Record<string, Tool> {
     episodes,
     verdicts: refusingVerdicts,
     questions: refusingQuestions,
+    reflection: refusingReflection,
   });
   return (server as unknown as { _registeredTools: Record<string, Tool> })._registeredTools;
 }

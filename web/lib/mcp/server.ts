@@ -2,6 +2,8 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 import type { AuthenticatedUser } from "../identity.ts";
+import { ReflectionError } from "../reflection/model.ts";
+import type { ReflectionStore } from "../reflection/store.ts";
 import {
   IMDB_ID_PATTERN,
   MAX_IMDB_ID_LENGTH,
@@ -91,6 +93,15 @@ export type McpSession = {
    * ever makes Tonight appear on its own.
    */
   questions: QuestionStore;
+  /**
+   * What Tonight noticed and what it has offered — its own thinking, and the
+   * only store here that is not the user's. Nothing in it is authoritative and
+   * nothing in it reaches `get_taste`; §5 of the architecture is the whole
+   * arrangement — *thinking may persist its own work; belief ownership stays
+   * governed.* The one method that crosses the line is `accept`, and it only
+   * runs because somebody said yes.
+   */
+  reflection: ReflectionStore;
 };
 
 // --- shared field schemas --------------------------------------------------
@@ -310,7 +321,7 @@ const movieMixes = z
  */
 export function tonightMcpServer(session: McpSession): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  const { store, episodes, verdicts, questions } = session;
+  const { store, episodes, verdicts, questions, reflection } = session;
   // The instant a claim is made is the server's to know, not a caller's to
   // state: a tool that accepted a timestamp would let a model backdate what
   // somebody said, and when they said it is part of the claim.
@@ -1010,6 +1021,134 @@ export function tonightMcpServer(session: McpSession): McpServer {
       }),
   );
 
+  /* ------------------------------------------------------- what Tonight thinks */
+
+  server.registerTool(
+    "record_observation",
+    {
+      title: "Write down something you noticed",
+      description:
+        "Something you noticed about their history that nobody told you. A pattern across films " +
+        "they loved, a shape in what they turn down, a reading of two things put together. It is " +
+        "yours, not theirs, and writing it here is what keeps those apart.\n\n" +
+        "**An observation is not evidence and never becomes evidence.** It does not reach " +
+        "`get_taste`, it changes no recommendation, and it does not grow more true by surviving: " +
+        "one you wrote a year ago says exactly what one you wrote today says, which is that you " +
+        "noticed something. Nothing here may be reported to them as something they said, or " +
+        "counted as a preference of theirs, or used to justify an answer as though they had " +
+        "established it.\n\n" +
+        "Write it in your own voice — *\"both films they loved withhold more than they show\"* — " +
+        "never in theirs. If you want it to become theirs, that is `propose_change`, and it is " +
+        "theirs only once they say so.",
+      inputSchema: z.object({ noticed: z.string().min(1).max(2_000) }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ noticed }) =>
+      attempt(async () => ({ observation: await reflection.observe(noticed) })),
+  );
+
+  server.registerTool(
+    "propose_change",
+    {
+      title: "Offer them a change, and do not make it",
+      description:
+        "Put a reading to them as something they could adopt: *\"you seem to like restrained " +
+        "thrillers — want me to make that a genre?\"* The proposal carries exactly what accepting " +
+        "it would create, so what they say yes to is what gets written and nothing has to be " +
+        "reconstructed afterwards.\n\n" +
+        "**Proposing is not doing.** Nothing is created here. Showing it to them is not their " +
+        "agreeing to it, their not answering is not their agreeing to it, and a proposal that " +
+        "has waited a long time has not become any more agreed. The only thing that makes it " +
+        "real is `accept_proposal`, called because they said so.\n\n" +
+        "`from` names the observation this came out of, where there was one — it is the `ref` " +
+        "`record_observation` gave you. Leave it out for an offer made in the moment. `noticed` " +
+        "is why you are offering it, in your words; `target` is the change itself.\n\n" +
+        "Offer it once and let them answer. A second proposal of the same thing is the same " +
+        "question asked twice, and asking twice is how a no becomes a yes by attrition.",
+      inputSchema: z.object({
+        from: z.string().uuid().optional(),
+        noticed: z.string().min(1).max(2_000),
+        target: z.object({
+          kind: z.literal("genre"),
+          name: z.string().min(1),
+          instruction: z.string().min(1),
+        }),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ from, noticed, target }) =>
+      attempt(async () => ({
+        proposal: await reflection.propose(from ?? null, noticed, target),
+      })),
+  );
+
+  server.registerTool(
+    "get_proposals",
+    {
+      title: "What you noticed, and what you have offered",
+      description:
+        "Your own thinking: the observations you wrote down, and every change you offered with " +
+        "what became of it. **None of it is anything they said.** It is excluded from " +
+        "`get_memory` for the same reason an open question is — that read answers *what do you " +
+        "know about me*, and this is what you made of it rather than anything they told you.\n\n" +
+        "Each proposal says `state`: `pending` while it waits, `accepted` where they said yes and " +
+        "the change was made, `rejected` where they said no. A rejected one stays here and stays " +
+        "rejected; do not offer it again, and do not treat it as undecided because time has " +
+        "passed. Reading any of this writes nothing and decides nothing.",
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async () =>
+      attempt(async () => ({
+        observations: await reflection.observations(),
+        proposals: await reflection.proposals(),
+      })),
+  );
+
+  server.registerTool(
+    "accept_proposal",
+    {
+      title: "They said yes — make the change",
+      description:
+        "Call this when they have **actually agreed**, in words, to the change you offered. " +
+        "Their yes is the whole of the authority for it, and it is the only thing in Tonight " +
+        "that turns something you thought into something they have.\n\n" +
+        "**What it writes is the proposal's own target, not whatever the conversation has since " +
+        "drifted to.** If what they agreed to is not what you offered, this is the wrong call: " +
+        "offer the thing they agreed to and let them accept that.\n\n" +
+        "Not this for: a maybe, a shrug, a change of subject, a question back, or their saying " +
+        "something that merely sounds compatible. None of those is a yes, and a proposal left " +
+        "pending costs nothing — accepting one they did not agree to writes a genre into their " +
+        "model under their name.\n\n" +
+        "The proposal and the change land together or not at all, so there is no state where " +
+        "they agreed and nothing happened. Refused if the proposal was already accepted or " +
+        "rejected: a decision stands, and accepting twice would write twice.",
+      inputSchema: z.object({ ref: z.string().uuid() }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ ref }) => attempt(async () => ({ accepted: await reflection.accept(ref) })),
+  );
+
+  server.registerTool(
+    "reject_proposal",
+    {
+      title: "They said no — and it stays no",
+      description:
+        "They turned the offer down. Nothing is written, their model is exactly as it was, and " +
+        "the proposal is marked refused so that it is not offered again.\n\n" +
+        "**A no settles it.** Do not propose the same thing next week in different words; a " +
+        "rejected idea that comes back is worse than one never offered, because it tells them " +
+        "their answer did not count. If they later say the thing themselves, that is them " +
+        "establishing it and it goes through the ordinary tools — not through this proposal " +
+        "coming back to life.\n\n" +
+        "Record a no you actually got. Their not answering is not a no either: an unanswered " +
+        "proposal stays pending, and leaving it there is the honest state.",
+      inputSchema: z.object({ ref: z.string().uuid() }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ ref }) => attempt(async () => ({ rejected: await reflection.reject(ref) })),
+  );
+
   server.registerTool(
     "forget_verdict",
     {
@@ -1162,7 +1301,8 @@ async function attempt(work: () => Promise<unknown>) {
     if (
     !(error instanceof TasteError) &&
     !(error instanceof EpisodeError) &&
-    !(error instanceof VerdictError)
+    !(error instanceof VerdictError) &&
+    !(error instanceof ReflectionError)
   ) {
     throw error;
   }
