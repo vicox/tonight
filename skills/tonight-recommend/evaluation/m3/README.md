@@ -52,10 +52,21 @@ and Verdicts, and all five are reachable from the surface an agent uses.
 
 Two fixtures went with it. `m3-03-pending` was a person with a question waiting against them and
 `m3-08-nothing-pending` was its control, and the distinction they existed to test no longer
-exists — the two histories are now the same history. **The frozen `preflight` and `preflight2`
-sets still name them**, because those are the record of a certification that was run and editing
-a record is not a repair. Re-freezing that matrix is the first step of the next certification,
-not something this directory does on its own.
+exists — the two histories are now the same history.
+
+## Which sets are live, and which are records
+
+`scenarios.json` with `prompts.md` is **the live matrix** — what `run.mjs` runs when nobody names
+a set, and the only one a release relies on. Every scenario in it resolves to a fixture that
+exists and a request that is defined, and `web/lib/evaluation-m3.test.ts` fails if one stops
+doing so.
+
+`preflight` and `preflight2` are **records, not sets to run.** They are the matrices two
+certification campaigns were carried out under, and they still name the two deleted fixtures —
+which is correct: editing a record of what was measured turns it into a record of something
+else. Neither can be run today, and neither should be repointed at a substitute. Whoever opens
+the next campaign freezes a new matrix for it; that is their first step and not something this
+directory does in advance.
 
 ## Running it
 

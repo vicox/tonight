@@ -357,6 +357,36 @@ test("the endpoint offers twenty tools, and a movie is addressed by title and ye
   }
 });
 
+test("no tool description tells a model that a question of its own is remembered", async () => {
+  // A negative contract, and it earns its place: these sentences were true and
+  // are now false, which is the worst kind of stale. A model reading *"if a
+  // question about this film was waiting on an answer, this closes it"* believes
+  // there is a place where questions wait, and will write as though there is.
+  //
+  // Matched as claims rather than as the word "question" — asking is still
+  // something Tonight does, and a description may say so. What may not appear
+  // is a question that persists: one that waits, stays open, is carried, or gets
+  // closed by a call.
+  const tools = await listTools(await tokenFor(someone()));
+
+  const PERSISTENT_QUESTION = [
+    /questions? (?:still )?waiting on an answer/iu,
+    /(?:a |an )?(?:open|pending|outstanding) questions?/iu,
+    /questions? (?:it|you|tonight) (?:is|are) carrying/iu,
+    /this closes it/iu,
+    /closes? (?:the|a|any) question/iu,
+    /question .{0,40}(?:remains|stays) (?:open|waiting)/iu,
+  ];
+
+  assert.ok(tools.length > 0, "the surface is empty, so this proves nothing");
+  for (const tool of tools) {
+    const said = tool.description;
+    for (const claim of PERSISTENT_QUESTION) {
+      assert.doesNotMatch(said, claim, `${tool.name} tells a model that a question of its own persists`);
+    }
+  }
+});
+
 test("the write tools say where persistence begins, because a host may read nothing else", async () => {
   // A client can discover these tools and call them without ever loading the
   // Tonight skill, so anything that must be true whenever the tool is called

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { tonightMcpServer } from "./mcp/server.ts";
 
 /**
- * The M3 targeted preflight, held to the structure it claims.
+ * The M3 evaluation sets, held to the structure each of them claims.
  *
  * `lib/evaluation.test.ts` does this for the Phase 1 set and says why: a gate
  * with a hole in it is worse than no gate, because it reports a pass. The
@@ -14,12 +14,26 @@ import { tonightMcpServer } from "./mcp/server.ts";
  * question the scenario could not settle, and a fourth class of error went
  * unscored because nothing in the rubric named it.
  *
- * None of that is about whether a model behaved. It is about whether the
- * instrument was built correctly, which is exactly what a test can decide. So
- * what is checked here is the instrument: that the counts are what was frozen,
- * that the two occasion cases really are opposites, that the completeness rule
- * exists and distinguishes the claim it is about from the one it is not, and
- * that the runner cannot lose evidence of a write it did not expect.
+ * ## Two kinds of set, and the difference decides what may be asserted
+ *
+ * **`preflight` and `preflight2` are frozen records.** They are the matrices two
+ * certification campaigns were actually run under, and their value is that they
+ * say what was measured. Neither is runnable now: both name fixtures that were
+ * deleted when the persistent Questions they existed for were removed, and
+ * re-pointing them at something else would make the record describe runs that
+ * never happened. So what is checked about them is *internal* — that the frozen
+ * counts are still the frozen counts, that the two occasion cases really are
+ * opposites, that the completeness rule distinguishes the claim it is about from
+ * the one it is not — and never that they could be run today.
+ *
+ * **`scenarios.json` is the live matrix**, the one `run.mjs` uses by default,
+ * and the only one a release may rely on. It gets the check the frozen ones
+ * cannot have: every scenario resolves to a fixture that exists and a prompt
+ * that is defined.
+ *
+ * And the runner is checked against the server either way, because a harness
+ * that has lost track of which tools write loses evidence of a write regardless
+ * of which set it is running.
  */
 
 const M3 = new URL("../../skills/tonight-recommend/evaluation/m3/", import.meta.url);
@@ -31,12 +45,24 @@ const scenarios = JSON.parse(read("preflight.scenarios.json")) as {
   family: string;
 }[];
 const prompts = read("preflight.prompts.md");
-/** The set the next certification runs, beside the frozen one rather than over it. */
-const NEXT_SET = "preflight2";
-const nextPrompts = read(`${NEXT_SET}.prompts.md`);
-const nextScenarios = JSON.parse(read(`${NEXT_SET}.scenarios.json`)) as typeof scenarios;
+/**
+ * The second frozen campaign, kept beside the first rather than over it.
+ *
+ * It was created to re-run the first under one corrected request wording, and it
+ * is a record of that intent. It is **not** the set a future certification would
+ * run: it names two fixtures that no longer exist, and a successor set is a
+ * decision for whoever opens the next campaign rather than something this file
+ * should manufacture.
+ */
+const FROZEN_SECOND = "preflight2";
+const nextPrompts = read(`${FROZEN_SECOND}.prompts.md`);
+const nextScenarios = JSON.parse(read(`${FROZEN_SECOND}.scenarios.json`)) as typeof scenarios;
 const rubric = read("preflight.rubric.md");
 const runner = read("run.mjs");
+
+/** The live matrix: what `run.mjs` runs when nobody names a set. */
+const active = JSON.parse(read("scenarios.json")) as typeof scenarios;
+const activePrompts = read("prompts.md");
 
 /** The request table, parsed the way `run.mjs` parses it and not another way. */
 const requests = new Map(
@@ -79,6 +105,64 @@ test("every scenario names a request that exists, and every request is used", ()
   }
   for (const key of requests.keys()) {
     assert.ok(named.has(key), `${key} is defined and used by no scenario`);
+  }
+});
+
+// --- the live matrix --------------------------------------------------------
+
+test("every scenario in the live matrix resolves to a fixture and a prompt that exist", () => {
+  // The check the frozen sets cannot have, and the one a release needs. A
+  // scenario naming a deleted fixture is a run that dies at seed time, and the
+  // two fixtures that existed only to hold a persistent Question were deleted
+  // with it — so this is exactly the failure that would otherwise be found by
+  // starting a campaign and watching it fall over.
+  const fixtures = new Set(
+    readdirSync(new URL("fixtures/", M3))
+      .filter((name) => name.endsWith(".json"))
+      .map((name) => name.replace(/\.json$/u, "")),
+  );
+  const defined = new Map(
+    [...activePrompts.matchAll(/^\| `([a-z0-9-]+)` \| \*"(.+?)"\* \|/gm)].map((row) => [row[1]!, row[2]!]),
+  );
+
+  assert.ok(active.length > 0, "the live matrix is empty");
+  for (const one of active) {
+    assert.ok(fixtures.has(one.fixture), `${one.fixture} is named by a scenario and does not exist`);
+    assert.ok(defined.has(one.prompt), `${one.fixture}/${one.prompt}: no such request`);
+  }
+
+  // Both directions, because an orphan is the other half of the same mistake: a
+  // fixture nobody runs and a request nobody asks are both things somebody
+  // meant to delete.
+  const used = new Set(active.map((one) => one.prompt));
+  for (const key of defined.keys()) {
+    assert.ok(used.has(key), `${key} is defined in prompts.md and used by no scenario`);
+  }
+  const exercised = new Set(active.map((one) => one.fixture));
+  assert.deepEqual(
+    [...fixtures].filter((name) => !exercised.has(name)).sort(),
+    [],
+    "a fixture exists that the live matrix never runs",
+  );
+});
+
+test("the live matrix names no fixture the frozen sets lost", () => {
+  // The frozen sets still name `m3-03-pending` and `m3-08-nothing-pending`,
+  // because editing a record of what was run would make it a record of
+  // something else. The live matrix may not, and the two must not be confused:
+  // this is what keeps "the frozen sets are records" from quietly becoming
+  // "the live set is broken in the same way".
+  const deleted = ["m3-03-pending", "m3-08-nothing-pending"];
+  for (const gone of deleted) {
+    assert.equal(
+      active.some((one) => one.fixture === gone),
+      false,
+      `${gone} is in the live matrix and its fixture was deleted`,
+    );
+    assert.ok(
+      [...scenarios, ...nextScenarios].some((one) => one.fixture === gone),
+      `${gone} left the frozen record, which is a rewrite of what was run`,
+    );
   }
 });
 
@@ -127,11 +211,12 @@ test("the D2 control asks for a second operation the product can actually perfor
   assert.equal(saved.viewing, "seen", "the control's fixture has nothing for the second operation to clear");
 });
 
-test("the next prompt set is the same matrix, and keeps the frozen one intact", () => {
+test("the second frozen set is the same matrix as the first, with one wording changed", () => {
   // `run.mjs` takes a set as `<name>.scenarios.json` + `<name>.prompts.md` and
-  // writes to `m3-<name>-<version>-<target>`, so a new set cannot reach the
-  // namespace the old evidence is recorded under. Version 1 stays runnable and
-  // stays failed; version 2 is what the next certification uses.
+  // writes to `m3-<name>-<version>-<target>`, so neither set can reach the
+  // namespace the other's evidence is recorded under. What this asserts is what
+  // the second set was *for*: the same matrix, one request reworded. Both are
+  // records now — see the note at the head of this file.
   assert.deepEqual(
     nextScenarios,
     scenarios,

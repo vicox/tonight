@@ -551,14 +551,21 @@ check "and so is anything Tonight noticed or offered itself" \
     "$(order_check 'or from
 anything you noticed or offered yourself' \
         'a reading of your own is never evidence for another one')" "True"
-check "the lifecycle is named where the judgement is made" \
-    "$(order_check 'A reading of your own is `record_observation`' \
-        'putting it to them
-is `propose_change`' \
-        'their yes is `accept_proposal`, their no `reject_proposal`')" "True"
-check "and nothing is theirs until they say so" \
-    "$(order_check 'Nothing you notice or
-offer is theirs until they say so')" "True"
+# Where the offer goes, now that it goes nowhere. This used to name a lifecycle
+# — an observation written down, a proposal made from it, a yes that promoted
+# one — and the lifecycle was removed with the tables under it. The rule that
+# survives is the one an agent cannot work out alone: a yes writes, on the spot,
+# and there is no other moment at which anything happens.
+check "the offer writes on the yes and at no other time" \
+    "$(order_check 'Noticing is free and costs nothing; writing needs a yes' \
+        'a yes and you write the Genre' \
+        'a no or a change of
+subject and you write nothing')" "True"
+check "and nothing of an offer outlives the asking" \
+    "$(order_check 'nothing to write first and nothing left over' \
+        'no pending offer, no note that you asked, no record that they declined')" "True"
+check "so an offer is only ever one it could act on now" \
+    "$(order_check 'offer only what you could create on the spot')" "True"
 # And the line between the two roots, which the old wording blurred: a
 # recommendation is not taste, and recording the evening it happened on is a
 # fact rather than a way of concluding something about them.
@@ -890,6 +897,36 @@ check "asking before calling stays in the skill" \
     "$(order_check 'for what their sentence gave you')" "True"
 check "how a rewording is agreed to stays in the skill" \
     "$(order_check 'Say so and let them decide')" "True"
+
+echo
+echo "--- a question of your own is not something Tonight remembers ---"
+
+# The claim that has to stay gone. Tonight kept a row per film it meant to ask
+# about, and the skill described it — "a question still waiting on an answer is
+# a note it left itself". The row is gone and the sentence outlived it, which is
+# the worst kind of stale: an agent reading it believes there is a place where
+# questions wait, and writes as though there is.
+#
+# Matched as claims rather than as the word "question": asking is still
+# something Tonight does and the skill may say so. What may not come back is a
+# question that *persists* — one that waits, stays open, or gets closed.
+check "no question is described as waiting on an answer" \
+    "$(grep -ciE 'questions? (still )?(waiting|left) (on an answer|itself)|waiting on an answer, however long' "$CANONICAL")" "0"
+check "no question is described as open, pending or carried" \
+    "$(grep -ciE '(an? )?(open|pending|outstanding) questions?|questions? (it|you|tonight) (is|are) carrying' "$CANONICAL")" "0"
+check "no call is described as closing a question" \
+    "$(grep -ciE 'closes? (it|the|a|any) question|this closes it' "$CANONICAL")" "0"
+check "no removed lifecycle tool is named" \
+    "$(grep -ciE 'record_observation|propose_change|get_proposals|accept_proposal|reject_proposal|get_open_questions|record_opportunity' "$CANONICAL")" "0"
+
+# And the positive half, so the prohibition cannot be satisfied by saying
+# nothing: the agent has to be told where an unanswered question actually goes.
+check "the skill says an unanswered question is not in Tonight at all" \
+    "$(order_check 'Anything you asked and heard no answer to is not in
+Tonight at all')" "True"
+check "and that there is nothing for it to turn into" \
+    "$(order_check 'that one is not written down anywhere, so there is
+nothing for it to turn into')" "True"
 
 echo
 echo "--- the model that was replaced cannot come back ---"

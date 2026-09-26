@@ -490,7 +490,10 @@ describe("what recommendation work is handed", () => {
       "a withdrawal is described as never having spoken",
     );
     assert.match(text, /not that you recommended it, not that they watched or\s+finished it/u);
-    assert.match(text, /not a question of yours waiting\s+on an answer/u);
+    // Still excluded, and now said in a way that does not imply there is a
+    // place such a question waits: there is not.
+    assert.match(text, /not anything you asked them and heard no answer to/u);
+    assert.match(text, /which is nowhere in\s+Tonight to begin with/u);
     assert.match(text, /neither is a number/u);
 
     // M4: what is here is theirs; the pattern across it is the agent's. Six of

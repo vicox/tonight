@@ -403,8 +403,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "applies. " +
         "An evening whose refusal they withdrew has nothing of its own once more. Nothing else " +
         "about a film reaches this list: not that you recommended it, not that they watched or " +
-        "finished it, not a question of yours waiting on an answer, and not how long any of it " +
-        "has been true.",
+        "finished it, not anything you asked them and heard no answer to — which is nowhere in " +
+        "Tonight to begin with — and not how long any of it has been true.",
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () =>
@@ -777,8 +777,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "so it needs the occasion it belongs to and never stands beyond it. Keep their own " +
         "words for why, where they gave them.\n\n" +
         "Changed their mind? Record the new verdict; it supersedes the old one and the old one " +
-        "stays in the history. Nothing is rewritten. If a question about this film was waiting " +
-        "on an answer, this closes it.",
+        "stays in the history. Nothing is rewritten.\n\n" +
+        "This writes the verdict and nothing else. If you had asked them about this film, the " +
+        "asking was a sentence in your conversation and was never recorded anywhere, so there " +
+        "is nothing here to close and nothing that stays open if they never answer.",
       inputSchema: z.object({
         film: verdictFilm,
         told: verdictTold,
@@ -1138,12 +1140,12 @@ async function attempt(work: () => Promise<unknown>) {
     return answer(await work());
   } catch (error) {
     if (
-    !(error instanceof TasteError) &&
-    !(error instanceof EpisodeError) &&
-    !(error instanceof VerdictError) 
-  ) {
-    throw error;
-  }
+      !(error instanceof TasteError) &&
+      !(error instanceof EpisodeError) &&
+      !(error instanceof VerdictError)
+    ) {
+      throw error;
+    }
     return {
       isError: true as const,
       content: [{ type: "text" as const, text: error.message }],

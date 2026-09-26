@@ -58,8 +58,9 @@ in first.
 A film is in Tonight because somebody put it there, and nothing about it was ever fetched. The
 evidence it holds — their Genres, Mixes, Movies and verdicts — is context for choosing, never the
 shortlist. What else it remembers is not evidence at all: an evening it was part of is history,
-and a question still waiting on an answer is a note it left itself. Neither says anything about
-what they like. The choosing is yours; there is no Tonight tool that takes a taste and returns
+and says nothing about what they like. Anything you asked and heard no answer to is not in
+Tonight at all — it is in this conversation, and it ends with this conversation. The choosing is
+yours; there is no Tonight tool that takes a taste and returns
 films, and there is not going to be one.
 <!-- full:end -->
 
@@ -570,8 +571,9 @@ of them may be written down because it seemed likely.
 
 **That record is history, not taste.** Nothing is learned from it automatically, so a film you
 recommended can come back and an evening says nothing about what they like. Neither does a
-question of yours still waiting on an answer, however long it has waited: only what they said
-teaches you anything. An evening says *that* something happened, never what they made of it.
+question you asked and got no answer to — and that one is not written down anywhere, so there is
+nothing for it to turn into: only what they said teaches you anything. An evening says *that*
+something happened, never what they made of it.
 **What they said about a film is different**: that is evidence, because they are the one who
 said it.
 <!-- full:end -->
