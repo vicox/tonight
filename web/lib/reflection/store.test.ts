@@ -6,6 +6,7 @@ import { migrate } from "../db/migrate.ts";
 import { embeddedDriver } from "../db/pglite.ts";
 import type { AuthenticatedUser } from "../identity.ts";
 import { sqlTasteStore, TASTE_SCHEMA } from "../taste/store/sql.ts";
+import { MAX_INSTRUCTION_LENGTH, MAX_NAME_LENGTH, TasteError } from "../taste/model.ts";
 import { ReflectionError, type Target } from "./model.ts";
 import type { ReflectionStore } from "./store.ts";
 import { REFLECTION_SCHEMA, sqlReflectionStore } from "./store/sql.ts";
@@ -196,8 +197,80 @@ describe("the reflection store", () => {
     );
     await assert.rejects(
       () => reflection.propose(null, "something", { kind: "genre", name: "  ", instruction: "y" }),
-      ReflectionError,
+      TasteError,
     );
     assert.deepEqual(await reflection.proposals(), []);
+  });
+
+  /* ------------------------------------------- the target is what gets written */
+
+  test("a target is stored as the genre it would create, not as it was typed", async () => {
+    // The contract is that acceptance applies *exactly* the stored target. A
+    // proposal holding `"Restrained   Thriller"` against a genre that would be
+    // created as `"Restrained Thriller"` breaks it before anybody accepts:
+    // what they were shown is not what they would get.
+    const { reflection, genres } = mine();
+    const offered = await reflection.propose(null, "worth making a genre?", {
+      kind: "genre",
+      name: "  Restrained   Thriller  ",
+      instruction: "  Tension carried by what is withheld.  ",
+    });
+
+    assert.equal(offered.target.name, "Restrained Thriller");
+    assert.equal(offered.target.instruction, "Tension carried by what is withheld.");
+
+    // And the genre acceptance writes is that value, character for character.
+    await reflection.accept(offered.ref);
+    assert.deepEqual(await genres(), [offered.target.name]);
+  });
+
+  test("the stored target is exactly the genre that was accepted", async () => {
+    const { reflection } = mine();
+    const who = `google:m4-store-${String(next)}`;
+    void who;
+    const offered = await reflection.propose(null, "worth making a genre?", {
+      kind: "genre",
+      name: "Slow\tBurn",
+      instruction: "Films that\n\ntake their time.",
+    });
+    const accepted = await reflection.accept(offered.ref);
+    assert.deepEqual(accepted.target, offered.target, "acceptance changed the target it applied");
+  });
+
+  test("a target too long to be accepted cannot be offered", async () => {
+    // Offering something that could never be written would show somebody a
+    // change they cannot make. Both limits are the taste model's, and the
+    // boundary is checked on each side of itself.
+    const { reflection } = mine();
+    const at = (n: number) => "a".repeat(n);
+
+    const longestName = await reflection.propose(null, "at the limit", {
+      kind: "genre",
+      name: at(MAX_NAME_LENGTH),
+      instruction: "within",
+    });
+    assert.equal(longestName.target.name.length, MAX_NAME_LENGTH);
+
+    await assert.rejects(
+      () => reflection.propose(null, "over", { kind: "genre", name: at(MAX_NAME_LENGTH + 1), instruction: "within" }),
+      (error: Error) => error instanceof TasteError && /at most 60 characters/u.test(error.message),
+    );
+
+    const longestInstruction = await reflection.propose(null, "at the limit", {
+      kind: "genre",
+      name: "Within",
+      instruction: at(MAX_INSTRUCTION_LENGTH),
+    });
+    assert.equal(longestInstruction.target.instruction.length, MAX_INSTRUCTION_LENGTH);
+
+    await assert.rejects(
+      () =>
+        reflection.propose(null, "over", {
+          kind: "genre",
+          name: "Within",
+          instruction: at(MAX_INSTRUCTION_LENGTH + 1),
+        }),
+      (error: Error) => error instanceof TasteError && /at most 2000 characters/u.test(error.message),
+    );
   });
 });

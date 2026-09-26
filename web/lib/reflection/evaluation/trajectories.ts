@@ -43,19 +43,25 @@
  * `m4.test.ts` are what prove the gates would catch a violation. When M4 lands,
  * the driver wires these steps to the real surface and the same gates bite.
  *
- * The `target` on a proposal is what it *would* create if accepted. It is a
- * description written here for the gate to check against, never a production
- * type: this file may not be the place a Proposal's shape is decided.
+ * The `target` on a proposal is what it *would* create if accepted, and it is
+ * what the acceptance gate compares the result against — the trajectory's own
+ * record of what the user was shown, kept independently of anything the
+ * acceptance reports having written.
  */
 
 /** A film as the tools take it. */
 export type Film = { title: string; year: number };
 
-/** What a Proposal would create if somebody accepted it. */
-export type Target =
-  | { kind: "genre"; name: string; instruction: string }
-  | { kind: "mix"; name: string; instruction: string; genres: string[] }
-  | { kind: "verdict"; film: Film; judgement: "liked" | "loved" | "disliked" };
+/**
+ * What a Proposal would create if somebody accepted it.
+ *
+ * A genre, and only a genre, because that is what a Proposal can carry. The
+ * evaluation type describes what exists rather than what might: a variant here
+ * that production cannot produce would be a case these trajectories claim to
+ * cover and never drive, and the acceptance gate's comparison would have to
+ * grow a branch nothing proves.
+ */
+export type Target = { kind: "genre"; name: string; instruction: string };
 
 export type Step =
   /* ----------------------------------------------- what the user does */

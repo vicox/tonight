@@ -34,8 +34,31 @@ import { TRAJECTORIES, type Target, type Trajectory } from "./trajectories.ts";
 /** What a recommendation stands on: `get_taste`'s answer, canonicalised. */
 export type Taste = string;
 
-/** The objects the user owns, canonicalised, as `get_memory` reports them. */
-export type Authority = { genres: string; mixes: string; verdicts: string };
+/** A genre as the taste model holds it. */
+export type Genre = { name: string; instruction: string };
+
+/**
+ * The objects the user owns, structured rather than stringified.
+ *
+ * An earlier version kept these as JSON and asked whether a name appeared
+ * anywhere in it. That answered *"is something called this present"* and was
+ * satisfied by a genre with the right name and the wrong instruction — which is
+ * the substitution the acceptance gate exists to catch. Comparison is over the
+ * objects now, and the strings are kept beside them only for the two gates that
+ * want *"did anything at all change"*.
+ */
+export type Authority = {
+  genres: Genre[];
+  mixes: unknown[];
+  verdicts: unknown[];
+};
+
+/** The same, flattened, for the gates that only ask whether anything moved. */
+export const digest = (authority: Authority): Record<"genres" | "mixes" | "verdicts", string> => ({
+  genres: JSON.stringify(authority.genres),
+  mixes: JSON.stringify(authority.mixes),
+  verdicts: JSON.stringify(authority.verdicts),
+});
 
 /** One trajectory, observed either side of the reflection steps. */
 export type Observed = {
@@ -46,7 +69,15 @@ export type Observed = {
   after: { taste: Taste; authority: Authority };
   /** Whether the driver could actually perform the reflection steps. */
   performed: boolean;
-  /** The target of an acceptance that actually happened, or null. */
+  /**
+   * The target of an acceptance that actually happened, or null.
+   *
+   * **Taken from what was proposed, never from what `accept_proposal` returned.**
+   * A gate that checked the write against the value the write itself reported
+   * would agree with any implementation that was consistent with itself — it
+   * would pass a product that accepted one thing and reported another. This is
+   * the trajectory's own record of what the user was shown.
+   */
   accepted: Target | null;
 };
 
@@ -78,12 +109,11 @@ export function authority(world: World): Failure[] {
   const failures: Failure[] = [];
   for (const seen of unaccepted(world)) {
     const fail = failer("authority", seen.trajectory.name);
+    const was = digest(seen.before.authority);
+    const now = digest(seen.after.authority);
     for (const kind of ["genres", "mixes", "verdicts"] as const) {
-      if (seen.before.authority[kind] !== seen.after.authority[kind]) {
-        fail(
-          `reflection changed the ${kind} with no user act: ` +
-            `${seen.before.authority[kind]} became ${seen.after.authority[kind]}`,
-        );
+      if (was[kind] !== now[kind]) {
+        fail(`reflection changed the ${kind} with no user act: ${was[kind]} became ${now[kind]}`);
       }
     }
     failures.push(...fail.failures);
@@ -136,7 +166,7 @@ export function rejection(world: World): Failure[] {
       (step) => step.act === "propose" || step.act === "observe",
     );
     const target = refused && "target" in refused ? refused.target : null;
-    if (target !== null && names(target, seen.after)) {
+    if (target !== null && seen.after.authority.genres.some((one) => one.name === target.name)) {
       fail(`the refused ${target.kind} is in the model after the refusal`);
     }
     failures.push(...fail.failures);
@@ -147,33 +177,77 @@ export function rejection(world: World): Failure[] {
 /* ------------------------------------------------------------------ gate D */
 
 /**
- * What was accepted became real.
+ * Exactly what was accepted became real, and nothing else did.
  *
- * The positive control, and an implication rather than an assertion: it says
- * nothing until an acceptance has actually been performed. Pre-M4 no driver can
- * perform one, so this passes for the honest reason — not because a product
- * that cannot propose is correct, but because the case has not arisen yet.
+ * The positive control, and the only gate that owes something rather than
+ * forbidding it. Four claims, because "the change happened" is not one
+ * question:
+ *
+ * - the proposed genre is there, **name and instruction both** — a genre with
+ *   the right name and a different instruction is a different sentence about
+ *   the user, and it is what a substituted target looks like from outside;
+ * - every genre that was there before is still exactly as it was;
+ * - the delta is that one genre and nothing more — an acceptance that also
+ *   wrote something nobody offered is an unauthorised write wearing an
+ *   authorised one as cover;
+ * - mixes and verdicts did not move at all, and neither did the taste model in
+ *   any way the new genre does not account for.
+ *
+ * The target compared against is the trajectory's, not the one the acceptance
+ * reported. See `Observed.accepted`.
  */
 export function acceptance(world: World): Failure[] {
   const failures: Failure[] = [];
   for (const seen of Object.values(world.seen)) {
-    if (seen.accepted === null) continue;
+    const wanted = seen.accepted;
+    if (wanted === null) continue;
     const fail = failer("acceptance-takes", seen.trajectory.name);
-    if (!names(seen.accepted, seen.after)) {
-      fail(`the accepted ${seen.accepted.kind} is not in the model afterwards`);
+
+    const before = seen.before.authority.genres;
+    const after = seen.after.authority.genres;
+
+    // (1) The genre they were shown, as they were shown it.
+    const written = after.find((one) => one.name === wanted.name);
+    if (!written) {
+      fail(`the accepted genre ${wanted.name} is not in the model afterwards`);
+    } else if (written.instruction !== wanted.instruction) {
+      fail(
+        `the accepted genre was written with a different instruction: ` +
+          `${JSON.stringify(written.instruction)} rather than ${JSON.stringify(wanted.instruction)}`,
+      );
+    }
+
+    // (2) Nothing that was already theirs moved.
+    for (const existing of before) {
+      const still = after.find((one) => one.name === existing.name);
+      if (!still) fail(`accepting removed the genre ${existing.name}`);
+      else if (still.instruction !== existing.instruction) {
+        fail(`accepting reworded the genre ${existing.name}`);
+      }
+    }
+
+    // (3) The delta is that one genre and nothing else.
+    const added = after.filter((one) => !before.some((was) => was.name === one.name));
+    if (added.length !== 1 || added[0]?.name !== wanted.name) {
+      fail(
+        `accepting wrote ${String(added.length)} genre(s) — ` +
+          `${JSON.stringify(added.map((one) => one.name))} rather than only ${wanted.name}`,
+      );
+    }
+
+    // (4) And it reached nothing but the genres.
+    const was = digest(seen.before.authority);
+    const now = digest(seen.after.authority);
+    for (const kind of ["mixes", "verdicts"] as const) {
+      if (was[kind] !== now[kind]) fail(`accepting a genre changed the ${kind}`);
     }
     if (seen.before.taste === seen.after.taste) {
       fail("an accepted change left what a recommendation stands on untouched");
     }
+
     failures.push(...fail.failures);
   }
   return failures;
-}
-
-/** Whether a target's own name appears in what was observed afterwards. */
-function names(target: Target, after: Observed["after"]): boolean {
-  const where = `${after.authority.genres}${after.authority.mixes}${after.authority.verdicts}`;
-  return where.includes(target.kind === "verdict" ? target.film.title : target.name);
 }
 
 /* ------------------------------------------------------------------ gate E */
@@ -217,7 +291,8 @@ export function gate(world: World): Failure[] {
  * would have to come from instead.
  */
 export const LIMITS = [
-  "reflection has no implementation yet, so the reflection steps perform nothing and the four prohibitions hold because nothing happened; the mutation probes in m4.test.ts are what prove the gates would catch a violation, and they are the whole of this gate's current force",
+  "the reflection steps drive the real tools, so the four prohibitions hold because the tools were called and nothing moved; what the probes add is that the gates are known to catch a violation rather than only known to pass",
+  "only a genre can be proposed, so the acceptance gate compares genres; a mix or verdict target would need its own comparison and its own probes, and adding one without them would widen the gate's claim without widening its proof",
   "whether a rejected proposal recurs months later is a property of a history longer than any trajectory here, and belongs with proposal rate and acceptance rate in the blind sweep rather than in a deterministic replay",
   "proposal expiry is undecided in the roadmap — an unaccepted proposal expires, with no stated limit — so nothing here asserts when the ignored trajectory's proposal stops existing, only that it never wrote anything while it did",
   "whether the Observation beneath a rejected Proposal survives the rejection is likewise undecided, and gate C is written over the refused target rather than over the Observation so that it does not assume an answer",

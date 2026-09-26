@@ -68,7 +68,8 @@ export default function Privacy() {
           three things stored about you are not on it: a verdict about a film you never saved,
           because there is no film there to show it against; a <em>not tonight</em>, because that
           belongs to an evening rather than to the film; and a verdict you replaced or took back,
-          because the page shows what stands. The evenings Tonight recorded are not on it either.
+          because the page shows what stands. The evenings Tonight recorded are not on it either,
+          nor is anything Tonight noticed or offered.
           None of that is deleted, hidden from you, or outside this policy — it is stored, it is
           covered by the retention and deletion terms below, and an assistant you authorize can
           read all of it back to you.
@@ -194,8 +195,36 @@ export default function Privacy() {
           rather than hiding it from view.
         </p>
         <p>
+          <strong>A question Tonight is carrying.</strong> When there is something it has been
+          meaning to ask you about a film, that is noted against your account — the film, when it
+          first came up, and how many chances to ask have gone by. It is Tonight&rsquo;s own note
+          rather than anything you said: a film waiting there says nothing about whether you liked
+          it, an unanswered question never becomes an opinion, and one that has waited too long is
+          removed rather than concluded.
+        </p>
+        <p>
+          <strong>What Tonight thinks, kept apart from what you said.</strong> Tonight may write
+          down a reading of its own — an <em>observation</em>, such as noticing that two films you
+          loved are alike — and may offer you a change based on one, which is a{" "}
+          <em>proposal</em>. Both are stored against your account, with what was noticed, the
+          change being offered, whether you accepted or refused it, and when.
+        </p>
+        <p>
+          <strong>Neither is anything you said, and neither counts as taste.</strong> An
+          observation is Tonight&rsquo;s own interpretation, not a record of your words, and it
+          does not become one by sitting there: nothing Tonight notices or proposes affects what is
+          recommended to you unless you accept it. Accepting is what makes a change real — at that
+          point the genre or other record it described is created, and it is yours like any other.
+          Refusing writes nothing, and the refusal is kept so the same thing is not put to you
+          again. These records are not shown on this website; an assistant you have authorized can
+          read them through the MCP endpoint, and they are kept and deleted on the same terms as
+          everything else below.
+        </p>
+        <p>
           <strong>What is still deliberately not stored.</strong> Tonight keeps no scored or star ratings,
-          and no behavioural profile of any kind. Nor does it keep a film catalogue: no film exists here
+          and no profile built from how you use it: nothing is recorded from what you click, when
+          you visit or how often, and nothing Tonight works out on its own becomes part of what it
+          recommends without your say-so. Nor does it keep a film catalogue: no film exists here
           until you name one, and nothing about it — not a poster, not a runtime, not a cast — is
           ever looked up from a movie database. The IMDb id you may give a film is stored as a
           pointer and never followed.
@@ -464,7 +493,9 @@ export default function Privacy() {
         <p>
           <strong>Everything Tonight holds about you</strong> — your genres, your mixes, the
           films you saved, everything you have said about a film whether or not that film is one
-          you saved, and the evenings Tonight recorded — is subject to a policy of the operator rather
+          you saved, the evenings Tonight recorded, any question it is waiting to ask you, and what Tonight
+          noticed or offered — is
+          subject to a policy of the operator rather
           than a rule in the software: it is{" "}
           <strong>intended to be kept until the closed beta ends</strong>, and the operator will delete
           it then, or earlier on a valid request. The application does not delete it by itself, and

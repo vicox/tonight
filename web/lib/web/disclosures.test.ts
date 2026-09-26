@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { ALL_SCHEMAS } from "../db/schemas.ts";
 import { tonightMcpServer } from "../mcp/server.ts";
 
 /**
@@ -334,6 +335,89 @@ test("the terms overview names the model the rest of the terms describe", () => 
   );
 });
 
+test("what Tonight itself writes down is disclosed, and disclosed as not being taste", () => {
+  // M4 persists two things nobody said: an observation is Tonight's reading of
+  // a history, and a proposal is a change it wants and has not made. Both are
+  // user-keyed and durable, so both belong in the inventory — and the claim
+  // that matters is not that they exist but that existing is all they do.
+  const privacy = text("privacy");
+  assert.match(privacy, /What Tonight thinks, kept apart from what you said/);
+  assert.match(privacy, /an <em>observation<\/em>/);
+  assert.match(privacy, /a\{" "\}\s*<em>proposal<\/em>/);
+  assert.match(privacy, /whether you accepted or refused it, and when/);
+
+  // Non-authoritative, said as a consequence rather than as a category.
+  assert.match(privacy, /Neither is anything you said, and neither counts as taste/);
+  assert.match(
+    privacy,
+    /nothing Tonight notices or proposes affects what is\s+recommended to you unless you accept it/,
+  );
+  assert.match(privacy, /Accepting is what makes a change real/);
+  assert.match(privacy, /Refusing writes nothing, and the refusal is kept/);
+
+  // Where they can and cannot be read, which must stay true of the projection.
+  assert.match(privacy, /These records are not shown on this website/);
+  assert.match(privacy, /read them through the MCP endpoint/);
+  assert.match(privacy, /nor is anything Tonight noticed or offered/);
+
+  // And the terms say the same thing in their own words.
+  const terms = text("terms");
+  assert.match(terms, /Tonight may also write down readings of its own and offer you changes/);
+  assert.match(terms, /only affects\s+what is recommended to you if you accept it/);
+});
+
+test("the no-profile claim says what is actually true", () => {
+  // "No behavioural profile of any kind" stopped being accurate the moment
+  // Tonight could persist a pattern it noticed. The narrower claim is the one
+  // the product keeps: nothing is recorded from how the service is used, and
+  // nothing Tonight works out on its own reaches a recommendation unasked.
+  const privacy = text("privacy");
+  assert.equal(
+    privacy.includes("no behavioural profile of any kind"),
+    false,
+    "privacy still claims there is no behavioural profile of any kind",
+  );
+  assert.match(privacy, /no profile built from how you use it/);
+  assert.match(privacy, /nothing is recorded from what you click, when\s+you visit or how often/);
+  assert.match(
+    privacy,
+    /nothing Tonight works out on its own becomes part of what it\s+recommends without your say-so/,
+  );
+});
+
+test("every durable root the application opens is named in the retention promise", () => {
+  // The guard that would have caught this one. A new store means a new kind of
+  // record kept against a user, and the retention paragraphs have to grow with
+  // it — so the list is derived from the schemas the deployment actually
+  // migrates rather than from memory.
+  const promised: Record<string, RegExp> = {
+    taste: /your genres; your mixes/,
+    episodes: /the evenings Tonight recorded/,
+    verdicts: /every verdict you gave/,
+    reflection: /what Tonight noticed or offered you/,
+    // Sign-in and connection data is disclosed in its own section rather than
+    // in the taste-model retention list, and named here so it is not thought
+    // missing.
+    oauth: /Sign-in and connection data/,
+    web: /Sign-in and connection data/,
+    verdict_questions: /waiting to ask|open questions|meaning to ask/i,
+  };
+
+  const terms = text("terms");
+  const privacy = text("privacy");
+  for (const [module, claim] of Object.entries(promised)) {
+    assert.ok(
+      claim.test(terms) || claim.test(privacy),
+      `${module} is stored and no public page says what happens to it`,
+    );
+  }
+  assert.deepEqual(
+    Object.keys(promised).sort(),
+    ALL_SCHEMAS.map((schema) => schema.module).sort(),
+    "a schema is deployed that this disclosure guard does not know about",
+  );
+});
+
 test("retention covers the films, what was said about them, and the evenings recorded", () => {
   // "What you have said about each" tied a verdict's retention to a saved film,
   // and a verdict does not need one — it is its own root, so a film nobody saved
@@ -342,7 +426,7 @@ test("retention covers the films, what was said about them, and the evenings rec
   const privacy = text("privacy");
   assert.match(privacy, /Everything Tonight holds about you/);
   assert.match(privacy, /everything you have said about a film whether or not that film is one\s+you saved/);
-  assert.match(privacy, /and the evenings Tonight recorded/);
+  assert.match(privacy, /the evenings Tonight recorded/);
   assert.equal(
     privacy.includes("the films you saved along with what you have said about each"),
     false,
@@ -358,7 +442,7 @@ test("retention covers the films, what was said about them, and the evenings rec
   assert.match(terms, /kept in its own\s+right/);
   assert.match(terms, /your genres; your mixes; the films you saved/);
   assert.match(terms, /every verdict you gave, <strong>whether or not the film it is about is one you\s+saved<\/strong>/);
-  assert.match(terms, /and the evenings Tonight recorded/);
+  assert.match(terms, /the evenings Tonight recorded/);
   assert.equal(
     terms.includes("the films you saved, what you said about them"),
     false,

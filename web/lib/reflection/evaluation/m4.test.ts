@@ -95,6 +95,7 @@ describe("M4 — reflection proposes, the user decides", () => {
     const before = await observe(call);
     let observation: string | null = null;
     let proposal: string | null = null;
+    let offered: Target | null = null;
     let accepted: Target | null = null;
 
     for (const step of tonights) {
@@ -107,12 +108,13 @@ describe("M4 — reflection proposes, the user decides", () => {
           break;
         }
         case "propose": {
-          const offered = (await call("propose_change", {
+          const written = (await call("propose_change", {
             ...(observation === null ? {} : { from: observation }),
             noticed: step.noticed,
             target: step.target,
           })) as unknown as { proposal: { ref: string } };
-          proposal = offered.proposal.ref;
+          proposal = written.proposal.ref;
+          offered = step.target;
           break;
         }
         case "ignore":
@@ -126,10 +128,13 @@ describe("M4 — reflection proposes, the user decides", () => {
           break;
         case "accept": {
           assert.ok(proposal, "nothing to accept");
-          const said = (await call("accept_proposal", { ref: proposal })) as unknown as {
-            accepted: { target: Target };
-          };
-          accepted = said.accepted.target;
+          await call("accept_proposal", { ref: proposal });
+          // What the gate checks against is what the *trajectory* offered, not
+          // what the acceptance reported writing. Reading it back from the
+          // answer would let an implementation that accepted one thing and
+          // reported another agree with itself and pass.
+          assert.ok(offered, "accepted without having proposed");
+          accepted = offered;
           break;
         }
       }
@@ -184,16 +189,16 @@ describe("M4 — reflection proposes, the user decides", () => {
     call: (name: string, args?: Record<string, unknown>) => Promise<Record<string, unknown>>,
   ): Promise<Observed["before"]> {
     const taste = (await call("get_taste")) as unknown as {
-      genres: unknown[];
+      genres: { name: string; instruction: string }[];
       mixes: unknown[];
       verdicts?: unknown[];
     };
     return {
       taste: JSON.stringify(taste),
       authority: {
-        genres: JSON.stringify(taste.genres),
-        mixes: JSON.stringify(taste.mixes),
-        verdicts: JSON.stringify(taste.verdicts ?? []),
+        genres: taste.genres.map((one) => ({ name: one.name, instruction: one.instruction })),
+        mixes: taste.mixes,
+        verdicts: taste.verdicts ?? [],
       },
     };
   }
@@ -260,27 +265,26 @@ describe("M4 — reflection proposes, the user decides", () => {
     );
   };
 
-  const AS_GENRE =
-    '{"name":"Restrained Thriller","instruction":"Tension carried by what is withheld rather than what is shown."}';
+  const AS_GENRE = { name: RESTRAINT.name, instruction: RESTRAINT.instruction };
 
   test("a noticed pattern writing itself in as a genre is caught", () => {
     probe("observing creates a Declaration", "authority", (copy) => {
       const seen = copy.seen["observed-only"]!;
-      seen.after.authority.genres = `[${AS_GENRE}]`;
+      seen.after.authority.genres = [AS_GENRE];
     });
   });
 
   test("a proposal counting as agreement is caught", () => {
     probe("proposing creates a Declaration", "authority", (copy) => {
       const seen = copy.seen["proposed"]!;
-      seen.after.authority.genres = `[${AS_GENRE}]`;
+      seen.after.authority.genres = [AS_GENRE];
     });
   });
 
   test("silence read as consent is caught", () => {
     probe("an unanswered proposal writes", "authority", (copy) => {
       const seen = copy.seen["proposed-and-ignored"]!;
-      seen.after.authority.mixes = '[{"name":"Restrained Thriller"}]';
+      seen.after.authority.mixes = [{ name: "Restrained Thriller" }];
     });
   });
 
@@ -291,7 +295,7 @@ describe("M4 — reflection proposes, the user decides", () => {
     // any route at all, including one nobody has thought of.
     probe("reflection creates a Verdict", "authority", (copy) => {
       const seen = copy.seen["proposed-and-ignored"]!;
-      seen.after.authority.verdicts = '[{"title":"Prisoners","year":2013,"judgement":"loved"}]';
+      seen.after.authority.verdicts = [{ title: "Prisoners", year: 2013, judgement: "loved" }];
     });
   });
 
@@ -308,7 +312,7 @@ describe("M4 — reflection proposes, the user decides", () => {
   test("a refusal that writes anyway is caught", () => {
     probe("the refused reading becomes real", "rejection-stands", (copy) => {
       const seen = copy.seen["proposed-and-rejected"]!;
-      seen.after.authority.genres = `[${AS_GENRE}]`;
+      seen.after.authority.genres = [AS_GENRE];
     });
   });
 
@@ -318,8 +322,50 @@ describe("M4 — reflection proposes, the user decides", () => {
     // there. A gate that only ever forbade writing would be silent about this.
     probe("the accepted change never happened", "acceptance-takes", (copy) => {
       const seen = copy.seen["proposed-and-accepted"]!;
-      seen.after.authority.genres = seen.before.authority.genres;
+      seen.after.authority.genres = [...seen.before.authority.genres];
       seen.after.taste = seen.before.taste;
+    });
+  });
+
+  test("the right name with the wrong instruction is caught", () => {
+    // The substitution a name check cannot see. A genre called what they agreed
+    // to, saying something they did not, is a different sentence about them —
+    // and from outside it is what accepting one thing and writing another looks
+    // like.
+    probe("the accepted genre says something else", "acceptance-takes", (copy) => {
+      const seen = copy.seen["proposed-and-accepted"]!;
+      seen.after.authority.genres = seen.after.authority.genres.map((one) =>
+        one.name === RESTRAINT.name ? { ...one, instruction: "Anything tense." } : one,
+      );
+    });
+  });
+
+  test("a substituted target is caught", () => {
+    probe("something else entirely was written", "acceptance-takes", (copy) => {
+      const seen = copy.seen["proposed-and-accepted"]!;
+      seen.after.authority.genres = seen.after.authority.genres.map((one) =>
+        one.name === RESTRAINT.name ? { name: "Loud Thrillers", instruction: one.instruction } : one,
+      );
+    });
+  });
+
+  test("an unrelated write riding along with an acceptance is caught", () => {
+    // The intended genre is there and correct; something nobody offered is
+    // there too. An acceptance is authority for one change, and a gate that
+    // only asked whether the agreed change happened would wave this through.
+    probe("an acceptance writes more than was offered", "acceptance-takes", (copy) => {
+      const seen = copy.seen["proposed-and-accepted"]!;
+      seen.after.authority.genres = [
+        ...seen.after.authority.genres,
+        { name: "Bleak Procedural", instruction: "Hard work, at a cost." },
+      ];
+    });
+  });
+
+  test("an acceptance reaching another root is caught", () => {
+    probe("an accepted genre writes a verdict too", "acceptance-takes", (copy) => {
+      const seen = copy.seen["proposed-and-accepted"]!;
+      seen.after.authority.verdicts = [{ title: "Prisoners", year: 2013, judgement: "loved" }];
     });
   });
 

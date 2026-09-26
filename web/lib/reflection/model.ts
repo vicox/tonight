@@ -36,6 +36,8 @@
  * open-ended action and payload that could name any operation at all.
  */
 
+import { checkInstruction, checkName } from "../taste/model.ts";
+
 export class ReflectionError extends Error {
   override readonly name = "ReflectionError";
 }
@@ -105,12 +107,25 @@ export function checkNoticed(value: unknown): string {
 }
 
 /**
- * A target, checked here and written by the store that owns the table it lands in.
+ * A target, checked and canonicalised by the rules that will write it.
  *
- * The name and instruction are checked again by the taste model when the write
- * actually happens. That is not duplication worth removing: this check is what
- * stops an unwritable Proposal from being offered to somebody in the first
- * place, and the later one is what stops anything reaching the table.
+ * `checkName` and `checkInstruction` are the taste model's own, and they are
+ * the ones used here rather than a looser pair of this file's — because the
+ * contract is that **acceptance applies exactly the stored target**, and a
+ * target the authoritative write would alter breaks it before anybody accepts
+ * anything. `checkName` folds internal whitespace, so `"Restrained   Thriller"`
+ * offered is `"Restrained Thriller"` stored, which is also what a yes creates.
+ * The two limits are theirs too: a proposal too long to be accepted must not be
+ * offerable, or somebody is shown a change that can never be made.
+ *
+ * They throw `TasteError`, and that is right: the rule being broken is the
+ * taste model's, and its message says what a genre name may be. `attempt` at
+ * the boundary turns either error into the same kind of refusal.
+ *
+ * The same two run again at acceptance, where the write happens. That is
+ * defence in depth rather than duplication — they are idempotent over an
+ * already-canonical value — and it is what stops anything reaching the table if
+ * a row is ever written by a route this function did not guard.
  */
 export function checkTarget(value: unknown): Target {
   if (typeof value !== "object" || value === null) {
@@ -120,13 +135,11 @@ export function checkTarget(value: unknown): Target {
   if (draft.kind !== "genre") {
     throw new ReflectionError("The only change a proposal can offer yet is a genre.");
   }
-  const name = typeof draft.name === "string" ? draft.name.trim() : "";
-  const instruction = typeof draft.instruction === "string" ? draft.instruction.trim() : "";
-  if (name === "") throw new ReflectionError("A proposed genre needs a name.");
-  if (instruction === "") {
-    throw new ReflectionError("A proposed genre needs an instruction: what it would mean to them.");
-  }
-  return { kind: "genre", name, instruction };
+  return {
+    kind: "genre",
+    name: checkName(draft.name, "genre"),
+    instruction: checkInstruction(draft.instruction, "genre"),
+  };
 }
 
 /** Refusing a transition that is not available from where the proposal is. */

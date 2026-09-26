@@ -2,6 +2,7 @@ import { EPISODES_SCHEMA } from "../episodes/store/sql.ts";
 import { OAUTH_SCHEMA } from "../oauth/store/sql.ts";
 import { TASTE_SCHEMA } from "../taste/store/sql.ts";
 import { VERDICTS_SCHEMA } from "../verdicts/store/sql.ts";
+import { REFLECTION_SCHEMA } from "../reflection/store/sql.ts";
 import { QUESTIONS_SCHEMA } from "../verdicts/questions/sql.ts";
 import { WEB_SCHEMA } from "../web/store/sql.ts";
 import type { SchemaModule } from "./migrate.ts";
@@ -16,11 +17,20 @@ import type { SchemaModule } from "./migrate.ts";
  * step that declares a need has to be met by *whoever* is migrating, not only by
  * the command that happens to run every module.
  *
- * That is the whole reason this exists. Six places migrate the taste schema
- * without the verdict schema — the development store opener and five test
- * suites — and every one of them would otherwise have to learn about a
+ * That is the whole reason this exists. Several places migrate the taste schema
+ * without the verdict schema — the development store opener and a number of
+ * test suites — and every one of them would otherwise have to learn about a
  * dependency that is none of its business. `migrate` resolves it instead, from
  * here.
+ *
+ * ## Every module belongs here
+ *
+ * This is also the list `npm run db:migrate` runs, which makes an omission a
+ * deployment that reports success and then refuses every request touching the
+ * module nobody migrated: `prepareSchema` is development-only, so in production
+ * `requireSchema` is the only thing left and it refuses. `schemas.test.ts`
+ * compares this list against the schemas the application actually opens, so a
+ * new store cannot be added without appearing here.
  *
  * Imported lazily by `migrate.ts` rather than at the top of it: every module
  * below imports `migrate.ts` for its types, so a static import back would be a
@@ -33,6 +43,7 @@ export const ALL_SCHEMAS: readonly SchemaModule[] = [
   EPISODES_SCHEMA,
   VERDICTS_SCHEMA,
   QUESTIONS_SCHEMA,
+  REFLECTION_SCHEMA,
 ];
 
 /** One module by name, or nothing — a need naming something unknown is a bug. */

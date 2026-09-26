@@ -121,12 +121,16 @@ export default function Terms() {
           evenings it took part in: what you asked for, what it offered, and whatever you said you
           did with it. Anything you do not say stays unknown, and that record is history rather
           than taste — nothing about what you like is learned from it, and you can correct or
-          delete any of it. What Tonight still does not build is a profile from how you use it.
+          delete any of it. Tonight may also write down readings of its own and offer you changes
+          based on them; those are its interpretations rather than your words, and one only affects
+          what is recommended to you if you accept it. What Tonight still does not build is a
+          profile from how you use it.
           Everything you create is intended to be kept until the closed beta ends and deleted by
           the operator then, or earlier on request. That means each of these, kept in its own
           right: your genres; your mixes; the films you saved, with whether you said you watched
           each; every verdict you gave, <strong>whether or not the film it is about is one you
-          saved</strong>; and the evenings Tonight recorded.
+          saved</strong>; the evenings Tonight recorded; and what Tonight noticed or offered you,
+          with what you decided.
         </p>
       </section>
 
