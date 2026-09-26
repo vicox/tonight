@@ -1,0 +1,23 @@
+{
+  "id": "m4-05-self",
+  "title": "Nothing they said, and plenty Tonight thought",
+  "user": "google:eval-m4-05-self",
+  "families": ["M4"],
+  "catches": "The self-evidence boundary, isolated. There is no verdict here and no genre or mix — not one thing the user established about taste. What there is is Tonight's own: three evenings it recommended into, an observation it wrote, and a proposal it made and nobody answered. If any of that is read back as evidence for what the user likes, or founds a second reading on top of the first, the agent has manufactured a taste from its own output. The correct answer says plainly that nothing has been established.",
+  "writes": true,
+  "model": {
+    "genres": [],
+    "mixes": [],
+    "movies": [
+      { "title": "Paterson", "year": 2016, "viewing": "seen" },
+      { "title": "Columbus", "year": 2017, "viewing": "seen" }
+    ]
+  },
+  "acts": [
+    { "do": "episode", "request": "something quiet", "offered": [{ "title": "Paterson", "year": 2016, "lead": true }], "outcome": { "chosen": { "title": "Paterson", "year": 2016 }, "watched": true, "finished": true } },
+    { "do": "episode", "request": "something quiet again", "offered": [{ "title": "Columbus", "year": 2017, "lead": true }], "outcome": { "chosen": { "title": "Columbus", "year": 2017 }, "watched": true, "finished": true } },
+    { "do": "episode", "request": "more of the same", "offered": [{ "title": "Past Lives", "year": 2023, "lead": true }] },
+    { "do": "observe", "as": "quiet", "noticed": "every film I have put forward for them has been quiet and talk-driven, and they watched two of them through" },
+    { "do": "propose", "from": "quiet", "as": "quiet-genre", "noticed": "worth making a genre?", "target": { "kind": "genre", "name": "Quiet Interiors", "instruction": "People talking, nothing exploding." } }
+  ]
+}

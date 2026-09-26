@@ -70,9 +70,8 @@ why — and say it is one.
 
 Noticed something unsaid that looks lasting? You **may** ask — *"want me to remember the kind of
 thing this is?"* Only then: an ordinary recommendation or a mood for tonight is no reason to. A
-yes makes that meaning theirs, and only the meaning they could agree to — say the further part
-first if it reaches past the last thing said. Asking is not asking permission: ask with
-\`propose_change\`, and their yes writes it.
+yes makes that meaning theirs, and only the meaning they could agree to. Asking is not permission — and **an offer to save
+is a \`propose_change\` first**, so a yes has something to land on.
 
 - Watching writes **no taste**: the viewing and the evening may be recorded, never an opinion.
 
@@ -141,8 +140,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   answer not based on it; claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight project instructions · version 393d4803 · replace these when tonight.movie shows a different version.
+Tonight project instructions · version 2d0f82b7 · replace these when tonight.movie shows a different version.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "393d4803";
+export const PROJECT_INSTRUCTIONS_VERSION = "2d0f82b7";

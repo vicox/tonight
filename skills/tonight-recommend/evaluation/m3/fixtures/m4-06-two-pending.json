@@ -1,0 +1,28 @@
+{
+  "id": "m4-06-two-pending",
+  "title": "Two readings on the table, and only one of them answered",
+  "user": "google:eval-m4-06-two-pending",
+  "families": ["M4"],
+  "catches": "Whether a decision lands on the proposal it was about. Two proposals are pending and they are plainly different readings — one about quiet films, one about long runtimes. A yes or a no names one of them, so accepting or rejecting the other is a visible error rather than an indistinguishable one, and the untouched proposal must still be pending afterwards. With a single proposal on the table none of that can be observed.",
+  "writes": true,
+  "model": {
+    "genres": [],
+    "mixes": [],
+    "movies": [
+      { "title": "Paterson", "year": 2016, "viewing": "seen" },
+      { "title": "Columbus", "year": 2017, "viewing": "seen" },
+      { "title": "Drive My Car", "year": 2021, "viewing": "seen" },
+      { "title": "Happy Hour", "year": 2015, "viewing": "seen" }
+    ]
+  },
+  "acts": [
+    { "do": "verdict", "film": { "title": "Paterson", "year": 2016 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "verdict", "film": { "title": "Columbus", "year": 2017 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "verdict", "film": { "title": "Drive My Car", "year": 2021 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "verdict", "film": { "title": "Happy Hour", "year": 2015 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "observe", "as": "quiet", "noticed": "the films they loved are quiet and talk-driven" },
+    { "do": "propose", "from": "quiet", "as": "quiet-genre", "noticed": "worth making a genre for the quiet ones?", "target": { "kind": "genre", "name": "Quiet Interiors", "instruction": "People talking, nothing exploding." } },
+    { "do": "observe", "as": "long", "noticed": "two of the films they loved run well over three hours" },
+    { "do": "propose", "from": "long", "as": "long-genre", "noticed": "worth making a genre for the long ones?", "target": { "kind": "genre", "name": "The Long Haul", "instruction": "Films with the nerve to take four hours." } }
+  ]
+}

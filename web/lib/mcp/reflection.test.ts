@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test, { after, before, describe } from "node:test";
 
 import type { SqlDriver } from "../db/driver.ts";
@@ -246,6 +247,25 @@ describe("proposing, and the user deciding", () => {
       propose,
       /A recommendation that turned into a conversation about their taste model is a\s+recommendation they did not get/u,
     );
+  });
+
+  test("an offer to save has to have a proposal behind it", async () => {
+    // The hole the first behavioural run exposed: every pattern run asked "want
+    // me to turn that into a genre?" and none had called propose_change, so a
+    // yes would have had nothing to accept. The rule lives in the skill, where
+    // the asking is decided; propose_change says the same at its own point.
+    const propose = someone().propose_change!.description ?? "";
+    assert.match(propose, /carrying exactly what accepting\s+it would create|carries exactly what/u);
+
+    const skill = readFileSync(
+      new URL("../../../skills/tonight-recommend/SKILL.md", import.meta.url),
+      "utf8",
+    );
+    assert.match(skill, /\*\*An offer to save is a `propose_change`, made before you ask\.\*\*/u);
+    assert.match(skill, /a yes with no proposal behind it is a yes you cannot honour/u);
+    // Noticing aloud stays free — this must not become "always propose".
+    assert.match(skill, /Noticing something aloud is\s+free/u);
+    assert.doesNotMatch(skill, /always propose|propose whenever you notice/iu);
   });
 
   test("the reflection tools are five, and only the two decisions write", async () => {

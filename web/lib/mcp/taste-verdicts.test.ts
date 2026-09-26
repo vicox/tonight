@@ -395,5 +395,20 @@ describe("what recommendation work is handed", () => {
     assert.match(text, /not that you recommended it, not that they watched or\s+finished it/u);
     assert.match(text, /not a question of yours waiting\s+on an answer/u);
     assert.match(text, /neither is a number/u);
+
+    // M4: what is here is theirs; the pattern across it is the agent's. Six of
+    // six behavioural runs stated a read of four verdicts as the user's own
+    // taste — "you clearly love quiet, patient films" — and this read is where
+    // those four verdicts are in hand.
+    assert.match(text, /\*\*What you find here is theirs; what you make of it is yours\.\*\*/u);
+    assert.match(text, /the line-up\s+is your reading and has to sound like one/u);
+    assert.match(text, /never \*"you love quiet films"\* or \*"your taste is X"\*/u);
+    assert.match(text, /One verdict is one film and never a register, a style or a kind/u);
+    // And no reason where none was given.
+    assert.match(
+      text,
+      /where\s+`because` is absent they gave no reason/u,
+      "the read does not say that an absent reason is not one to be supplied",
+    );
   });
 });

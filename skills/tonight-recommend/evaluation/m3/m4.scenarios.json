@@ -1,10 +1,47 @@
 [
-  { "fixture": "m4-01-pattern", "prompt": "what-do-i-like", "family": "P-notice" },
-  { "fixture": "m4-01-pattern", "prompt": "recommend", "family": "P-notice" },
-  { "fixture": "m4-02-thin", "prompt": "thin-recommend", "family": "T-thin" },
-  { "fixture": "m4-02-thin", "prompt": "thin-what-do-i-like", "family": "T-thin" },
-  { "fixture": "m4-04-pending", "prompt": "yes", "family": "D-decide" },
-  { "fixture": "m4-04-pending", "prompt": "no", "family": "D-decide" },
-  { "fixture": "m4-04-pending", "prompt": "elsewhere", "family": "D-silence" },
-  { "fixture": "m4-03-refused", "prompt": "refused-recommend", "family": "R-refusal" }
+  {
+    "fixture": "m4-01-pattern",
+    "prompt": "what-do-i-like",
+    "family": "P-notice"
+  },
+  {
+    "fixture": "m4-01-pattern",
+    "prompt": "recommend",
+    "family": "P-notice"
+  },
+  {
+    "fixture": "m4-02-thin",
+    "prompt": "thin-recommend",
+    "family": "T-thin"
+  },
+  {
+    "fixture": "m4-02-thin",
+    "prompt": "thin-what-do-i-like",
+    "family": "T-thin"
+  },
+  {
+    "fixture": "m4-06-two-pending",
+    "prompt": "yes",
+    "family": "D-decide"
+  },
+  {
+    "fixture": "m4-06-two-pending",
+    "prompt": "no",
+    "family": "D-decide"
+  },
+  {
+    "fixture": "m4-06-two-pending",
+    "prompt": "elsewhere",
+    "family": "D-silence"
+  },
+  {
+    "fixture": "m4-03-refused",
+    "prompt": "refused-recommend",
+    "family": "R-refusal"
+  },
+  {
+    "fixture": "m4-05-self",
+    "prompt": "self-what-do-i-like",
+    "family": "S-self"
+  }
 ]

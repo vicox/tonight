@@ -374,6 +374,14 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "long it has been saved — which is not the same as their having said nothing, because " +
         "`viewing` may be something they told you. And `viewing` is never evidence for or " +
         "against recommending it, only for whether it would be new to them.\n\n" +
+        "**What you find here is theirs; what you make of it is yours.** Report a verdict as the " +
+        "verdict it is — *\"you loved Paterson\"* — and where several of them line up, the line-up " +
+        "is your reading and has to sound like one: *\"there may be a quiet, patient thread " +
+        "here\"*, never *\"you love quiet films\"* or *\"your taste is X\"*. They said four things; " +
+        "the fifth thing, the one about the kind of film they like, is yours until they say it " +
+        "themselves. One verdict is one film and never a register, a style or a kind. And where " +
+        "`because` is absent they gave no reason, so *\"what made it work for you\"* is a sentence " +
+        "you would be writing on their behalf.\n\n" +
         "`verdicts` is what they have said about particular films, in their own words, and it is " +
         "the whole of what they think: nothing else here holds an opinion. Each entry names the " +
         "film and either a judgement — liked, loved " +

@@ -247,7 +247,15 @@ async function seed(id) {
 
 /** What the two reads answer for a fixture's user, right now. Provenance, not a call for the agent. */
 async function snapshot(bearer) {
-  return { taste: await call(bearer, "get_taste"), memory: await call(bearer, "get_memory") };
+  return {
+    taste: await call(bearer, "get_taste"),
+    memory: await call(bearer, "get_memory"),
+    // What Tonight thinks, which neither of the other two can see. A decision
+    // is a row, and "they moved on" is only distinguishable from "they were
+    // taken as having refused" if the proposal's state is in the record: an
+    // absent rejection looks exactly like an absent acceptance without it.
+    reflection: await call(bearer, "get_proposals"),
+  };
 }
 
 const id = process.argv[2];
