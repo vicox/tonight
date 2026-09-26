@@ -844,7 +844,7 @@ test("each section keeps its own copy, and the films section stays quiet", () =>
   // order. It used to say "your genres, mixed into something of your own",
   // which read as though mixing the genres produced the vibe — the one thing
   // the model denies. So the meaning leads and the genres follow it.
-  assert.match(view, /note="What a night should feel like, in your words — built on your genres\."/);
+  assert.match(view, /note="What a night should feel like, in your words\. Built on your genres\."/);
   assert.doesNotMatch(view, /mixed into something/u, "the mixing metaphor came back");
 
   // The empty state, which taught the wrong model twice in one sentence. It

@@ -110,7 +110,7 @@ export function TasteView({ taste, standing }: { taste: Taste; standing: readonl
 
       <Section
         title="Your vibes"
-        note="What a night should feel like, in your words — built on your genres."
+        note="What a night should feel like, in your words. Built on your genres."
         count={taste.vibes.length}
       >
         {taste.vibes.length === 0 && (
