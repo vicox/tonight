@@ -908,9 +908,27 @@ test("a genre is a compact label, and a vibe is a compact card", () => {
   assert.match(row, /break-words/, "a name with no spaces in it has nowhere to break");
   assert.match(row, /text-left/, "a name that wrapped onto two lines is centred");
 
+  // A vibe is not a card any more, and not a table row either. Ten bordered
+  // boxes on a raised ground read as a list of records; ten rules between them
+  // read as the same list with thinner lines. Nothing is drawn around a vibe or
+  // between two of them — the films summary above lost its tiles the same way.
   const stack = bodyOf("VibeCards", cards);
-  assert.match(stack, /border-beam-dim/, "a vibe has lost the edge that says it is the user's");
-  assert.match(stack, /rounded-xl border/, "a vibe has stopped being a card");
+  assert.equal(
+    /rounded-xl|border border-beam-dim|\bdivide-/.test(stack),
+    false,
+    "a vibe has been given an edge again, around it or between it and the next",
+  );
+  // What marks one is its name. The accent is on the word the user chose rather
+  // than on geometry, which is the least of it that still says whose this is.
+  // The name is the only thing on a card set at that size, so the class it is
+  // given is unambiguous without slicing for it.
+  assert.match(
+    stack,
+    /font-display text-\[22px\][^"]*text-beam/,
+    "the vibe's name has lost the accent that says whose it is",
+  );
+  // And the space between them is what separates them.
+  assert.match(stack, /flex flex-col gap-\d/, "the vibes are not separated by space");
 });
 
 test("a closed vibe card is a name, what it is made of, and a loved count", () => {

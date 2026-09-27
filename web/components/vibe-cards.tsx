@@ -175,7 +175,7 @@ export function VibeCards({
 
   return (
     <>
-      <div ref={stack} className="flex flex-col gap-3">
+      <div ref={stack} className="flex flex-col gap-5">
         {/*
           The liveliest first, which is a question about the films in each vibe and
           therefore not something a card can answer for itself. The rule is
@@ -202,11 +202,20 @@ export function VibeCards({
                 setOpen(vibe);
               }}
               className={[
-                "flex w-full flex-wrap items-baseline justify-between gap-x-4 gap-y-1",
-                // The accent edge a vibe has always had: it is the thing on this
-                // page the user built themselves.
-                "cursor-pointer rounded-xl border border-beam-dim bg-screen px-5 py-4 text-left",
-                "transition-colors hover:border-beam focus-visible:outline-2",
+                "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1",
+                // Nothing is drawn around a vibe and nothing between one and the
+                // next. A box made ten of them a table of records; a rule between
+                // them made the same table with thinner lines. What separates them
+                // is the space, and what marks one is its name — the amber is on
+                // the word the user chose rather than on any geometry, which is
+                // the least of it that still says whose this is. The films summary
+                // above lost its tiles the same way.
+                "cursor-pointer rounded-lg px-3 py-3 text-left",
+                // Pulled back out by its own padding, so the name starts on the
+                // same line as the genres above it and only the hover band is
+                // wider. The page has px-5 to give.
+                "-mx-3",
+                "transition-colors hover:bg-screen focus-visible:outline-2",
                 "focus-visible:outline-offset-2 focus-visible:outline-beam",
               ].join(" ")}
             >
@@ -221,7 +230,7 @@ export function VibeCards({
               */}
               <span
                 aria-hidden="true"
-                className="min-w-0 font-display text-[22px] leading-tight break-words text-ink"
+                className="min-w-0 font-display text-[22px] leading-tight break-words text-beam"
               >
                 {vibe.name}
               </span>
@@ -253,7 +262,7 @@ export function VibeCards({
               */}
               <span
                 aria-hidden="true"
-                className="mt-1.5 flex w-full flex-wrap items-center gap-1.5"
+                className="mt-2.5 flex w-full flex-wrap items-center gap-1.5"
               >
                 {vibe.genres.map((genre) => (
                   <Chip key={genre}>{genre}</Chip>
@@ -277,7 +286,7 @@ export function VibeCards({
               {glance !== null && (
                 <span
                   aria-hidden="true"
-                  className="mt-1.5 w-full min-w-0 text-left text-[12.5px] leading-relaxed text-ink-faint break-words"
+                  className="mt-2 w-full min-w-0 text-left text-[12.5px] leading-relaxed text-ink-faint break-words"
                 >
                   {glance}
                 </span>

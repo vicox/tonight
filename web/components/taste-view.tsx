@@ -14,15 +14,17 @@ import { recentlyAdded } from "@/lib/web/movie-summary";
  *     YOUR MOVIES     how many films there are, and how they were marked
  *
  *     YOUR GENRES     the reusable components
- *          ↓
+ *
  *     YOUR VIBES      what the user made of them, each with how many
  *                     of its films are loved and three of their titles,
  *                     and one line for the films that are in none
  *
  * Vertical rather than side by side, because the two are not peers to compare:
  * a vibe is built on genres and says something they do not, so it belongs below
- * them. The arrow is the reading order of a page, not a claim that the genres
- * produce the vibe — nothing does that but the person.
+ * them. Nothing is drawn between them. An arrow used to be, and it said the one
+ * thing about these two objects that is false — that genres produce a vibe —
+ * while also making the page read as a diagram of its own tables. The order and
+ * the space are the whole of the relationship a page can honestly show.
  *
  * Three peers, drawn by one `Section`. Films used to float over two boxes with
  * the genres and vibes inside them, which said that those two were containers and
@@ -79,9 +81,7 @@ export function TasteView({ taste, standing }: { taste: Taste; standing: readonl
   return (
     <>
       {/*
-        First, and above the two sections rather than between them: the arrow says
-        a vibe comes from genres, and it only says that while the two it points
-        between are next to each other. Every film on the page is under one of
+        First, and above both sections: every film on the page is under one of
         these counts, genres and vibes included.
       */}
       {/*
@@ -106,12 +106,11 @@ export function TasteView({ taste, standing }: { taste: Taste; standing: readonl
         )}
       </Section>
 
-      <Arrow />
-
       <Section
         title="Your vibes"
         note="What a night should feel like, in your words. Built on your genres."
         count={taste.vibes.length}
+        className="mt-14"
       >
         {taste.vibes.length === 0 && (
           <Empty>
@@ -157,21 +156,6 @@ function Prompt({ taste }: { taste: Taste }) {
       </p>
       <CopyButton text={sentence}>Copy</CopyButton>
     </section>
-  );
-}
-
-/**
- * The connector between two sections.
- *
- * Decorative, so it is hidden from a screen reader: the heading of the section
- * below says what it is, and "down arrow" read aloud between two of them says
- * nothing a listener can use.
- */
-function Arrow() {
-  return (
-    <div aria-hidden="true" className="flex justify-center py-5 text-[15px] text-beam">
-      ↓
-    </div>
   );
 }
 

@@ -16,9 +16,10 @@
   --color-rule: #262630;
 
   /* The one accent: projector amber. It marks what the user made — their vibes,
-     and the arrow that says a vibe came from genres. Genres themselves are
-     deliberately unlit: they are ingredients, and if everything glows nothing
-     does. */
+     and nothing else. Genres are deliberately unlit: they are what a vibe is
+     built on, and if everything glows nothing does. It used to light a
+     connector drawn between the two sections as well, which said that genres
+     produce a vibe; they do not, and it is gone. */
   --color-beam: #e3a54a;
   --color-beam-dim: #6b4f24;
 
