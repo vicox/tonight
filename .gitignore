@@ -1,5 +1,6 @@
 .DS_Store
 .claude/settings.local.json
+chatgpt-plugin/dist/
 
 # Evaluation evidence. Every semantic run writes its transcripts, snapshots and
 # adjudication under these two directories — thousands of machine-written files

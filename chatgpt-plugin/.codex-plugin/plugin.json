@@ -1,0 +1,31 @@
+{
+  "name": "tonight",
+  "version": "1.1.0",
+  "description": "Find a film to watch tonight, using and growing the taste model you own in the Tonight app.",
+  "author": {
+    "name": "Georg Schmidl",
+    "url": "https://github.com/vicox"
+  },
+  "homepage": "https://tonight.movie",
+  "repository": "https://github.com/vicox/tonight",
+  "license": "MIT",
+  "keywords": ["movies", "films", "recommendations", "taste"],
+  "skills": "./skills/",
+  "apps": "./.app.json",
+  "interface": {
+    "displayName": "Tonight",
+    "shortDescription": "Build your taste. Find your movie.",
+    "longDescription": "Tonight is a personal movie recommender in which you own the recommender. Instead of a profile that watches what you do and never shows you what it concluded, you write down what you like, and you can read it, edit it and delete it at any time. Your Genres, Vibes, Movies and Verdicts live in the Tonight app.",
+    "developerName": "Georg Schmidl",
+    "category": "Entertainment",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://tonight.movie",
+    "privacyPolicyURL": "https://tonight.movie/privacy",
+    "termsOfServiceURL": "https://tonight.movie/terms",
+    "defaultPrompt": [
+      "I want something ridiculously fun tonight.",
+      "Give me a clever mystery where nobody tells the truth.",
+      "I want smart sci-fi that keeps me on edge."
+    ]
+  }
+}
