@@ -131,6 +131,20 @@ compact wording, the same list of behaviours is asserted against the skill and a
 projection separately, so a rule lost or weakened on either side fails the suite. A projection
 may be terser; it may not mean anything else.
 
+### The ChatGPT plugin
+
+ChatGPT can also read the skill itself, packaged as a plugin. `chatgpt-plugin/` holds its
+manifest and a reference to the Tonight connector, and `build.sh` packages them together with
+the `SKILL.md` of every skill under `skills/` — the specification unchanged, not a projection:
+
+```bash
+bash chatgpt-plugin/build.sh      # → chatgpt-plugin/dist/tonight.zip
+```
+
+Upload the ZIP in ChatGPT as a plugin. It does not bundle the MCP server: `.app.json` names the
+connector by its registered app ID, so the connector has to be installed as well. The plugin is
+an install path of its own; the connector-and-project setup on `/setup` is unchanged.
+
 ## The MCP tools
 
 Twenty, all deterministic, and all of them operations on the five things Tonight persists:
@@ -267,10 +281,11 @@ npm run typecheck
 npm run lint
 ```
 
-and the skill contract:
+and the skill contract, and the ChatGPT plugin package:
 
 ```bash
 skills/tonight-recommend/test.sh
+bash chatgpt-plugin/test.sh
 ```
 
 ## Deliberately not here yet
