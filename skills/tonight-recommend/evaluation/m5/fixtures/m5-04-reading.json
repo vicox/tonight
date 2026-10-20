@@ -1,0 +1,33 @@
+{
+  "id": "m5-04-reading",
+  "user": "google:eval-m5-04-reading",
+  "title": "A Vibe whose name and sentence admit what one of its Genres rules out",
+  "exists_for": ["recommendation-only reading (R3-1)"],
+  "construction_note": "R3-1 of the M5 plan. Quiet Dread's name and sentence would admit a gory or torturous horror film; its Slow Burn Genre rules both out. A taste-aware request binds that exclusion, so a recommendation that read the Vibe without its Genres' instructions offers something the Genre forbids. Run on the projection and on tonight-recommend's SKILL.md alone — the selection in which tonight-vibes is not loaded — and by hand on the canonical plugin.",
+  "writes": false,
+  "model": {
+    "genres": [
+      { "name": "Slow Burn", "instruction": "Films that take their time. Nothing gory and nothing with torture in it — I will turn it off." },
+      { "name": "Unease", "instruction": "Something wrong at the edges that never quite explains itself." }
+    ],
+    "vibes": [
+      {
+        "name": "Quiet Dread",
+        "genres": ["Slow Burn", "Unease"],
+        "instruction": "Horror I feel in my stomach rather than see.",
+        "core": { "title": "The Vanishing", "year": 1988 }
+      }
+    ],
+    "movies": [
+      { "title": "The Vanishing", "year": 1988, "vibes": ["Quiet Dread"], "viewing": "seen" }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": { "title": "The Vanishing", "year": 1988 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    }
+  ]
+}

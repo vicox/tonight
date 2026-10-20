@@ -52,7 +52,18 @@ const PROTOCOL_VERSION = "2026-07-28";
  * the fixture being seeded: a guard that took its answer from the file it is
  * guarding would agree with any file.
  */
-const OWNED = /^google:eval-m3-[a-z0-9-]+$/;
+const OWNED = /^google:eval-m[35]-[a-z0-9-]+$/;
+
+/**
+ * Where the fixtures are: this directory's own, or another set's.
+ *
+ * The M5 harness seeds its fixtures through this file rather than a copy of it —
+ * the same every-run reseed, the same snapshot, the same teardown order — and
+ * names its own directory with `--fixtures`.
+ */
+const FIXTURES = process.argv.includes("--fixtures")
+  ? process.argv[process.argv.indexOf("--fixtures") + 1]
+  : join(here, "fixtures");
 
 for (const line of readFileSync(join(WEB, ".env.local"), "utf8").split("\n")) {
   const at = line.indexOf("=");
@@ -63,11 +74,11 @@ const { deployment, signingKey } = await import(join(WEB, "lib", "oauth", "confi
 const { mintAccessToken } = await import(join(WEB, "lib", "oauth", "tokens.ts"));
 
 function fixture(id) {
-  return JSON.parse(readFileSync(join(here, "fixtures", `${id}.json`), "utf8"));
+  return JSON.parse(readFileSync(join(FIXTURES, `${id}.json`), "utf8"));
 }
 
 async function token(user) {
-  if (!OWNED.test(user)) throw new Error(`refusing to act for ${user}: not an M3 evaluation user`);
+  if (!OWNED.test(user)) throw new Error(`refusing to act for ${user}: not an M3 or M5 evaluation user`);
   const { token } = await mintAccessToken(
     deployment(), signingKey(), { id: user }, "evaluation", "mcp", deployment().resource,
   );
@@ -111,17 +122,61 @@ async function call(bearer, name, args = {}) {
 }
 
 /**
+ * Whether the server this seeds through anchors a vibe on a core (taste v13 on).
+ *
+ * Asked of the server rather than assumed, because one fixture set is seeded
+ * through two builds: the M5 baseline is recorded against the build before
+ * cores existed, and the legacy fixture is written through it on purpose. Such a
+ * build is not sent a `core` it has never heard of; the core film is filed from
+ * its own side instead, as every film was before M5 — so the same fixture gives
+ * the same films in the same vibes on either build, anchored only on the newer.
+ */
+async function anchorsVibes(bearer) {
+  const response = await fetch(`${ORIGIN}/mcp`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${bearer}`,
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      "mcp-protocol-version": PROTOCOL_VERSION,
+      "mcp-method": "tools/list",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: {
+        _meta: {
+          "io.modelcontextprotocol/protocolVersion": PROTOCOL_VERSION,
+          "io.modelcontextprotocol/clientInfo": { name: "tonight-m3-evaluation", version: "1.0.0" },
+          "io.modelcontextprotocol/clientCapabilities": {},
+        },
+      },
+    }),
+  });
+  const body = await response.text();
+  const line = body.split("\n").find((one) => one.startsWith("data: "));
+  const answer = JSON.parse(line ? line.slice(6) : body);
+  if (answer.error) throw new Error(`tools/list: ${JSON.stringify(answer.error)}`);
+  const vibe = answer.result.tools.find((tool) => tool.name === "create_vibe");
+  return Boolean(vibe?.inputSchema?.properties?.core);
+}
+
+/**
  * Empties a fixture user completely.
  *
  * Every store, because a history reaches all of them and a half-cleared user is
  * a different fixture wearing the right name. All five of them are reachable
- * from the tools: films, vibes and genres are deleted, evenings forgotten, and
+ * from the tools: vibes, films and genres are deleted, evenings forgotten, and
  * each verdict act forgotten by the reference `get_memory` gives it.
+ *
+ * Vibes first: deleting one releases its core, which cannot be deleted while it
+ * anchors a vibe, and the genres it holds; then the films; then the genres.
  */
 async function clear(bearer, user) {
   const taste = await call(bearer, "get_taste");
-  for (const movie of taste.movies) await call(bearer, "delete_movie", { title: movie.title, year: movie.year });
   for (const vibe of taste.vibes) await call(bearer, "delete_vibe", { name: vibe.name });
+  for (const movie of taste.movies) await call(bearer, "delete_movie", { title: movie.title, year: movie.year });
   for (const genre of taste.genres) await call(bearer, "delete_genre", { name: genre.name });
 
   const { episodes } = await call(bearer, "get_episodes");
@@ -140,16 +195,26 @@ async function seed(id) {
   await clear(bearer, spec.user);
 
   for (const genre of spec.model.genres) await call(bearer, "create_genre", genre);
-  for (const vibe of spec.model.vibes) await call(bearer, "create_vibe", vibe);
+  // Each vibe with its core, which saves and files that film; a core film the
+  // fixture lists again is then updated rather than created. A build from before
+  // cores gets the vibe without one, and files the film from the film's side.
+  const anchors = await anchorsVibes(bearer);
+  for (const { core, ...vibe } of spec.model.vibes) {
+    await call(bearer, "create_vibe", anchors && core ? { ...vibe, core } : vibe);
+  }
+  const saved = (await call(bearer, "get_taste")).movies;
   for (const movie of spec.model.movies) {
     const { title, year, viewing, vibes, imdbId } = movie;
-    await call(bearer, "create_movie", {
-      title,
-      year,
+    const fields = {
       ...(viewing === null || viewing === undefined ? {} : { viewing }),
       ...(vibes?.length ? { vibes } : {}),
       ...(imdbId ? { imdb_id: imdbId } : {}),
-    });
+    };
+    if (saved.some((one) => one.title === title && one.year === year)) {
+      if (Object.keys(fields).length) await call(bearer, "update_movie", { title, year, ...fields });
+    } else {
+      await call(bearer, "create_movie", { title, year, ...fields });
+    }
   }
 
   // In order, because order is what makes one verdict supersede another.
@@ -192,7 +257,7 @@ async function snapshot(bearer) {
 const id = process.argv[2];
 const flag = (name) => process.argv.includes(`--${name}`);
 if (!id) {
-  const all = readdirSync(join(here, "fixtures")).filter((f) => f.endsWith(".json"));
+  const all = readdirSync(FIXTURES).filter((f) => f.endsWith(".json"));
   console.error(`usage: node evaluation/m3/seed.mjs <fixture>\n\n${all.map((f) => `  ${f.replace(".json", "")}`).join("\n")}`);
   process.exit(1);
 }

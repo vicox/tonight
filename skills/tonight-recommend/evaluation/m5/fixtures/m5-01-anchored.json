@@ -1,0 +1,69 @@
+{
+  "id": "m5-01-anchored",
+  "user": "google:eval-m5-01-anchored",
+  "title": "Three anchored Vibes, one film in no Vibe that they love, one they never spoke about",
+  "exists_for": ["routing", "consideration", "opt-out", "tension", "not-tonight", "owed-answer", "several-vibes", "unfiled"],
+  "construction_note": "Every Vibe is written with its core (S2), and every core is a film they loved or liked. Hit Man is unfiled with a standing loved verdict; Wingwomen is unfiled with no verdict and must never be raised. Logan Lucky, Groundhog Day, The Social Network, The Nice Guys, Paterson, Knives Out and Tenet are absent on purpose: the prompts introduce them.",
+  "writes": true,
+  "model": {
+    "genres": [
+      { "name": "Heist", "instruction": "A plan, a crew, and the pleasure of watching it go wrong in interesting ways." },
+      { "name": "Easygoing Comedy", "instruction": "Funny without needing my full attention, and nobody is humiliated for the joke." },
+      { "name": "Talky", "instruction": "People talking well is the action. Sharp dialogue, and scenes allowed to run long." },
+      { "name": "Time Loop", "instruction": "The same day again, and what somebody does with it." }
+    ],
+    "vibes": [
+      {
+        "name": "Time Well Wasted",
+        "genres": ["Time Loop", "Easygoing Comedy"],
+        "instruction": "Light films where being stuck is the joke and nobody has to save the world.",
+        "core": { "title": "Palm Springs", "year": 2020 }
+      },
+      {
+        "name": "Talk Is the Action",
+        "genres": ["Talky"],
+        "instruction": "Films I watch for how people talk to each other; the plot can wait.",
+        "core": { "title": "Before Sunrise", "year": 1995 }
+      },
+      {
+        "name": "Everybody Has a Plan",
+        "genres": ["Heist"],
+        "instruction": "A crew, a plan, and everybody running their own game.",
+        "core": { "title": "Ocean's Eleven", "year": 2001 }
+      }
+    ],
+    "movies": [
+      { "title": "Palm Springs", "year": 2020, "vibes": ["Time Well Wasted"], "viewing": "seen" },
+      { "title": "Before Sunrise", "year": 1995, "vibes": ["Talk Is the Action"], "viewing": "seen" },
+      { "title": "Ocean's Eleven", "year": 2001, "vibes": ["Everybody Has a Plan"], "viewing": "seen" },
+      { "title": "Hit Man", "year": 2023, "viewing": "seen" },
+      { "title": "Wingwomen", "year": 2023 }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": { "title": "Palm Springs", "year": 2020 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved", "because": "the loop is the joke and it still lands" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "Before Sunrise", "year": 1995 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "liked" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "Ocean's Eleven", "year": 2001 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "Hit Man", "year": 2023 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    }
+  ]
+}

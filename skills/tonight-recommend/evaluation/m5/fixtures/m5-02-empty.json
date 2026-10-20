@@ -1,0 +1,9 @@
+{
+  "id": "m5-02-empty",
+  "user": "google:eval-m5-02-empty",
+  "title": "A new user: nothing in Tonight at all",
+  "exists_for": ["first-films"],
+  "construction_note": "S6. The one film question is two or three films they love, inside an answer or on its own; what they name is recorded as loved, confirmed; grouping into first Vibes is the plugin's and is offered, never written without a yes.",
+  "writes": true,
+  "model": { "genres": [], "vibes": [], "movies": [] }
+}
