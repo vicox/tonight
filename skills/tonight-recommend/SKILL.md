@@ -72,8 +72,8 @@ films, and there is not going to be one.
 Read a Vibe as **its own instruction plus the instructions of its Genres**, in that order — the
 three are one idea.
 
-**A Genre is named for what it is; a Vibe for what it feels like** — `Slow burn` against
-`Quiet Dread`. Proposing the name is yours; the idea is theirs, so never let one widen it.
+**A Genre is named for what it is; a Vibe for what it feels like.** Proposing the name is yours;
+the idea is theirs, so never let one widen it.
 
 <!-- full:start -->
 A **Genre** is a reusable component of what they like; a **Vibe** is Genres plus what the
@@ -88,52 +88,9 @@ A Vibe is the shape of a recommendation idea: `Sci-Fi` and `Thriller` are its in
 `Space Tension` is the third thing this person decided about them. Its instruction is where that
 lives. The Vibe's sentence alone is half of what it means.
 
-#### One idea, said three ways
-
-A Vibe is a name, a sentence and some Genres, and the three are one idea or the Vibe is
-incoherent. So writing one means **reading the Genres' instructions** — not their names, which
-are labels and say almost nothing. `Slapstick` under `Quiet Dread` looks defensible until you
-read what Slapstick means to this person: *broad physical comedy, pratfalls, escalating
-absurdity*, which is not slow, unsettling tension without gore. Two ideas, one object.
-
-The Vibe's sentence must **add** what the Genres do not say and **contradict** nothing they do.
-Both halves matter, and they pull in opposite directions: a sentence that only restates the
-Genres has added nothing, and one that goes against them has made the Genres wrong.
-
-**Coherent is not derived.** The Genres hold the idea in place; they never produce it. `Sci-Fi`
-and `Thriller` do not yield `Space Tension` — the person did, and no reading of the two
-instructions would have found it. The test is not *"do the Genres give me this?"* but *"can
-these three be one thing a person meant?"*
-
-None of this is checked anywhere. Tonight stores whatever is structurally valid; whether the
-parts mean one thing is a judgement, and it is yours. **Movies have no part in it** — a Vibe
-written last night with nothing filed under it is as coherent as one with ten, because what is
-filed in a Vibe is not what it means.
-
-### A Vibe name is evocative, not descriptive
-
-This is the difference between the two objects, and it is easy to get wrong in the direction of
-being helpful.
-
-A **Genre** is named for what it is. `Clever thriller`, `Slow burn`, `Character story`,
-`Practical effects` — plain, reusable, boring on purpose, because a Genre is an ingredient and
-ingredients are named after themselves.
-
-A **Vibe** is named for what it *feels* like. `Space Tension`, `Puzzle Pressure`, `Popcorn Chaos`,
-`Small Town Secrets`, `Beautiful Melancholy`, `Quiet Dread`. The name of a shelf in a good video
-shop, a playlist somebody made at two in the morning, a list they would go back to.
-
-`Smart, not heavy`, `Funny action`, `Emotional drama`, `Light sci-fi` are **not Vibe names**. They
-are the Genres said again in one line. A Vibe named that way has not been named, it has been
-labelled.
-
-`create_vibe` carries the test for that in its own description, which is where it is read at the
-moment a name is being chosen; that is why the runtime instructions keep only the distinction.
-
-The words for the name can be yours, and a name they do not like is one they will tell you to
-change. What a good name must not do is widen the idea — `Quiet Dread`, over an evening they
-described as "slow, creepy, nothing gory", is a name for that evening and not evidence that they
-like horror. Name the thing they said. Never name a bigger thing.
+Writing a Vibe — what makes one coherent, what its name has to do, which film anchors it, and
+what follows when somebody tells you how a film worked for them — is set out in the
+**tonight-vibes** skill. This one keeps what recommending and keeping a film need from it.
 <!-- full:end -->
 
 ## Recommending
@@ -165,8 +122,8 @@ What the model is evidence *of*:
 
 - **A Vibe is a sentence they wrote about a kind of evening, and a Vibe that matches is a reason
   the recommendation fits** — the most explicit statement of taste anywhere here. It counts from
-  the moment it exists: one written last night with nothing under it yet says as much about what
-  they like as one with ten films under it, and it is more current. A Genre is an ingredient and
+  the moment it exists: one written last night with only its core under it says as much about
+  what they like as one with ten films under it, and it is more current. A Genre is an ingredient and
   thinner on its own; a recommendation justified only by a Genre name is justified by a label.
 - **Verdicts calibrate that evidence. They never decide whether it counts.** `loved`
   strengthens it, `liked` strengthens it more weakly, `disliked` weakens something similar — a
@@ -188,7 +145,7 @@ What the model is evidence *of*:
   never again"*. Where they gave a reason, use their words and do not make them stronger: *"the
   tension never lets up"* is not *"you love tense films"*. Volunteered tells you more than
   answered, and neither is a number.
-- A Vibe with nothing under it yet is read with **less confidence about specifics and just as
+- A Vibe with no verdict under it yet is read with **less confidence about specifics and just as
   much about intent**. That changes how you phrase the answer and how far you reach from it,
   never whether you use it. Say how sure you are — and put the doubt where it belongs: **what
   they meant is not in question, and no particular film has been confirmed to fit it yet**. So
@@ -217,7 +174,7 @@ exclusions hold.
   withdrawal removes that act in its own scope — not a weaker opinion, not an unsaying.
   A Movie carries no opinion: `viewing` is a fact about watching.
 
-- A Vibe with nothing under it: **intent certain, their verdict unconfirmed** — use it, vary
+- A Vibe with no verdict under it: **intent certain, their verdict unconfirmed** — use it, vary
   reach and certainty. Say how a film fits the Vibe; never that **they** like it yet.
 
 project:compact -->
@@ -226,12 +183,16 @@ Either way, **they asked for a film and the answer is one** — so ask **one que
 if something important is missing — **in the answer, never instead of it**, and never *"what genres
 do you like?"*; never make somebody learn Genres and Vibes to get a film. **An empty model is not
 an exception**: knowing nothing about somebody is the ordinary first case, not a reason to
-interview them, and there is always a film worth leading with. **Never print the taste model
-while recommending**; one short sentence if something was saved.
+interview them, and there is always a film worth leading with. With an empty model the question
+is *"what are two or three films you love?"* — and somebody new who has asked for nothing yet is
+asked it on its own, in one sentence. What they name is what they said about films, and goes
+where verdicts go. **Never print the taste model while recommending**; one short sentence if
+something was saved.
 <!-- full:end -->
 <!-- project:compact
 Either way, answer with a film, **even with an empty model**. Ask **one film question** in the
-answer if needed, **never instead**; never *"what genres do you like?"*, or require learning
+answer if needed, **never instead** — empty model: *"two or three films you love?"*, alone if no
+film was asked; never *"what genres do you like?"*, or require learning
 Genres and Vibes. **Never print the taste model while recommending**; one short sentence if saved.
 project:compact -->
 
@@ -420,7 +381,9 @@ Two requests about a film, and they differ:
 - **Keeping a film goes into a Vibe** — *"save this one"*, *"add it to my list"*. **Never write a
   Movie this way without at least one Vibe.**
 - **What they said about a film does not.** *"I loved it"*, *"not tonight"*, *"never again"* —
-  that is a verdict, and it goes to `record_verdict`. No Vibe is needed for one and none may be
+  that is a verdict, and it goes to `record_verdict`. So is how a film worked for them, however
+  they put it — *"great for a lazy Sunday when I'm half watching"* — recorded in their words and
+  never made stronger than they made it. No Vibe is needed for one and none may be
   invented to hold it — and no Movie either: a Verdict stands on its own root, so a film nobody
   has saved may still carry one, and saying something about a film never writes a Movie to hold
   it; a later request to keep the film takes a Vibe. Changed their mind? Record
@@ -429,40 +392,18 @@ Two requests about a film, and they differ:
   left underneath it, an evening's `not-tonight` taken back leaves a judgement about the film
   standing, and none of it is an unsaying — they did say it, and `get_memory` remembers that.
 
-**Which Vibe a kept film goes in** — not *"may I save this?"* but *"what kind of night is this?"*
-Classify the film; do not fit it to what is there. Read the Genres and Vibes first.
-
-- **One genuinely fits** → save it there, say so in one sentence, ask nothing further.
-- **One nearly fits** → not a bucket. **Never stretch a Vibe to avoid making one**; a different
-  evening is a different Vibe.
-- **None fits** → **do not save the film yet.** Reuse the Genres that genuinely fit, create
-  one for anything no Genre covers — two or three strong, complementary ones is often the shape,
-  never filler to hit a number — then propose a Vibe over them. Never ask which Vibe they want;
-  that judgement is yours.
-
-What a Vibe's name has to earn, what a Genre and a Vibe each require, and whose voice an
-instruction is written in arrive with `create_genre` and `create_vibe`.
-
-**Proposing a new Vibe:** say what you noticed, name it, say what it means, and make the idea
-concrete — three to five other films that would belong in it, and two or three names it could
-have instead. Then ask. **Those films are illustration only**: never written, never in the Vibe,
-never given a viewing or a verdict. Only the film they asked to keep is being saved. **A
-yes is the whole of the permission**: any Genre it needs, then the Vibe, then the film, then one
-short sentence — never ask a second time. **A no settles it**, never saving the film loose.
-Propose while saving, not while recommending; a Vibe that genuinely fits needs none of this.
-
-**A film in no Vibe is legitimate**: a recorded watch makes one, so does deleting a Vibe. The site
-lists them under **Other movies**. Do not sort them, propose Vibes for them, or mention them
-unasked.
-
+What follows a verdict — whether the film belongs in one of their Vibes, anchors one, or reveals
+a new one — and the whole of proposing a Vibe are the **tonight-vibes** skill's.
 <!-- full:end -->
 <!-- project:compact
 Two requests about a film:
 
 - **Keeping a film goes into a Vibe** — *"save this one"*. **Never write a Movie this way
   without at least one Vibe.**
-- **What they said about it does not** — that is a verdict: `record_verdict`, and no Vibe and no
-  Movie is needed or invented to hold one; a later request to keep the film takes a Vibe.
+- **What they said about it does not**, however put — that is a verdict: `record_verdict`, in
+  their words, never stronger; no Vibe and no Movie is needed or invented to hold one; a later
+  request to keep the film takes a Vibe.
+project:compact -->
 
 **Which Vibe a kept film goes in** is a classification, not a request for permission. Classify the
 film rather than fitting it to what is there, and read the Genres and Vibes first.
@@ -474,19 +415,27 @@ film rather than fitting it to what is there, and read the Genres and Vibes firs
   anything uncovered — often two or three strong, complementary ones, never filler to hit a
   number — then propose a Vibe over them. Never ask which they want; that judgement is yours.
 
-What a Vibe's name must earn, what a Genre and a Vibe need, and an instruction's voice
-arrive with `create_genre` and `create_vibe`.
+What names, Genres, Vibes and cores need, and an instruction's voice, arrive with `create_genre`
+and `create_vibe`.
 
-**Proposing a new Vibe:** say what you noticed, name it, say what it means, and make it concrete
-— three to five other films that would belong, and two or three alternative names. Then ask.
-**Those films are illustration only**: never written, never filed, never given a viewing or a
-verdict; only the film they asked to keep is saved. **A yes is the whole permission**: any
-Genre it needs, then the Vibe, then the film, then one short sentence — never ask twice. **A no
+**Proposing a new Vibe:** say what you noticed, name it, say what it means, name its core, and make
+it concrete — three to five other films that would belong, and two or three alternative names.
+Then ask. **Those films are illustration only**:
+never written, never filed, never given a viewing or a verdict; only the kept film and the core
+are saved. **A yes is the whole permission**: any Genre it needs, then the Vibe with its core,
+then the film, then one short sentence — never ask twice. **A no
 settles it**, never saving the film loose. Propose while saving, not while recommending; a Vibe
 that fits needs none of this.
 
-**A film in no Vibe is legitimate**: a recorded watch makes one, so does deleting a Vibe. Do not
-sort them, propose Vibes for them, or mention them unasked.
+<!-- full:start -->
+**A film in no Vibe is legitimate**: a recorded watch makes one, so does deleting a Vibe. The site
+lists them under **Other movies**. Do not sort them, propose Vibes for them, or mention them
+unless they ask or speak of one.
+
+<!-- full:end -->
+<!-- project:compact
+**A film in no Vibe is legitimate**. Do not sort them, propose Vibes for them, or mention them
+unless they ask or speak of one.
 
 project:compact -->
 <!-- full:start -->
@@ -497,29 +446,13 @@ ambiguous: that resolves *which film*, not permission.
 <!-- full:end -->
 <!-- project:compact
 **A recommendation is not a saved Movie**, and `create_movie` carries `viewing` and no opinion.
-Never ask for what their sentence gave you. Settle title and year first — `Dune` names two films;
-ask if ambiguous: that resolves *which film*, not permission.
+Never ask for what their sentence gave you. Settle title and year first; asking *which film* is
+not asking permission.
 project:compact -->
 
 <!-- full:start -->
 The tools are `create_movie`, `update_movie` and `delete_movie`; each describes itself where an
 agent meets it.
-
-Proposed, that sounds like: *"That belongs in a Vibe of its own: **Everybody Has a Plan** — few
-people, one room, each running their own game. The Sting, Reservoir Dogs and Before the Devil
-Knows You're Dead would all sit in there. Or Nobody Plays Straight, or Small Room, Big Lies —
-which sounds more like you? Shall I make it?"*
-
-Said in one breath, not laid out as a form. The films are there to show what the idea covers, the
-way you would describe a shelf by pointing at what is on it — a name alone is a label, and
-somebody agreeing to a label has agreed to less than they think. The alternative names are there
-because a name is easier to judge against another name than on its own, and the idea is theirs to
-name.
-
-Those films are the one place in this skill where naming films is not the start of anything.
-Mentioning a film has never written one down, and none of the writing rules reach them: the user
-has said nothing about them, so there is nothing to record, nothing to classify and no Vibe to
-put them in. The film they asked you to keep is the only one in the flow.
 
 A Movie is theirs, the same way a Genre or a Vibe is, and never an entry from a catalogue.
 
@@ -536,21 +469,6 @@ The taste model and nothing else, in full: no way to ask how often or in what or
 watched. Liked, loved and disliked are verdicts, and `record_verdict` says what they are.
 
 Names match case-insensitively and are how everything refers to everything else.
-
-The idea you just used **is** a Vibe, and the pieces it is made of **are** Genres. Writing them
-down is how Tonight gets better at this without anybody configuring it. Wanting something tonight
-is not saying it, and on its own leaves nothing behind.
-
-Two Genres meaning the same thing are one taste split in two; two Vibes meaning different things
-are two ideas, and merging them loses one. If `Slow burn` is there, do not add `Slow-paced`. A
-Genre worth creating is reusable — something that could turn up in a different mood on a
-different night: `Clever thriller`, `Light suspense`, `Practical effects`.
-
-One conversation should not produce eight Genres.
-
-What a Vibe may be built from, and whose voice an instruction is written in, are `create_vibe`'s and
-`create_genre`'s to state. Names are how everything refers to everything else, so write them as
-ordinary phrases — `Slow burn`, not `SlowBurn`.
 <!-- full:end -->
 
 ## Asked about the model directly
@@ -609,8 +527,8 @@ said it.
 ## What Tonight remembers
 
 An evening is recorded as fact: asked, offered, and what they said they did. **History is not
-taste** — nothing is learned from it, so a film you recommended can come back. An evening says
-*that* something happened, never what they made of it: **only what they said is evidence**.
+taste** — nothing is learned from it, so a film you recommended can come back: **only what they
+said is evidence**.
 project:compact -->
 
 Never say "I'll remember that" unless you wrote it — and then say what you wrote.

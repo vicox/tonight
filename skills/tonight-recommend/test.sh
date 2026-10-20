@@ -97,10 +97,12 @@ console.log(found ? `shared: ${found}` : "none");
 ' "$1"
 }
 
-echo "--- one skill, and the removed ones stay removed ---"
+echo "--- two skills, and the removed ones stay removed ---"
 
-check "recommend is the only skill" \
-    "$(ls -1 "$SKILLS_DIR" | sort | tr '\n' ' ')" "tonight-recommend "
+# M5 extracted Vibe authoring into tonight-vibes: split by concern, never by
+# intent, so recommend is still the entry point and there is still no setup.
+check "recommend and vibes are the skills" \
+    "$(ls -1 "$SKILLS_DIR" | sort | tr '\n' ' ')" "tonight-recommend tonight-vibes "
 check "no setup skill directory has come back" \
     "$([ -e "$SKILLS_DIR/tonight-setup" ] && echo present || echo absent)" "absent"
 check "no manage skill directory has come back" \
@@ -191,30 +193,12 @@ check "a vibe is read as its own instruction plus its genres" \
 check "and written the same way, as one idea across all three parts" \
     "$(order_check 'in that order — the
 three are one idea')" "True"
-# The reasoning behind that one line, full skill only. Three claims, and the
-# third is the one most easily lost: coherence is not derivation.
-check "constructing a vibe means reading the genres own instructions, not their names" \
-    "$(order_check 'instructions** — not their names, which
-are labels and say almost nothing' \
-        '`Slapstick` under `Quiet Dread` looks defensible until you
-read what Slapstick means to this person')" "True"
-check "the vibe's sentence must add meaning and contradict none" \
-    "$(order_check 'must **add** what the Genres do not say and **contradict** nothing they do' \
-        'a sentence that only restates the
-Genres has added nothing' \
-        'one that goes against them has made the Genres wrong')" "True"
-check "coherent is not derived" \
-    "$(order_check '**Coherent is not derived.**' \
-        'The Genres hold the idea in place; they never produce it' \
-        'can
-these three be one thing a person meant?')" "True"
-check "the judgement is the model's, not the store's" \
-    "$(order_check 'None of this is checked anywhere' \
-        'whether the
-parts mean one thing is a judgement, and it is yours')" "True"
-check "movies are no part of whether a vibe is coherent" \
-    "$(order_check '**Movies have no part in it**' \
-        'nothing filed under it is as coherent as one with ten')" "True"
+# M5 (R3-1): that reading rule is recommend's and stays here, so a conversation
+# that only recommends keeps it. The reasoning about *writing* a coherent Vibe —
+# reading the Genres' instructions, coherent is not derived, what the core adds —
+# moved to tonight-vibes and is pinned in its own test.sh.
+check "writing a vibe is pointed at the skill that sets it out" \
+    "$(order_check 'Writing a Vibe' 'is set out in the' '**tonight-vibes** skill')" "True"
 check "only an exclusion is mode-dependent; everything else is evidence either way" \
     "$(order_check '**An exclusion written into a Genre' \
         'binds only when they asked for their taste' \
@@ -269,10 +253,12 @@ echo "--- a Vibe is evidence; its films calibrate ---"
 # written in last night's conversation is exactly the one tonight's answer should use.
 check "a matching Vibe is a reason the recommendation fits" \
     "$(order_check 'a Vibe that matches is a reason' 'the recommendation fits')" "True"
-check "and it counts from the moment it exists, with nothing under it" \
+# M5: a Vibe is written with its core, so the newest Vibe holds one film rather
+# than none — and still says as much as one with ten.
+check "and it counts from the moment it exists, with only its core under it" \
     "$(order_check 'counts from' 'the moment it exists' \
-        'nothing under it yet says as much about what' \
-        'they like as one with ten films under it')" "True"
+        'only its core under it says as much about' \
+        'what they like as one with ten films under it')" "True"
 check "a Genre is thinner than a Vibe, and a Genre name alone justifies nothing" \
     "$(order_check 'A Genre is an ingredient and' \
         'thinner on its own' \
@@ -488,38 +474,27 @@ echo "--- a Vibe is named, not labelled ---"
 # assistant restating the ingredients. Both halves are pinned — the rule, and
 # examples of each kind — because the rule alone reads as a matter of taste until
 # `Popcorn Chaos` and `Funny action` are sitting next to each other.
-check "the two kinds of name are distinguished, in that order" \
-    "$(order_check 'A Vibe name is evocative, not descriptive' \
-        'A **Genre** is named for what it is' \
-        'A **Vibe** is named for what it *feels* like')" "True"
-check "evocative names are shown, not just asked for" \
-    "$(order_check 'Space Tension' 'Popcorn Chaos' 'Quiet Dread')" "True"
-check "descriptive names are shown as the failure they are" \
-    "$(order_check '`Funny action`' '**not Vibe names**' 'it has been' 'labelled')" "True"
-check "the test for a name is pointed at, not restated" \
-    "$(order_check '`create_vibe` carries the test for that in its own description' \
-        'at the moment a name is being chosen')" "True"
+# M5: the distinction is what recommend keeps — a Vibe is read and kept here too —
+# and the examples, the failure shown, and the rule against widening an idea moved
+# with Vibe authoring to tonight-vibes, whose test.sh pins them.
+check "the two kinds of name are distinguished" \
+    "$(order_check 'A Genre is named for what it is; a Vibe for what it feels like')" "True"
 check "naming is the assistant's to do, and may not widen the idea" \
     "$(order_check 'Proposing the name is yours' \
-        'Name the thing they said' 'Never name a bigger thing')" "True"
+        'the idea is theirs, so never let one widen it')" "True"
 
 echo
 echo "--- the model grows from what was said ---"
 
-check "the idea just used is the Vibe, and its parts are the Genres" \
-    "$(order_check 'The idea you just used' '**is** a Vibe' \
-        'Writing them down is how Tonight gets better at this')" "True"
-check "a Genre is reused before it is created, and near-duplicates are called out" \
-    "$(order_check 'Reuse the Genres that genuinely fit' \
-        'create one for anything no Genre covers' \
-        'do not add `Slow-paced`')" "True"
+# How the model grows — the idea just used is a Vibe, Genres are reused before
+# they are created — is tonight-vibes' now; what recommend keeps is the keep flow.
 check "a Vibe is reused when it fits and made new when it does not" \
     "$(order_check 'One genuinely fits' \
         'Never stretch a Vibe to avoid making one' \
         'a different evening is a different Vibe')" "True"
 check "the write constraints point at the tools that state them" \
-    "$(order_check "What a Vibe's name has to earn" \
-        'arrive with `create_genre` and `create_vibe`')" "True"
+    "$(order_check "and an instruction's voice" \
+        'arrive with `create_genre`' 'and `create_vibe`')" "True"
 
 echo
 echo "--- persistence: expressed, never inferred ---"
@@ -561,12 +536,9 @@ check "a standing preference and a one-night mood are told apart" \
         'what they want now, not what they are like' \
         'I love slow science fiction' \
         'A standing preference, stated plainly')" "True"
-# The write-authorising section has to agree with the table: a request for
-# tonight is usable immediately and persists nothing by itself.
-check "both routes may create, and a bare request for tonight may not" \
-    "$(order_check 'create one for anything no Genre covers' \
-        'Wanting something tonight is not saying it' \
-        'leaves nothing behind')" "True"
+# "Both routes may create, and a bare request for tonight may not" pinned the
+# authoring paragraph that moved to tonight-vibes (M5); its test.sh carries it. The
+# table above still says a request for tonight writes nothing.
 check "a recommendation with no feedback persists nothing" \
     "$(order_check 'You recommended a film. They said nothing' '**nothing**')" "True"
 check "silence, recommendations and patterns are all ruled out as evidence" \
@@ -830,32 +802,37 @@ check "an existing Vibe is not a bucket, and its meaning is never widened to fit
     "$(order_check 'One nearly fits' \
         'not a bucket' \
         'a different evening is a different Vibe')" "True"
+# M5: from here the keep flow is pinned in recommend's own statement of it — the
+# shorter wording a ChatGPT project receives, now plain text here because its full
+# prose and worked example moved to tonight-vibes (whose test.sh pins them).
 check "with no good fit the film waits, and a Vibe is devised rather than asked for" \
     "$(order_check 'None fits' \
         'do not save the film yet' \
-        'Never ask which Vibe they want' \
+        'Never ask which they want' \
         'that judgement is yours')" "True"
-check "the Vibe is proposed conversationally, named and explained, then asked about" \
-    "$(order_check 'say what you noticed, name it, say what it means' \
-        'Then ask' \
-        'Shall I make it?')" "True"
+check "the Vibe is proposed conversationally, named, explained and anchored, then asked about" \
+    "$(order_check 'say what you noticed, name it, say what it means, name its core' \
+        'Then ask')" "True"
 check "a proposed Vibe is shown as an idea: other films in it, other names for it" \
-    "$(order_check 'make the idea concrete' \
-        'three to five other films that would belong in it' \
-        'two or three names it could have instead')" "True"
+    "$(order_check 'make
+it concrete' \
+        'three to five other films that would belong' \
+        'two or three alternative names')" "True"
 check "those films illustrate the idea and are never part of the save" \
     "$(order_check 'Those films are illustration only' \
-        'never written, never in the Vibe' \
+        'never written, never filed' \
         'never given a viewing or a verdict' \
-        'Only the film they asked to keep is being saved')" "True"
+        'only the kept film and the core
+are saved')" "True"
 check "a Vibe that already fits is still saved without any of that" \
     "$(order_check 'One genuinely fits' \
         'ask nothing further' \
-        'a Vibe that genuinely fits needs none of this')" "True"
-check "one yes creates the Vibe and saves the film, with no second save question" \
-    "$(order_check 'A yes is the whole of the permission' \
-        'any Genre it needs, then the Vibe' \
-        'never ask a second time')" "True"
+        'a Vibe
+that fits needs none of this')" "True"
+check "one yes creates the Vibe with its core and saves the film, with no second save question" \
+    "$(order_check 'A yes is the whole permission' \
+        'any Genre it needs, then the Vibe with its core' \
+        'never ask twice')" "True"
 check "a no settles it, and never becomes a film saved loose" \
     "$(order_check 'A no settles it' \
         'never saving the film loose')" "True"
@@ -866,6 +843,20 @@ check "a film in no Vibe is a legitimate state, listed and left alone" \
         'lists them under **Other movies**' \
         'Do not sort them' \
         'when they ask you to **keep** a film')" "True"
+
+# M5's floor in recommend — what every host needs, the ChatGPT project included.
+check "however they put how a film worked for them, it is a verdict in their words" \
+    "$(order_check 'So is how a film worked for them, however' \
+        'recorded in their words and' 'never made stronger')" "True"
+check "what follows a verdict is pointed at the skill that sets it out" \
+    "$(order_check 'What follows a verdict' 'are the **tonight-vibes** skill')" "True"
+check "a film in no Vibe is raised only when they ask or speak of one" \
+    "$(order_check 'Do not sort them, propose Vibes for them, or mention them' \
+        'unless they ask or speak of one')" "True"
+check "an empty model's one question is the films they love, asked alone when nothing was asked" \
+    "$(order_check 'With an empty model the question' \
+        'what are two or three films you love?' \
+        'asked it on its own, in one sentence')" "True"
 
 echo
 echo "--- what this skill leaves out ---"

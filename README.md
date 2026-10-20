@@ -88,10 +88,14 @@ from any MCP host rather than from one vendor's.
 This mirrors Inbox Labeler, whose MCP server holds a user's label model while the mailbox
 belongs to the host's own Gmail connector.
 
-## The skill
+## The skills
 
-One — [`tonight-recommend`](skills/tonight-recommend) — with a `SKILL.md` and a `test.sh` that
-checks the contract in it has not been edited away.
+Two, each with a `SKILL.md` and a `test.sh` that checks the contract in it has not been edited
+away. [`tonight-recommend`](skills/tonight-recommend) is where every conversation starts:
+recommending, keeping a film, recording what somebody said about one, and reading Vibes.
+[`tonight-vibes`](skills/tonight-vibes) is how a Vibe is written and grows — anchored on a film
+they stand behind, proposed and written only on their yes, from what they say about films. The
+split is by concern, not by intent: there is still no setup, and recommend is still the way in.
 
 **There is no setup.** Somebody arriving at Tonight wants a film, not a configuration session,
 so the conversation starts where they are:
@@ -114,9 +118,12 @@ on its own, and never a request for tonight, which says what they want now.
 
 ### One specification, several projections
 
-`SKILL.md` is the specification, and the only file anybody edits. A host that reads skills reads
-it. Other hosts get a **generated projection** of it — `web/lib/generated/project-instructions.ts`
-is the one for the instructions box of a ChatGPT project, produced by `npm run sync:instructions`.
+Each `SKILL.md` is a specification, and the only file anybody edits. A host that reads skills reads
+them. Other hosts get a **generated projection** — `web/lib/generated/project-instructions.ts`
+is the one for the instructions box of a ChatGPT project, produced by `npm run sync:instructions`
+from `tonight-recommend` alone. A project has one instruction slot and no second skill, so what
+it carries of Vibes is the floor recommend states for itself; the full Vibe lifecycle is the
+plugin's.
 
 A projection is not a copy. It drops the rationale that sits between `full:` markers, and where a
 rule's canonical wording will not fit the target, a `project:compact` block in the skill supplies
@@ -287,10 +294,11 @@ npm run typecheck
 npm run lint
 ```
 
-and the skill contract, and the ChatGPT plugin package:
+and the skill contracts, and the ChatGPT plugin package:
 
 ```bash
 skills/tonight-recommend/test.sh
+skills/tonight-vibes/test.sh
 bash chatgpt-plugin/test.sh
 ```
 

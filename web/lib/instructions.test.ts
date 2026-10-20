@@ -284,8 +284,11 @@ test("a Vibe is evidence, and the states under it calibrate rather than gate", (
     ["that a matching Vibe is a reason, not a filter",
       /A matching Vibe is a reason the recommendation fits/],
     ["that it counts immediately", /from the moment it exists/],
+    // M5: a Vibe written since S2 always holds its core, so "nothing under it"
+    // stopped describing anything new. What still varies is whether a verdict
+    // stands under it, which was the point of the rule all along.
     ["that an empty Vibe says as much as a full one",
-      /A Vibe with nothing under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
+      /A Vibe with no verdict under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
     ["that a Genre is thinner", /A Genre is an ingredient/],
     ["that a Genre name alone justifies nothing", /a Genre name alone is a label/],
     ["that verdicts calibrate", /Verdicts calibrate it, never decide whether it counts/],
@@ -332,7 +335,7 @@ test("an unconfirmed Vibe bounds the claim about a film, never the Vibe itself",
    */
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
   const bullet = flat.slice(
-    flat.indexOf("A Vibe with nothing under it"),
+    flat.indexOf("A Vibe with no verdict under it"),
     flat.indexOf("Either way"),
   );
   assert.ok(bullet.length > 60, "the unconfirmed-Vibe rule could not be found");
@@ -698,7 +701,11 @@ test("a proposed Vibe is made tangible before it is agreed to", () => {
     ["that the films are illustration", /Those films are illustration only/],
     ["that they are not written and not filed", /never written, never (in a Vibe|filed)/],
     ["that they get no viewing and no verdict", /never given a viewing or a\s+verdict/],
-    ["what is actually being saved", /only the film they asked to keep is (being )?saved/i],
+    // M5: a new Vibe is written with its core, which may be a film of theirs other
+    // than the one being kept — so two films are saved, and still no illustration.
+    ["what is actually being saved", /only the kept film and the core are saved/i],
+    ["that the proposal names its core", /name its core/],
+    ["and the Vibe is written with it", /then the Vibe with its core/],
     ["that a fitting Vibe skips all of it", /a Vibe that (genuinely )?fits needs none of this/],
   ] as [string, RegExp][]) {
     assert.match(flat, rule, `the agent is never told ${what}`);
@@ -1249,8 +1256,19 @@ test("the compact projection of the write flow says the same thing the skill doe
       /no Vibe and no Movie is needed or\s+invented to hold one/],
     ["a later keep still takes a Vibe", /a later request to keep the film takes a Vibe/,
       /a later request to keep the film takes a Vibe/],
+    // M5 (S3): however a film's working for them is put, it is a verdict, in their
+    // words and no stronger — on every host, so in both renderings.
+    ["however it is put, it is a verdict", /how a film worked for them, however\s+they put it/,
+      /What they said about it does not\*\*, however put — that is a verdict/],
+    ["kept in their words, never made stronger",
+      /recorded in their words and\s+never made stronger than they made it/, /in their words, never stronger/],
+    // M5 (S3, R3-2 of the plan): the full prose of classifying a kept film and of
+    // proposing a Vibe moved to the tonight-vibes skill, and what was the compact
+    // wording here is now recommend's own statement of those rules — so the skill
+    // side of these rows reads that statement. The full prose is pinned where it
+    // lives, in `skills/tonight-vibes/test.sh`.
     ["the Vibe question is classification, not permission",
-      /not \*"may I save this\?"\* but \*"what kind of night is this\?"\*/,
+      /is a classification, not a request for permission/,
       /is a classification, not a request for permission/],
     ["classify rather than fit", /Classify the film/, /Classify the film/],
     ["read first", /Read the Genres and Vibes first/i, /read the Genres and Vibes first/i],
@@ -1259,34 +1277,37 @@ test("the compact projection of the write flow says the same thing the skill doe
     ["never stretch a Vibe", /Never stretch a Vibe to avoid making one/,
       /Never stretch a Vibe to avoid making one/],
     ["none fitting means not yet", /do not save the film yet/, /do not save the film yet/],
-    ["reuse what fits", /Reuse the Genres that genuinely fit/, /Reuse the Genres that fit/],
-    ["create for what is uncovered", /create one for anything no Genre covers/,
+    ["reuse what fits", /Reuse the Genres that fit/, /Reuse the Genres that fit/],
+    ["create for what is uncovered", /create one for anything uncovered/,
       /create one for anything uncovered/],
     // "Two or three" is guidance, not a quota. Both wordings have to say so: a
     // projection that names the numbers without the hedge reads as a requirement,
     // which is a different rule from the one the skill states.
     ["two or three is the usual shape, not a requirement",
-      /two or three strong, complementary ones is often the shape/,
+      /often two or three strong, complementary ones/,
       /often two or three strong, complementary ones/],
     ["and padding is still forbidden",
       /never filler to hit a number/, /never filler to hit a number/],
-    ["the Vibe choice is yours", /Never ask which Vibe they want; that judgement is yours/,
+    ["the Vibe choice is yours", /Never ask which they want; that judgement is yours/,
       /Never ask which they want; that judgement is yours/],
-    ["a proposal is made concrete", /make the idea concrete/, /make it concrete/],
-    ["with three to five films", /three to five other films that would belong in it/,
+    ["a proposal is made concrete", /make\s+it concrete/, /make\s+it concrete/],
+    ["and names its core", /name its core/, /name its core/],
+    ["with three to five films", /three to five other films that would belong/,
       /three to five other films that would belong/],
-    ["and two or three names", /two or three names it could have instead/,
+    ["and two or three names", /two or three alternative names/,
       /two or three alternative names/],
     ["those films are illustration only", /Those films are illustration only/,
       /Those films are illustration only/],
-    ["never written, never filed", /never written, never in the Vibe/, /never written, never filed/],
-    ["no viewing, no verdict", /never given a viewing or a verdict/,
+    ["never written, never filed", /never written, never filed/, /never written, never filed/],
+    ["no viewing, no verdict", /never given a viewing or a\s+verdict/,
       /never given a viewing or a\s+verdict/],
-    ["only the asked-for film is saved", /Only the film they asked to keep is being saved/,
-      /only the film they asked to keep is saved/],
-    ["a yes covers the whole flow", /A yes is the whole of the permission/,
+    ["only the kept film and the core are saved", /only the kept film and the core\s+are saved/,
+      /only the kept film and the core\s+are saved/],
+    ["a yes covers the whole flow", /A yes is the whole permission/,
       /A yes is the whole permission/],
-    ["and is never asked twice", /never ask a second time/, /never ask twice/],
+    ["and the Vibe is written with its core", /then the Vibe with its core/,
+      /then the Vibe with its core/],
+    ["and is never asked twice", /never ask twice/, /never ask twice/],
     ["a no settles it", /A no settles it\*\*, never saving the film loose/,
       /A no settles it\*\*, never saving the film loose/],
     ["propose while saving", /Propose while saving, not while recommending/,
@@ -1294,8 +1315,10 @@ test("the compact projection of the write flow says the same thing the skill doe
     ["a fitting Vibe skips it", /a Vibe that (genuinely )?fits needs none of this/,
       /a Vibe that (genuinely )?fits needs none of this/],
     ["a film in no Vibe is fine", /A film in no Vibe is legitimate/, /A film in no Vibe is legitimate/],
-    ["and is left alone", /Do not sort them, propose Vibes for them, or mention them\s*unasked/,
-      /Do not sort them, propose Vibes for them, or mention them\s*unasked/],
+    // M5 (S3): "never unasked" narrows only as far as stays true on both hosts —
+    // a film they ask about, or say something about, is no longer unasked.
+    ["and is left alone", /Do not sort them, propose Vibes for them, or mention them\s*unless they ask or speak of one/,
+      /Do not sort them, propose Vibes for them, or mention them\s*unless they ask or speak of one/],
   ];
 
   for (const [what, inSkill, inProjection] of behaviours) {
@@ -1355,11 +1378,13 @@ test("the compact projection of the taste model says the same thing the skill do
       /a Vibe that matches is a reason\s*the recommendation fits/,
       /A matching Vibe is a reason the recommendation fits/],
     ["it counts immediately", /counts from\s*the moment it exists/, /from the moment it exists/],
+    // M5: every new Vibe holds its core, so the illustration is a Vibe with only
+    // its core under it, and the projected rule is about a Vibe with no verdict.
     ["an empty Vibe says as much as a full one",
-      /nothing under it yet says as much about what\s*they like as one with ten films under it/,
+      /only its core under it says as much about\s*what they like as one with ten films under it/,
       // The projection carries the consequence rather than the illustration:
       // an empty Vibe is used, with reach and certainty varied.
-      /A Vibe with nothing under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
+      /A Vibe with no verdict under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
     ["a Genre is thinner", /A Genre is an ingredient/, /A Genre is an ingredient/],
     ["verdicts calibrate rather than gate",
       /Verdicts calibrate that evidence. They never decide whether it counts/,
@@ -1599,6 +1624,26 @@ test("nothing marked full-skill-only reaches the agent", () => {
   }
 });
 
+test("the projection is tonight-recommend's alone, and nothing of tonight-vibes reaches it", () => {
+  /**
+   * M5 (R3-2 of the plan). A ChatGPT project has one instruction slot and no
+   * second skill, so the projection is generated from `tonight-recommend` and
+   * nothing else. The Vibe lifecycle, the walk through existing Vibes and the
+   * grouping of a new user's first films are the plugin's: written in
+   * `tonight-vibes`, which a project never receives. What a project does get is
+   * the floor recommend states for itself — pinned in the test above.
+   */
+  const vibes = readFileSync(new URL("../../skills/tonight-vibes/SKILL.md", import.meta.url), "utf8");
+  for (const heading of vibes.match(/^##+ .+$/gm) ?? []) {
+    assert.equal(
+      PROJECT_INSTRUCTIONS.includes(heading),
+      false,
+      `"${heading}" is tonight-vibes' and has reached the project projection`,
+    );
+  }
+  assert.equal(PROJECT_INSTRUCTIONS.includes("name: tonight-vibes"), false);
+});
+
 test("an unbalanced marker is an error rather than a silent half-copy", () => {
   // Left to the regex, a missing `full:end` eats the rest of the file and a
   // missing `full:start` keeps a block. Both ship the wrong instructions and
@@ -1671,10 +1716,19 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "A yes is the whole permission",
     "never ask twice",
     "A film in no Vibe is legitimate",
-    "Do not sort them, propose Vibes for them, or mention them unasked",
+    // M5 (S3): narrowed to what stays true on both hosts.
+    "Do not sort them, propose Vibes for them, or mention them unless they ask or speak of one",
     "A recommendation is not a saved Movie",
     "ever ask for what their sentence gave you",
     "that is a verdict: `record_verdict`",
+    // M5 — the projected floor. However a film's working is put, it is a verdict
+    // in their words (S3); a proposed Vibe names its core and is written with it
+    // (S2); an empty model's one question is the films they love (S6).
+    "however put — that is a verdict",
+    "in their words, never stronger",
+    "name its core",
+    "then the Vibe with its core",
+    "two or three films you love",
     "arrive with `create_genre` and `create_vibe`",
     "Settle title and year first",
     // what Tonight is and is not — the boundary, stated so neither half is lost
