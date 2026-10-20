@@ -364,11 +364,25 @@ test("v4 stands beside what is there rather than rewriting any of it", async () 
   const sql = await fresh();
   await migrate(sql, upTo(3));
 
-  // Written through the store, because v3 is the shape the store already
-  // speaks — and what has to survive is a user's model, not a row layout.
+  // Written as v3 wrote it. The store wrote this through its own operations
+  // until v13, when a vibe began to need a core film — which needs the movie
+  // tables v4 creates — so the shape is now stated as the rows v3 holds.
   const store = sqlTasteStore(sql, { id: ALICE });
-  await store.createGenre({ name: "Sci-Fi", instruction: "I like ideas over spectacle." });
-  await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
+  await sql.query(
+    `INSERT INTO tonight_genres (user_id, name, instruction)
+     VALUES ($1, 'Sci-Fi', 'I like ideas over spectacle.')`,
+    [ALICE],
+  );
+  await sql.query(
+    `INSERT INTO tonight_mixes (user_id, name, instruction) VALUES ($1, 'Space Tension', 'Tense.')`,
+    [ALICE],
+  );
+  await sql.query(
+    `INSERT INTO tonight_mix_genres (user_id, mix_id, genre_id, position)
+     SELECT $1, m.id, g.id, 0 FROM tonight_mixes AS m, tonight_genres AS g
+      WHERE m.user_id = $1 AND g.user_id = $1`,
+    [ALICE],
+  );
 
   // `xmin` is the transaction that last wrote each row. An additive migration
   // has to leave all three untouched; a backfill, a rewritten default or a
@@ -395,6 +409,7 @@ test("v4 stands beside what is there rather than rewriting any of it", async () 
   assert.deepEqual(movies, []);
   assert.deepEqual(genres.map((one) => one.name), ["Sci-Fi"]);
   assert.deepEqual(vibes[0]?.movies, [], "a vibe arrived already naming something");
+  assert.equal(vibes[0]?.core, null, "a vibe arrived already anchored on something");
 });
 
 /**
@@ -616,6 +631,9 @@ test("v1 data survives the whole migration with its meaning intact", async () =>
         name: "Space Tension",
         instruction: "Contained, and nobody is safe.",
         genres: ["Sci-Fi", "Thriller"],
+        // Unanchored, and that is its meaning intact: nobody has said which film
+        // embodies it, so nothing has been chosen on their behalf.
+        core: null,
         movies: [],
       },
     ],
@@ -630,6 +648,7 @@ test("v1 data survives the whole migration with its meaning intact", async () =>
     ...taste.vibes.flatMap(Object.keys),
   ]);
   assert.deepEqual([...fields].sort(), [
+    "core",
     "createdAt",
     "genres",
     "instruction",
@@ -1663,4 +1682,119 @@ test("one user's legacy opinion cannot be dated by another user's history", asyn
     (await sqlVerdictStore(sql, { id: BEN } as never).standing())[0]?.judgement,
     "liked",
   );
+});
+
+/* ----------------------------------------------------- v13: a vibe's core */
+
+/** Whether a failure is the database refusing a foreign key. */
+const keyRefused = (error: unknown) => (error as { code?: string } | null)?.code === "23503";
+
+test("v13 stands beside every vibe, and a vibe from before it stays usable unanchored", async () => {
+  const sql = await fresh();
+  await migrate(sql, VERDICTS_SCHEMA);
+  await migrate(sql, upTo(12));
+  // Written the way every build before v13 wrote a vibe: no core anywhere.
+  await oldCode.createVibe(sql, "Space Tension", "Sci-Fi");
+  await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
+
+  const versions = async () =>
+    await sql.query<{ v: string }>(`SELECT xmin::text AS v FROM tonight_mixes WHERE user_id = $1`, [
+      ALICE,
+    ]);
+  const before = await versions();
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  // Additive: a nullable column and a key every existing row satisfies. Nothing
+  // is backfilled, because which film embodies a vibe is theirs to say.
+  assert.deepEqual(await versions(), before, "v13 rewrote a vibe it should only stand beside");
+
+  const store = sqlTasteStore(sql, { id: ALICE });
+  assert.equal((await store.taste()).vibes[0]?.core, null);
+
+  // Unanchored is not broken: it renames, takes new genres, and is anchored only
+  // when somebody names its core.
+  await store.createGenre({ name: "Thriller", instruction: "On edge." });
+  await store.updateVibe("Space Tension", { name: "Quiet Dread", genres: ["Sci-Fi", "Thriller"] });
+  assert.equal((await store.taste()).vibes[0]?.core, null, "an edit anchored the vibe by itself");
+
+  await store.updateVibe("Quiet Dread", { core: { title: "Arrival", year: 2016 } });
+  const [vibe] = (await store.taste()).vibes;
+  assert.deepEqual(vibe?.core, { title: "Arrival", year: 2016 });
+  assert.deepEqual(vibe?.movies, [{ title: "Arrival", year: 2016 }]);
+});
+
+test("the core's key holds at commit, against a build that has never heard of it", async () => {
+  // What a build from before S2 does to an anchored vibe, as the SQL it runs: it
+  // un-files and deletes films with no idea one of them is a core. The store's
+  // own refusals never run there, so the schema is the whole protection — and it
+  // answers at commit, after the statement itself has gone through.
+  const sql = await fresh();
+  await migrate(sql, VERDICTS_SCHEMA);
+  await migrate(sql, TASTE_SCHEMA);
+  const store = sqlTasteStore(sql, { id: ALICE });
+  await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+  await store.createVibe({
+    name: "Space Tension",
+    genres: ["Sci-Fi"],
+    instruction: "Tense.",
+    core: { title: "Arrival", year: 2016 },
+  });
+  await store.createMovie({ title: "Moon", year: 2009 });
+  const intact = await store.taste();
+
+  await assert.rejects(
+    () =>
+      sql.transaction(async (tx) => {
+        await tx.query(`DELETE FROM tonight_mix_movies WHERE user_id = $1`, [ALICE]);
+      }),
+    keyRefused,
+    "un-filing a core was allowed to commit",
+  );
+  await assert.rejects(
+    () =>
+      sql.transaction(async (tx) => {
+        await tx.query(`DELETE FROM tonight_movies WHERE user_id = $1 AND title = 'Arrival'`, [
+          ALICE,
+        ]);
+      }),
+    keyRefused,
+    "deleting a core was allowed to commit",
+  );
+  await assert.rejects(
+    () =>
+      sql.transaction(async (tx) => {
+        await tx.query(
+          `UPDATE tonight_mixes
+              SET core_movie_id = (SELECT id FROM tonight_movies WHERE user_id = $1 AND title = 'Moon')
+            WHERE user_id = $1`,
+          [ALICE],
+        );
+      }),
+    keyRefused,
+    "a core outside its vibe was allowed to commit",
+  );
+
+  // Deferred, not merely present: the old filing replacement deletes every row
+  // and writes the list back, and a core that is in the list again by commit is
+  // exactly as anchored as before.
+  await sql.transaction(async (tx) => {
+    const [movie] = await tx.query<{ id: string }>(
+      `SELECT id FROM tonight_movies WHERE user_id = $1 AND title = 'Arrival'`,
+      [ALICE],
+    );
+    await tx.query(`DELETE FROM tonight_mix_movies WHERE user_id = $1 AND movie_id = $2`, [
+      ALICE,
+      movie!.id,
+    ]);
+    await tx.query(
+      `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id)
+       SELECT $1, m.id, $2 FROM tonight_mixes AS m WHERE m.user_id = $1`,
+      [ALICE, movie!.id],
+    );
+  });
+
+  const after = await store.taste();
+  assert.deepEqual(after.vibes.map(orderVibe), intact.vibes.map(orderVibe));
+  assert.deepEqual(after.movies.map(orderMovie), intact.movies.map(orderMovie));
 });

@@ -205,7 +205,9 @@ export type ExpectedVibe = {
   name: string;
   genres: string[];
   instruction: string;
-  /** The films in it, which are put there from each film's own side. */
+  /** The film it is anchored on, as it is filed. Always one of `films`. */
+  core: { title: string; year: number };
+  /** The films in it: its core, and the ones put there from each film's own side. */
   films: { title: string; year: number }[];
 };
 
@@ -272,16 +274,31 @@ export function expected(steps: readonly Step[]): Expected {
       case "genre":
         genres.set(step.name, { name: step.name, instruction: step.instruction });
         break;
-      case "vibe":
+      case "vibe": {
+        // The core is filed by the vibe that names it. A film already saved
+        // keeps everything it had and gains this vibe; one nobody saved is saved
+        // here with its title and year and nothing else, because nobody said
+        // whether they watched it or which IMDb entry it is.
+        const saved = movies.get(filmKey(step.core));
+        if (saved) {
+          // A new list rather than a push: the one there may be the script's own.
+          if (!saved.vibes.includes(step.name)) saved.vibes = [...saved.vibes, step.name];
+        } else {
+          movies.set(filmKey(step.core), { film: step.core, viewing: null, imdbId: null, vibes: [step.name] });
+        }
+        const core = saved?.film ?? step.core;
         vibes.set(step.name, {
           name: step.name,
           genres: step.genres,
           instruction: step.instruction,
-          // Filled in below: a vibe's films arrive from the films' side, so they
-          // are not known until every film in the history has been filed.
+          // As filed: a core that was already saved is named the way it was saved.
+          core: { title: asFiled(core.title), year: core.year },
+          // Filled in below: apart from the core, a vibe's films arrive from the
+          // films' side, so they are not known until every film has been filed.
           films: [],
         });
         break;
+      }
       case "movie":
         movies.set(filmKey(step.film), {
           film: step.film,
@@ -359,8 +376,9 @@ export function expected(steps: readonly Step[]): Expected {
   });
 
   // A vibe holds the films that named it. Membership is written from the film's
-  // side — `update_movie` takes the vibes, `create_vibe` does not take the films
-  // — so it can only be worked out once every film in the history is filed.
+  // side — `update_movie` takes the vibes, and `create_vibe` takes one film only,
+  // its core, which the replay above filed from that film's side too — so it can
+  // only be worked out once every film in the history is filed.
   for (const vibe of vibes.values()) {
     vibe.films = [...movies.values()]
       .filter((movie) => movie.vibes.includes(vibe.name))
@@ -609,6 +627,9 @@ function observedRoot(root: Root): string {
         name: root.name,
         instruction: root.instruction,
         genres: root.genres,
+        // The anchor is part of what the vibe is, so a vibe that came back
+        // anchored on another film, or on none, is not the vibe that was made.
+        core: root.core ?? null,
         films: membership(root.films),
       });
     case "movie":
@@ -669,6 +690,7 @@ const wantedVibe = (one: ExpectedVibe) =>
     name: one.name,
     instruction: one.instruction,
     genres: one.genres,
+    core: one.core,
     films: membership(one.films),
   });
 
@@ -796,6 +818,7 @@ function wantedTaste(want: Expected): Record<string, string> {
         name: one.name,
         instruction: one.instruction,
         genres: one.genres,
+        core: one.core,
         movies: membership(one.films),
       })),
     ),

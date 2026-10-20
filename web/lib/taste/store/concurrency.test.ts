@@ -21,7 +21,9 @@ import { sqlTasteStore } from "./sql.ts";
  *     only visible while something else holds one of them;
  *   - and the three ways the filing can change *while* a deletion is taking
  *     those locks, each of which has to end in the right answer rather than in a
- *     deadlock or a half-held set.
+ *     deadlock or a half-held set;
+ *   - a vibe's core, written against each of the three writes that can take its
+ *     film away mid-flight: deleting the vibe, deleting the film, un-filing it.
  *
  * Every one of them asserts that the deletion is still blocked at the moment the
  * other connection acts. Without that the interleaving never happened and the
@@ -89,14 +91,21 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     for (const driver of opened) await driver.close().catch(() => {});
   });
 
-  /** A model of its own per test, so two of them cannot see each other's rows. */
+  /**
+   * A model of its own per test, so two of them cannot see each other's rows.
+   *
+   * Vibes first. A vibe's core is held by a deferred key into its films, so
+   * deleting the films of an anchored vibe on their own — each statement its own
+   * transaction here — fails at commit; deleting the vibe takes its filings with
+   * it. Then the films, then the genres, which nothing references by then.
+   */
   async function fresh(driver: SqlDriver, mark: string) {
     const owner = { id: `google:concurrent-${mark}` };
     for (const table of [
+      "tonight_mixes",
       "tonight_mix_movies",
       "tonight_mix_genres",
       "tonight_movies",
-      "tonight_mixes",
       "tonight_genres",
     ]) {
       await driver.query(`DELETE FROM ${table} WHERE user_id = $1`, [owner.id]);
@@ -141,6 +150,88 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
       return work.catch(() => {});
     });
     return { ready, release: () => release(), done: work };
+  }
+
+  /**
+   * Holds one vibe by name until it is let go, and says when it has it.
+   *
+   * The twin of `holdMovie`, for the core races: a core write holds its film and
+   * then waits here, which is the window in which something else reaches for
+   * that film.
+   */
+  function holdVibe(t: TestContext, driver: SqlDriver, owner: { id: string }, name: string) {
+    let release!: () => void;
+    let holding!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const ready = new Promise<void>((resolve) => (holding = resolve));
+
+    const work = driver.transaction(async (tx) => {
+      await tx.query(
+        `SELECT id FROM tonight_mixes WHERE user_id = $1 AND lower(name) = $2 FOR UPDATE`,
+        [owner.id, name],
+      );
+      holding();
+      await held;
+    });
+
+    t.after(() => {
+      release();
+      return work.catch(() => {});
+    });
+    return { ready, release: () => release(), done: work };
+  }
+
+  /**
+   * The same connection, stopped just after the first statement that reads a
+   * vibe's filings, until it is let go.
+   *
+   * What this makes deterministic is the window *between two reads* of one
+   * answer. A vibe being updated holds the vibe and none of its films, so another
+   * session may retitle a film while the update is still reading — and if the
+   * update read its films and its core in two statements, the retitle could land
+   * between them. Stopping after the first read and retitling there is the one
+   * interleaving that shows whether the two halves of the answer came from one
+   * snapshot.
+   */
+  function pausingAfterFilings(t: TestContext, driver: SqlDriver) {
+    let release!: () => void;
+    let reached!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const arrived = new Promise<void>((resolve) => (reached = resolve));
+    // Let go even when the test fails first, so no transaction is left waiting.
+    t.after(() => release());
+    let paused = false;
+    const stopped: SqlDriver = {
+      ...driver,
+      transaction: (work) =>
+        driver.transaction((tx) =>
+          work({
+            exec: (sql) => tx.exec(sql),
+            async query<Row>(sql: string, params?: readonly unknown[]) {
+              const rows = await tx.query<Row>(sql, params);
+              if (!paused && /\btonight_mix_movies\b/.test(sql)) {
+                paused = true;
+                reached();
+                await gate;
+              }
+              return rows;
+            },
+          }),
+        ),
+    };
+    return { driver: stopped, arrived, release: () => release() };
+  }
+
+  /** Whether a row is free right now: `FOR UPDATE NOWAIT` answers without waiting. */
+  async function free(driver: SqlDriver, sql: string, params: unknown[]): Promise<boolean> {
+    try {
+      await driver.transaction(async (tx) => {
+        await tx.query(sql, params);
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** A promise's state, without waiting on it. */
@@ -220,8 +311,14 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
 
     const store = sqlTasteStore(deleting, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
-    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
-    await store.createMovie({ title: "Arrival", year: 2016, vibes: ["Space Tension"] });
+    // Anchored on Arrival, which saves it and files it: the vibe holds exactly the
+    // one film this test needs.
+    await store.createVibe({
+      name: "Space Tension",
+      genres: ["Sci-Fi"],
+      instruction: "Tense.",
+      core: { title: "Arrival", year: 2016 },
+    });
 
     const hold = holdMovie(t, holder, owner, "arrival");
     await hold.ready;
@@ -285,8 +382,12 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const owner = await fresh(deleting, "bridge");
     const store = sqlTasteStore(deleting, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
-    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
-    await store.createMovie({ title: "Arrival", year: 2016, vibes: ["Space Tension"] });
+    await store.createVibe({
+      name: "Space Tension",
+      genres: ["Sci-Fi"],
+      instruction: "Tense.",
+      core: { title: "Arrival", year: 2016 },
+    });
 
     const hold = holdMovie(t, holder, owner, "arrival");
     await hold.ready;
@@ -338,11 +439,15 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
 
     const store = sqlTasteStore(deleting, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
-    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
     // "arrival" sorts before "moon", so the film that arrives late is the one the
     // canonical order says to lock first — the lock a vibe-holding deletion would
-    // have to reach backwards for.
-    await store.createMovie({ title: "Moon", year: 2009, vibes: ["Space Tension"] });
+    // have to reach backwards for. Moon is the core, which files it.
+    await store.createVibe({
+      name: "Space Tension",
+      genres: ["Sci-Fi"],
+      instruction: "Tense.",
+      core: { title: "Moon", year: 2009 },
+    });
     await store.createMovie({ title: "Arrival", year: 2016 });
 
     const before = await sqlTasteStore(filer, owner).taste();
@@ -419,8 +524,13 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
 
     const store = sqlTasteStore(deleting, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
-    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." });
-    await store.createMovie({ title: "Aaa", year: 2000, vibes: ["Space Tension"] });
+    // Aaa is the core, so the film that changes handle is an ordinary member.
+    await store.createVibe({
+      name: "Space Tension",
+      genres: ["Sci-Fi"],
+      instruction: "Tense.",
+      core: { title: "Aaa", year: 2000 },
+    });
     await store.createMovie({ title: "Arrival", year: 2016, vibes: ["Space Tension"] });
     await store.createMovie({ title: "Www", year: 2016 });
 
@@ -493,8 +603,12 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
 
     const store = sqlTasteStore(deleting, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
-    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "First." });
-    await store.createMovie({ title: "Arrival", year: 2016, vibes: ["Space Tension"] });
+    await store.createVibe({
+      name: "Space Tension",
+      genres: ["Sci-Fi"],
+      instruction: "First.",
+      core: { title: "Arrival", year: 2016 },
+    });
 
     const hold = holdMovie(t, holder, owner, "arrival");
     await hold.ready;
@@ -511,7 +625,14 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     // different vibe answering to the name the deletion resolved.
     const meanwhile = sqlTasteStore(other, owner);
     await meanwhile.updateVibe("Space Tension", { name: "Quiet Dread" });
-    await meanwhile.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Second." });
+    // Anchored on a different film: Arrival is held, and a core is held before
+    // anything else, so anchoring the newcomer on it would simply queue.
+    await meanwhile.createVibe({
+      name: "Space Tension",
+      genres: ["Sci-Fi"],
+      instruction: "Second.",
+      core: { title: "Moon", year: 2009 },
+    });
 
     hold.release();
     await hold.done;
@@ -531,5 +652,309 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
       ],
     );
     assert.deepEqual(after.movies[0]!.vibes, ["Quiet Dread"]);
+  });
+
+  // --- the core ------------------------------------------------------------
+  //
+  // A vibe's core is a column on the vibe with a deferred key into its films, so
+  // every core write touches both sides. The rule is the one the rest of this
+  // file is about: the film is held first, the vibe second. Each race below is
+  // one of the three writes that can take a core's film away while a core write
+  // is in flight — deleting the vibe, deleting the film, un-filing the film —
+  // and each asserts the interleaving actually happened before it asserts the
+  // outcome.
+
+  const ARRIVAL = { title: "Arrival", year: 2016 };
+  const MOON = { title: "Moon", year: 2009 };
+
+  test("a core change takes its film before it takes the vibe", async (t) => {
+    const writing = await connection();
+    const holder = await connection();
+    const watcher = await connection();
+    const owner = await fresh(writing, "core-order");
+
+    const store = sqlTasteStore(writing, owner);
+    await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: ARRIVAL });
+    await store.createMovie(MOON);
+
+    const hold = holdMovie(t, holder, owner, "moon");
+    await hold.ready;
+
+    const change = watch(store.updateVibe("Space Tension", { core: MOON }));
+    await pause(SETTLE);
+    assert.equal(change.state.settled, false, "it did not wait for the film; this proves nothing");
+
+    // The vibe must still be free: a core change that locked the vibe first and
+    // then waited for the film would be holding it right now.
+    assert.equal(
+      await free(
+        watcher,
+        `SELECT id FROM tonight_mixes WHERE user_id = $1 AND lower(name) = 'space tension' FOR UPDATE NOWAIT`,
+        [owner.id],
+      ),
+      true,
+      "the core change held the vibe while it waited for the film",
+    );
+
+    hold.release();
+    await hold.done;
+    await change.done;
+    assert.equal(change.state.error, undefined);
+
+    const [vibe] = (await sqlTasteStore(watcher, owner).taste()).vibes;
+    assert.deepEqual(vibe!.core, MOON);
+    assert.deepEqual(vibe!.movies, [ARRIVAL, MOON], "the old core stays, the new one is filed");
+  });
+
+  test("a core filed while the vibe is being deleted is picked up, not reached for", async (t) => {
+    // Core change against `deleteVibe`. The deletion reads the filing and starts
+    // locking; a core change then files a film it never saw — one that sorts
+    // *below* the film it is waiting on. The deletion has to let go and look
+    // again rather than take that film from inside the vibe lock.
+    const deleting = await connection();
+    const holder = await connection();
+    const anchoring = await connection();
+    const latecomer = await connection();
+    const watcher = await connection();
+    const owner = await fresh(deleting, "core-vs-delete-vibe");
+
+    const store = sqlTasteStore(deleting, owner);
+    await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: MOON });
+    await store.createMovie(ARRIVAL);
+
+    const hold = holdMovie(t, holder, owner, "moon");
+    await hold.ready;
+
+    const deletion = watch(store.deleteVibe("Space Tension"));
+    await pause(SETTLE);
+    assert.equal(deletion.state.settled, false, "the deletion did not reach the film it waits on");
+
+    // Takes Arrival, then the vibe — which the deletion does not hold yet — and
+    // files Arrival as the new core. It commits while the deletion still waits.
+    await sqlTasteStore(anchoring, owner).updateVibe("Space Tension", { core: ARRIVAL });
+
+    const late = holdMovie(t, latecomer, owner, "arrival");
+    await late.ready;
+
+    hold.release();
+    await hold.done;
+    await pause(SETTLE);
+    assert.equal(deletion.state.settled, false, "the deletion did not wait for the new core");
+
+    assert.equal(
+      await free(
+        watcher,
+        `SELECT id FROM tonight_mixes WHERE user_id = $1 AND lower(name) = 'space tension' FOR UPDATE NOWAIT`,
+        [owner.id],
+      ),
+      true,
+      "the deletion is holding the vibe while it waits for the core it never saw",
+    );
+
+    late.release();
+    await late.done;
+    await deletion.done;
+    assert.equal(deletion.state.error, undefined, "the core change broke the deletion");
+
+    const afterwards = await sqlTasteStore(watcher, owner).taste();
+    assert.deepEqual(afterwards.vibes, []);
+    // Both films stay saved: deleting a vibe never deletes its films, its core
+    // included.
+    assert.deepEqual(
+      afterwards.movies.map((one) => [one.title, one.vibes]),
+      [
+        ["Arrival", []],
+        ["Moon", []],
+      ],
+    );
+  });
+
+  test("a film being made a core cannot be deleted underneath it", async (t) => {
+    // Core change against `deleteMovie`. The core change holds the film and
+    // waits for the vibe; the deletion then reaches for the same film and must
+    // wait, and when it gets it the film is a core and the deletion is refused
+    // with a sentence — never a foreign-key error at commit.
+    const anchoring = await connection();
+    const holder = await connection();
+    const deleting = await connection();
+    const watcher = await connection();
+    const owner = await fresh(anchoring, "core-vs-delete-movie");
+
+    const store = sqlTasteStore(anchoring, owner);
+    await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: ARRIVAL });
+    await store.createMovie(MOON);
+
+    const vibe = holdVibe(t, holder, owner, "space tension");
+    await vibe.ready;
+
+    const change = watch(store.updateVibe("Space Tension", { core: MOON }));
+    await pause(SETTLE);
+    assert.equal(change.state.settled, false, "the core change did not wait for the vibe");
+
+    const deletion = watch(sqlTasteStore(deleting, owner).deleteMovie(MOON.title, MOON.year));
+    await pause(SETTLE);
+    assert.equal(deletion.state.settled, false, "the deletion did not wait for the film being anchored");
+
+    vibe.release();
+    await vibe.done;
+    await change.done;
+    await deletion.done;
+
+    assert.equal(change.state.error, undefined);
+    assert.ok(deletion.state.error instanceof TasteError, "the deletion was not refused with a sentence");
+    assert.match(
+      (deletion.state.error as TasteError).message,
+      /^cannot delete "Moon" \(2009\): it is the core of the vibe "Space Tension"/,
+    );
+
+    const afterwards = await sqlTasteStore(watcher, owner).taste();
+    assert.deepEqual(afterwards.vibes[0]!.core, MOON);
+    assert.deepEqual(afterwards.vibes[0]!.movies, [ARRIVAL, MOON]);
+  });
+
+  test("a film being made a core cannot be un-filed underneath it", async (t) => {
+    // Core change against `updateMovie` un-filing. The same shape as the
+    // deletion above: the un-filing waits for the film, then finds it a core and
+    // is refused, and the film stays where its vibe needs it.
+    const anchoring = await connection();
+    const holder = await connection();
+    const unfiling = await connection();
+    const watcher = await connection();
+    const owner = await fresh(anchoring, "core-vs-unfile");
+
+    const store = sqlTasteStore(anchoring, owner);
+    await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: ARRIVAL });
+    await store.createMovie({ ...MOON, vibes: ["Space Tension"] });
+
+    const vibe = holdVibe(t, holder, owner, "space tension");
+    await vibe.ready;
+
+    const change = watch(store.updateVibe("Space Tension", { core: MOON }));
+    await pause(SETTLE);
+    assert.equal(change.state.settled, false, "the core change did not wait for the vibe");
+
+    const unfile = watch(sqlTasteStore(unfiling, owner).updateMovie(MOON.title, MOON.year, { vibes: [] }));
+    await pause(SETTLE);
+    assert.equal(unfile.state.settled, false, "the un-filing did not wait for the film being anchored");
+
+    vibe.release();
+    await vibe.done;
+    await change.done;
+    await unfile.done;
+
+    assert.equal(change.state.error, undefined);
+    assert.ok(unfile.state.error instanceof TasteError, "the un-filing was not refused with a sentence");
+    assert.match(
+      (unfile.state.error as TasteError).message,
+      /^cannot take "Moon" \(2009\) out of the vibe "Space Tension": it is the core there/,
+    );
+
+    const afterwards = await sqlTasteStore(watcher, owner).taste();
+    assert.deepEqual(afterwards.vibes[0]!.core, MOON);
+    assert.deepEqual(
+      afterwards.movies.map((one) => [one.title, one.vibes]),
+      [
+        ["Arrival", ["Space Tension"]],
+        ["Moon", ["Space Tension"]],
+      ],
+    );
+  });
+
+  test("whichever of an un-filing and a core change wins, the core ends up in its vibe", async (t) => {
+    // The same two writes queued on the film the other way round: the un-filing
+    // first. Postgres hands a row lock to its waiters in turn, but nothing here
+    // depends on which goes first — either the un-filing lands and the core
+    // change files the film again, or the core change lands and the un-filing is
+    // refused. What may not happen is a core outside its vibe, a deadlock, or a
+    // key failing at commit.
+    const anchoring = await connection();
+    const holder = await connection();
+    const unfiling = await connection();
+    const watcher = await connection();
+    const owner = await fresh(anchoring, "unfile-then-core");
+
+    const store = sqlTasteStore(anchoring, owner);
+    await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: ARRIVAL });
+    await store.createMovie({ ...MOON, vibes: ["Space Tension"] });
+
+    const hold = holdMovie(t, holder, owner, "moon");
+    await hold.ready;
+
+    const unfile = watch(sqlTasteStore(unfiling, owner).updateMovie(MOON.title, MOON.year, { vibes: [] }));
+    await pause(SETTLE);
+    const change = watch(store.updateVibe("Space Tension", { core: MOON }));
+    await pause(SETTLE);
+    assert.equal(unfile.state.settled, false, "the un-filing did not wait for the film");
+    assert.equal(change.state.settled, false, "the core change did not wait for the film");
+
+    hold.release();
+    await hold.done;
+    await unfile.done;
+    await change.done;
+
+    assert.equal(change.state.error, undefined, "the core change failed");
+    if (unfile.state.error !== undefined) {
+      assert.ok(unfile.state.error instanceof TasteError, "the un-filing failed with something other than a refusal");
+      assert.match((unfile.state.error as TasteError).message, /it is the core there/);
+    }
+
+    const afterwards = await sqlTasteStore(watcher, owner).taste();
+    assert.deepEqual(afterwards.vibes[0]!.core, MOON);
+    assert.deepEqual(
+      afterwards.movies.find((one) => one.title === "Moon")!.vibes,
+      ["Space Tension"],
+      "the core was left outside its vibe",
+    );
+  });
+
+  test("a vibe's answer names its core among its own films, whatever is retitled meanwhile", async (t) => {
+    // Codex's implementation review reproduced this: an update holding the vibe
+    // read its films, a retitle of the core committed, then the update read its
+    // core — and answered with a core whose handle was not among its own films.
+    // The fix is one statement for both, not a film lock taken after the vibe's.
+    const updating = await connection();
+    const retitling = await connection();
+    const owner = await fresh(updating, "core-snapshot");
+
+    await sqlTasteStore(updating, owner).createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+    await sqlTasteStore(updating, owner).createVibe({
+      name: "Space Tension",
+      genres: ["Sci-Fi"],
+      instruction: "Tense.",
+      core: ARRIVAL,
+    });
+
+    const paused = pausingAfterFilings(t, updating);
+    const update = watch(
+      sqlTasteStore(paused.driver, owner).updateVibe("Space Tension", { instruction: "Tenser." }),
+    );
+    await paused.arrived;
+
+    // The update holds the vibe and no film, so this does not wait for it.
+    await sqlTasteStore(retitling, owner).updateMovie(ARRIVAL.title, ARRIVAL.year, {
+      title: "Arrival (Director's Cut)",
+    });
+
+    paused.release();
+    const answered = await update.done;
+    assert.equal(update.state.error, undefined);
+    assert.ok(answered, "the update gave no answer");
+    assert.ok(answered.core, "the update lost its core");
+    assert.ok(
+      answered.movies.some(
+        (film) => film.title === answered.core!.title && film.year === answered.core!.year,
+      ),
+      `the answer's core ${JSON.stringify(answered.core)} is not among its films ${JSON.stringify(answered.movies)}`,
+    );
+
+    // And the model itself is consistent afterwards, under the new title.
+    const [vibe] = (await sqlTasteStore(retitling, owner).taste()).vibes;
+    assert.deepEqual(vibe!.core, { title: "Arrival (Director's Cut)", year: 2016 });
+    assert.deepEqual(vibe!.movies, [{ title: "Arrival (Director's Cut)", year: 2016 }]);
   });
 });

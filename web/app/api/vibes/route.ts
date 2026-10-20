@@ -9,6 +9,7 @@ export async function POST(request: Request): Promise<Response> {
       name: given(body, "name"),
       instruction: given(body, "instruction"),
       genres: given(body, "genres"),
+      core: given(body, "core"),
     });
     return { taste: await store.taste() };
   });

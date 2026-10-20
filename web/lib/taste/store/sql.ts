@@ -4,6 +4,7 @@ import type { AuthenticatedUser } from "../../identity.ts";
 import {
   byName,
   byTitle,
+  checkCore,
   checkImdbId,
   checkInstruction,
   checkVibeGenres,
@@ -19,6 +20,7 @@ import {
   vibeBusy,
   vibeGenreMissing,
   vibeNotFound,
+  movieAnchorsVibe,
   movieExists,
   movieImdbTaken,
   movieVibeMissing,
@@ -208,10 +210,21 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
       });
     },
 
+    /**
+     * Creates a vibe anchored on its core, and files the core in it.
+     *
+     * Movie side before vibe side, as everywhere: the core film is held — or
+     * saved, when it is not saved yet — before anything else is locked, so a
+     * deletion or a re-filing of that film either finishes first or waits for
+     * this. The vibe row names its core before the membership row exists, which
+     * the deferred key on the core allows; by commit the two agree, or nothing is
+     * written.
+     */
     async createVibe(draft) {
       return driver.transaction(async (tx) => {
         const genres = await readGenres(tx, owner);
         const { vibe: entry, references } = await validateVibe(tx, draft, genres);
+        const core = await holdCore(tx, owner, checkCore(draft.core, "create"));
         await holdGenres(tx, owner, references, genres);
 
         // The id Postgres generated for this vibe, taken from the statement that
@@ -220,9 +233,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         let created;
         try {
           created = await tx.query<{ id: string }>(
-            `INSERT INTO tonight_mixes (user_id, name, instruction) VALUES ($1, $2, $3)
+            `INSERT INTO tonight_mixes (user_id, name, instruction, core_movie_id)
+             VALUES ($1, $2, $3, $4)
              RETURNING id`,
-            [owner, entry.name, entry.instruction],
+            [owner, entry.name, entry.instruction, core.id],
           );
         } catch (error) {
           if (isSqlState(error, UNIQUE_VIOLATION)) throw vibeExists(entry.name);
@@ -230,7 +244,8 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         }
 
         await writeVibeGenres(tx, owner, created[0]!.id, references);
-        return entry;
+        await fileCore(tx, owner, created[0]!.id, core);
+        return orderVibe({ ...entry, core: core.handle, movies: [core.handle] });
       });
     },
 
@@ -242,11 +257,19 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
       return driver.transaction(async (tx) => {
         const renamingTo = changes.name === undefined ? undefined : checkName(changes.name, "vibe");
 
+        // A new core is held — or saved — before the vibe is locked, which is the
+        // order every path here takes: holding the vibe and then reaching for a
+        // film is the half of the cycle this store never takes.
+        const core =
+          changes.core === undefined
+            ? undefined
+            : await holdCore(tx, owner, checkCore(changes.core, "update"));
+
         const { source: current, destination } = await lockVibe(tx, owner, name, renamingTo);
         if (!current) throw vibeNotFound(name);
         if (destination && destination.name !== current.name) throw vibeExists(destination.name);
 
-        const core = {
+        const wording = {
           name: renamingTo === undefined ? current.name : renamingTo,
           instruction:
             changes.instruction === undefined ? current.instruction : changes.instruction,
@@ -268,33 +291,49 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         let entry: Vibe;
         if (changes.genres === undefined) {
           entry = orderVibe({
-            ...validateVibeCore(core),
+            ...validateVibeText(wording),
             genres: current.genres,
+            core: current.core,
             movies: current.movies,
           });
         } else {
           const genres = await readGenres(tx, owner);
-          const validated = await validateVibe(tx, { ...core, genres: changes.genres }, genres);
+          const validated = await validateVibe(tx, { ...wording, genres: changes.genres }, genres);
           // Changing which genres a vibe is built from does not change which movies
           // are filed under it, so the answer keeps the ones it had.
-          entry = orderVibe({ ...validated.vibe, movies: current.movies });
+          entry = orderVibe({ ...validated.vibe, core: current.core, movies: current.movies });
           references = validated.references;
           await holdGenres(tx, owner, references, genres);
         }
 
+        // The core is the vibe's own field, so changing it writes this row and
+        // dates the vibe. Left out, the stored one is kept — including the null
+        // of a vibe nobody has anchored yet.
         let changed;
         try {
           changed = await tx.query(
-            `UPDATE tonight_mixes SET name = $3, instruction = $4
+            `UPDATE tonight_mixes
+                SET name = $3, instruction = $4, core_movie_id = COALESCE($5::uuid, core_movie_id)
               WHERE user_id = $1 AND id = $2
              RETURNING name`,
-            [owner, current.id, entry.name, entry.instruction],
+            [owner, current.id, entry.name, entry.instruction, core?.id ?? null],
           );
         } catch (error) {
           if (isSqlState(error, UNIQUE_VIOLATION)) throw vibeExists(entry.name);
           throw error;
         }
         if (!changed.length) throw vibeNotFound(name);
+
+        // The film the core replaces is not touched: it stays filed here as an
+        // ordinary member. The new one is filed if it was not already.
+        if (core) {
+          const filed = await fileCore(tx, owner, current.id, core);
+          entry = orderVibe({
+            ...entry,
+            core: core.handle,
+            movies: filed ? byTitle([...entry.movies, core.handle]) : entry.movies,
+          });
+        }
 
         // Replaced rather than merged: passing `genres` says what the vibe is
         // built from now, and the model refuses an empty list, so a vibe can never
@@ -410,6 +449,20 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         if (changes.vibes !== undefined) {
           const known = await readVibeRows(tx, owner);
           filings = await resolveVibes(tx, checkMovieVibes(changes.vibes), known);
+
+          // A film cannot leave a vibe it anchors. Asked while this film is held,
+          // which is what keeps the answer current: every write that makes a film
+          // a core holds that film first, so none can land between this question
+          // and the write below. The deferred key would refuse it at commit
+          // anyway; asking is what lets the refusal name the vibes.
+          const keeping = new Set(filings.map((filing) => filing.id));
+          const leaving = (await anchoredBy(tx, owner, current.id)).filter(
+            (vibe) => !keeping.has(vibe.id),
+          );
+          if (leaving.length) {
+            throw movieAnchorsVibe(current.title, current.year, filingNames(leaving), "unfile");
+          }
+
           await holdVibes(tx, owner, filings, known);
         }
 
@@ -450,6 +503,13 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           year: checkYear(year),
         });
         if (!entry) throw movieNotFound(title, year);
+
+        // Refused while it anchors a vibe, and asked while it is held — see
+        // `updateMovie` for why that keeps the answer current.
+        const anchored = await anchoredBy(tx, owner, entry.id);
+        if (anchored.length) {
+          throw movieAnchorsVibe(entry.title, entry.year, filingNames(anchored), "delete");
+        }
 
         // What it was filed under, read before the rows cascade away, so the
         // answer describes the movie that existed a moment ago.
@@ -817,7 +877,7 @@ async function lockVibe(
 ): Promise<{ source?: Stored<Vibe>; destination?: Stored<Vibe> }> {
   const { source, destination } = await lockNames(sql, "tonight_mixes", owner, name, renamingTo);
   const empty = (row: NamedRow): Stored<Vibe> => ({
-    ...orderVibe({ ...row, genres: [], movies: [] }),
+    ...orderVibe({ ...row, genres: [], core: null, movies: [] }),
     id: row.id,
   });
   if (!source) return { destination: destination && empty(destination) };
@@ -835,14 +895,23 @@ async function lockVibe(
   );
   // Its movies too, so what a delete or an update answers with is the vibe as it
   // actually stood. Handles, because a title alone does not identify a film.
-  const filed = await sql.query<{ title: string; year: number }>(
-    `SELECT v.title, v.year
-       FROM tonight_mix_movies AS r
+  //
+  // The core comes out of the same statement, marked on its own row, and that is
+  // the point of it being one statement. Holding the vibe holds none of its films
+  // — a film is never locked after its vibe — so another session can retitle the
+  // core between two reads, and two reads would answer with a core whose handle is
+  // not among the vibe's own films. One statement is one snapshot: the core is
+  // always one of the handles listed beside it.
+  const filed = await sql.query<{ title: string; year: number; core: boolean }>(
+    `SELECT v.title, v.year, v.id IS NOT DISTINCT FROM m.core_movie_id AS core
+       FROM tonight_mixes AS m
+       JOIN tonight_mix_movies AS r ON r.user_id = m.user_id AND r.mix_id = m.id
        JOIN tonight_movies AS v ON v.user_id = r.user_id AND v.id = r.movie_id
-      WHERE r.user_id = $1 AND r.mix_id = $2
+      WHERE m.user_id = $1 AND m.id = $2
       ORDER BY lower(v.title), v.year`,
     [owner, source.id],
   );
+  const core = filed.find((film) => film.core);
 
   return {
     source: {
@@ -850,12 +919,107 @@ async function lockVibe(
         name: source.name,
         instruction: source.instruction,
         genres: references.map((reference) => reference.genre),
+        core: core ? orderHandle(core) : null,
         movies: filed.map(orderHandle),
       }),
       id: source.id,
     },
     destination: destination && empty(destination),
   };
+}
+
+/**
+ * A film a vibe is being anchored on: which row, the handle a caller is shown,
+ * and whether this transaction is the one that saved it.
+ */
+type Core = { id: string; handle: MovieHandle; saved: boolean };
+
+/**
+ * Holds the film a vibe is being anchored on — saving it first when it is not
+ * saved yet — and says which it was.
+ *
+ * Held `FOR UPDATE`, through `lockMovies`: the same lock, taken the same way,
+ * that every other write to a film takes before it touches a vibe. So a deletion
+ * of the film, a re-filing of it, or a vibe deletion holding it all either
+ * finish before this or wait until it commits, and whichever runs second sees
+ * the core the other left behind.
+ *
+ * A film that is not saved is saved here, with its title and year and nothing
+ * else: no viewing and no IMDb id, because nobody said either. Anchoring a vibe
+ * on a film somebody stands behind is often the first time that film is written
+ * down at all — a verdict never saves one — and doing it in this transaction is
+ * what means a vibe refused a moment later leaves no loose film behind.
+ *
+ * Two of these can race to save the same film. The insert gives way to the
+ * other's row rather than failing, and the row is then held like any other.
+ */
+async function holdCore(sql: Transaction, owner: string, wanted: MovieHandle): Promise<Core> {
+  for (let attempt = 1; ; attempt += 1) {
+    const { source: found } = await lockMovies(sql, owner, wanted);
+    if (found) {
+      return { id: found.id, handle: orderHandle(found), saved: false };
+    }
+
+    const [inserted] = await sql.query<{ id: string }>(
+      `INSERT INTO tonight_movies (user_id, title, canonical_title, year)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, canonical_title, year) DO NOTHING
+       RETURNING id`,
+      [owner, wanted.title, canonicalTitle(wanted.title), wanted.year],
+    );
+    if (inserted) return { id: inserted.id, handle: orderHandle(wanted), saved: true };
+
+    // Saved by somebody else between the look and the insert, and gone again
+    // before this could hold it. Looking once more settles anything that is not
+    // a caller in a loop.
+    if (attempt === CORE_ATTEMPTS) throw movieNotFound(wanted.title, wanted.year);
+  }
+}
+
+/** How many times `holdCore` looks again; see `DELETION_ATTEMPTS` for why three. */
+const CORE_ATTEMPTS = 3;
+
+/**
+ * Files a vibe's core in it, unless it is filed there already, and says whether
+ * it had to.
+ *
+ * Filing a film is a change to the film, so a film that was already saved is
+ * dated by it, exactly as `update_movie` filing it would date it. One saved by
+ * this same transaction is not: it was written a moment ago, and dating it again
+ * would make it look changed since it was created.
+ */
+async function fileCore(
+  sql: Transaction,
+  owner: string,
+  vibeId: string,
+  core: Core,
+): Promise<boolean> {
+  const added = await sql.query(
+    `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id) VALUES ($1, $2, $3)
+     ON CONFLICT DO NOTHING
+     RETURNING movie_id`,
+    [owner, vibeId, core.id],
+  );
+  if (added.length && !core.saved) {
+    await sql.query(
+      `UPDATE tonight_movies SET updated_at = updated_at WHERE user_id = $1 AND id = $2`,
+      [owner, core.id],
+    );
+  }
+  return added.length > 0;
+}
+
+/**
+ * The vibes a film is the core of, by id and stored name.
+ *
+ * Only meaningful while the film is held: every write that makes a film a core
+ * holds that film first, so the set cannot grow under the caller.
+ */
+async function anchoredBy(sql: Transaction, owner: string, movieId: string): Promise<Reference[]> {
+  return sql.query<Reference>(
+    `SELECT id, name FROM tonight_mixes WHERE user_id = $1 AND core_movie_id = $2`,
+    [owner, movieId],
+  );
 }
 
 /**
@@ -1133,11 +1297,22 @@ async function readVibes(sql: Transaction, owner: string): Promise<Written<Vibe>
     [owner],
   );
 
+  // The film each anchored vibe is anchored on. A vibe nobody has anchored yet is
+  // simply absent here and keeps its `null`.
+  const cores = await sql.query<{ mix_id: string; title: string; year: number }>(
+    `SELECT m.id AS mix_id, v.title, v.year
+       FROM tonight_mixes AS m
+       JOIN tonight_movies AS v ON v.user_id = m.user_id AND v.id = m.core_movie_id
+      WHERE m.user_id = $1`,
+    [owner],
+  );
+
   const vibes = rows.map((row) => ({
     id: row.id,
     name: row.name,
     instruction: row.instruction,
     genres: [] as string[],
+    core: null as MovieHandle | null,
     movies: [] as MovieHandle[],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -1146,6 +1321,10 @@ async function readVibes(sql: Transaction, owner: string): Promise<Written<Vibe>
   for (const row of references) byId.get(row.mix_id)?.genres.push(row.genre);
   for (const row of filed) {
     byId.get(row.mix_id)?.movies.push(orderHandle({ title: row.title, year: row.year }));
+  }
+  for (const row of cores) {
+    const vibe = byId.get(row.mix_id);
+    if (vibe) vibe.core = orderHandle({ title: row.title, year: row.year });
   }
 
   return byName(vibes).map((vibe) => written(orderVibe(vibe), vibe));
@@ -1388,16 +1567,18 @@ function validateGenre(draft: GenreDraft): Genre {
  */
 async function validateVibe(
   sql: Transaction,
-  draft: VibeDraft,
+  draft: Omit<VibeDraft, "core">,
   genres: readonly Stored<Genre>[],
 ): Promise<{ vibe: Vibe; references: Reference[] }> {
   const references = await resolveGenres(sql, checkVibeGenres(draft.genres), genres);
   return {
     vibe: orderVibe({
-      ...validateVibeCore(draft),
+      ...validateVibeText(draft),
       genres: references.map((one) => one.name),
-      // Creating a vibe files no movies, and updating its genres does not change
-      // which are filed under it — the caller supplies the real list.
+      // The core and the films are not this function's: creating a vibe files
+      // its core and nothing else, updating its genres changes neither, and the
+      // caller supplies both.
+      core: null,
       movies: [],
     }),
     references,
@@ -1405,13 +1586,14 @@ async function validateVibe(
 }
 
 /**
- * The parts of a vibe that can be judged without knowing what else exists.
+ * The parts of a vibe that can be judged without knowing what else exists: its
+ * name and its sentence.
  *
  * Split out because an update that does not mention genres has nothing to
  * resolve: its references are already correct, and asking about them again is
  * what this fixes.
  */
-function validateVibeCore(draft: { name: unknown; instruction: unknown }): {
+function validateVibeText(draft: { name: unknown; instruction: unknown }): {
   name: string;
   instruction: string;
 } {

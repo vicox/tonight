@@ -164,12 +164,12 @@ method ships in the skill beside the server rather than as a runtime tool.
 | `create_genre` | a Genre, with the instruction that says what it means to this user |
 | `update_genre` | reword or rename. A rename rewrites every Vibe built from it |
 | `delete_genre` | refused while a Vibe is built from it, and the refusal names the Vibes |
-| `create_vibe` | a Vibe over one or more existing Genres |
-| `update_vibe` | reword, rename, or replace the Genres it is built from |
+| `create_vibe` | a Vibe over one or more existing Genres, anchored on the one film that best embodies it |
+| `update_vibe` | reword, rename, replace the Genres it is built from, or anchor it on a new core |
 | `delete_vibe` | always allowed; the Genres it combined are untouched |
 | `create_movie` | a film the user named, and whether they said they watched it |
-| `update_movie` | retitle, correct the year, change its viewing, or change which Vibes it is in |
-| `delete_movie` | removes the film they asked to remove; the Vibes it was in are untouched |
+| `update_movie` | retitle, correct the year, change its viewing, or change which Vibes it is in — never out of one it anchors |
+| `delete_movie` | removes the film they asked to remove; refused while it anchors a Vibe; the Vibes it was in are untouched |
 | `record_verdict` | what they said about one film: a judgement, or a refusal with its reach |
 | `withdraw_verdict` | they no longer stand by it. The claim stops applying; that they said it stays |
 | `forget_verdict` | one act removed outright, by the reference `get_memory` gave it |
@@ -218,9 +218,15 @@ addressed from outside, and there is no id in any tool schema or any answer.
   Movie to put one. Taking a Verdict back removes that act from what stands and reaches exactly
   as far as the act did: no weaker opinion is revealed underneath it in that scope, and a
   withdrawn evening's `not-tonight` leaves a global judgement applying where it was.
-- **Deleting a Movie is always allowed**, and takes only its Vibe memberships with it. A Vibe is
-  *defined by* its Genres and merely *holds* Movies, which is why one restricts and the other
-  cascades.
+- **A Vibe is anchored on one core Movie**, the film that best embodies it, and the core is always
+  one of its own films: a column on the Vibe with a deferred foreign key into its memberships. A
+  core is required to create a Vibe, can be replaced — the old one stays a member — and is never
+  cleared. A Vibe from before cores existed reads `core: null` and works as it is until somebody
+  chooses its core; nothing anchors one automatically.
+- **Deleting a Movie is allowed unless it anchors a Vibe**, and takes only its Vibe memberships
+  with it. A Vibe is *defined by* its Genres and its core, and merely *holds* its other Movies,
+  which is why those restrict and the rest cascade. Taking a core out of its Vibe is refused the
+  same way, and both refusals name the Vibes.
 
 ## The website
 

@@ -1190,5 +1190,75 @@ export const TASTE_SCHEMA: SchemaModule = {
         ALTER TABLE tonight_movies DROP COLUMN state;
       `,
     },
+
+    /**
+     * EXPAND. A vibe is anchored on one film: its core.
+     *
+     * The core is the film that best embodies the vibe, and it is always one of
+     * the vibe's own films. It is a column on the vibe rather than a flag on the
+     * membership row, and the reasons are the whole design:
+     *
+     *   - **"Exactly one" is one column.** At most one is the shape; at least one
+     *     is `NOT NULL`, which a later contract migration adds once every vibe has
+     *     one. A flag would need a partial unique index for the first and a
+     *     trigger for the second.
+     *   - **"The core is a member" is a foreign key** into the membership table,
+     *     on `(user_id, mix_id, movie_id)` — its primary key — so a core cannot
+     *     name a film the vibe does not hold, and cannot name another user's.
+     *   - **Removing the core breaks that key.** Un-filing it or deleting the film
+     *     cascades its membership row away and the reference is left dangling, so
+     *     the write fails — the same protection `RESTRICT` gives a genre a vibe
+     *     needs, falling out of the schema rather than written as a check. The
+     *     store asks first only so the refusal can name the vibes.
+     *   - **The timestamp lands on the right owner.** Changing the core writes the
+     *     vibe's own row, so `tonight_mixes_written_at` dates the vibe. A flag on
+     *     the membership row would date the film, through
+     *     `tonight_mix_movies_touch`.
+     *   - **No table.** The five roots stay five.
+     *
+     * ## Deferred, and why that is not a loophole
+     *
+     * `DEFERRABLE INITIALLY DEFERRED`: checked at commit, not per statement. Two
+     * writes need it. A new vibe is inserted naming its core before the core's
+     * membership row can exist, since that row references the vibe; and
+     * `update_movie` replaces a film's filings by deleting them all and writing
+     * them back, so a core that is filed again in the same call is briefly
+     * unfiled. What is checked at commit is the state the transaction leaves, and
+     * a transaction that leaves a core outside its vibe fails as a whole.
+     *
+     * `MATCH SIMPLE`, the default, said out loud: a `NULL` core is not checked.
+     * That is what lets every vibe written before this migration go on reading,
+     * renaming and being re-genred untouched — a pre-M5 vibe is anchored by a
+     * person choosing its core, never by a backfill, because which film embodies
+     * an idea is a judgement about what they said.
+     *
+     * ## Order of the release
+     *
+     * Migrate, then deploy. Adding a nullable column and a constraint every
+     * existing row satisfies is safe for the build already running, with one edge:
+     * that build does not know a core exists, so once a newer build has anchored a
+     * vibe, an old-build `delete_movie` or un-filing of that film fails at commit
+     * on this key rather than being refused with a sentence. Loud and correct, but
+     * a failure — stop the application for the swap, as the README describes, or
+     * accept it for the minutes the two builds overlap.
+     */
+    {
+      version: 13,
+      sql: `
+        ALTER TABLE tonight_mixes ADD COLUMN core_movie_id uuid;
+
+        ALTER TABLE tonight_mixes
+          ADD CONSTRAINT tonight_mixes_core
+            FOREIGN KEY (user_id, id, core_movie_id)
+            REFERENCES tonight_mix_movies (user_id, mix_id, movie_id)
+            MATCH SIMPLE
+            DEFERRABLE INITIALLY DEFERRED;
+
+        -- "Which vibes is this film the core of", asked before every delete and
+        -- every re-filing of a film, without a scan.
+        CREATE INDEX tonight_mixes_core_index
+          ON tonight_mixes (user_id, core_movie_id) WHERE core_movie_id IS NOT NULL;
+      `,
+    },
   ],
 };

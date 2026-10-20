@@ -101,6 +101,12 @@ export const WEDNESDAY = "evening-wednesday";
  *
  * The wording avoids the vocabulary gate 7 searches the payload for, so that a
  * baseline can never be mistaken for a leak.
+ *
+ * Since M5 a vibe is written with its core, and the vibe's is the baseline film:
+ * seen, and the one they loved, which is what a core is. The film is saved
+ * before the vibe names it, so the vibe files it rather than saving it again —
+ * and a leak that unfiled it, or re-anchored the vibe, is one more thing that
+ * moved where a gate can see it.
  */
 export const BASELINE = {
   genres: [
@@ -108,7 +114,12 @@ export const BASELINE = {
     { name: "Heist", instruction: "a crew, a plan, a complication" },
   ],
   vibes: [
-    { name: "Long Nights", genres: ["Slow Burn"], instruction: "when there is room to let it unfold" },
+    {
+      name: "Long Nights",
+      genres: ["Slow Burn"],
+      instruction: "when there is room to let it unfold",
+      core: heat,
+    },
   ],
   movies: [{ ...heat, viewing: "seen" as const }],
   /**

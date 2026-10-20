@@ -119,11 +119,18 @@ async function call(bearer, name, args = {}) {
   return answer.result;
 }
 
-/** Empties a fixture user, so seeding is idempotent. Movies, then vibes, then genres. */
+/**
+ * Empties a fixture user, so seeding is idempotent, and does it on every run.
+ *
+ * Vibes, then movies, then genres — the order the dependencies come apart in.
+ * Deleting a vibe releases its core (a film that anchors a vibe cannot be
+ * deleted), its memberships, and the genres it holds `RESTRICT`ed; the movies are
+ * then ordinary films; the genres are then referenced by nothing.
+ */
 async function clear(bearer) {
   const taste = (await call(bearer, "get_taste")).structuredContent;
-  for (const movie of taste.movies) await call(bearer, "delete_movie", { title: movie.title, year: movie.year });
   for (const vibe of taste.vibes) await call(bearer, "delete_vibe", { name: vibe.name });
+  for (const movie of taste.movies) await call(bearer, "delete_movie", { title: movie.title, year: movie.year });
   for (const genre of taste.genres) await call(bearer, "delete_genre", { name: genre.name });
 
   // Verdicts too, and they are a second store: a run that began with the last
@@ -147,18 +154,25 @@ async function seed(id) {
 
   await clear(bearer);
   for (const genre of model.genres) await call(bearer, "create_genre", genre);
+  // Each vibe is created with its core, which saves and files that film; the
+  // remaining films are written after. A core film the fixture also lists is
+  // then updated rather than created, since `create_vibe` already saved it.
   for (const vibe of model.vibes) await call(bearer, "create_vibe", vibe);
+  const saved = (await call(bearer, "get_taste")).structuredContent.movies;
   for (const movie of model.movies) {
     const { title, year, viewing, vibes } = movie;
-    await call(bearer, "create_movie", {
-      title,
-      year,
+    const fields = {
       // Omitted rather than sent as null when a fixture says nothing: leaving
       // the field out records that Tonight was not told, which is the answer a
       // fixture means by leaving it out.
       ...(viewing === null || viewing === undefined ? {} : { viewing }),
       ...(vibes?.length ? { vibes } : {}),
-    });
+    };
+    if (saved.some((one) => one.title === title && one.year === year)) {
+      if (Object.keys(fields).length) await call(bearer, "update_movie", { title, year, ...fields });
+    } else {
+      await call(bearer, "create_movie", { title, year, ...fields });
+    }
   }
 
   // What they said about particular films. A judgement is the only kind a

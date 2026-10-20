@@ -159,6 +159,8 @@ export type VibeRoot = {
   name: string;
   instruction: string;
   genres: readonly string[];
+  /** The film anchoring it, always one of `films`; `null` on a vibe not anchored yet. */
+  core: MovieHandle | null;
   films: readonly MovieHandle[];
   basis: Saved;
   handle: Handle;
@@ -271,6 +273,7 @@ export function compose({ taste, acts, episodes }: Roots): Memory {
       name: vibe.name,
       instruction: vibe.instruction,
       genres: vibe.genres,
+      core: vibe.core,
       films: vibe.movies,
       basis: savedAs(vibe),
       handle: { by: "name", name: vibe.name },

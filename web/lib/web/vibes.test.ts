@@ -44,6 +44,9 @@ const VIBE: Vibe = {
   name: "Quiet Dread",
   instruction: "Dread that arrives on foot.",
   genres: ["Mystery", "Slow Burn"],
+  // Anchored on one of its loved films. The page does not read the core, so
+  // nothing below depends on which.
+  core: { title: "Solaris", year: 2000 },
   movies: [
     { title: "Solaris", year: 2000 },
     { title: "Stalker", year: 2000 },
@@ -79,6 +82,7 @@ const BOTH: Vibe = {
   name: "Space Tension",
   instruction: "Tension with nowhere to run to.",
   genres: ["Slow Burn", "Off World"],
+  core: { title: "Arrival", year: 2000 },
   movies: [
     { title: "Arrival", year: 2000 },
     { title: "Solaris", year: 2000 },
@@ -364,16 +368,23 @@ test("previewing a vibe moves nothing that is counted", () => {
  * would still look right.
  */
 
-/** A vibe with a date of its own, holding the films given. */
+/**
+ * A vibe with a date of its own, holding the films given.
+ *
+ * Anchored on the first of them. One holding none can only be a vibe from
+ * before vibes were anchored, so its core is `null`, as the store reads it.
+ */
 function vibeOf(
   name: string,
   createdAt: string | null,
   films: readonly Written<Movie>[],
 ): Written<Vibe> {
+  const [first] = films;
   return {
     name,
     instruction: `What ${name} means.`,
     genres: ["Mystery"],
+    core: first ? { title: first.title, year: first.year } : null,
     movies: films.map((film) => ({ title: film.title, year: film.year })),
     createdAt,
     updatedAt: "2026-01-01T00:00:00.000Z",

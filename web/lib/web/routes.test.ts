@@ -118,7 +118,10 @@ test("a malformed body is refused by the domain rather than coerced on the way i
 
   // The bug this exists for: a route that turned each of these into a string
   // would store a genre named "42", an instruction reading "[object Object]", or
-  // a vibe built from a genre called "123".
+  // a vibe built from a genre called "123". The vibe bodies carry a valid core,
+  // so each is refused for the one thing wrong with it — and a refused vibe
+  // leaves no film behind either, though its core would have been saved.
+  const core = { title: "Arrival", year: 2016 };
   const refusals = [
     ["/api/genres", createGenre, { name: 42, instruction: "Numbers." }, /must be text, not a number/],
     ["/api/genres", createGenre, { name: "Odd", instruction: {} }, /must be text, not an object/],
@@ -126,14 +129,28 @@ test("a malformed body is refused by the domain rather than coerced on the way i
     [
       "/api/vibes",
       createVibe,
-      { name: "Bad", instruction: "Mixed.", genres: ["Sci-Fi", 123] },
+      { name: "Bad", instruction: "Mixed.", genres: ["Sci-Fi", 123], core },
       /entry 2 is a number/,
     ],
     [
       "/api/vibes",
       createVibe,
-      { name: "Bad", instruction: "Mixed.", genres: "Sci-Fi" },
+      { name: "Bad", instruction: "Mixed.", genres: "Sci-Fi", core },
       /must be a list of genre names/,
+    ],
+    // Since M5 a vibe is written with its core. Left out, it is refused rather
+    // than written unanchored; given as a sentence, it is not parsed into a film.
+    [
+      "/api/vibes",
+      createVibe,
+      { name: "Bad", instruction: "Mixed.", genres: ["Sci-Fi"] },
+      /a vibe needs a core/,
+    ],
+    [
+      "/api/vibes",
+      createVibe,
+      { name: "Bad", instruction: "Mixed.", genres: ["Sci-Fi"], core: "Arrival (2016)" },
+      /core must be a film, by title and year — not a string/,
     ],
   ] as const;
 
@@ -151,19 +168,49 @@ test("a malformed body is refused by the domain rather than coerced on the way i
   );
 });
 
+test("a vibe written through the route is anchored on its core, which the same write files", async () => {
+  // The route forwards `core`, and nothing else is the core: no film is saved
+  // first, so the one the vibe comes back with is the one the body named —
+  // saved by this write with its title and year, and nothing said about it.
+  const { cookie, id } = await signedIn();
+  await createGenre(
+    request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
+  );
+
+  const created = await answer(
+    await createVibe(
+      request(
+        "/api/vibes",
+        "POST",
+        { name: "My Sci-Fi", genres: ["Sci-Fi"], instruction: "Slow.", core: { title: "Arrival", year: 2016 } },
+        { cookie },
+      ),
+    ),
+  );
+  assert.equal(created.status, 200, created.message);
+  assert.deepEqual(created.taste?.vibes.map((one) => [one.core, one.movies]), [
+    [{ title: "Arrival", year: 2016 }, [{ title: "Arrival", year: 2016 }]],
+  ]);
+
+  assert.deepEqual((await taste(id)).movies.map(orderMovie), [
+    { title: "Arrival", year: 2016, imdbId: null, viewing: null, vibes: ["My Sci-Fi"] },
+  ]);
+});
+
 test("a conflict and a missing target come back as the domain's own answers", async () => {
   const { cookie } = await signedIn();
   await createGenre(
     request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
   );
-  await createVibe(
+  const made = await createVibe(
     request(
       "/api/vibes",
       "POST",
-      { name: "My Sci-Fi", genres: ["Sci-Fi"], instruction: "Slow." },
+      { name: "My Sci-Fi", genres: ["Sci-Fi"], instruction: "Slow.", core: { title: "Arrival", year: 2016 } },
       { cookie },
     ),
   );
+  assert.equal(made.status, 200, "the vibe the conflicts are about was not written");
 
   const duplicate = await answer(
     await createGenre(
@@ -194,14 +241,15 @@ test("a rename answers with the model as it now stands, vibes included", async (
   await createGenre(
     request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
   );
-  await createVibe(
+  const made = await createVibe(
     request(
       "/api/vibes",
       "POST",
-      { name: "My Sci-Fi", genres: ["Sci-Fi"], instruction: "Slow." },
+      { name: "My Sci-Fi", genres: ["Sci-Fi"], instruction: "Slow.", core: { title: "Arrival", year: 2016 } },
       { cookie },
     ),
   );
+  assert.equal(made.status, 200, "the vibe the rename should carry was not written");
 
   const renamed = await answer(
     await genre.PATCH(
@@ -244,13 +292,14 @@ test("a session cannot change, delete or borrow another account's genres", async
     assert.match(refused.message ?? "", /no genre "Alice only"/);
   }
 
-  // Nor can he build a vibe out of it.
+  // Nor can he build a vibe out of it — with a core of his own, so the genre is
+  // the only thing wrong with the vibe.
   const borrowed = await answer(
     await createVibe(
       request(
         "/api/vibes",
         "POST",
-        { name: "Borrowed", genres: ["Alice only"], instruction: "Not mine." },
+        { name: "Borrowed", genres: ["Alice only"], instruction: "Not mine.", core: { title: "Arrival", year: 2016 } },
         { cookie: bob.cookie },
       ),
     ),
@@ -262,30 +311,33 @@ test("a session cannot change, delete or borrow another account's genres", async
     { name: "Alice only", instruction: "Hers." },
   ]);
   assert.deepEqual((await taste(bob.id)).vibes, []);
+  assert.deepEqual((await taste(bob.id)).movies, [], "the refused vibe's core was saved anyway");
 });
 
 // --- a film's two marks ---------------------------------------------------
 
-/** A signed-in user with one film in one vibe, which is what a mark sits on. */
+/**
+ * A signed-in user with one film in one vibe, which is what a mark sits on.
+ *
+ * The film is the vibe's core, since a vibe is now written with one: saved
+ * first with whatever was said about watching it, then filed by the vibe that
+ * names it, so it is still the one film and the one vibe.
+ */
 async function withFilm(said: { viewing?: "seen" | "unseen" } = {}) {
   const { cookie, id } = await signedIn();
   await createGenre(
     request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
   );
-  await createVibe(
+  await (await tasteStore({ id })).createMovie({ title: "Arrival", year: 2016, ...said });
+  const made = await createVibe(
     request(
       "/api/vibes",
       "POST",
-      { name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense." },
+      { name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: { title: "Arrival", year: 2016 } },
       { cookie },
     ),
   );
-  await (await tasteStore({ id })).createMovie({
-    title: "Arrival",
-    year: 2016,
-    vibes: ["Space Tension"],
-    ...said,
-  });
+  assert.equal(made.status, 200, "the vibe the film sits in was not written");
   return { cookie, id };
 }
 

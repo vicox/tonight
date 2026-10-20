@@ -41,7 +41,8 @@
           "Slow Burn",
           "Mystery"
         ],
-        "instruction": "Dread that arrives on foot, in daylight, without music."
+        "instruction": "Dread that arrives on foot, in daylight, without music.",
+        "core": { "title": "Stalker", "year": 1979 }
       },
       {
         "name": "Small Town Secrets",
@@ -49,14 +50,16 @@
           "Mystery",
           "Bleak Procedural"
         ],
-        "instruction": "Somewhere small where everybody knows, and nobody says."
+        "instruction": "Somewhere small where everybody knows, and nobody says.",
+        "core": { "title": "Memories of Murder", "year": 2003 }
       },
       {
         "name": "Friday Nonsense",
         "genres": [
           "Popcorn Chaos"
         ],
-        "instruction": "Switch my brain off and let something happen at me."
+        "instruction": "Switch my brain off and let something happen at me.",
+        "core": { "title": "Game Night", "year": 2018 }
       }
     ],
     "movies": [

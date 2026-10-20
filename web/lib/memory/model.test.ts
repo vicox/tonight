@@ -79,12 +79,18 @@ describe("the memory composer", () => {
 
   test("everything the user saved or currently says is held", async () => {
     // The expected picture is written here, not read back from the composer:
-    // two genres, one vibe, two films and one standing verdict.
+    // two genres, one vibe, two films and one standing verdict. The vibe is
+    // anchored on a film already saved, so anchoring it saves no third one.
     const her = someone();
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
     await her.taste.createGenre({ name: "Heist", instruction: "a crew and a plan" });
-    await her.taste.createVibe({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" });
     await her.taste.createMovie({ ...HEAT_1995, viewing: "seen" });
+    await her.taste.createVibe({
+      name: "Long Nights",
+      genres: ["Slow Burn"],
+      instruction: "room to unfold",
+      core: HEAT_1995,
+    });
     await her.taste.createMovie({ ...BLACK_BAG, viewing: null });
     await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z", "the tension"));
 
@@ -100,16 +106,25 @@ describe("the memory composer", () => {
   });
 
   test("a held vibe carries what it is made of and what is in it", async () => {
+    // Anchored on one film and given another from the film's side, so the core
+    // and the membership are two things the view has to carry, not one.
     const her = someone();
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
     await her.taste.createMovie({ ...HEAT_1995, viewing: "seen" });
-    await her.taste.createVibe({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" });
-    await her.taste.updateMovie(HEAT_1995.title, HEAT_1995.year, { vibes: ["Long Nights"] });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createVibe({
+      name: "Long Nights",
+      genres: ["Slow Burn"],
+      instruction: "room to unfold",
+      core: HEAT_1995,
+    });
+    await her.taste.updateMovie(BLACK_BAG.title, BLACK_BAG.year, { vibes: ["Long Nights"] });
 
     const [vibe] = of((await her.memory()).held, "vibe");
     assert.ok(vibe && vibe.of === "vibe");
     assert.deepEqual([...vibe.genres], ["Slow Burn"]);
-    assert.deepEqual([...vibe.films], [HEAT_1995]);
+    assert.deepEqual(vibe.core, HEAT_1995, "the film anchoring the vibe was not carried");
+    assert.deepEqual([...vibe.films], [BLACK_BAG, HEAT_1995]);
     assert.equal(vibe.instruction, "room to unfold");
   });
 
@@ -560,11 +575,15 @@ describe("the memory composer", () => {
     // thinks is another. No verdict operation may reach across.
     const her = someone();
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
-    await her.taste.createVibe({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room" });
+    // Anchored on another film, which a vibe now has to be: the film under test
+    // is an ordinary member, filed from its own side as before.
+    await her.taste.createVibe({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room", core: HEAT_1995 });
     await her.taste.createMovie({ ...BLACK_BAG, viewing: "unseen", vibes: ["Long Nights"] });
 
     const film = async () => {
-      const [movie] = of((await her.memory()).held, "movie");
+      const movie = of((await her.memory()).held, "movie").find(
+        (root) => root.of === "movie" && root.film.title === BLACK_BAG.title,
+      );
       return movie?.of === "movie" ? { viewing: movie.viewing, vibes: [...movie.vibes] } : null;
     };
     const before = await film();

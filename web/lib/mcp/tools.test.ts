@@ -220,8 +220,10 @@ test("a vibe names the genres it is built from, and comes back with them", async
     name: "Space Tension",
     genres: ["Sci-Fi", "Thriller"],
     instruction: "Contained, mysterious science fiction.",
+    core: { title: "Arrival", year: 2016 },
   });
   assert.deepEqual(created.vibe.genres, ["Sci-Fi", "Thriller"]);
+  assert.deepEqual(created.vibe.core, { title: "Arrival", year: 2016 });
 
   const taste = await ok(token, "get_taste");
   assert.deepEqual(taste.vibes.map(content), [created.vibe]);
@@ -234,6 +236,7 @@ test("renaming a genre carries its vibes, in one call", async () => {
     name: "My Sci-Fi",
     genres: ["Sci-Fi"],
     instruction: "Slow and strange.",
+    core: { title: "Solaris", year: 1972 },
   });
 
   await ok(token, "update_genre", { name: "Sci-Fi", new_name: "Science fiction" });
@@ -264,6 +267,7 @@ test("deleting a genre a vibe needs is refused, and names the vibe", async () =>
     name: "My Sci-Fi",
     genres: ["Sci-Fi"],
     instruction: "Slow and strange.",
+    core: { title: "Solaris", year: 1972 },
   });
 
   const message = await refused(token, "delete_genre", { name: "Sci-Fi" });
@@ -271,7 +275,14 @@ test("deleting a genre a vibe needs is refused, and names the vibe", async () =>
 
   await ok(token, "delete_vibe", { name: "My Sci-Fi" });
   await ok(token, "delete_genre", { name: "Sci-Fi" });
-  assert.deepEqual(await ok(token, "get_taste"), { genres: [], vibes: [], movies: [] });
+  // The genre and the vibe are gone. The vibe's core is not: deleting a vibe
+  // leaves its films, and the core is one of them — saved by the vibe, and now
+  // filed nowhere.
+  const left = await ok(token, "get_taste");
+  assert.deepEqual({ genres: left.genres, vibes: left.vibes }, { genres: [], vibes: [] });
+  assert.deepEqual(left.movies.map(content), [
+    { title: "Solaris", year: 1972, imdbId: null, viewing: null, vibes: [] },
+  ]);
 });
 
 // --- whose taste ----------------------------------------------------------
@@ -518,14 +529,21 @@ test("a vibe is asked for as one idea, read from the genres' instructions", asyn
     "the genres field reads as a list swap with no consequence",
   );
 
-  // (F) Movies are not part of it. A vibe with nothing filed under it is as
-  // coherent as one with ten, because membership is not definition.
+  // (F) How many movies are in it is not part of it; its core is. M5 anchors
+  // every new vibe on one core film, so the smallest vibe is its core alone and
+  // that film has to embody the idea. Membership is still not definition.
   assert.match(
     create,
-    /films filed in a vibe are no part of it/iu,
-    "create: films are allowed into the coherence judgement",
+    /How many films are filed in a vibe is no part of it/iu,
+    "create: the number of films is allowed into the coherence judgement",
   );
-  assert.match(create, /nothing under it is as coherent as one with ten/iu, "create: an empty vibe reads as lesser");
+  assert.match(
+    create,
+    /one written just now\s+with only its core is as coherent as one with ten/iu,
+    "create: a vibe with only its core reads as lesser",
+  );
+  assert.match(create, /\*\*The core is part of it\*\*/u, "create: the core is left out of coherence");
+  assert.match(create, /the\s+film has to embody that one idea/iu, "create: the core is not held to the idea");
 
   // And no new authority: this says how to build one, never when. The
   // provenance rules are untouched and must stay in the same description.
@@ -683,10 +701,13 @@ test("no cross-tool rule has been copied into a tool description", async () => {
 test("a movie is saved with what the user said, and appears once in the model", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
+  // Anchored on another film, which the vibe saves: the film under test is an
+  // ordinary member, filed from its own side by `create_movie`.
   await ok(token, "create_vibe", {
     name: "Space Tension",
     genres: ["Sci-Fi"],
     instruction: "Contained, and nobody is safe.",
+    core: { title: "Alien", year: 1979 },
   });
 
   const created = await ok(token, "create_movie", {
@@ -705,6 +726,8 @@ test("a movie is saved with what the user said, and appears once in the model", 
   });
 
   const taste = await ok(token, "get_taste");
+  const arrival = taste.movies.filter((one: { title: string }) => one.title === "Arrival");
+  assert.equal(arrival.length, 1, "the film appears more than once");
 
   // The state lives in one place. The vibe carries the handle — both halves of
   // it — so a title that names two films still names one here.
@@ -713,16 +736,19 @@ test("a movie is saved with what the user said, and appears once in the model", 
   // back. The read answers with the *record*, which is that plus when Tonight
   // wrote it — and the difference between the two is exactly those two fields.
   assert.equal(
-    taste.movies[0].createdAt,
-    taste.movies[0].updatedAt,
+    arrival[0].createdAt,
+    arrival[0].updatedAt,
     "nothing has happened to it yet",
   );
-  assert.deepEqual(taste.movies.map(content), [created.movie]);
-  assert.deepEqual(taste.vibes[0].movies, [{ title: "Arrival", year: 2016 }]);
+  assert.deepEqual(arrival.map(content), [created.movie]);
+  assert.deepEqual(taste.vibes[0].movies, [
+    { title: "Alien", year: 1979 },
+    { title: "Arrival", year: 2016 },
+  ]);
 
   // No uuid, anywhere. Asserted as the set of field names rather than by
   // searching the text, which would match the "id" inside an ordinary word.
-  assert.deepEqual(Object.keys(taste.movies[0]).sort(), [
+  assert.deepEqual(Object.keys(arrival[0]).sort(), [
     "createdAt",
     "imdbId",
     "title",
@@ -732,6 +758,7 @@ test("a movie is saved with what the user said, and appears once in the model", 
     "year",
   ]);
   assert.deepEqual(Object.keys(taste.vibes[0].movies[0]).sort(), ["title", "year"]);
+  assert.deepEqual(Object.keys(taste.vibes[0].core).sort(), ["title", "year"]);
 });
 
 test("when a thing was written is Tonight's answer, and not a caller's argument", async () => {
@@ -890,10 +917,13 @@ test("a valid IMDb id survives the boundary, spaces and all", async () => {
 test("retitling a movie keeps it the same film, filed where it was", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
+  // Anchored on another film, so the one retitled and deleted here is an
+  // ordinary member — a core could be neither taken out nor deleted.
   await ok(token, "create_vibe", {
     name: "Space Tension",
     genres: ["Sci-Fi"],
     instruction: "Contained, and nobody is safe.",
+    core: { title: "Alien", year: 1979 },
   });
   await ok(token, "create_movie", {
     title: "Dune",
@@ -917,11 +947,191 @@ test("retitling a movie keeps it the same film, filed where it was", async () =>
   });
 
   const taste = await ok(token, "get_taste");
-  assert.deepEqual(taste.vibes[0].movies, [{ title: "Dune (Lynch)", year: 1985 }]);
+  assert.deepEqual(taste.vibes[0].movies, [
+    { title: "Alien", year: 1979 },
+    { title: "Dune (Lynch)", year: 1985 },
+  ]);
 
   const gone = await ok(token, "delete_movie", { title: "Dune (Lynch)", year: 1985 });
   assert.deepEqual(gone.deleted.vibes, ["Space Tension"]);
-  assert.deepEqual((await ok(token, "get_taste")).vibes[0].movies, [], "the vibe kept a dead handle");
+  assert.deepEqual(
+    (await ok(token, "get_taste")).vibes[0].movies,
+    [{ title: "Alien", year: 1979 }],
+    "the vibe kept a dead handle",
+  );
+});
+
+// --- a vibe's core ----------------------------------------------------------
+
+/**
+ * M5 anchors every vibe written from now on on the one film that best embodies
+ * it.
+ *
+ * The store's suite holds the invariants. What these hold is the seam: that the
+ * schema a client discovers says a core is required to create a vibe and may
+ * replace one but never clear it; that a refusal about a core reaches the client
+ * in the store's own sentence, naming the vibe; and that the read shows it. None
+ * of it is a new tool — the core is an argument on the tools that already write a
+ * vibe.
+ */
+
+const ARRIVAL = { title: "Arrival", year: 2016 };
+const SOLARIS = { title: "Solaris", year: 1972 };
+
+test("create_vibe requires a core, and a call without one writes nothing", async () => {
+  const token = await tokenFor(someone());
+  const tools = await listTools(token);
+  assert.equal(tools.length, 20, "the core arrived as a tool of its own rather than as an argument");
+
+  // Required in the schema, which is how a client learns it before calling, and
+  // asked for as a film by its whole handle.
+  const schema = tools.find((tool) => tool.name === "create_vibe")?.inputSchema;
+  assert.deepEqual([...(schema?.required ?? [])].sort(), ["core", "genres", "instruction", "name"]);
+  const core = (schema?.properties?.core ?? {}) as { type?: string; required?: string[] };
+  assert.equal(core.type, "object", "the core is not asked for as a film");
+  assert.deepEqual([...(core.required ?? [])].sort(), ["title", "year"], "a core is not named by title and year");
+
+  await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
+  const vibe = { name: "Space Tension", genres: ["Sci-Fi"], instruction: "Contained, mysterious science fiction." };
+  assert.match(await refused(token, "create_vibe", vibe), /core/, "a vibe was accepted with no core");
+  assert.match(await refused(token, "create_vibe", { ...vibe, core: null }), /core/, "a null core was accepted");
+  assert.match(await refused(token, "create_vibe", { ...vibe, core: { title: "Arrival" } }), /year/);
+  const untouched = await ok(token, "get_taste");
+  assert.deepEqual(
+    { vibes: untouched.vibes, movies: untouched.movies },
+    { vibes: [], movies: [] },
+    "a refused vibe left something behind",
+  );
+
+  // With one, the vibe is written anchored — and a core nobody had saved is saved
+  // by the same call, with its title and year and nothing said about it.
+  const created = await ok(token, "create_vibe", { ...vibe, core: ARRIVAL });
+  assert.deepEqual(created.vibe.core, ARRIVAL);
+  assert.deepEqual(created.vibe.movies, [ARRIVAL]);
+  assert.deepEqual((await ok(token, "get_taste")).movies.map(content), [
+    { ...ARRIVAL, imdbId: null, viewing: null, vibes: ["Space Tension"] },
+  ]);
+});
+
+test("update_vibe takes a core that replaces the old one, and never one that clears it", async () => {
+  const token = await tokenFor(someone());
+  const tools = await listTools(token);
+
+  // Optional, so nothing else about a vibe needs a core to change — and not
+  // nullable, so the schema itself has no way to say "no core".
+  const schema = tools.find((tool) => tool.name === "update_vibe")?.inputSchema;
+  assert.deepEqual(schema?.required, ["name"], "changing a vibe now needs a core");
+  const core = (schema?.properties?.core ?? {}) as Record<string, unknown>;
+  assert.equal(core.type, "object", "update_vibe takes no core");
+  for (const nullable of ["anyOf", "oneOf", "nullable"]) {
+    assert.equal(nullable in core, false, `update_vibe's core admits null through ${nullable}`);
+  }
+
+  await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
+  await ok(token, "create_vibe", {
+    name: "Space Tension",
+    genres: ["Sci-Fi"],
+    instruction: "Contained, mysterious science fiction.",
+    core: ARRIVAL,
+  });
+
+  assert.match(await refused(token, "update_vibe", { name: "Space Tension", core: null }), /core/);
+  assert.deepEqual((await ok(token, "get_taste")).vibes[0].core, ARRIVAL, "a refused null moved the core");
+
+  // Replaced, and the film it replaces stays in the vibe as an ordinary member.
+  const moved = await ok(token, "update_vibe", { name: "Space Tension", core: SOLARIS });
+  assert.deepEqual(moved.vibe.core, SOLARIS);
+  assert.deepEqual(moved.vibe.movies, [ARRIVAL, SOLARIS]);
+  assert.deepEqual((await ok(token, "get_taste")).vibes.map(content), [moved.vibe]);
+
+  // And left out, it is left alone.
+  const renamed = await ok(token, "update_vibe", { name: "Space Tension", new_name: "Far From Home" });
+  assert.deepEqual(renamed.vibe.core, SOLARIS, "an update that did not mention the core moved it");
+});
+
+test("a core can neither leave its vibe nor be deleted, and the refusal names the vibe", async () => {
+  const token = await tokenFor(someone());
+  await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
+  await ok(token, "create_movie", { ...ARRIVAL, viewing: "seen" });
+  await ok(token, "create_vibe", {
+    name: "Space Tension",
+    genres: ["Sci-Fi"],
+    instruction: "Contained, mysterious science fiction.",
+    core: ARRIVAL,
+  });
+  const before = await ok(token, "get_taste");
+
+  // The store's own sentences, whole: the film, the vibe, and the way through.
+  assert.equal(
+    await refused(token, "delete_movie", ARRIVAL),
+    'cannot delete "Arrival" (2016): it is the core of the vibe "Space Tension" — ' +
+      "make another film the core with update_vibe first, or delete the vibe",
+  );
+  // Refused whole: the viewing sent with the un-filing does not land either.
+  assert.equal(
+    await refused(token, "update_movie", { ...ARRIVAL, viewing: "unseen", vibes: [] }),
+    'cannot take "Arrival" (2016) out of the vibe "Space Tension": it is the core there — ' +
+      "make another film the core with update_vibe first, or delete the vibe",
+  );
+  assert.deepEqual(await ok(token, "get_taste"), before, "a refused write about a core changed something");
+
+  // The descriptions state the same precondition, where a client meets it.
+  const tools = await listTools(token);
+  for (const name of ["update_movie", "delete_movie"]) {
+    const description = tools.find((tool) => tool.name === name)?.description ?? "";
+    assert.match(description, /core/u, `${name} does not say a core is refused`);
+    assert.match(description, /`update_vibe`/u, `${name} does not name the way through`);
+  }
+
+  // And the way through is the one the sentence names: another core first.
+  await ok(token, "update_vibe", { name: "Space Tension", core: SOLARIS });
+  await ok(token, "update_movie", { ...ARRIVAL, vibes: [] });
+  await ok(token, "delete_movie", ARRIVAL);
+  assert.deepEqual((await ok(token, "get_taste")).vibes[0].movies, [SOLARIS]);
+});
+
+test("get_taste shows each vibe's core, always one of its own films", async () => {
+  const token = await tokenFor(someone());
+  await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
+  await ok(token, "create_vibe", {
+    name: "Space Tension",
+    genres: ["Sci-Fi"],
+    instruction: "Contained, mysterious science fiction.",
+    core: ARRIVAL,
+  });
+  await ok(token, "create_vibe", {
+    name: "Quiet Orbit",
+    genres: ["Sci-Fi"],
+    instruction: "Grief, a long way from home.",
+    core: SOLARIS,
+  });
+  await ok(token, "create_movie", { title: "Moon", year: 2009, vibes: ["Space Tension"] });
+
+  const taste = await ok(token, "get_taste");
+  assert.deepEqual(
+    taste.vibes.map((vibe: { name: string; core: unknown }) => [vibe.name, vibe.core]),
+    [
+      ["Quiet Orbit", SOLARIS],
+      ["Space Tension", ARRIVAL],
+    ],
+  );
+  for (const vibe of taste.vibes) {
+    assert.ok(
+      vibe.movies.some((one: { title: string; year: number }) => one.title === vibe.core.title && one.year === vibe.core.year),
+      `${vibe.name}'s core is not one of its films`,
+    );
+    // In the order the product documents a vibe: its core between its genres
+    // and its films, then the two stamps.
+    assert.deepEqual(Object.keys(vibe), ["name", "instruction", "genres", "core", "movies", "createdAt", "updatedAt"]);
+  }
+
+  // And both reads say what the field means, null included, since a vibe written
+  // before vibes were anchored still reads as complete.
+  const tools = await listTools(token);
+  const describing = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+  assert.match(describing("get_taste"), /`core` names the one that best embodies it/u, "get_taste: core unexplained");
+  assert.match(describing("get_taste"), /null on a vibe written before vibes were anchored/u, "get_taste: null unexplained");
+  assert.match(describing("get_memory"), /`core`, the film anchoring it, or null where none/u, "get_memory: core unexplained");
 });
 
 test("a reference that is not one is an argument this tool refuses, in its own words", async () => {
