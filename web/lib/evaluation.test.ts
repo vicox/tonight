@@ -516,10 +516,19 @@ test("a run is bound to the taste data it actually saw", () => {
   assert.match(seed, /createHash/, "a snapshot carries no digest, so it cannot be checked");
 
   assert.match(runbook, /Use `--token`/, "the runbook does not tell anybody to refresh safely");
+  // M5 (plan Revision 3 #2): reseeded fresh before every run, and each run bound
+  // to its own reseed by its snapshot — the guarantee "seed once" gave, kept
+  // for runs that may now write.
   assert.match(
     runbook.replace(/\s+/g, " "),
-    /Seed once per fixture, then leave it alone/,
-    "the runbook does not warn against reseeding between runs",
+    /Reseed before every run, then snapshot it/,
+    "the runbook does not say every run starts from its own fresh seeding",
+  );
+  const runner = read("run-baseline.mjs");
+  assert.match(
+    runner,
+    /seed\(fixture\.model \? fixture\.id : fixture\.sameModelAs\);\s*\n(?:.*\n){0,3}\s*const digest = seed\(fixture\.id, "--snapshot"/,
+    "the runner does not reseed, through the model's owner, immediately before each run's snapshot",
   );
   assert.match(
     runbook.replace(/\s+/g, " "),

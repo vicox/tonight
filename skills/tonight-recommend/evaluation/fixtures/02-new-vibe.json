@@ -1,10 +1,11 @@
 {
   "id": "02-new-vibe",
-  "title": "A Vibe written yesterday, with no Movie states under it",
+  "title": "A Vibe written yesterday, anchored on one film, with no verdict anywhere",
   "user": "google:eval-02-new-vibe",
   "condition": "ok",
   "exists_for": ["AC1", "AC2", "AC3a"],
-  "catches": "The P5 regression: a declaration ignored because nothing under it is loved. This model contains no states at all, so a recommendation that does not use the Vibe has used nothing.",
+  "catches": "The P5 regression: a declaration ignored because nothing under it is loved. This model contains no verdicts at all, so a recommendation that does not use the Vibe has used nothing.",
+  "construction_note": "M5 (D11): a Vibe can no longer be written with no film under it — every new Vibe is anchored on a core. Re-expressed as a Vibe whose only film is its core, seen, with no verdict anywhere, which keeps the point: nothing under it is loved, and the Vibe still has to be used.",
   "prompts": ["plain", "taste-explicit"],
   "model": {
     "genres": [
@@ -15,9 +16,12 @@
       {
         "name": "Reading Room",
         "genres": ["Slow Burn", "Character Story"],
-        "instruction": "Films that are patient with me, where nothing is chasing anyone."
+        "instruction": "Films that are patient with me, where nothing is chasing anyone.",
+        "core": { "title": "Paterson", "year": 2016 }
       }
     ],
-    "movies": []
+    "movies": [
+      { "title": "Paterson", "year": 2016, "vibes": ["Reading Room"], "viewing": "seen" }
+    ]
   }
 }

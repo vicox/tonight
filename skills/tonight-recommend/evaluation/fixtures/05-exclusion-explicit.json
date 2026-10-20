@@ -32,7 +32,8 @@
           "Clever Thriller",
           "Slow Burn"
         ],
-        "instruction": "Dread that arrives on foot, in daylight. Nothing gory, and nothing with torture in it — I will turn it off."
+        "instruction": "Dread that arrives on foot, in daylight. Nothing gory, and nothing with torture in it — I will turn it off.",
+        "core": { "title": "The Vanishing", "year": 1988 }
       }
     ],
     "movies": [

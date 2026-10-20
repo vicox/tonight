@@ -112,11 +112,12 @@ describe("the memory tools", () => {
   /* ----------------------------------------------------------- composition */
 
   test("one of everything arrives once, in the right part", async () => {
-    // The expected picture is written out here, not read back from the tool.
+    // The expected picture is written out here, not read back from the tool. The
+    // vibe is anchored on the film already saved, so it is still one film.
     const her = someone();
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
-    await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room" });
     await said(her, "create_movie", { ...HEAT, viewing: "seen" });
+    await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room", core: HEAT });
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
     await said(her, "record_episode", { request: "something tense", offered: [{ ...HEAT, lead: true }] });
 
@@ -129,6 +130,7 @@ describe("the memory tools", () => {
     assert.deepEqual(remembered.map((root) => root.of), ["evening"]);
     for (const root of held) assert.equal(root.placement, "held");
     for (const root of remembered) assert.equal(root.placement, "remembered");
+    assert.deepEqual(of(held, "vibe")[0]?.core, HEAT, "the vibe arrived without the film anchoring it");
   });
 
   test("the answer is the composer's, not a second one assembled here", async () => {
@@ -269,8 +271,8 @@ describe("the memory tools", () => {
   test("every held and remembered root carries a handle a tool actually takes", async () => {
     const her = someone();
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
-    await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room" });
     await said(her, "create_movie", { ...HEAT, viewing: "seen" });
+    await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room", core: HEAT });
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
     await said(her, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
 

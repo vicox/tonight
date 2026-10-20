@@ -112,6 +112,21 @@ export type Vibe = {
    */
   genres: string[];
   /**
+   * The film that best embodies this vibe, and always one of its `movies`.
+   *
+   * Exactly one, or `null` for a vibe written before vibes were anchored to a
+   * film — such a vibe is complete and usable, it simply has not been given one
+   * yet. Every vibe written since must name its core: it is required to create
+   * one, it can be replaced but never cleared, and the film it names can be
+   * neither taken out of the vibe nor deleted while it is the core.
+   *
+   * What a core may be — a film they have seen and stand behind, never one only
+   * offered as an illustration — is a judgement about what they said, and what
+   * they said is in another root. The store checks the shape and the
+   * membership; the skill and the tool descriptions carry the rest.
+   */
+  core: MovieHandle | null;
+  /**
    * The movies in this vibe, as handles.
    *
    * Handles rather than names, because a title alone cannot tell `Dune / 1984`
@@ -548,6 +563,31 @@ export function checkMovieVibes(value: unknown): string[] {
   return wanted;
 }
 
+/**
+ * Reads the film a vibe is anchored on, returning its handle normalised.
+ *
+ * A handle and nothing more: whether the film is saved yet is the store's
+ * question, and a core that is not is saved by the write that names it. Required
+ * on create, and on update it may be replaced but not cleared — `null` is refused
+ * here rather than read as "no core", because an anchorless vibe written today
+ * would be the one state this field exists to end. `doing` only picks the words:
+ * on create there is nothing to clear, so a null core is a missing one.
+ */
+export function checkCore(value: unknown, doing: "create" | "update"): MovieHandle {
+  if (value === undefined || value === null) {
+    throw new TasteError(
+      value === null && doing === "update"
+        ? "a vibe's core cannot be cleared — make another film its core, or delete the vibe"
+        : "a vibe needs a core: the one film that best embodies it, by title and year",
+    );
+  }
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new TasteError(`a vibe's core must be a film, by title and year — not ${kindOf(value)}`);
+  }
+  const film = value as { title?: unknown; year?: unknown };
+  return { title: checkMovieTitle(film.title), year: checkYear(film.year) };
+}
+
 // --- shape -----------------------------------------------------------------
 
 /** A genre with its fields in the order the product documents them. */
@@ -555,12 +595,13 @@ export function orderGenre(genre: Genre): Genre {
   return { name: genre.name, instruction: genre.instruction };
 }
 
-/** The same for a vibe: name, instruction, its genres, then its movies. */
+/** The same for a vibe: name, instruction, its genres, its core, then its movies. */
 export function orderVibe(vibe: Vibe): Vibe {
   return {
     name: vibe.name,
     instruction: vibe.instruction,
     genres: [...vibe.genres],
+    core: vibe.core === null ? null : orderHandle(vibe.core),
     movies: vibe.movies.map(orderHandle),
   };
 }
@@ -681,7 +722,7 @@ export function nothingToUpdate(what: "genre" | "vibe" | "movie"): TasteError {
       return new TasteError("nothing to update: pass a new name or a new instruction");
     case "vibe":
       return new TasteError(
-        "nothing to update: pass a new name, a new instruction, or new genres",
+        "nothing to update: pass a new name, a new instruction, new genres, or a new core",
       );
     default:
       return new TasteError(
@@ -717,6 +758,30 @@ export function movieImdbTaken(imdbId: string, title: string, year: number): Tas
   return new TasteError(
     `${handleOf(title, year)} already has the IMDb id ${imdbId} — one id points at one of ` +
       "your movies. Update that movie, or leave this one without an id.",
+  );
+}
+
+/**
+ * A film a vibe is anchored on, which is why it cannot leave or go.
+ *
+ * Named, like `genreInUse`, so the refusal says what to do next: the core helps
+ * define the vibe now, and the way out is to anchor the vibe on another film or
+ * to delete it — never to leave it anchorless.
+ */
+export function movieAnchorsVibe(
+  title: string,
+  year: number,
+  vibes: readonly string[],
+  doing: "delete" | "unfile",
+): TasteError {
+  const which = `${vibes.length === 1 ? "the vibe" : "the vibes"} ${vibes
+    .map((one) => `"${one}"`)
+    .join(", ")}`;
+  return new TasteError(
+    (doing === "delete"
+      ? `cannot delete ${handleOf(title, year)}: it is the core of ${which}`
+      : `cannot take ${handleOf(title, year)} out of ${which}: it is the core there`) +
+      " — make another film the core with update_vibe first, or delete the vibe",
   );
 }
 

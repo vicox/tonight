@@ -46,8 +46,15 @@ export type Which = "first" | "last" | "withdrawal" | "all";
 export type Step =
   /** A genre the user wrote. */
   | { act: "genre"; name: string; instruction: string }
-  /** A vibe over genres they already have. */
-  | { act: "vibe"; name: string; genres: string[]; instruction: string }
+  /**
+   * A vibe over genres they already have, anchored on its core.
+   *
+   * Since M5 a vibe is written with the one film that best embodies it, and the
+   * same call files that film in it — saving it first, with nothing about it
+   * but its title and year, when it is not saved yet. So a core that is also
+   * scripted as a `movie` has to be saved before the vibe names it.
+   */
+  | { act: "vibe"; name: string; genres: string[]; instruction: string; core: Film }
   /**
    * A film filed under a Phase-1 state, with whatever else they filed about it.
    *
@@ -136,13 +143,16 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     steps: [
       { act: "genre", name: "Slow Burn", instruction: "takes its time" },
       { act: "genre", name: "Heist", instruction: "a crew and a plan" },
-      { act: "vibe", name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold" },
+      // The vibe is anchored on the film they loved, which nobody had saved: the
+      // vibe saves it, with no viewing and no IMDb id because nobody said either,
+      // and files it. A third film, and the only one that arrives that way.
+      { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved", because: "the tension never lets up" },
+      { act: "vibe", name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold", core: prisoners },
       // One film with everything a film can carry, and one with none of it, so
       // that empty membership and empty identifiers are proved to be empty
       // rather than assumed.
       { act: "movie", film: heat95, viewing: "seen", imdbId: "tt0113277", vibes: ["Long Nights"] },
       { act: "movie", film: zodiac, viewing: "seen" },
-      { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved", because: "the tension never lets up" },
       { act: "evening", request: "something tense", offered: [offer(heat95, true), offer(zodiac)] },
       { act: "outcome", chosen: offer(heat95, true), watched: true },
     ],
@@ -337,7 +347,6 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     steps: [
       { act: "genre", name: "Slow Burn", instruction: "takes its time" },
       { act: "genre", name: "Bleak Procedural", instruction: "hard work, at a cost" },
-      { act: "vibe", name: "Quiet Dread", genres: ["Slow Burn", "Bleak Procedural"], instruction: "dread that arrives on foot" },
       { act: "movie", film: heat95, viewing: "seen" },
       { act: "movie", film: zodiac, viewing: "seen" },
       { act: "movie", film: blackBag, viewing: "seen" },
@@ -350,6 +359,10 @@ export const TRAJECTORIES: readonly Trajectory[] = [
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
       { act: "withdraw", film: prisoners },
       { act: "verdict", film: heat95, told: "confirmed", reach: "not-tonight", reason: "too long tonight", occasion: TUESDAY },
+
+      // A vibe anchored on the film they came to love. Written after the films,
+      // because a core already saved is filed by the vibe rather than saved again.
+      { act: "vibe", name: "Quiet Dread", genres: ["Slow Burn", "Bleak Procedural"], instruction: "dread that arrives on foot", core: zodiac },
 
       // Evenings, one of them misrecorded and put right.
       { act: "evening", request: "something quiet", offered: [offer(zodiac, true), offer(heat95)] },

@@ -132,7 +132,12 @@ describe("M3 — explains itself, and can be corrected", () => {
           await call("create_genre", { name: step.name, instruction: step.instruction });
           break;
         case "vibe":
-          await call("create_vibe", { name: step.name, genres: step.genres, instruction: step.instruction });
+          await call("create_vibe", {
+            name: step.name,
+            genres: step.genres,
+            instruction: step.instruction,
+            core: step.core,
+          });
           break;
         case "movie":
           await call("create_movie", {
@@ -479,6 +484,22 @@ describe("M3 — explains itself, and can be corrected", () => {
       assert.ok(steps.some((s) => s.act === "forget" && s.which === which), `no history forgets the ${which}`);
     }
     assert.ok(steps.some((s) => s.act === "amend" && s.refused === true), "no history is ever refused a correction");
+
+    // Both ways a core arrives: a film already saved, which the vibe only files,
+    // and one nobody saved, which the vibe saves with nothing said about it.
+    const anchored = TRAJECTORIES.flatMap((one) =>
+      one.steps.flatMap((step, at) =>
+        step.act === "vibe"
+          ? [
+              one.steps
+                .slice(0, at)
+                .some((earlier) => earlier.act === "movie" && filmKey(earlier.film) === filmKey(step.core)),
+            ]
+          : [],
+      ),
+    );
+    assert.ok(anchored.includes(true), "no history anchors a vibe on a film already saved");
+    assert.ok(anchored.includes(false), "no history anchors a vibe on a film nobody saved");
   });
 
   test("the two roots are exercised apart and together", () => {
@@ -647,6 +668,23 @@ describe("M3 — explains itself, and can be corrected", () => {
     probe("vibe membership is dropped on the way out", "fidelity", (copy) => {
       const vibe = copy.seen["one-of-everything"]!.memory.held.find((root) => root.of === "vibe")!;
       vibe.films = [];
+    });
+  });
+
+  test("a vibe that comes back anchored on another of its films is caught", () => {
+    probe("a vibe's core is read from the wrong film", "fidelity", (copy) => {
+      const vibe = copy.seen["one-of-everything"]!.memory.held.find((root) => root.of === "vibe")!;
+      // Heat is in the vibe too, so this is a member promoted, not a stranger.
+      vibe.core = { title: "Heat", year: 1995 };
+    });
+  });
+
+  test("a core saved as watched when nobody said so is caught", () => {
+    probe("anchoring a vibe infers a viewing", "fidelity", (copy) => {
+      const core = copy.seen["one-of-everything"]!.memory.held.find(
+        (root) => root.of === "movie" && (root.film as Film).title === "Prisoners",
+      )!;
+      (core as { viewing?: unknown }).viewing = "seen";
     });
   });
 
@@ -922,6 +960,13 @@ describe("M3 — explains itself, and can be corrected", () => {
       const zodiac = (seen.taste.verdicts ?? []).find((one) => one.title === "Zodiac")!;
       zodiac.judgement = "liked";
       delete zodiac.because;
+    });
+  });
+
+  test("a vibe that reaches recommendation work without its anchor is caught", () => {
+    probe("the core is dropped from what a recommendation reads", "recommendation-isolation", (copy) => {
+      const vibe = copy.seen["a-long-history"]!.taste.vibes[0]!;
+      vibe.core = null;
     });
   });
 

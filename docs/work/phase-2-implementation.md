@@ -234,6 +234,9 @@ visible.
 
 ## M5 — Vibes that live
 
+> **Superseded by [`docs/work/m5/`](m5/M5-PLAN.md)** (the Vibe lifecycle). Drift, Vibe versions,
+> dormancy and split or merge tooling below are not part of M5.
+
 **1. User-visible capability.** The structure still describes the user after two years. Tonight
 notices when a Vibe has drifted or become two things, and proposes the change in their language.
 

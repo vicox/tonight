@@ -293,7 +293,17 @@ const movieVibes = z
   .describe(
     "The exact names of the user's vibes this film belongs to. They must already exist, and a " +
       "film may be in none, one or several. Passing this replaces the whole list; an empty list " +
-      "takes the film out of every vibe.",
+      "takes the film out of every vibe — except one it is the core of, which it cannot leave.",
+  );
+
+const vibeCore = z
+  .object({ title: movieTitle, year: movieYear })
+  .describe(
+    "The vibe's core: the one film that best embodies it. A film they have seen and stand " +
+      "behind — one they liked or loved, or one they named as what the vibe means — and never a " +
+      "film you only offered as an illustration, one they said they have not seen, or one they " +
+      "disliked or turned down for good. The core is filed in the vibe by this same call, and " +
+      "saved first if it is not saved yet, with nothing else about it.",
   );
 
 /**
@@ -342,7 +352,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "films they have told Tonight about. A genre is a reusable piece of what they like, " +
         "with an instruction saying what it means to them. A vibe combines one or more genres " +
         "and has an instruction of its own for what the combination means; the films in it are " +
-        "listed by title and year. Each film also appears once in movies, carrying its identity, " +
+        "listed by title and year, and `core` names the one that best embodies it — always one " +
+        "of its films, or null on a vibe written before vibes were anchored to a film, which is " +
+        "complete and usable as it is. Each film also appears once in movies, carrying its identity, " +
         "where it is filed, and `viewing`: seen, unseen, or null for never told. A new user has " +
         "none of it, which is the normal state " +
         "rather than an error. It is context and the vocabulary to reuse when writing — not a " +
@@ -501,9 +513,19 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "no reading of them would have found the name. The question is not whether the genres " +
         "give you this vibe, but whether the three could be one thing a person meant. Nothing " +
         "here checks that — the store takes whatever is structurally valid, and the judgement " +
-        "is yours. The films filed in a vibe are no part of it: one written just now with " +
-        "nothing under it is as coherent as one with ten.",
-      inputSchema: z.object({ name: vibeName, genres: vibeGenres, instruction: vibeInstruction }),
+        "is yours. How many films are filed in a vibe is no part of it: one written just now " +
+        "with only its core is as coherent as one with ten. **The core is part of it** — the " +
+        "film has to embody that one idea, and a film that fits only the name or only one genre " +
+        "is not a core.\n\n" +
+        "Write it only when the whole vibe was agreed — name, sentence, genres and core. " +
+        "Films you named to show what the idea covers are illustration: none of them is the " +
+        "core, and none is written.",
+      inputSchema: z.object({
+        name: vibeName,
+        genres: vibeGenres,
+        instruction: vibeInstruction,
+        core: vibeCore,
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
     async (args) => attempt(async () => ({ vibe: await store.createVibe(args) })),
@@ -531,17 +553,24 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "bookkeeping change. Read the incoming genres' instructions, not their names, and if " +
         "the result would be two ideas wearing one name, do not write it: say so and let the " +
         "user decide which they meant. Changing the rest to fit is rewording their sentence by " +
-        "another route.",
+        "another route.\n\n" +
+        "Passing core anchors the vibe on that film: a vibe whose core is null gets its first, " +
+        "or a vibe gets a film that embodies it better than its current core. Only with their " +
+        "yes. The film it replaces stays in the vibe as an ordinary member, and a core cannot be " +
+        "cleared — only replaced, or the vibe deleted.",
       inputSchema: z.object({
         name: vibeName.describe("The vibe to change, by its current name."),
         new_name: vibeName.describe("Rename the vibe to this.").optional(),
         genres: vibeGenres.optional(),
         instruction: vibeInstruction.optional(),
+        core: vibeCore.optional(),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
-    async ({ name, new_name: renamed, genres, instruction }) =>
-      attempt(async () => ({ vibe: await store.updateVibe(name, { name: renamed, genres, instruction }) })),
+    async ({ name, new_name: renamed, genres, instruction, core }) =>
+      attempt(async () => ({
+        vibe: await store.updateVibe(name, { name: renamed, genres, instruction, core }),
+      })),
   );
 
   server.registerTool(
@@ -550,7 +579,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
       title: "Delete a vibe",
       description:
         "Remove a vibe. Always allowed — nothing is built from a vibe — and the genres it " +
-        "combined are left alone.",
+        "combined are left alone, as are its films, its core included.",
       inputSchema: z.object({ name: vibeName }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
@@ -604,7 +633,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "not a saved movie here either — proposing a film, or the user watching one you " +
         "proposed, is nothing Tonight knows unless they said so. Write only what they " +
         "expressed or confirmed, and a confirmation covers only the meaning they were shown; " +
-        "it is not permission to write more than that.",
+        "it is not permission to write more than that.\n\n" +
+        "A film cannot be taken out of a vibe it is the core of. The refusal names the vibes: " +
+        "make another film the core with `update_vibe` first, or delete the vibe.",
       inputSchema: z.object({
         title: movieTitle.describe("The film to change, by its current title."),
         year: movieYear.describe("The film to change, by its current year."),
@@ -643,7 +674,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
       description:
         "Forget a film the user saved, where removing it is itself what they asked for. It " +
         "leaves every vibe it was in and the vibes themselves are left alone. Addressed by " +
-        "title and year together.\n\n" +
+        "title and year together. Refused while the film is a vibe's core: the refusal names " +
+        "the vibes, and the way through is another core with `update_vibe`, or deleting the " +
+        "vibe — which is theirs to choose.\n\n" +
         "**Not a way to tidy up after something else.** Forgetting or withdrawing a verdict " +
         "leaves the saved film standing on purpose: the film is in their collection and whether " +
         "they watched it is a separate thing they said, and neither stops being true because an " +
@@ -953,7 +986,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
       description:
         "The whole of what Tonight holds about this user, in two parts, so that \"what do " +
         "you know about me?\" has a complete and honest answer.\n\n" +
-        "`held` is what it currently holds as theirs: their genres, their vibes, the films they " +
+        "`held` is what it currently holds as theirs: their genres, their vibes — each with its " +
+        "`core`, the film anchoring it, or null where none has been chosen yet — the films they " +
         "saved with whether they have watched them, and the verdicts that still stand. " +
         "`remembered` is what it remembers happening: evenings, " +
         "verdicts they replaced, verdicts they took back. **Remembered is not evidence about " +

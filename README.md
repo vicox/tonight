@@ -88,10 +88,14 @@ from any MCP host rather than from one vendor's.
 This mirrors Inbox Labeler, whose MCP server holds a user's label model while the mailbox
 belongs to the host's own Gmail connector.
 
-## The skill
+## The skills
 
-One — [`tonight-recommend`](skills/tonight-recommend) — with a `SKILL.md` and a `test.sh` that
-checks the contract in it has not been edited away.
+Two, each with a `SKILL.md` and a `test.sh` that checks the contract in it has not been edited
+away. [`tonight-recommend`](skills/tonight-recommend) is where every conversation starts:
+recommending, keeping a film, recording what somebody said about one, and reading Vibes.
+[`tonight-vibes`](skills/tonight-vibes) is how a Vibe is written and grows — anchored on a film
+they stand behind, proposed and written only on their yes, from what they say about films. The
+split is by concern, not by intent: there is still no setup, and recommend is still the way in.
 
 **There is no setup.** Somebody arriving at Tonight wants a film, not a configuration session,
 so the conversation starts where they are:
@@ -114,9 +118,12 @@ on its own, and never a request for tonight, which says what they want now.
 
 ### One specification, several projections
 
-`SKILL.md` is the specification, and the only file anybody edits. A host that reads skills reads
-it. Other hosts get a **generated projection** of it — `web/lib/generated/project-instructions.ts`
-is the one for the instructions box of a ChatGPT project, produced by `npm run sync:instructions`.
+Each `SKILL.md` is a specification, and the only file anybody edits. A host that reads skills reads
+them. Other hosts get a **generated projection** — `web/lib/generated/project-instructions.ts`
+is the one for the instructions box of a ChatGPT project, produced by `npm run sync:instructions`
+from `tonight-recommend` alone. A project has one instruction slot and no second skill, so what
+it carries of Vibes is the floor recommend states for itself; the full Vibe lifecycle is the
+plugin's.
 
 A projection is not a copy. It drops the rationale that sits between `full:` markers, and where a
 rule's canonical wording will not fit the target, a `project:compact` block in the skill supplies
@@ -164,12 +171,12 @@ method ships in the skill beside the server rather than as a runtime tool.
 | `create_genre` | a Genre, with the instruction that says what it means to this user |
 | `update_genre` | reword or rename. A rename rewrites every Vibe built from it |
 | `delete_genre` | refused while a Vibe is built from it, and the refusal names the Vibes |
-| `create_vibe` | a Vibe over one or more existing Genres |
-| `update_vibe` | reword, rename, or replace the Genres it is built from |
+| `create_vibe` | a Vibe over one or more existing Genres, anchored on the one film that best embodies it |
+| `update_vibe` | reword, rename, replace the Genres it is built from, or anchor it on a new core |
 | `delete_vibe` | always allowed; the Genres it combined are untouched |
 | `create_movie` | a film the user named, and whether they said they watched it |
-| `update_movie` | retitle, correct the year, change its viewing, or change which Vibes it is in |
-| `delete_movie` | removes the film they asked to remove; the Vibes it was in are untouched |
+| `update_movie` | retitle, correct the year, change its viewing, or change which Vibes it is in — never out of one it anchors |
+| `delete_movie` | removes the film they asked to remove; refused while it anchors a Vibe; the Vibes it was in are untouched |
 | `record_verdict` | what they said about one film: a judgement, or a refusal with its reach |
 | `withdraw_verdict` | they no longer stand by it. The claim stops applying; that they said it stays |
 | `forget_verdict` | one act removed outright, by the reference `get_memory` gave it |
@@ -218,9 +225,15 @@ addressed from outside, and there is no id in any tool schema or any answer.
   Movie to put one. Taking a Verdict back removes that act from what stands and reaches exactly
   as far as the act did: no weaker opinion is revealed underneath it in that scope, and a
   withdrawn evening's `not-tonight` leaves a global judgement applying where it was.
-- **Deleting a Movie is always allowed**, and takes only its Vibe memberships with it. A Vibe is
-  *defined by* its Genres and merely *holds* Movies, which is why one restricts and the other
-  cascades.
+- **A Vibe is anchored on one core Movie**, the film that best embodies it, and the core is always
+  one of its own films: a column on the Vibe with a deferred foreign key into its memberships. A
+  core is required to create a Vibe, can be replaced — the old one stays a member — and is never
+  cleared. A Vibe from before cores existed reads `core: null` and works as it is until somebody
+  chooses its core; nothing anchors one automatically.
+- **Deleting a Movie is allowed unless it anchors a Vibe**, and takes only its Vibe memberships
+  with it. A Vibe is *defined by* its Genres and its core, and merely *holds* its other Movies,
+  which is why those restrict and the rest cascade. Taking a core out of its Vibe is refused the
+  same way, and both refusals name the Vibes.
 
 ## The website
 
@@ -281,10 +294,11 @@ npm run typecheck
 npm run lint
 ```
 
-and the skill contract, and the ChatGPT plugin package:
+and the skill contracts, and the ChatGPT plugin package:
 
 ```bash
 skills/tonight-recommend/test.sh
+skills/tonight-vibes/test.sh
 bash chatgpt-plugin/test.sh
 ```
 

@@ -285,7 +285,7 @@ describe("upgrading the database production actually has", () => {
       for (const schema of ALL_SCHEMAS) await migrate(driver, schema);
 
       // The schema moved the whole way.
-      assert.deepEqual(await applied("taste"), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+      assert.deepEqual(await applied("taste"), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
       assert.deepEqual(await applied("episodes"), [1, 2]);
       assert.deepEqual(await applied("verdicts"), [1, 2]);
       // The retirements run here too, and record nothing but themselves: this

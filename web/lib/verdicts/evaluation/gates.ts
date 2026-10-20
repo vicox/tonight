@@ -58,7 +58,13 @@ export type Standing = {
 /** The taste model as `get_taste` returns it, with verdicts folded in. */
 export type Taste = {
   genres: { name: string; instruction: string }[];
-  vibes: { name: string; instruction: string; genres: string[] }[];
+  /** `core` is optional here only so a probe can invent a vibe without one. */
+  vibes: {
+    name: string;
+    instruction: string;
+    genres: string[];
+    core?: { title: string; year: number } | null;
+  }[];
   movies: { title: string; year: number; viewing: string | null }[];
   verdicts?: Standing[];
 };

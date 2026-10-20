@@ -543,6 +543,7 @@ test("one Google account is one owner, whether it arrives by MCP or by browser",
     name: "Space Tension",
     genres: ["Sci-Fi", "Thriller"],
     instruction: "Contained, mysterious science fiction.",
+    core: { title: "Arrival", year: 2016 },
   });
 
   const fromMcp = (await mcp(`google:${SUB}`, "get_taste")) as unknown as Taste;
@@ -550,10 +551,12 @@ test("one Google account is one owner, whether it arrives by MCP or by browser",
 
   // Byte for byte the same model, in the same order, with the same fields. Both
   // read the same rows through the same store, because the browser session
-  // resolves to the same provider-qualified subject the access token carries.
+  // resolves to the same provider-qualified subject the access token carries —
+  // the core the MCP call anchored the vibe on, and the film it saved, included.
   assert.deepEqual(fromWeb?.taste, fromMcp);
   assert.equal(fromWeb?.taste.genres.length, 2);
   assert.deepEqual(fromWeb?.taste.vibes[0]?.genres, ["Sci-Fi", "Thriller"]);
+  assert.deepEqual(fromWeb?.taste.vibes[0]?.core, { title: "Arrival", year: 2016 });
 });
 
 test("a Google account with no taste reaches an empty home page, not somebody else's", async () => {

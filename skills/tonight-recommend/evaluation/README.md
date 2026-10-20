@@ -51,14 +51,18 @@ cannot be expressed through the public tool surface is not a fixture of this pro
 idempotent: the fixture's user is emptied and rewritten, and no other user is read or written —
 the script refuses any user that is not `google:eval-…`.
 
-> **Seed once per fixture, then leave it alone.** Seeding writes new rows with new timestamps. A
-> fixture reseeded between two runs is two different taste models wearing one name, and every
-> recording that straddles the reseed is describing data that no longer exists.
+> **Reseed before every run, then snapshot it.** Seeding writes new rows with new timestamps, so a
+> recording is only ever about the seeding it was made against — which is why each run's snapshot
+> is taken immediately after its own reseed and bound to it by digest. (M5 replaced *"seed once per
+> fixture"*: a run may now write — a verdict, a Vibe on a yes — and a run that starts from what the
+> previous one left is not a run of the fixture. Teardown is vibes, then films, then genres: a film
+> that anchors a vibe cannot be deleted until the vibe is.)
 
 **Two fixtures share one model on purpose.** `06-exclusion-plain` declares
-`sameModelAs: 05-exclusion-explicit`, and `07`/`08` declare `sameModelAs: 03-state-rich`. Seed the
-shared model **once** and run every half against that one seeding. That shared model is the whole
-of what the exclusion pair proves: one model, two requests, two behaviours.
+`sameModelAs: 05-exclusion-explicit`, and `07`/`08` declare `sameModelAs: 03-state-rich`. Reseed
+through the fixture that **owns** the model — its verdicts are part of the model, and the sharer
+carries none — and run each half against a fresh copy of that one model. That shared model is the
+whole of what the exclusion pair proves: one model, two requests, two behaviours.
 
 ### 2. Refresh a token without touching the data
 
@@ -67,8 +71,8 @@ node evaluation/seed.mjs 03-state-rich --token         # mints only — seeds NO
 ```
 
 A token expires mid-session. Re-running the bare seed to get a new one would quietly reseed the
-fixture and invalidate every recording that came before. **Use `--token`.** The bare form is for
-first materialisation and for nothing else.
+fixture underneath the run in progress and invalidate its snapshot. **Use `--token`.** The bare
+form is for the reseed at the start of a run and for nothing else.
 
 ### 3. Take the snapshot that the run will be bound to
 
@@ -305,8 +309,8 @@ node evaluation/run-baseline.mjs --dry-run             what it would do, and not
 ```
 
 `run-baseline.mjs` is the procedure above, automated, and nothing more. It prepares the room and
-leaves it: seeds each fixture once, mints a token without reseeding, takes the snapshot straight
-from the server, starts the proxy with the right failure configuration, launches **one fresh
+leaves it: reseeds the fixture before each run, mints a token without reseeding, takes the
+snapshot straight from the server, starts the proxy with the right failure configuration, launches **one fresh
 `claude -p` per run**, and writes the artifact from what the proxy saw.
 
 It refuses to start if `SKILL.md`, the generated instructions or the tool descriptions differ from

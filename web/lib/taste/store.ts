@@ -45,8 +45,13 @@ export type GenreDraft = { name: unknown; instruction: unknown };
  */
 export type GenreChanges = { name?: unknown; instruction?: unknown };
 
-/** What creating a vibe is given. Both fields are the caller's, as a genre's are. */
-export type VibeDraft = { name: unknown; instruction: unknown; genres: unknown };
+/**
+ * What creating a vibe is given. Every field is the caller's, as a genre's are.
+ *
+ * `core` is required: the film that best embodies the vibe, by title and year. It
+ * is filed in the vibe by the same write, and saved first if it is not saved yet.
+ */
+export type VibeDraft = { name: unknown; instruction: unknown; genres: unknown; core: unknown };
 
 /**
  * What updating a vibe may change.
@@ -54,8 +59,17 @@ export type VibeDraft = { name: unknown; instruction: unknown; genres: unknown }
  * Passing `genres` replaces the list rather than adding to it, which is why this
  * is not simply a partial vibe: "these are its genres now" has to be
  * distinguishable from not mentioning them.
+ *
+ * Passing `core` anchors the vibe on that film — a pre-M5 vibe for the first
+ * time, or any vibe on a better embodiment. The film it replaces stays in the
+ * vibe. It cannot be passed as `null`: a core is replaced, never cleared.
  */
-export type VibeChanges = { name?: unknown; instruction?: unknown; genres?: unknown };
+export type VibeChanges = {
+  name?: unknown;
+  instruction?: unknown;
+  genres?: unknown;
+  core?: unknown;
+};
 
 /**
  * What creating a movie is given.
@@ -119,9 +133,13 @@ export type TasteStore = {
    *
    * Changing either leaves the object it is: the filings point at an id, so a
    * retitled movie is still in the same vibes and no relation row is written.
+   * A new filing that leaves out a vibe this movie is the core of is refused.
    */
   updateMovie(title: string, year: number, changes: MovieChanges): Promise<Movie>;
-  /** Removes a movie. Always allowed: its filings go with it, the vibes stay. */
+  /**
+   * Removes a movie: its filings go with it, the vibes stay. Refused while it is a
+   * vibe's core, and the refusal names the vibes.
+   */
   deleteMovie(title: string, year: number): Promise<Movie>;
 };
 

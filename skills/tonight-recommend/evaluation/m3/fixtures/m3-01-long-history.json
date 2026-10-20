@@ -29,7 +29,8 @@
           "Slow Burn",
           "Bleak Procedural"
         ],
-        "instruction": "Dread that arrives on foot rather than in a jump scare."
+        "instruction": "Dread that arrives on foot rather than in a jump scare.",
+        "core": { "title": "Zodiac", "year": 2007 }
       }
     ],
     "movies": [

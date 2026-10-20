@@ -20,7 +20,8 @@
         "genres": [
           "Quiet Science Fiction"
         ],
-        "instruction": "Slow science fiction where the problem is inside somebody, not outside the ship."
+        "instruction": "Slow science fiction where the problem is inside somebody, not outside the ship.",
+        "core": { "title": "Arrival", "year": 2016 }
       }
     ],
     "movies": [

@@ -127,10 +127,11 @@ describe("M2 — only what they said", () => {
     // The taste everybody starts from. Genres and a vibe are here so that a
     // rejection generalising into a category has somewhere to land where a gate
     // can see it; without them "nothing else moved" would be a claim about an
-    // empty room.
+    // empty room. The film comes before the vibe because it is the vibe's core:
+    // saved first, it keeps its viewing and the vibe only files it.
     for (const genre of BASELINE.genres) await call("create_genre", { ...genre });
-    for (const vibe of BASELINE.vibes) await call("create_vibe", { ...vibe });
     for (const movie of BASELINE.movies) await call("create_movie", { ...movie });
+    for (const vibe of BASELINE.vibes) await call("create_vibe", { ...vibe });
     // The baseline opinion, as an opinion is written now. It used to be a field
     // on the film above; when it stopped being one, the tool dropped it in
     // silence and every user's baseline lost the thing the neighbouring-film
@@ -475,6 +476,16 @@ describe("M2 — only what they said", () => {
         ...seen.after.vibes,
         { name: "Short Evenings", genres: ["Heist"], instruction: "nothing that runs long" },
       ];
+    });
+  });
+
+  test("a not-tonight taking a vibe's anchor away is caught", () => {
+    // The baseline vibe is anchored on the baseline film. A refusal that reached
+    // across and cleared the anchor leaves every name, sentence and genre as it
+    // was, so only the core itself can show it.
+    probe("an evening's refusal unanchors a vibe", "scope", (copy) => {
+      const seen = copy.seen["not-tonight-one-evening"]!;
+      seen.after.vibes = seen.after.vibes.map((vibe) => ({ ...vibe, core: null }));
     });
   });
 

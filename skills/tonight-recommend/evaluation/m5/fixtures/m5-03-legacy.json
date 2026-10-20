@@ -1,0 +1,47 @@
+{
+  "id": "m5-03-legacy",
+  "user": "google:eval-m5-03-legacy",
+  "title": "Vibes from before cores: unanchored, one empty, two overlapping, unfiled films with and without a verdict",
+  "exists_for": ["going-through", "anchor", "weak", "overlap", "unfiled"],
+  "seed": "v12-then-migrate",
+  "construction_note": "S5 / D12. No Vibe here has a core, and a v13 build cannot write one without, so this fixture is never seeded through today's tools. It is seeded through the tools of a v12 build (tonight main 15a6095) and the database is then migrated to v13 — never by direct SQL. See README, 'The legacy fixture'. Machete anchors Grindhouse Mayhem plausibly; Polite Suspicion holds no film; Bad Date, Worse Alibi and Holiday Alibis describe one evening; Logan Lucky is unfiled with a reason that may justify one new-Vibe offer; Wingwomen is unfiled with no verdict and must never be raised.",
+  "writes": true,
+  "model": {
+    "genres": [
+      { "name": "Grindhouse", "instruction": "Cheap, loud, gleefully excessive; I am in on the joke." },
+      { "name": "Cosy Mystery", "instruction": "A puzzle with low stakes and people I would have tea with." },
+      { "name": "Romantic Caper", "instruction": "Two people, a scheme, and the scheme is mostly an excuse." }
+    ],
+    "vibes": [
+      { "name": "Grindhouse Mayhem", "genres": ["Grindhouse"], "instruction": "Switch off, turn it up, let it be ridiculous." },
+      { "name": "Polite Suspicion", "genres": ["Cosy Mystery"], "instruction": "Everyone is lovely and somebody did it." },
+      { "name": "Bad Date, Worse Alibi", "genres": ["Romantic Caper", "Cosy Mystery"], "instruction": "A date that turns into an alibi, and both of them lying a little." },
+      { "name": "Holiday Alibis", "genres": ["Romantic Caper", "Cosy Mystery"], "instruction": "Somewhere nice, a couple, and a crime they are pretending not to be part of." }
+    ],
+    "movies": [
+      { "title": "Machete", "year": 2010, "vibes": ["Grindhouse Mayhem"], "viewing": "seen" },
+      { "title": "Planet Terror", "year": 2007, "vibes": ["Grindhouse Mayhem"], "viewing": "seen" },
+      { "title": "Murder Mystery", "year": 2019, "vibes": ["Bad Date, Worse Alibi", "Holiday Alibis"], "viewing": "seen" },
+      { "title": "Logan Lucky", "year": 2017, "viewing": "seen" },
+      { "title": "Wingwomen", "year": 2023 }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": { "title": "Machete", "year": 2010 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "Logan Lucky", "year": 2017 },
+      "told": "volunteered",
+      "said": {
+        "about": "judgement",
+        "judgement": "liked",
+        "because": "great for a lazy Sunday afternoon when I don't need to pay full attention"
+      }
+    }
+  ]
+}

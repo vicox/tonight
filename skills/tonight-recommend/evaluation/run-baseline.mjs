@@ -189,6 +189,13 @@ async function run(fixture, prompt, said, index) {
   }
   for (const part of already) rmSync(part, { force: true });
 
+  // Fresh, every run (M5 plan, Revision 3 #2): the seeder tears down vibes, then
+  // films, then genres, and writes the model again — each vibe with its core.
+  // A fixture that shares a model is reseeded through the fixture that owns it,
+  // because the owner's verdicts are part of that model and the sharer has none
+  // of its own. The snapshot below is then taken of exactly what this run sees.
+  seed(fixture.model ? fixture.id : fixture.sameModelAs);
+
   // Provenance, straight to the server: for a failure fixture the agent's read
   // fails and the data still exists, and the artifact has to be able to say so.
   const digest = seed(fixture.id, "--snapshot", join(OUT, snapshotFile));
@@ -359,13 +366,7 @@ if (DRY) {
   process.exit(0);
 }
 
-// Seeded once per fixture that owns a model; the ones that share read it.
-for (const fixture of new Set(wanted.map((one) => (one.model ? one.id : one.sameModelAs)))) {
-  if (!fixture) continue;
-  seed(fixture);
-  console.error(`  seeded ${fixture}`);
-}
-
+// No seeding here: every run reseeds its own fixture before its snapshot (`run`).
 let done = 0;
 for (const { fixture, prompt, index } of matrix) {
   const stamp = new Date().toISOString();
