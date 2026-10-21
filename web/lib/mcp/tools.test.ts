@@ -1090,6 +1090,65 @@ test("a core can neither leave its vibe nor be deleted, and the refusal names th
   assert.deepEqual((await ok(token, "get_taste")).vibes[0].movies, [SOLARIS]);
 });
 
+test("a film saved as unseen is never a core, and a standing liked does not make it one", async () => {
+  // The contradiction case: two things they said disagree — the saved viewing
+  // says they have not watched it, a standing liked says they have. Recommending
+  // reads the liked (`lib/seen.ts`); the store reads only the raw viewing, so it
+  // refuses, and the way through is their word, never a viewing written to get
+  // past the refusal.
+  const token = await tokenFor(someone());
+  const COLLATERAL = { title: "Collateral", year: 2004 };
+  await ok(token, "create_genre", { name: "Crime", instruction: "Clever, never cruel." });
+  await ok(token, "create_movie", { ...COLLATERAL, viewing: "unseen" });
+  await ok(token, "record_verdict", {
+    film: COLLATERAL,
+    told: "volunteered",
+    said: { about: "judgement", judgement: "liked" },
+  });
+  const vibe = { name: "Night Shift", genres: ["Crime"], instruction: "Long nights, one job." };
+  const before = await ok(token, "get_taste");
+
+  assert.equal(
+    await refused(token, "create_vibe", { ...vibe, core: COLLATERAL }),
+    'cannot make "Collateral" (2004) a core: its saved viewing says they have not seen it, and ' +
+      "a core is a film they have seen. Change the viewing only if they tell you they have " +
+      "watched it — then record that with update_movie and try again",
+  );
+  assert.deepEqual(await ok(token, "get_taste"), before, "a refused core wrote something");
+  // Both raw facts stay where they are, each still saying what it said.
+  assert.equal(before.movies[0].viewing, "unseen");
+  assert.equal(before.verdicts[0].judgement, "liked");
+
+  // On update the same; and a core cannot be marked unseen either.
+  await ok(token, "create_vibe", { ...vibe, core: SOLARIS });
+  assert.match(
+    await refused(token, "update_vibe", { name: "Night Shift", core: COLLATERAL }),
+    /^cannot make "Collateral" \(2004\) a core/,
+  );
+  assert.equal(
+    await refused(token, "update_movie", { ...SOLARIS, viewing: "unseen" }),
+    'cannot mark "Solaris" (1972) unseen: it is the core of the vibe "Night Shift", and a core ' +
+      "is a film they have seen — make another film the core with update_vibe first, or delete " +
+      "the vibe",
+  );
+
+  // Where a client meets it: the core argument on both writes, and update_movie.
+  const tools = await listTools(token);
+  for (const name of ["create_vibe", "update_vibe"]) {
+    const core = (tools.find((tool) => tool.name === name)?.inputSchema.properties?.core ?? {}) as {
+      description?: string;
+    };
+    assert.match(core.description ?? "", /Refused when the saved film's viewing is `unseen`/u, `${name}: no guard`);
+    assert.match(core.description ?? "", /a liked or loved does not override it/u, `${name}: liked overrides`);
+    assert.match(core.description ?? "", /never to get past this/u, `${name}: a bypass is allowed`);
+    assert.match(core.description ?? "", /no viewing \(null\) is accepted/u, `${name}: null unexplained`);
+  }
+  assert.match(
+    tools.find((tool) => tool.name === "update_movie")?.description ?? "",
+    /nor marked unseen while it is\s+a core/u,
+  );
+});
+
 test("get_taste shows each vibe's core, always one of its own films", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });

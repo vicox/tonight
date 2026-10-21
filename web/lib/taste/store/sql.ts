@@ -13,6 +13,7 @@ import {
   checkName,
   checkViewing,
   checkYear,
+  coreUnseen,
   genreExists,
   genreInUse,
   genreNotFound,
@@ -464,6 +465,17 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           }
 
           await holdVibes(tx, owner, filings, known);
+        }
+
+        // A core is a film they have seen, so a core cannot become `unseen`. Asked
+        // while this film is held, for the reason the filing check gives. Only a
+        // change to `unseen` is refused: a film already saved that way is left as
+        // it is, and clearing a viewing to null is not saying "unseen".
+        if (entry.viewing === "unseen" && current.viewing !== "unseen") {
+          const anchored = await anchoredBy(tx, owner, current.id);
+          if (anchored.length) {
+            throw movieAnchorsVibe(current.title, current.year, filingNames(anchored), "unsee");
+          }
         }
 
         const changed = await orExplain(
@@ -952,11 +964,17 @@ type Core = { id: string; handle: MovieHandle; saved: boolean };
  *
  * Two of these can race to save the same film. The insert gives way to the
  * other's row rather than failing, and the row is then held like any other.
+ *
+ * A saved film whose viewing is `unseen` is refused: they said they have not
+ * watched it, and a core is a film they have seen. Read from the row just
+ * locked, so a concurrent `update_movie` marking it unseen either finished first
+ * and is seen here, or waits and then finds a core it may not mark.
  */
 async function holdCore(sql: Transaction, owner: string, wanted: MovieHandle): Promise<Core> {
   for (let attempt = 1; ; attempt += 1) {
     const { source: found } = await lockMovies(sql, owner, wanted);
     if (found) {
+      if (found.viewing === "unseen") throw coreUnseen(found.title, found.year);
       return { id: found.id, handle: orderHandle(found), saved: false };
     }
 

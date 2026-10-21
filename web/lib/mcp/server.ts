@@ -303,7 +303,10 @@ const vibeCore = z
       "behind — one they liked or loved, or one they named as what the vibe means — and never a " +
       "film you only offered as an illustration, one they said they have not seen, or one they " +
       "disliked or turned down for good. The core is filed in the vibe by this same call, and " +
-      "saved first if it is not saved yet, with nothing else about it.",
+      "saved first if it is not saved yet, with nothing else about it.\n\n" +
+      "Refused when the saved film's viewing is `unseen` — a liked or loved does not override " +
+      "it, and a viewing is changed only on their word, never to get past this. A film with " +
+      "no viewing (null) is accepted.",
   );
 
 /**
@@ -634,8 +637,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "proposed, is nothing Tonight knows unless they said so. Write only what they " +
         "expressed or confirmed, and a confirmation covers only the meaning they were shown; " +
         "it is not permission to write more than that.\n\n" +
-        "A film cannot be taken out of a vibe it is the core of. The refusal names the vibes: " +
-        "make another film the core with `update_vibe` first, or delete the vibe.",
+        "A film cannot be taken out of a vibe it is the core of, nor marked unseen while it is " +
+        "a core. The refusal names the vibes: make another film the core with `update_vibe` " +
+        "first, or delete the vibe.",
       inputSchema: z.object({
         title: movieTitle.describe("The film to change, by its current title."),
         year: movieYear.describe("The film to change, by its current year."),
