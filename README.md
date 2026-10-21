@@ -1,6 +1,9 @@
 # Tonight
 
-**Build your taste. Find your movie.**
+**Movies That Get You.**
+
+Tonight doesn’t just remember what you love. It understands why. Discover what makes movies
+special to you through personal Vibes — and get recommendations that truly match your taste.
 
 Tonight is a personal movie recommender in which you own the recommender. Instead of a profile
 that watches what you do and never shows you what it concluded, you write down what you like —

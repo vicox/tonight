@@ -40,7 +40,7 @@ export function SiteHeader({ children }: { children?: React.ReactNode }) {
     <header className="mb-12 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 border-b border-rule pb-5 sm:mb-16">
       <div className="flex items-baseline gap-4">
         <h1 className="font-display text-[26px] leading-none tracking-[-0.01em]">Tonight</h1>
-        <p className="text-[12.5px] text-ink-faint">Build your taste. Find your movie.</p>
+        <p className="text-[12.5px] text-ink-faint">Movies That Get You.</p>
       </div>
       {children}
     </header>
