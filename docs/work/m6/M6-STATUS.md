@@ -17,6 +17,14 @@ plugin:       1.3.0 (manifest diff vs 2cdc336: the version line only)
 updated:      2026-10-21
 ```
 
+## Pre-deploy acceptance (docs/work/m6/M6-ACCEPTANCE.md)
+
+- Production unseen-core count: not run, no credential reaches the implementing session.
+- Seeding preflight: every non-legacy M6/M5/M3/Phase 1 fixture seeds cleanly at 820d02b.
+- Semantic sweeps: not run (`claude -p` needs an approval the session cannot give); thresholds
+  fixed in advance.
+- Manual iOS plugin pass: the user's; rebuild the ZIP at 820d02b first (dist/ copy is stale).
+
 ## Next (coordinator)
 
 - Shell gates and the 1.3.0 package build/test (not executable in the implementing session).
