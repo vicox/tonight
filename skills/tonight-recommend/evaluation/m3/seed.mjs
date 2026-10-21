@@ -52,7 +52,27 @@ const PROTOCOL_VERSION = "2026-07-28";
  * the fixture being seeded: a guard that took its answer from the file it is
  * guarding would agree with any file.
  */
-const OWNED = /^google:eval-m[35]-[a-z0-9-]+$/;
+const OWNED = /^google:eval-m[35]-[a-z0-9-]+$|^google:eval-m6-[a-z0-9-]+$/;
+
+/**
+ * The date a run is told is today, from the runner, for fixtures that say `@today`.
+ *
+ * M6's evening refusals are named by the evening's date. A fixture cannot know
+ * the date it will be seeded on, so it writes `@today` and the runner — which
+ * tells the agent the same date — passes it here. One date for both, so the
+ * seeded refusal and the agent's idea of tonight cannot disagree. Only an
+ * `occasion` is ever substituted, and a fixture that says `@today` without one
+ * given is refused rather than seeded with a guess.
+ */
+const TODAY = process.argv.includes("--today") ? process.argv[process.argv.indexOf("--today") + 1] : null;
+
+function dated(occasion, id) {
+  if (occasion !== "@today") return occasion;
+  if (!TODAY || !/^\d{4}-\d{2}-\d{2}$/.test(TODAY)) {
+    throw new Error(`${id} names @today, and no --today YYYY-MM-DD was given`);
+  }
+  return TODAY;
+}
 
 /**
  * Where the fixtures are: this directory's own, or another set's.
@@ -78,7 +98,7 @@ function fixture(id) {
 }
 
 async function token(user) {
-  if (!OWNED.test(user)) throw new Error(`refusing to act for ${user}: not an M3 or M5 evaluation user`);
+  if (!OWNED.test(user)) throw new Error(`refusing to act for ${user}: not an M3, M5 or M6 evaluation user`);
   const { token } = await mintAccessToken(
     deployment(), signingKey(), { id: user }, "evaluation", "mcp", deployment().resource,
   );
@@ -220,13 +240,15 @@ async function seed(id) {
   // In order, because order is what makes one verdict supersede another.
   for (const act of spec.acts ?? []) {
     switch (act.do) {
-      case "verdict":
-        await call(bearer, "record_verdict", { film: act.film, told: act.told, said: act.said });
+      case "verdict": {
+        const said = act.said.occasion === undefined ? act.said : { ...act.said, occasion: dated(act.said.occasion, spec.id) };
+        await call(bearer, "record_verdict", { film: act.film, told: act.told, said });
         break;
+      }
       case "withdraw":
         await call(bearer, "withdraw_verdict", {
           film: act.film,
-          ...(act.occasion === undefined ? {} : { occasion: act.occasion }),
+          ...(act.occasion === undefined ? {} : { occasion: dated(act.occasion, spec.id) }),
         });
         break;
       case "episode": {

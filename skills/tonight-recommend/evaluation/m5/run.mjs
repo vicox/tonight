@@ -5,6 +5,7 @@
  *   node evaluation/m5/run.mjs --source plugin-skills --only m5-01-anchored__logan-lucky-sunday
  *   node evaluation/m5/run.mjs --source recommend-only --runs 3
  *   node evaluation/m5/run.mjs --source projection --dry-run       what it would do, and nothing else
+ *   node evaluation/m5/run.mjs --set m6 --source projection        the M6 set (evaluation/m6/)
  *
  * M3's runner, with three differences and a reason for each.
  *
@@ -45,6 +46,14 @@
  * torn down, then everything written again through the tools — and snapshotted before
  * and after, through the M3 seeder. What it does not do, ever: call a tool on the
  * agent's behalf, reason for it, or write its transcript.
+ *
+ * **It runs the M6 set too** (`--set m6`; `m5` when left out, and then nothing about
+ * an M5 run changes). M6's refusals are dated, so each run fixes one local date `D`
+ * when it starts: the seeder writes it wherever a fixture says `@today`, the agent is
+ * told it in one host line (`Today's date is D.`, as ChatGPT tells a model the date),
+ * the artifact records it, and the rubric scores against it. A run that ends on
+ * another date than it started straddled midnight: it is void, and is rerun rather
+ * than scored (`docs/work/m6/PLAN.md`, §5.2).
  */
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, globSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -57,13 +66,26 @@ const EVAL = join(here, "..");
 const ROOT = join(here, "..", "..", "..", "..");
 const WEB = join(ROOT, "web");
 const SEEDER = join(EVAL, "m3", "seed.mjs");
-const FIXTURES = join(here, "fixtures");
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => {
   const at = args.indexOf(`--${name}`);
   return at >= 0 ? args[at + 1] : fallback;
 };
+const SETS = ["m5", "m6"];
+const SET = option("set", "m5");
+if (!SETS.includes(SET)) throw new Error(`--set is one of ${SETS.join(", ")}`);
+const SET_DIR = join(EVAL, SET);
+const FIXTURES = join(SET_DIR, "fixtures");
+
+/** Today, on this machine's clock: the `D` a run is seeded, told and scored with. */
+function localDate() {
+  const now = new Date();
+  const two = (n) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
+}
+let TODAY = localDate();
+
 const SOURCES = ["projection", "plugin-skills", "recommend-only"];
 const SOURCE = option("source", null);
 const RUNS = Number(option("runs", "3"));
@@ -124,6 +146,15 @@ function instructions() {
   }
 }
 
+/**
+ * What the agent is given as its system prompt: the source's instructions, and on the
+ * M6 set the one host line that tells it the date — nothing else, and never anything
+ * about the evaluation.
+ */
+function systemPrompt() {
+  return SET === "m6" ? `${instructions()}\n\nToday's date is ${TODAY}.` : instructions();
+}
+
 function version() {
   const source = readFileSync(join(WEB, "lib", "generated", "project-instructions.ts"), "utf8");
   return source.match(/PROJECT_INSTRUCTIONS_VERSION = "([a-f0-9]+)"/)[1];
@@ -147,20 +178,22 @@ function refuseIfPromptsMoved() {
 
 const VERSION = version();
 const TARGET = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim();
-const OUT = join(here, "results", `m5-${SOURCE}-${VERSION}-${TARGET}`, "runs");
+const OUT = join(SET_DIR, "results", `${SET}-${SOURCE}-${VERSION}-${TARGET}`, "runs");
 
-const scenarios = JSON.parse(readFileSync(join(here, "scenarios.json"), "utf8"));
+const scenarios = JSON.parse(readFileSync(join(SET_DIR, "scenarios.json"), "utf8"));
 const fixture = (id) => JSON.parse(readFileSync(join(FIXTURES, `${id}.json`), "utf8"));
 
 function prompts() {
-  const table = readFileSync(join(here, "prompts.md"), "utf8");
+  const table = readFileSync(join(SET_DIR, "prompts.md"), "utf8");
   const said = new Map();
   for (const row of table.matchAll(/^\| `([a-z-]+)` \| \*"(.+?)"\* \|/gm)) said.set(row[1], row[2]);
   return said;
 }
 
 const seed = (id, ...rest) =>
-  execFileSync("node", [SEEDER, id, "--fixtures", FIXTURES, ...rest], { encoding: "utf8" }).trim();
+  execFileSync("node", [SEEDER, id, "--fixtures", FIXTURES, "--today", TODAY, ...rest], {
+    encoding: "utf8",
+  }).trim();
 
 const pause = (ms) => new Promise((wake) => setTimeout(wake, ms));
 
@@ -247,7 +280,7 @@ function turn(said, config, resume) {
         "--model", MODEL,
         "--mcp-config", config,
         "--strict-mcp-config",
-        "--system-prompt", instructions(),
+        "--system-prompt", systemPrompt(),
         "--allowedTools", "mcp__tonight",
         "--disallowedTools", "WebSearch WebFetch Bash Read Write Edit Glob Grep Task TodoWrite NotebookEdit",
         "--permission-mode", "bypassPermissions",
@@ -280,6 +313,10 @@ async function run(scenario, said, then, index) {
     throw new Error(`${name} already has ${already.length} of its 3 files. Re-run with --force.`);
   }
   for (const part of [...already, join(OUT, afterFile)]) rmSync(part, { force: true });
+
+  // One date for the whole run: seeded, told and scored with the same `D`.
+  TODAY = localDate();
+  const today = TODAY;
 
   // Fresh, every run — except a legacy fixture, which only its operator can seed.
   if (spec.seed !== "v12-then-migrate") seed(scenario.fixture);
@@ -317,24 +354,30 @@ async function run(scenario, said, then, index) {
     await shutDown(proxy, PORT);
   }
 
+  // A run that crossed midnight was told one date and lived in two: void, not scored.
+  const ended = localDate();
+  const straddled = SET === "m6" && ended !== today ? `void: started on ${today}, ended on ${ended} — rerun` : null;
+
   const afterDigest = seed(scenario.fixture, "--snapshot", join(OUT, afterFile));
   return {
     name, spec, snapshotFile, afterFile, logFile, digest, afterDigest, first, second,
-    resolved: answeredBy(first.session),
+    resolved: answeredBy(first.session), today, straddled,
   };
 }
 
 function artifact(scenario, said, then, index, result, stamp) {
   const { rendered, discovered, mutations } = transcript(result.logFile);
-  const failure = result.first.failure ?? result.second?.failure ?? null;
+  const failure = result.straddled ?? result.first.failure ?? result.second?.failure ?? null;
   return `---
 fixture: ${scenario.fixture}
 prompt: ${scenario.prompt}
 then: ${scenario.then ?? "none"}
 family: ${scenario.family}
 considers: ${scenario.considers ? "yes" : "no"}
+gate: ${scenario.gate ?? "m5 threshold"}
 run: ${String(index).padStart(2, "0")}
-side: m5
+side: ${SET}
+today: ${result.today}${SET === "m6" ? " (told to the agent as a host line; @today seeded as this)" : " (not told)"}
 source: ${SOURCE}
 skills: ${skillsGiven().join(", ") || "none — the projection"}
 host: claude -p (Claude Code CLI, --bare), instructions as the system prompt
@@ -416,7 +459,7 @@ if (LEGACY_SEEDED) {
 
 const planned = chosen.length * RUNS;
 console.error(
-  `M5 semantic evaluation on ${SOURCE} — instructions ${VERSION} at ${TARGET}, model ${MODEL}, CLI ${CLI}\n` +
+  `${SET.toUpperCase()} semantic evaluation on ${SOURCE} — instructions ${VERSION} at ${TARGET}, model ${MODEL}, CLI ${CLI}\n` +
     `${chosen.length} scenarios × ${RUNS} runs = ${planned} runs → ${OUT}`,
 );
 if (DRY) {
@@ -439,7 +482,7 @@ for (const scenario of chosen) {
     const result = await run(scenario, request, then, index);
     writeFileSync(join(OUT, `${result.name}.md`), artifact(scenario, request, then, index, result, new Date().toISOString()));
     done += 1;
-    const failure = result.first.failure ?? result.second?.failure;
+    const failure = result.straddled ?? result.first.failure ?? result.second?.failure;
     console.error(`[${String(done).padStart(3, " ")}/${String(planned).padStart(3, " ")}] ${result.name}${failure ? `  FAILED: ${failure}` : ""}`);
   }
 }

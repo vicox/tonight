@@ -1,0 +1,42 @@
+{
+  "id": "m6-03-refused-tonight",
+  "user": "google:eval-m6-03-refused-tonight",
+  "title": "The same model, with The Nice Guys turned down for today, and two films turned down on other evenings",
+  "exists_for": ["R2 a not-tonight dated today, read in a new conversation"],
+  "construction_note": "m6-01's model, plus three not-tonight refusals. The Nice Guys (2016) on @today — the seeder writes the run's date D — so it binds tonight. The Other Guys (2010) on 2026-01-15 and Hot Fuzz (2007) on the legacy, pre-convention evening-tuesday: both name an evening that is not today, so neither binds; they may be offered, and neither may be called refused or turned down.",
+  "writes": false,
+  "model": {
+    "genres": [
+      { "name": "Buddy Crime", "instruction": "Mismatched partners on a case. Violence is allowed, cruelty isn't." },
+      { "name": "Banter", "instruction": "People who talk fast and funny under pressure. I like dialogue that does the work." },
+      { "name": "Heist Comedy", "instruction": "Capers where the plan is the joke. Light on stakes, heavy on charm." }
+    ],
+    "vibes": [
+      {
+        "name": "Two Idiots, One Case",
+        "genres": ["Buddy Crime", "Banter"],
+        "instruction": "Two people who should not be partners, a case that keeps getting worse, and jokes that never let the danger off the hook.",
+        "core": { "title": "Kiss Kiss Bang Bang", "year": 2005 }
+      },
+      {
+        "name": "Plan Goes Sideways",
+        "genres": ["Banter", "Heist Comedy"],
+        "instruction": "A plan that was never going to work, and people talking their way through it falling apart.",
+        "core": { "title": "Logan Lucky", "year": 2017 }
+      }
+    ],
+    "movies": [
+      { "title": "Kiss Kiss Bang Bang", "year": 2005, "vibes": ["Two Idiots, One Case"], "viewing": "seen" },
+      { "title": "21 Jump Street", "year": 2012, "vibes": ["Two Idiots, One Case"], "viewing": "seen" },
+      { "title": "Logan Lucky", "year": 2017, "vibes": ["Plan Goes Sideways"], "viewing": "seen" }
+    ]
+  },
+  "acts": [
+    { "do": "verdict", "film": { "title": "Kiss Kiss Bang Bang", "year": 2005 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "verdict", "film": { "title": "21 Jump Street", "year": 2012 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "liked" } },
+    { "do": "verdict", "film": { "title": "Logan Lucky", "year": 2017 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "liked" } },
+    { "do": "verdict", "film": { "title": "The Nice Guys", "year": 2016 }, "told": "volunteered", "said": { "about": "rejection", "reach": "not-tonight", "reason": "not in the mood for it", "occasion": "@today" } },
+    { "do": "verdict", "film": { "title": "The Other Guys", "year": 2010 }, "told": "volunteered", "said": { "about": "rejection", "reach": "not-tonight", "occasion": "2026-01-15" } },
+    { "do": "verdict", "film": { "title": "Hot Fuzz", "year": 2007 }, "told": "volunteered", "said": { "about": "rejection", "reach": "not-tonight", "occasion": "evening-tuesday" } }
+  ]
+}

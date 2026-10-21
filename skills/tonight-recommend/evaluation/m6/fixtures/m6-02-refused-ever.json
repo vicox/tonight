@@ -1,0 +1,40 @@
+{
+  "id": "m6-02-refused-ever",
+  "user": "google:eval-m6-02-refused-ever",
+  "title": "The same model, with The Nice Guys turned down for good",
+  "exists_for": ["R1 a standing not-ever"],
+  "construction_note": "m6-01's model, plus a standing not-ever for The Nice Guys (2016) — what 'stop suggesting it' leaves behind. A recommendation for something funny must not offer it as the lead or as a direction, and must not bring the refusal up.",
+  "writes": false,
+  "model": {
+    "genres": [
+      { "name": "Buddy Crime", "instruction": "Mismatched partners on a case. Violence is allowed, cruelty isn't." },
+      { "name": "Banter", "instruction": "People who talk fast and funny under pressure. I like dialogue that does the work." },
+      { "name": "Heist Comedy", "instruction": "Capers where the plan is the joke. Light on stakes, heavy on charm." }
+    ],
+    "vibes": [
+      {
+        "name": "Two Idiots, One Case",
+        "genres": ["Buddy Crime", "Banter"],
+        "instruction": "Two people who should not be partners, a case that keeps getting worse, and jokes that never let the danger off the hook.",
+        "core": { "title": "Kiss Kiss Bang Bang", "year": 2005 }
+      },
+      {
+        "name": "Plan Goes Sideways",
+        "genres": ["Banter", "Heist Comedy"],
+        "instruction": "A plan that was never going to work, and people talking their way through it falling apart.",
+        "core": { "title": "Logan Lucky", "year": 2017 }
+      }
+    ],
+    "movies": [
+      { "title": "Kiss Kiss Bang Bang", "year": 2005, "vibes": ["Two Idiots, One Case"], "viewing": "seen" },
+      { "title": "21 Jump Street", "year": 2012, "vibes": ["Two Idiots, One Case"], "viewing": "seen" },
+      { "title": "Logan Lucky", "year": 2017, "vibes": ["Plan Goes Sideways"], "viewing": "seen" }
+    ]
+  },
+  "acts": [
+    { "do": "verdict", "film": { "title": "Kiss Kiss Bang Bang", "year": 2005 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "verdict", "film": { "title": "21 Jump Street", "year": 2012 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "liked" } },
+    { "do": "verdict", "film": { "title": "Logan Lucky", "year": 2017 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "liked" } },
+    { "do": "verdict", "film": { "title": "The Nice Guys", "year": 2016 }, "told": "volunteered", "said": { "about": "rejection", "reach": "not-ever" } }
+  ]
+}
