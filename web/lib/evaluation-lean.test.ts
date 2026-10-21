@@ -75,6 +75,19 @@ test("resume makes only the runs not recorded ok, and never re-records a good on
   assert.equal(lean.recorded("---\nfailed: exit 1 — Not logged in\n---"), "failed");
   assert.equal(lean.recorded("---\nfailed: void: started on 2026-10-21, ended on 2026-10-22 — rerun\n---"), "failed");
   assert.equal(lean.recorded(null), "missing");
+
+  // Only an explicit `failed: no` is a good run (Codex review, 46dc4d3): an empty or
+  // truncated artifact, or one with a malformed status, stays eligible for --resume.
+  assert.equal(lean.recorded(""), "failed");
+  assert.equal(lean.recorded("---\nfixture: fixture\n"), "failed", "a truncated header");
+  assert.equal(lean.recorded("---\nfailed:\n---"), "failed", "an empty status");
+  assert.equal(lean.recorded("---\nfailed: no thanks\n---"), "failed", "a malformed status");
+  const truncated = (name: string) => (name === "f1__p1__01" ? lean.recorded("---\nfixture: f1\n") : "ok");
+  assert.deepEqual(
+    lean.pending([one], 1, { resume: true, stateOf: truncated }).map((w) => lean.runName(w.scenario, w.index)),
+    ["f1__p1__01"],
+    "a truncated artifact is skipped by --resume",
+  );
 });
 
 test("a quota or sign-in failure stops the run, read from what the CLI printed on stdout", () => {

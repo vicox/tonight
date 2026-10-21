@@ -55,11 +55,16 @@ export function select(scenarios, { source, only = null, smoke = false }) {
   );
 }
 
-/** A run as its artifact records it: `ok`, `failed`, or `missing` when there is none. */
+/**
+ * A run as its artifact records it: `ok`, `failed`, or `missing` when there is none.
+ *
+ * Only an explicit `failed: no` is a good run. An artifact without the field — empty,
+ * truncated, or written by something else — is not evidence of anything, so it counts
+ * as failed and `--resume` makes it again.
+ */
 export function recorded(text) {
   if (text === null || text === undefined) return "missing";
-  const failed = /^failed: (.*)$/m.exec(text)?.[1];
-  return failed === undefined || failed === "no" ? "ok" : "failed";
+  return /^failed: no$/m.test(text) ? "ok" : "failed";
 }
 
 /** The runs to make: every index, or under `resume` only those not recorded `ok`. */
