@@ -1149,6 +1149,48 @@ test("a film saved as unseen is never a core, and a standing liked does not make
   );
 });
 
+test("a new not-tonight is named by today's date, and an older one is addressed as recorded", async () => {
+  // The occasion stays opaque to the model and unvalidated here, so an evening
+  // named before the date convention — `evening-tuesday` — is still recorded,
+  // read and taken back by exactly that string, and taking it back reaches no
+  // other evening.
+  const token = await tokenFor(someone());
+  const HEAT = { title: "Heat", year: 1995 };
+  for (const occasion of ["evening-tuesday", "2026-10-21"]) {
+    await ok(token, "record_verdict", {
+      film: HEAT,
+      told: "volunteered",
+      said: { about: "rejection", reach: "not-tonight", occasion },
+    });
+  }
+  const legacy = await ok(token, "get_verdicts", { film: HEAT, occasion: "evening-tuesday" });
+  assert.deepEqual(legacy.current?.scope, { occasion: "evening-tuesday" });
+
+  await ok(token, "withdraw_verdict", { film: HEAT, occasion: "evening-tuesday" });
+  assert.equal((await ok(token, "get_verdicts", { film: HEAT, occasion: "evening-tuesday" })).current, null);
+  const dated = await ok(token, "get_verdicts", { film: HEAT, occasion: "2026-10-21" });
+  assert.deepEqual(dated.current?.scope, { occasion: "2026-10-21" }, "taking back one evening reached another");
+
+  // The descriptions: a new one is today's date, an existing one as recorded.
+  const tools = await listTools(token);
+  const schemaOf = (name: string) => JSON.stringify(tools.find((tool) => tool.name === name)?.inputSchema ?? {});
+  for (const name of ["record_verdict", "withdraw_verdict", "get_verdicts"]) {
+    assert.match(schemaOf(name), /A new `not-tonight` is named by today's date as you know it, YYYY-MM-DD/u, name);
+    assert.match(schemaOf(name), /pass its occasion exactly as recorded/u, `${name}: legacy occasions unaddressable`);
+  }
+  // What their words reach: "not interested" is for good, a refusal is never a dislike.
+  assert.match(schemaOf("record_verdict"), /\*\\"Not interested\\"\*, \*\\"stop suggesting it\\"\*/u);
+  assert.match(schemaOf("record_verdict"), /are `not-ever`/u);
+  assert.match(schemaOf("record_verdict"), /A refusal is never `disliked`/u);
+  const record = tools.find((tool) => tool.name === "record_verdict")?.description ?? "";
+  assert.match(record, /never ask them to widen it/u, "record_verdict invites a widening question");
+  assert.match(record, /never stronger than they said/u, "an unclear turn-down may be widened");
+  assert.match(
+    tools.find((tool) => tool.name === "get_taste")?.description ?? "",
+    /today's date,\s+YYYY-MM-DD, binds tonight; any other occasion is another evening's/u,
+  );
+});
+
 test("get_taste shows each vibe's core, always one of its own films", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });

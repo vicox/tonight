@@ -983,5 +983,38 @@ check "and both name the tool an opinion goes to instead" \
     "$(grep -ciE '`record_verdict`' "$CANONICAL")" "4"
 
 echo
+echo "--- M6: refusals, a film in a Vibe, and a request with no mood ---"
+
+# docs/work/m6/PLAN.md §2. Three corrections to how recommending behaves: a turn-
+# down is a verdict that reaches exactly as far as their words, a film in a Vibe is
+# no evidence of liking, and a request with no mood is still answered.
+check "a turn-down is a verdict, and reaches as far as their words" \
+    "$(order_check '*"stop suggesting it"* — that is a verdict, and it goes to `record_verdict`' \
+        '*"not interested"* and *"stop suggesting it"* are `not-ever`' \
+        '*"not tonight"* is `not-tonight` on today' \
+        'one that does not say how far is `not-tonight`' \
+        'never `disliked`, which says they watched it' \
+        'never a question asking them to make it reach further')" "True"
+check "within its reach a refused film is not offered again, nor the refusal raised" \
+    "$(order_check '**A refusal reaches exactly as far as they said.**' \
+        '**Within its reach a refused film is not offered again**' \
+        'not as the lead, not as a direction' 'the refusal is not brought up' \
+        'which for tonight is today' 'Any other occasion is another evening' 'binds nothing tonight')" "True"
+check "a recommended film comes back only outside a refusal's reach" \
+    "$(order_check 'a film you recommended can come back' \
+        'unless they turned it down, and then only outside the refusal' 'reach')" "True"
+check "being in a Vibe is no opinion; only a standing liked or loved is" \
+    "$(order_check 'A Movie carries no opinion at all' \
+        '**Being in a Vibe is no opinion either**' 'only a standing liked or loved says that' \
+        'is a candidate for that evening and may lead, as `unseen` always could' \
+        'Tonight is still not the shortlist')" "True"
+check "no mood given is answered, led as a surprise, never claimed as their mood" \
+    "$(order_check 'in the answer, never instead of it' \
+        '**No mood given is not an exception either**' 'With their model' 'read and not empty' \
+        '**say it is a' 'surprise**' 'never that it is what they are in the mood for' \
+        'Their Vibes are never listed, summarised or counted' \
+        'An empty model and a failed read are their own cases')" "True"
+
+echo
 printf '%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

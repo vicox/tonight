@@ -160,8 +160,11 @@ const verdictOccasion = z
   .min(1)
   .max(MAX_OCCASION_LENGTH)
   .describe(
-    "The evening this applies to, named by any stable identifier for it. Required for " +
-      "`not-tonight` and refused for anything else.",
+    "The evening this applies to. Required for `not-tonight` and refused for anything else. " +
+      "A new `not-tonight` is named by today's date as you know it, YYYY-MM-DD — the same " +
+      "string for every one recorded today, in any conversation, so they bind together. To " +
+      "read or take back one already recorded, pass its occasion exactly as recorded, as " +
+      "`get_taste` or `get_verdicts` shows it: older ones may not be dates.",
   );
 
 const verdictWords = (what: string) =>
@@ -394,7 +397,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "the whole of what they think: nothing else here holds an opinion. Each entry names the " +
         "film and either a judgement — liked, loved " +
         "or disliked — or a rejection: `not-ever` turns the film down for good, `not-tonight` " +
-        "turns it down for one evening and carries the `occasion` it belongs to. Where they said " +
+        "turns it down for one evening and carries the `occasion` it belongs to — today's date, " +
+        "YYYY-MM-DD, binds tonight; any other occasion is another evening's. Where they said " +
         "why, `because` holds their words for a judgement and `reason` for a rejection; where " +
         "they did not, neither is there, and you have none to offer — and where they did, use their " +
         "words as they said them and do not make them stronger: \"the tension never lets up\" is " +
@@ -841,6 +845,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "everywhere, but `not-tonight` is about one evening — it says nothing about the film, " +
         "so it needs the occasion it belongs to and never stands beyond it. Keep their own " +
         "words for why, where they gave them.\n\n" +
+        "Record the reach their words give, and never ask them to widen it — not *\"for good, " +
+        "or just tonight?\"* when they said which, not *\"is it films like this?\"*, not why. A " +
+        "turn-down that does not say how far is `not-tonight`: never stronger than they said.\n\n" +
         "Changed their mind? Record the new verdict; it supersedes the old one and the old one " +
         "stays in the history. Nothing is rewritten.\n\n" +
         "This writes the verdict and nothing else. If you had asked them about this film, the " +
@@ -862,7 +869,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
                 .enum(REACHES)
                 .describe(
                   "`not-tonight` turns it down for one evening and means nothing beyond it; " +
-                    "`not-ever` turns it down for good.",
+                    "`not-ever` turns it down for good. *\"Not interested\"*, *\"stop " +
+                    "suggesting it\"* and *\"don't recommend it again\"* are `not-ever`; *\"not " +
+                    "tonight\"* and *\"not in the mood for it\"* are `not-tonight`. A refusal is " +
+                    "never `disliked` — that is a judgement, and says they watched it.",
                 ),
               reason: verdictWords("Why they turned it down, if they said."),
               occasion: verdictOccasion.optional(),

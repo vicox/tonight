@@ -393,5 +393,36 @@ check "the score prohibition lives only on the viewing field" \
     "$(grep -ciE 'score or star rating|never a score' "$SKILL")" "0"
 
 echo
+echo "--- M6: a film they have not seen never anchors a Vibe ---"
+
+# docs/work/m6/PLAN.md §2.2. The store refuses a core whose saved viewing is
+# unseen; it reads that raw fact alone, so the skill says what follows when a
+# standing judgement disagrees with it, and that a viewing is never written to get
+# past the refusal.
+check "the one check Tonight makes is named, and the rest is still a judgement" \
+    "$(order_check 'nothing in Tonight checks it — with the one exception below' \
+        '**A film whose saved viewing is `unseen` is refused as a core.**' \
+        'it checks that saved fact alone')" "True"
+check "a film they have not seen may sit in a Vibe, and never anchors it" \
+    "$(order_check 'A film they have not seen may still sit in a Vibe' \
+        'a candidate for that kind of evening' 'never anchors it')" "True"
+check "no viewing is nobody having said, and is accepted" \
+    "$(order_check '**No viewing at all (`null`) is nobody having said**' 'is accepted')" "True"
+check "a liked or loved does not override unseen: ask once, and write only on a yes" \
+    "$(order_check '**A standing `liked` or `loved` does not override `unseen`.**' \
+        'only they can settle two things they said that' 'disagree' \
+        'ask once whether they have seen it' 'On a yes, record' '`seen` with `update_movie`, then anchor' \
+        'On a no, or no answer, write nothing')" "True"
+check "a viewing is never changed to get past the refusal" \
+    "$(order_check '**Never change a viewing to get past the refusal**' \
+        'not on the strength of a verdict' 'A viewing is written only when they said it')" "True"
+check "stop suggesting it is not-ever, never disliked" \
+    "$(order_check '*"Stop suggesting it."*' '`not-ever` — never `disliked`, which says they watched it')" "True"
+check "an evening's refusal is named by today's date" \
+    "$(order_check '*"Not tonight — too long."*' '`not-tonight`, its occasion today' 'date, and the reason')" "True"
+check "going through Vibes re-anchors an unseen core like a missing one" \
+    "$(order_check '**Anchor.**' 'A Vibe whose core reads `unseen` is' 'anchored again in the same way, as one with no core')" "True"
+
+echo
 printf '%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
