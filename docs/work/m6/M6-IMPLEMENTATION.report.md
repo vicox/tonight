@@ -1,5 +1,16 @@
 # M6 — implementation report (for Codex implementation review)
 
+## Codex implementation review 2 — READY
+
+The one review-1 blocker is closed: D4 carries the complete precondition, with tests covering both
+surfaces. Codex re-verified `instructions.test.ts` at 42 / 42 and the projection at 7,999 / 8,000,
+`410eb470`.
+
+**Next:**
+- Semantic acceptance, the production data check and the manual 1.3.0 plugin pass remain the
+  coordinator's (*Blocked here* below).
+- Nothing is pushed, merged or deployed until approved.
+
 ## Codex implementation review 1 — NOT READY (one blocker), fixed
 
 Codex ran the gates this session could not:

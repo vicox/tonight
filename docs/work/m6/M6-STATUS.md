@@ -4,11 +4,12 @@ Coordination recovery only — where M6's workflow stands, not anything about pr
 
 ```
 milestone:    M6 — refusals stay refused; an unseen film is never a core; a moodless request is answered
-state:        IMPLEMENTED and committed. Codex implementation review 1 NOT READY (one blocker:
-              D4's non-empty precondition), fixed; awaiting re-review. Not pushed.
+state:        IMPLEMENTED and Codex implementation READY (review 2; review 1's one blocker —
+              D4's non-empty precondition — fixed in 40c6e8a). Committed, not pushed.
 worktree:     /Users/vicox/relay-work/worktrees/tonight-m6
 branch:       tonight-m6   (fast-forwarded 06e07a7 → 2cdc336 = origin/main, PR #4, before any change)
-committed:    b9cb8a3 harness · aa2514f store · 86af75a instructions · then the docs commit
+committed:    b9cb8a3 harness · aa2514f store · 86af75a instructions · dd1f4a1 docs ·
+              40c6e8a review-1 fix · then the READY record
 plan:         docs/work/m6/PLAN.md   (revision 2, Codex PLAN READY)
 report:       docs/work/m6/M6-IMPLEMENTATION.report.md
 projection:   7,999 / 8,000, version 410eb470 (was 7,930, a22a09f4)
