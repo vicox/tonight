@@ -1773,7 +1773,7 @@ test("M6: a turn-down is a verdict, and a refused film comes back only outside i
   // D1, after the verdict routing it extends — which stays whole.
   assert.match(
     flat,
-    /that is a verdict: `record_verdict`, in their words, never stronger, \*"stop suggesting it"\* included;/,
+    /that is a verdict: `record_verdict`, in their words, never stronger, \*"stop suggesting it"\* too;/,
   );
   // D2, after the sentence it narrows, and before the exception it already named.
   assert.match(
@@ -1813,15 +1813,29 @@ test("M6: with taste read and no mood, the answer still comes first, led as a su
   assert.ok(sentence.length > 0, "the one-question sentence is gone");
   const instead = sentence.indexOf("**never instead**");
   const mood = sentence.indexOf(
-    "taste read, no mood: a surprise lead, never called their mood; the question may ask it;",
+    "taste read, not empty, no mood: a surprise lead, never called their mood; the question may ask it;",
   );
   const empty = sentence.indexOf("empty model:");
   assert.ok(
     instead >= 0 && mood > instead && empty > mood,
     "D4 is not inside the never-instead sentence, ahead of the empty model",
   );
-  // Its precondition is part of it: taste read. The empty model and a failed read
-  // keep their own rules, worded exactly as they were before M6 (a22a09f4).
+  // Its precondition is all of it, on both surfaces: the model was read AND is not
+  // empty (Codex implementation review 1). "Taste read" alone is met by a read
+  // that succeeded on an empty model, and would hand that case a mood question in
+  // competition with its own first-films question. The rule's own clause, before
+  // the colon, has to say both halves.
+  const precondition = sentence.slice(mood, sentence.indexOf(":", mood));
+  assert.match(precondition, /\bread\b/, "D4 no longer requires the taste to have been read");
+  assert.match(precondition, /\bnot empty\b/, "D4 no longer requires a model that is not empty");
+  const canonicalD4 = canonicalSkill().replace(/\s+/g, " ");
+  assert.match(
+    canonicalD4,
+    /\*\*No mood given is not an exception either\*\*, however many Vibes they have\. With their model read and not empty,/,
+    "the skill's moodless rule lost half of its precondition",
+  );
+  // The empty model and a failed read keep their own rules, worded exactly as they
+  // were before M6 (a22a09f4).
   const before: [string, string][] = [
     [
       "the empty-model clause",

@@ -50,8 +50,8 @@ exclusions hold.
   reach and certainty. Say how a film fits the Vibe; never that **they** like it yet.
 
 Either way, answer with a film, **even with an empty model**. Ask **one film question** in the
-answer if needed, **never instead** — taste read, no mood: a surprise lead, never called their
-mood; the question may ask it; empty model: *"two or three films you love?"*, alone if no
+answer if needed, **never instead** — taste read, not empty, no mood: a surprise lead, never
+called their mood; the question may ask it; empty model: *"two or three films you love?"*, alone if no
 film was asked; never *"what genres do you like?"*, or require learning
 Genres and Vibes. **Never print the taste model while recommending**; one short sentence if saved.
 
@@ -88,7 +88,7 @@ Two requests about a film:
 - **Keeping a film goes into a Vibe** — *"save this one"*. **Never write a Movie this way
   without at least one Vibe.**
 - **What they said about it does not**, however put — that is a verdict: \`record_verdict\`, in
-  their words, never stronger, *"stop suggesting it"* included; no Vibe and no Movie is needed or
+  their words, never stronger, *"stop suggesting it"* too; no Vibe and no Movie is needed or
   invented to hold one; a later request to keep the film takes a Vibe.
 
 **Which Vibe a kept film goes in** is a classification, not a request for permission. Classify the
@@ -143,8 +143,8 @@ Never say "I'll remember that" unless you wrote it — and then say what you wro
   answer not based on it; claim nothing about them; offer to retry.
 - **A write fails** — the recommendation stands; say what was not saved, never that it was stored.
 
-Tonight instructions · version fd2c3519 · replace when tonight.movie shows a different one.
+Tonight instructions · version 410eb470 · replace when tonight.movie shows a different one.
 `;
 
 /** The digest in the last line of the text above, for the website to show. */
-export const PROJECT_INSTRUCTIONS_VERSION = "fd2c3519";
+export const PROJECT_INSTRUCTIONS_VERSION = "410eb470";

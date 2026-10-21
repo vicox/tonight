@@ -217,8 +217,8 @@ a film. An empty model and a failed read are their own cases, and nothing here c
 <!-- full:end -->
 <!-- project:compact
 Either way, answer with a film, **even with an empty model**. Ask **one film question** in the
-answer if needed, **never instead** — taste read, no mood: a surprise lead, never called their
-mood; the question may ask it; empty model: *"two or three films you love?"*, alone if no
+answer if needed, **never instead** — taste read, not empty, no mood: a surprise lead, never
+called their mood; the question may ask it; empty model: *"two or three films you love?"*, alone if no
 film was asked; never *"what genres do you like?"*, or require learning
 Genres and Vibes. **Never print the taste model while recommending**; one short sentence if saved.
 project:compact -->
@@ -432,7 +432,7 @@ Two requests about a film:
 - **Keeping a film goes into a Vibe** — *"save this one"*. **Never write a Movie this way
   without at least one Vibe.**
 - **What they said about it does not**, however put — that is a verdict: `record_verdict`, in
-  their words, never stronger, *"stop suggesting it"* included; no Vibe and no Movie is needed or
+  their words, never stronger, *"stop suggesting it"* too; no Vibe and no Movie is needed or
   invented to hold one; a later request to keep the film takes a Vibe.
 project:compact -->
 
