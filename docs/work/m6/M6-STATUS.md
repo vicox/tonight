@@ -4,31 +4,24 @@ Coordination recovery only — where M6's workflow stands, not anything about pr
 
 ```
 milestone:    M6 — refusals stay refused; an unseen film is never a core; a moodless request is answered
-state:        IMPLEMENTED and Codex implementation READY (review 2; review 1's one blocker —
-              D4's non-empty precondition — fixed in 40c6e8a). Committed, not pushed.
+state:        RELEASE AUTHORISED by the user (2026-10-22). Codex READY for every reviewed change.
+              Ships by merging tonight-m6 to main (Vercel deploys main to Production).
 worktree:     /Users/vicox/relay-work/worktrees/tonight-m6
 branch:       tonight-m6   (fast-forwarded 06e07a7 → 2cdc336 = origin/main, PR #4, before any change)
 committed:    b9cb8a3 harness · aa2514f store · 86af75a instructions · dd1f4a1 docs ·
-              40c6e8a review-1 fix · then the READY record
+              40c6e8a review-1 fix · 820d02b READY · 6264ac9 thresholds · 78b5eb1 login host ·
+              46dc4d3 + e6793f6 lean harness · c56f566 G3/U1 fix · then this release-docs commit
 plan:         docs/work/m6/PLAN.md   (revision 2, Codex PLAN READY)
 report:       docs/work/m6/M6-IMPLEMENTATION.report.md
-projection:   7,999 / 8,000, version 410eb470 (was 7,930, a22a09f4)
-plugin:       1.3.0 (manifest diff vs 2cdc336: the version line only)
-updated:      2026-10-21
+acceptance:   docs/work/m6/M6-ACCEPTANCE.md   (release section at the top)
+projection:   7,996 / 8,000, version 14ed60de (was 7,930, a22a09f4)
+plugin:       1.3.0 (manifest diff vs 2cdc336: the version line only); ZIP built from the final commit
+updated:      2026-10-22
 ```
 
-## Pre-deploy acceptance (docs/work/m6/M6-ACCEPTANCE.md)
+## After release (user)
 
-- Production unseen-core count: not run, no credential reaches the implementing session.
-- Seeding preflight: every non-legacy M6/M5/M3/Phase 1 fixture seeds cleanly at 820d02b.
-- Semantic sweeps: not run (`claude -p` needs an approval the session cannot give); thresholds
-  fixed in advance.
-- Manual iOS plugin pass: the user's; rebuild the ZIP at 820d02b first (dist/ copy is stale).
-
-## Next (coordinator)
-
-- Shell gates and the 1.3.0 package build/test (not executable in the implementing session).
-- The production read-only unseen-core count before deploy.
-- Semantic: the M6 baseline at `b9cb8a3`; fix the thresholds; then at `86af75a` the M6 set, the M5
-  set on all three sources, and Phase 1 + M3 on the projection; then the manual plugin pass.
-- Push/merge/deploy only when approved.
+- Re-paste the project instructions (version `14ed60de`) into the ChatGPT project.
+- Upload the 1.3.0 plugin ZIP and run the manual iOS pass.
+- Clean up existing unseen cores (no migration; the store refuses new ones).
+- Ops: remove this worktree, and the local `tonight-m6-baseline` branch, once M6 is merged and deployed.

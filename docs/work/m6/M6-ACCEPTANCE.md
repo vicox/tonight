@@ -2,7 +2,29 @@
 
 Where each pre-deploy gate stands, the thresholds the semantic sweeps are scored against, and what
 the user has to do. Written 2026-10-21 after Codex implementation READY (`820d02b`). Nothing here
-changes the reviewed implementation. Nothing has been pushed, merged or deployed.
+changes the reviewed implementation.
+
+## Release, 2026-10-22: the user authorised M6 for release
+
+| gate | state | evidence |
+| --- | --- | --- |
+| Codex reviews | **READY** | implementation `820d02b` (plus review-1 fix `40c6e8a`); login host `78b5eb1`; lean harness `46dc4d3` + `e6793f6`; G3/U1 fix `c56f566` |
+| Deterministic | **done** | shell gates run by Codex at `c56f566`: recommend 207/207, vibes 100/100, plugin 37/37; instructions 42/42; unit 1,272/1,276 (the 4 known environmental failures); real PostgreSQL 319/320, 0 skipped (the 1 pre-existing v5 bridge test); typecheck clean; lint 0 errors |
+| Projection | **7,996 / 8,000**, version `14ed60de` | the empty-model, failure and shape text is byte-identical with `a22a09f4` (pinned) |
+| Semantic, projection, login host | **pass** | G1, G2, R1, R2: 3/3 each at `410eb470`. After `c56f566` (`14ed60de`): **G3 1/1** — `not-tonight` dated 2026-10-22, nothing else written — and **U1 1/1** — only real verdicts cited, the unseen Heat never called liked |
+| M1 phrasing | **kept as is** | the user's decision: "Tonight feels like…" is not a mood claim |
+| Semantic, plugin-skills | **not run** | the manual iOS pass on the 1.3.0 upload is the user's gate |
+| Production unseen-core count | **waived by the user** | Tonight's sole user cleans up existing unseen cores themselves; no migration |
+| M6 baseline | **not run** | measurement only; the branch `tonight-m6-baseline` was prepared and is not needed for release |
+
+**Legacy issues, not caused by M6** (seen in the interrupted sweep; no baseline exists to compare):
+- M5 reason-led: *"exactly my thing because of the dialogue"* recorded as `loved` in 3/3 runs,
+  where D10 says `liked`.
+- M5 Groundhog Day background: across 3 runs, one recorded no verdict, one wrote `loved`, and one
+  filed the film into a Vibe without a yes.
+- M3 `recommend-basis`: answered without reading `get_taste` in 3/3 runs.
+
+They are backlog for a later milestone.
 
 ## Superseded on 2026-10-22: lean semantic acceptance (the user's decision)
 
