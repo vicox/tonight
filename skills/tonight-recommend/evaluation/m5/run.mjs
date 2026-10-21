@@ -5,6 +5,15 @@
  *   node evaluation/m5/run.mjs --source plugin-skills --only m5-01-anchored__logan-lucky-sunday
  *   node evaluation/m5/run.mjs --source recommend-only --runs 3
  *   node evaluation/m5/run.mjs --source projection --dry-run       what it would do, and nothing else
+ *   node evaluation/m5/run.mjs --set m6 --source projection        the M6 set (evaluation/m6/)
+ *   node evaluation/m5/run.mjs --set m6 --source projection --smoke --host login
+ *                                    the lean default: smoke scenarios, one run each
+ *   … --resume                       make only runs not yet recorded ok
+ *   … --budget N                     the most model calls allowed (default 12, ../lean.mjs);
+ *                                    a bigger plan is refused until --budget names its size
+ *
+ * A quota or sign-in failure stops the invocation at once (exit 3), so a limit costs one
+ * call rather than a sweep.
  *
  * M3's runner, with three differences and a reason for each.
  *
@@ -45,34 +54,67 @@
  * torn down, then everything written again through the tools — and snapshotted before
  * and after, through the M3 seeder. What it does not do, ever: call a tool on the
  * agent's behalf, reason for it, or write its transcript.
+ *
+ * **It runs the M6 set too** (`--set m6`; `m5` when left out, and then nothing about
+ * an M5 run changes). M6's refusals are dated, so each run fixes one local date `D`
+ * when it starts: the seeder writes it wherever a fixture says `@today`, the agent is
+ * told it in one host line (`Today's date is D.`, as ChatGPT tells a model the date),
+ * the artifact records it, and the rubric scores against it. A run that ends on
+ * another date than it started straddled midnight: it is void, and is rerun rather
+ * than scored (`docs/work/m6/PLAN.md`, §5.2).
  */
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, globSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { agentHost } from "../host.mjs";
+import { DEFAULT_BUDGET, checkBudget, failureOf, pending, plannedCalls, recorded, runName, select, stopsTheRun } from "../lean.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const EVAL = join(here, "..");
 const ROOT = join(here, "..", "..", "..", "..");
 const WEB = join(ROOT, "web");
 const SEEDER = join(EVAL, "m3", "seed.mjs");
-const FIXTURES = join(here, "fixtures");
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => {
   const at = args.indexOf(`--${name}`);
   return at >= 0 ? args[at + 1] : fallback;
 };
+const SETS = ["m5", "m6"];
+const SET = option("set", "m5");
+if (!SETS.includes(SET)) throw new Error(`--set is one of ${SETS.join(", ")}`);
+const SET_DIR = join(EVAL, SET);
+const FIXTURES = join(SET_DIR, "fixtures");
+
+/** Today, on this machine's clock: the `D` a run is seeded, told and scored with. */
+function localDate() {
+  const now = new Date();
+  const two = (n) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
+}
+let TODAY = localDate();
+
 const SOURCES = ["projection", "plugin-skills", "recommend-only"];
 const SOURCE = option("source", null);
-const RUNS = Number(option("runs", "3"));
+/** `--smoke`: only the scenarios marked smoke for this source, one run each by default. */
+const SMOKE = args.includes("--smoke");
+const RUNS = Number(option("runs", SMOKE ? "1" : "3"));
 const MODEL = option("model", "claude-sonnet-5");
 const ONLY = option("only", null);
 const PORT = Number(option("port", "3997"));
 const DRY = args.includes("--dry-run");
 const FORCE = args.includes("--force");
+/** `--resume`: make only the runs not already recorded ok; never re-record a good one. */
+const RESUME = args.includes("--resume");
+/** `--budget N`: the most model calls this invocation may make; see `../lean.mjs`. */
+const BUDGET = Number(option("budget", String(DEFAULT_BUDGET)));
 const LEGACY_SEEDED = args.includes("--legacy-seeded");
+/** `--host bare` (the default) or `--host login`: see `../host.mjs`. */
+const HOST = agentHost(option("host", "bare"));
+
+if (FORCE && RESUME) throw new Error("--force re-records every run and --resume keeps the good ones: pass one");
 
 if (!SOURCES.includes(SOURCE)) {
   throw new Error(`--source is required: one of ${SOURCES.join(", ")}`);
@@ -124,6 +166,15 @@ function instructions() {
   }
 }
 
+/**
+ * What the agent is given as its system prompt: the source's instructions, and on the
+ * M6 set the one host line that tells it the date — nothing else, and never anything
+ * about the evaluation.
+ */
+function systemPrompt() {
+  return SET === "m6" ? `${instructions()}\n\nToday's date is ${TODAY}.` : instructions();
+}
+
 function version() {
   const source = readFileSync(join(WEB, "lib", "generated", "project-instructions.ts"), "utf8");
   return source.match(/PROJECT_INSTRUCTIONS_VERSION = "([a-f0-9]+)"/)[1];
@@ -147,20 +198,22 @@ function refuseIfPromptsMoved() {
 
 const VERSION = version();
 const TARGET = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim();
-const OUT = join(here, "results", `m5-${SOURCE}-${VERSION}-${TARGET}`, "runs");
+const OUT = join(SET_DIR, "results", `${SET}-${SOURCE}-${VERSION}-${TARGET}${HOST.suffix}`, "runs");
 
-const scenarios = JSON.parse(readFileSync(join(here, "scenarios.json"), "utf8"));
+const scenarios = JSON.parse(readFileSync(join(SET_DIR, "scenarios.json"), "utf8"));
 const fixture = (id) => JSON.parse(readFileSync(join(FIXTURES, `${id}.json`), "utf8"));
 
 function prompts() {
-  const table = readFileSync(join(here, "prompts.md"), "utf8");
+  const table = readFileSync(join(SET_DIR, "prompts.md"), "utf8");
   const said = new Map();
   for (const row of table.matchAll(/^\| `([a-z-]+)` \| \*"(.+?)"\* \|/gm)) said.set(row[1], row[2]);
   return said;
 }
 
 const seed = (id, ...rest) =>
-  execFileSync("node", [SEEDER, id, "--fixtures", FIXTURES, ...rest], { encoding: "utf8" }).trim();
+  execFileSync("node", [SEEDER, id, "--fixtures", FIXTURES, "--today", TODAY, ...rest], {
+    encoding: "utf8",
+  }).trim();
 
 const pause = (ms) => new Promise((wake) => setTimeout(wake, ms));
 
@@ -224,6 +277,10 @@ const MUTATING = new Set([
 ]);
 
 function transcript(logFile) {
+  // No proxy log: the agent failed before it reached Tonight (a sign-in or quota error).
+  if (!existsSync(join(OUT, logFile))) {
+    return { mutations: [], rendered: "None — no proxy log: the agent never reached Tonight.", discovered: "none" };
+  }
   const lines = readFileSync(join(OUT, logFile), "utf8").trim().split("\n").filter(Boolean);
   const entries = lines.map((line) => JSON.parse(line));
   const calls = entries.filter((entry) => entry.tool);
@@ -243,43 +300,49 @@ function turn(said, config, resume) {
       [
         "-p", said,
         ...(resume ? ["--resume", resume] : []),
-        "--bare",
+        ...HOST.flags,
         "--model", MODEL,
         "--mcp-config", config,
         "--strict-mcp-config",
-        "--system-prompt", instructions(),
+        "--system-prompt", systemPrompt(),
         "--allowedTools", "mcp__tonight",
         "--disallowedTools", "WebSearch WebFetch Bash Read Write Edit Glob Grep Task TodoWrite NotebookEdit",
         "--permission-mode", "bypassPermissions",
         "--output-format", "json",
       ],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024, cwd: HOST.cwd },
     );
     const parsed = JSON.parse(printed.slice(printed.indexOf("{")));
+    // An error the CLI reports in a successful exit is still an error.
+    const failure = parsed.is_error ? String(parsed.result || parsed.subtype).slice(0, 300) : parsed.subtype === "success" ? null : parsed.subtype;
     return {
-      answer: parsed.result ?? "",
+      answer: parsed.is_error ? "" : (parsed.result ?? ""),
       session: parsed.session_id ?? "unknown",
-      failure: parsed.subtype === "success" ? null : parsed.subtype,
+      failure,
     };
   } catch (error) {
-    const said = String(error.stderr ?? "").trim().slice(0, 600);
-    return { answer: "", session: "unknown", failure: `exit ${String(error.status ?? "?")}${said ? ` — ${said}` : " — no stderr"}` };
+    return { answer: "", session: "unknown", failure: failureOf(error) };
   }
 }
 
 async function run(scenario, said, then, index) {
   const spec = fixture(scenario.fixture);
-  const name = `${scenario.fixture}__${scenario.prompt}${scenario.then ? `__then-${scenario.then}` : ""}__${String(index).padStart(2, "0")}`;
+  const name = runName(scenario, index);
   const snapshotFile = `snapshots/${name}.json`;
   const afterFile = `snapshots/${name}.after.json`;
   const logFile = `logs/${name}.jsonl`;
 
+  // --resume only ever reaches a run that failed or is missing, so its old files go.
   const triple = [`${name}.md`, snapshotFile, logFile].map((part) => join(OUT, part));
   const already = triple.filter((part) => existsSync(part));
-  if (already.length && !FORCE) {
-    throw new Error(`${name} already has ${already.length} of its 3 files. Re-run with --force.`);
+  if (already.length && !FORCE && !RESUME) {
+    throw new Error(`${name} already has ${already.length} of its 3 files. Re-run with --resume, or --force to re-record it.`);
   }
   for (const part of [...already, join(OUT, afterFile)]) rmSync(part, { force: true });
+
+  // One date for the whole run: seeded, told and scored with the same `D`.
+  TODAY = localDate();
+  const today = TODAY;
 
   // Fresh, every run — except a legacy fixture, which only its operator can seed.
   if (spec.seed !== "v12-then-migrate") seed(scenario.fixture);
@@ -317,28 +380,37 @@ async function run(scenario, said, then, index) {
     await shutDown(proxy, PORT);
   }
 
+  // A run that crossed midnight was told one date and lived in two: void, not scored.
+  const ended = localDate();
+  const straddled = SET === "m6" && ended !== today ? `void: started on ${today}, ended on ${ended} — rerun` : null;
+
   const afterDigest = seed(scenario.fixture, "--snapshot", join(OUT, afterFile));
   return {
     name, spec, snapshotFile, afterFile, logFile, digest, afterDigest, first, second,
-    resolved: answeredBy(first.session),
+    resolved: answeredBy(first.session), today, straddled,
+    calls: second === null ? 1 : 2,
   };
 }
 
 function artifact(scenario, said, then, index, result, stamp) {
   const { rendered, discovered, mutations } = transcript(result.logFile);
-  const failure = result.first.failure ?? result.second?.failure ?? null;
+  const failure = result.straddled ?? result.first.failure ?? result.second?.failure ?? null;
   return `---
 fixture: ${scenario.fixture}
 prompt: ${scenario.prompt}
 then: ${scenario.then ?? "none"}
 family: ${scenario.family}
 considers: ${scenario.considers ? "yes" : "no"}
+gate: ${scenario.gate ?? "m5 threshold"}
+selection: ${SMOKE ? "smoke" : "full"}${RESUME ? ", resumed (only failed or missing runs made)" : ""}
+budget: ${BUDGET} model calls; this invocation planned ${PLANNED}
 run: ${String(index).padStart(2, "0")}
-side: m5
+side: ${SET}
+today: ${result.today}${SET === "m6" ? " (told to the agent as a host line; @today seeded as this)" : " (not told)"}
 source: ${SOURCE}
 skills: ${skillsGiven().join(", ") || "none — the projection"}
-host: claude -p (Claude Code CLI, --bare), instructions as the system prompt
-instructions: ${VERSION}
+host: ${HOST.line}, instructions as the system prompt
+${HOST.isolation ? `host_isolation: ${HOST.isolation}\n` : ""}instructions: ${VERSION}
 target: ${TARGET}
 model_requested: ${MODEL}
 model_resolved: ${result.resolved}
@@ -380,16 +452,8 @@ refuseIfPromptsMoved();
 const said = prompts();
 const key = (one) => `${one.fixture}__${one.prompt}${one.then ? `__then-${one.then}` : ""}`;
 const isLegacy = (one) => fixture(one.fixture).seed === "v12-then-migrate";
-let chosen = scenarios.filter(
-  (one) =>
-    one.sources.includes(SOURCE) &&
-    (ONLY === null ||
-      key(one) === ONLY ||
-      `${one.fixture}__${one.prompt}` === ONLY ||
-      one.fixture === ONLY ||
-      one.family === ONLY),
-);
-if (chosen.length === 0) throw new Error(`nothing on ${SOURCE} matches ${ONLY}`);
+let chosen = select(scenarios, { source: SOURCE, only: ONLY, smoke: SMOKE });
+if (chosen.length === 0) throw new Error(`nothing on ${SOURCE} matches ${ONLY ?? ""}${SMOKE ? " among the smoke scenarios" : ""}`);
 
 // A legacy fixture is one scenario, one run, per fresh v12 seed and migration: a
 // going-through run may anchor, merge or delete, and the next run has to start
@@ -414,33 +478,52 @@ if (LEGACY_SEEDED) {
   if (chosen.length === 0) throw new Error(`nothing left to run on ${SOURCE} once legacy scenarios are set aside`);
 }
 
-const planned = chosen.length * RUNS;
+// Every request resolves before anything is spent.
+for (const one of chosen) {
+  if (!said.get(one.prompt)) throw new Error(`prompts.md has no request called ${one.prompt}`);
+  if (one.then && !said.get(one.then)) throw new Error(`prompts.md has no request called ${one.then}`);
+}
+
+// The runs to make: all of them, or under --resume only those not recorded ok.
+const stateOf = (name) => {
+  const file = join(OUT, `${name}.md`);
+  return recorded(existsSync(file) ? readFileSync(file, "utf8") : null);
+};
+const work = pending(chosen, RUNS, { resume: RESUME, stateOf });
+const PLANNED = plannedCalls(work);
 console.error(
-  `M5 semantic evaluation on ${SOURCE} — instructions ${VERSION} at ${TARGET}, model ${MODEL}, CLI ${CLI}\n` +
-    `${chosen.length} scenarios × ${RUNS} runs = ${planned} runs → ${OUT}`,
+  `${SET.toUpperCase()} semantic evaluation on ${SOURCE} — instructions ${VERSION} at ${TARGET}, model ${MODEL}, CLI ${CLI}, host ${HOST.name}\n` +
+    `${chosen.length} scenarios × ${RUNS} runs${SMOKE ? " (smoke)" : ""}${RESUME ? `, ${work.length} not yet recorded ok` : ""} = ` +
+    `${work.length} runs, ${PLANNED} model calls, budget ${BUDGET} → ${OUT}`,
 );
 if (DRY) {
-  for (const one of chosen) {
-    console.error(`  ${one.fixture}__${one.prompt}${one.then ? ` then ${one.then}` : ""}  (${one.family})`);
-  }
-  process.exit(0);
+  for (const { scenario, index } of work) console.error(`  ${runName(scenario, index)}  (${scenario.family})`);
 }
+// Refused before a single call, a dry run included: over budget is never "nearly fine".
+checkBudget(PLANNED, BUDGET);
+if (DRY) process.exit(0);
 
 mkdirSync(join(OUT, "snapshots"), { recursive: true });
 mkdirSync(join(OUT, "logs"), { recursive: true });
 
 let done = 0;
-for (const scenario of chosen) {
+let calls = 0;
+for (const { scenario, index } of work) {
   const request = said.get(scenario.prompt);
-  if (!request) throw new Error(`prompts.md has no request called ${scenario.prompt}`);
   const then = scenario.then ? said.get(scenario.then) : null;
-  if (scenario.then && !then) throw new Error(`prompts.md has no request called ${scenario.then}`);
-  for (let index = 1; index <= RUNS; index += 1) {
-    const result = await run(scenario, request, then, index);
-    writeFileSync(join(OUT, `${result.name}.md`), artifact(scenario, request, then, index, result, new Date().toISOString()));
-    done += 1;
-    const failure = result.first.failure ?? result.second?.failure;
-    console.error(`[${String(done).padStart(3, " ")}/${String(planned).padStart(3, " ")}] ${result.name}${failure ? `  FAILED: ${failure}` : ""}`);
+  const result = await run(scenario, request, then, index);
+  calls += result.calls;
+  writeFileSync(join(OUT, `${result.name}.md`), artifact(scenario, request, then, index, result, new Date().toISOString()));
+  done += 1;
+  const failure = result.straddled ?? result.first.failure ?? result.second?.failure;
+  console.error(`[${String(done).padStart(3, " ")}/${String(work.length).padStart(3, " ")}] ${result.name}${failure ? `  FAILED: ${failure}` : ""}`);
+  // Out of quota or signed out: every further call would fail the same way.
+  if (stopsTheRun(result.first.failure) || stopsTheRun(result.second?.failure)) {
+    console.error(
+      `\nSTOPPED after ${done} of ${work.length} runs and ${calls} model calls: ${failure}\n` +
+        "Quota or sign-in: nothing further was attempted. Re-run with --resume once it is fixed.",
+    );
+    process.exit(3);
   }
 }
-console.error(`\n${done} runs written to ${OUT}`);
+console.error(`\n${done} runs, ${calls} model calls, written to ${OUT}`);

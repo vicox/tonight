@@ -232,7 +232,10 @@ addressed from outside, and there is no id in any tool schema or any answer.
   one of its own films: a column on the Vibe with a deferred foreign key into its memberships. A
   core is required to create a Vibe, can be replaced — the old one stays a member — and is never
   cleared. A Vibe from before cores existed reads `core: null` and works as it is until somebody
-  chooses its core; nothing anchors one automatically.
+  chooses its core; nothing anchors one automatically. **A core is never a film whose saved viewing
+  says unseen**: the store refuses one as a core, and refuses to mark a core unseen. It reads that
+  saved fact alone — whether a verdict says otherwise is the user's to settle, never a viewing
+  written to get past the refusal.
 - **Deleting a Movie is allowed unless it anchors a Vibe**, and takes only its Vibe memberships
   with it. A Vibe is *defined by* its Genres and its core, and merely *holds* its other Movies,
   which is why those restrict and the rest cascade. Taking a core out of its Vibe is refused the

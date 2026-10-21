@@ -319,27 +319,36 @@ test("a session cannot change, delete or borrow another account's genres", async
 /**
  * A signed-in user with one film in one vibe, which is what a mark sits on.
  *
- * The film is the vibe's core, since a vibe is now written with one: saved
- * first with whatever was said about watching it, then filed by the vibe that
- * names it, so it is still the one film and the one vibe.
+ * The film is an ordinary member, not the vibe's core. A vibe is written with a
+ * core, so it is anchored on another film — `Moon`, which sorts after `Arrival`
+ * and so never becomes "the film" these tests read — and the marks are free to
+ * say anything about `Arrival`, `unseen` included, which a core may not be.
  */
 async function withFilm(said: { viewing?: "seen" | "unseen" } = {}) {
   const { cookie, id } = await signedIn();
   await createGenre(
     request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
   );
-  await (await tasteStore({ id })).createMovie({ title: "Arrival", year: 2016, ...said });
   const made = await createVibe(
     request(
       "/api/vibes",
       "POST",
-      { name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: { title: "Arrival", year: 2016 } },
+      { name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: MOON },
       { cookie },
     ),
   );
   assert.equal(made.status, 200, "the vibe the film sits in was not written");
+  await (await tasteStore({ id })).createMovie({
+    title: "Arrival",
+    year: 2016,
+    ...said,
+    vibes: ["Space Tension"],
+  });
   return { cookie, id };
 }
+
+/** The film `withFilm`'s vibe is anchored on. */
+const MOON = { title: "Moon", year: 2009 };
 
 /** The film as the store holds it, read outside the route that changed it. */
 async function film(id: string) {
@@ -390,6 +399,25 @@ test("a refusal still carries the reason, which is the part a caller can act on"
   assert.equal(refused.status, 400);
   assert.equal(refused.error, "refused");
   assert.match(refused.message ?? "", /no movie "Gone" \(1999\)/);
+});
+
+test("marking a vibe's core unseen is refused in the store's own words", async () => {
+  // A core is a film they have seen. The page has no way to know which film is
+  // a core, so the store decides, and the page shows what it said.
+  const { cookie, id } = await withFilm();
+  await mark(cookie, { ...MOON, viewing: "seen" });
+
+  const refused = await answer(await mark(cookie, { ...MOON, viewing: "unseen" }));
+  assert.equal(refused.status, 400);
+  assert.equal(refused.error, "refused");
+  assert.equal(
+    refused.message,
+    'cannot mark "Moon" (2009) unseen: it is the core of the vibe "Space Tension", and a core ' +
+      "is a film they have seen — make another film the core with update_vibe first, or delete " +
+      "the vibe",
+  );
+  const moon = (await taste(id)).movies.find((one) => one.title === "Moon");
+  assert.equal(moon?.viewing, "seen", "a refused mark changed the core's viewing");
 });
 
 test("pressing a choice on a film nobody has said anything about records it", async () => {

@@ -2512,6 +2512,134 @@ for (const driver of drivers) {
       assert.equal(await movieOf(alice, "Arrival", 2016), undefined);
     });
 
+    test("a film saved as unseen cannot be made a core, and nothing is written", async () => {
+      const { alice } = await fresh();
+      await genre(alice, "Crime");
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "unseen" });
+      const before = await alice.taste();
+
+      // On create, addressed in another case, and named back as it is stored.
+      // The refusal sends them to their own word, never to a viewing written to
+      // get past it.
+      assert.equal(
+        await refusal(
+          alice.createVibe({
+            name: "Night Shift",
+            genres: ["Crime"],
+            instruction: "Long nights.",
+            core: { title: "HEAT", year: 1995 },
+          }),
+        ),
+        `cannot make "Heat" (1995) a core: its saved viewing says they have not seen it, and a ` +
+          "core is a film they have seen. Change the viewing only if they tell you they have " +
+          "watched it — then record that with update_movie and try again",
+      );
+      // Refused whole: no vibe, no genre reference, no filing, no stamp moved.
+      assert.deepEqual(await alice.taste(), before, "a refused core wrote something");
+
+      // On update the same, and the core it would have replaced stands.
+      await alice.createVibe({
+        name: "Night Shift",
+        genres: ["Crime"],
+        instruction: "Long nights.",
+        core: { title: "Collateral", year: 2004 },
+      });
+      const anchored = await alice.taste();
+      assert.match(
+        await refusal(alice.updateVibe("Night Shift", { core: { title: "Heat", year: 1995 } })),
+        /^cannot make "Heat" \(1995\) a core: its saved viewing says they have not seen it/,
+      );
+      assert.deepEqual(await alice.taste(), anchored, "a refused core change wrote something");
+
+      // Their word is the way through: once they say they watched it, it may anchor.
+      await alice.updateMovie("Heat", 1995, { viewing: "seen" });
+      const now = await alice.updateVibe("Night Shift", { core: { title: "Heat", year: 1995 } });
+      assert.deepEqual(now.core, { title: "Heat", year: 1995 });
+    });
+
+    test("a core is never marked unseen, and every other viewing stays free", async () => {
+      const { alice } = await fresh();
+      await genre(alice, "Sci-Fi");
+      await alice.createVibe({
+        name: "Space Tension",
+        genres: ["Sci-Fi"],
+        instruction: "Tense.",
+        core: { title: "Arrival", year: 2016 },
+      });
+      const before = await alice.taste();
+
+      assert.equal(
+        await refusal(alice.updateMovie("ARRIVAL", 2016, { viewing: "unseen" })),
+        `cannot mark "Arrival" (2016) unseen: it is the core of the vibe "Space Tension", and a ` +
+          "core is a film they have seen — make another film the core with update_vibe first, " +
+          "or delete the vibe",
+      );
+      // Refused whole: a retitle riding along is not written either.
+      assert.match(
+        await refusal(alice.updateMovie("Arrival", 2016, { title: "Arrival!", viewing: "unseen" })),
+        /^cannot mark "Arrival" \(2016\) unseen/,
+      );
+      assert.deepEqual(await alice.taste(), before, "a refused viewing changed something");
+
+      // Seen is a core's natural state, and null — nobody said — is not "unseen".
+      assert.equal((await alice.updateMovie("Arrival", 2016, { viewing: "seen" })).viewing, "seen");
+      assert.equal((await alice.updateMovie("Arrival", 2016, { viewing: null })).viewing, null);
+
+      // A film they have not seen may sit in a vibe: a candidate for that evening.
+      const heat = await alice.createMovie({
+        title: "Heat",
+        year: 1995,
+        viewing: "unseen",
+        vibes: ["Space Tension"],
+      });
+      assert.deepEqual(heat.vibes, ["Space Tension"]);
+      await alice.updateMovie("Heat", 1995, { viewing: "seen" });
+      assert.equal((await alice.updateMovie("Heat", 1995, { viewing: "unseen" })).viewing, "unseen");
+
+      // And a core it no longer is may be marked unseen like any film.
+      await alice.updateVibe("Space Tension", { core: { title: "Moon", year: 2009 } });
+      assert.equal(
+        (await alice.updateMovie("Arrival", 2016, { viewing: "unseen" })).viewing,
+        "unseen",
+      );
+    });
+
+    test("a core already saved as unseen is left alone by writes that do not touch it", async () => {
+      // Written before the store refused it — set here the only way it can be now,
+      // under the store's feet. Such a vibe is not made worse and blocks nothing
+      // unrelated; it is re-anchored when somebody chooses another core.
+      const { alice, sql } = await fresh();
+      await genre(alice, "Sci-Fi");
+      await alice.createVibe({
+        name: "Space Tension",
+        genres: ["Sci-Fi"],
+        instruction: "Tense.",
+        core: { title: "Arrival", year: 2016 },
+      });
+      await sql.query(
+        `UPDATE tonight_movies SET viewing = 'unseen' WHERE user_id = $1 AND title = 'Arrival'`,
+        [ALICE.id],
+      );
+
+      // Retitled, re-stated as unseen, and its vibe renamed: none of it is refused.
+      const retitled = await alice.updateMovie("Arrival", 2016, { title: "Arrival (2016 cut)" });
+      assert.equal(retitled.viewing, "unseen");
+      await alice.updateMovie("Arrival (2016 cut)", 2016, { viewing: "unseen" });
+      assert.equal((await alice.updateVibe("Space Tension", { name: "Deep Space" })).name, "Deep Space");
+
+      // Naming it as the core again is what the guard is for.
+      assert.match(
+        await refusal(
+          alice.updateVibe("Deep Space", { core: { title: "Arrival (2016 cut)", year: 2016 } }),
+        ),
+        /^cannot make "Arrival \(2016 cut\)" \(2016\) a core/,
+      );
+
+      // Re-anchored on another film, it is an ordinary member again.
+      const reanchored = await alice.updateVibe("Deep Space", { core: { title: "Moon", year: 2009 } });
+      assert.deepEqual(reanchored.core, { title: "Moon", year: 2009 });
+    });
+
     test("the database refuses a core that is not one of the vibe's films", async () => {
       const { alice, bob, sql } = await fresh();
       await vibe(alice, "Mine");

@@ -1757,3 +1757,131 @@ test("every rule the agent cannot work out for itself is in the text it is given
     );
   }
 });
+
+/**
+ * M6 — the projected floor, and what it must leave exactly as it was.
+ *
+ * `docs/work/m6/PLAN.md` §2–§3. Four projected deltas, each a skill-owned rule
+ * both hosts need: a turn-down is a verdict (D1), a recommended film comes back
+ * only outside a refusal's reach (D2), being in a Vibe is no opinion (D3), and a
+ * request with taste read and no mood is still answered, led as a surprise (D4).
+ * Where the deltas sit is pinned too: D4 inside the sentence that already says
+ * *never instead*, so it cannot become R1's licence to interview.
+ */
+test("M6: a turn-down is a verdict, and a refused film comes back only outside its reach", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  // D1, after the verdict routing it extends — which stays whole.
+  assert.match(
+    flat,
+    /that is a verdict: `record_verdict`, in their words, never stronger, \*"stop suggesting it"\* too — \*"nah, not that one"\* is `not-tonight`;/,
+  );
+  // D2, after the sentence it narrows, and before the exception it already named.
+  assert.match(
+    flat,
+    /a film you recommended can come back unless a refusal reaches today: \*\*only what they said is evidence\*\*/,
+  );
+  // The skill says both at length.
+  const canonical = canonicalSkill().replace(/\s+/g, " ");
+  assert.match(canonical, /\*"not interested"\* and \*"stop suggesting it"\* are `not-ever`/);
+  // G3 (M6 smoke, 0 of 3): an unclear turn-down was not recorded at all. It is a
+  // verdict, dated today, and never made permanent.
+  assert.match(
+    canonical,
+    /one that does not say how far — \*"nah, not that one"\* — is `not-tonight` on today's date too: recorded, never left unrecorded, and never made permanent/,
+  );
+  assert.match(canonical, /Never `disliked`, which says they watched it/);
+  assert.match(canonical, /never a question asking them to make it reach further/);
+  assert.match(canonical, /\*\*Within its reach a refused film is not offered again\*\*/);
+  assert.match(canonical, /a `not-tonight` reaches the evening its occasion names, which for tonight is today's date/);
+  assert.match(canonical, /Any other occasion is another evening's, and binds nothing tonight/);
+});
+
+test("M6: being in a Vibe is no opinion, and a film new to them there is a candidate", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  // D3, appended to the pinned sentence rather than rewording it.
+  // U1 (M6 smoke, 1 of 3): an unseen film with no verdict was called liked because it
+  // sat in a Vibe beside films that were. Liking is a film's own verdict, nothing else.
+  assert.match(
+    flat,
+    /A Movie carries no opinion: `viewing` is a fact about watching, and being in a Vibe none — never call a film liked without its own verdict\./,
+  );
+  // The candidate half was already projected, and stays.
+  assert.match(flat, /`unseen` does not, so it stays/);
+  const canonical = canonicalSkill().replace(/\s+/g, " ");
+  assert.match(canonical, /\*\*Being in a Vibe is no opinion either\*\*/);
+  assert.match(canonical, /only a standing liked or loved says that/);
+  assert.match(
+    canonical,
+    /\*\*Never call a film liked or loved without its own verdict\*\*, however many films beside it in the Vibe they did like/,
+  );
+  assert.match(
+    canonical,
+    /A film there that is new to them is a candidate for that evening and may lead, as `unseen` always could; Tonight is still not the shortlist/,
+  );
+});
+
+test("M6: with taste read and no mood, the answer still comes first, led as a surprise", () => {
+  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  // D4 sits inside the one-question sentence, after "never instead" and before the
+  // empty-model clause — the question it allows is the answer's, never a substitute.
+  const sentence = flat.slice(flat.indexOf("Ask **one film question**"), flat.indexOf("**Never print the taste model"));
+  assert.ok(sentence.length > 0, "the one-question sentence is gone");
+  const instead = sentence.indexOf("**never instead**");
+  const mood = sentence.indexOf(
+    "taste read, not empty, no mood: a surprise lead, never called their mood; the question may ask it;",
+  );
+  const empty = sentence.indexOf("empty model:");
+  assert.ok(
+    instead >= 0 && mood > instead && empty > mood,
+    "D4 is not inside the never-instead sentence, ahead of the empty model",
+  );
+  // Its precondition is all of it, on both surfaces: the model was read AND is not
+  // empty (Codex implementation review 1). "Taste read" alone is met by a read
+  // that succeeded on an empty model, and would hand that case a mood question in
+  // competition with its own first-films question. The rule's own clause, before
+  // the colon, has to say both halves.
+  const precondition = sentence.slice(mood, sentence.indexOf(":", mood));
+  assert.match(precondition, /\bread\b/, "D4 no longer requires the taste to have been read");
+  assert.match(precondition, /\bnot empty\b/, "D4 no longer requires a model that is not empty");
+  const canonicalD4 = canonicalSkill().replace(/\s+/g, " ");
+  assert.match(
+    canonicalD4,
+    /\*\*No mood given is not an exception either\*\*, however many Vibes they have\. With their model read and not empty,/,
+    "the skill's moodless rule lost half of its precondition",
+  );
+  // The empty model and a failed read keep their own rules, worded exactly as they
+  // were before M6 (a22a09f4).
+  const before: [string, string][] = [
+    [
+      "the empty-model clause",
+      'empty model: *"two or three films you love?"*, alone if no\n' +
+        'film was asked; never *"what genres do you like?"*, or require learning\n' +
+        "Genres and Vibes.",
+    ],
+    [
+      "the failed-read branches",
+      "- **`get_taste` fails** — *Taste question*: stop, quote the error, offer to retry, **recommend\n" +
+        "  nothing**. *Ordinary*: answer anyway **in the usual shape**; first sentence: model unread,\n" +
+        "  answer not based on it; claim nothing about them; offer to retry.",
+    ],
+    [
+      "the shape",
+      "**The shape:** One idea for the evening, in a line. Then **one lead, named as such** — " +
+        '*"I\'d start with X"* — and why it, for them. Then two or three **directions**, each\n' +
+        "opened by when it wins, ordered by **distance from the lead**, not quality. Close with one\n" +
+        "question **or** one lever, never both. **Owed an answer, a tool call is not one.**",
+    ],
+  ];
+  for (const [what, unchanged] of before) {
+    assert.ok(PROJECT_INSTRUCTIONS.includes(unchanged), `M6 changed ${what}`);
+  }
+  // The skill gives the reason, and keeps the two other cases apart.
+  const canonical = canonicalSkill().replace(/\s+/g, " ");
+  assert.match(canonical, /\*\*No mood given is not an exception either\*\*, however many Vibes they have/);
+  assert.match(
+    canonical,
+    /\*\*say it is a surprise\*\* — never that it is what they are in the mood for, because they have not said/,
+  );
+  assert.match(canonical, /Their Vibes are never listed, summarised or counted/);
+  assert.match(canonical, /An empty model and a failed read are their own cases, and nothing here changes them/);
+});

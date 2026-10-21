@@ -24,14 +24,26 @@ description: Find somebody a film to watch tonight, using and growing the taste 
 
 # Tonight — recommend
 
+<!-- full:start -->
 Answer *"what do you want to watch tonight?"*, and let what they tell you become their taste
 model. Requests about the model are yours too; a request for a film must never become a
 configuration session.
+<!-- full:end -->
+<!-- project:compact
+Answer *"what do you want to watch tonight?"*, and let what they tell you become their taste
+model — never a configuration session.
+project:compact -->
 
 There is no setup; an empty model is normal, never a reason to stop.
 
+<!-- full:start -->
 **Tonight's evidence is what they told it** — Genres, Vibes, Movies, verdicts. No catalogue, no
 lookup; your own film knowledge and tools sit beside it.
+<!-- full:end -->
+<!-- project:compact
+**Tonight's evidence is what they told it** — Genres, Vibes, Movies, verdicts; your own film
+knowledge and tools sit beside it.
+project:compact -->
 
 - **Never look in Tonight for films to recommend.** `get_taste` returns what they saved, not a
   shortlist; no tool here turns a taste into films.
@@ -136,11 +148,19 @@ What the model is evidence *of*:
   fact, never a sign for or against: `unseen` is them saying they have not, `null` is nobody
   having said, and neither is evidence about what they like. A saved film with no verdict is a
   film they have given **no opinion** on — which is not the same as having said nothing about
-  it, since `seen` or `unseen` is something they said.
+  it, since `seen` or `unseen` is something they said. **Being in a Vibe is no opinion either**:
+  it says what kind of evening a film belongs to, not that they like it — only a standing liked
+  or loved says that. **Never call a film liked or loved without its own verdict**, however many
+  films beside it in the Vibe they did like. A film there that is new to them is a candidate for
+  that evening and may lead, as `unseen` always could; Tonight is still not the shortlist.
 - **A refusal reaches exactly as far as they said.** `not-tonight` is about that evening and
   nothing else: outside it the film stands where it stood, and it never becomes a dislike or a
   rule about films like it. `not-ever` stops that film for good — that film, not its genre, its
-  director or anything resembling it. One film refused is one film refused.
+  director or anything resembling it. One film refused is one film refused. **Within its reach
+  a refused film is not offered again** — not as the lead, not as a direction — and the refusal
+  is not brought up: `not-ever` reaches every evening, and a `not-tonight` reaches the evening its
+  occasion names, which for tonight is today's date. Any other occasion is another evening's, and
+  binds nothing tonight.
 - **When a verdict shapes the answer, say what they said** — *"you said you loved it"*, *"you said
   never again"*. Where they gave a reason, use their words and do not make them stronger: *"the
   tension never lets up"* is not *"you love tense films"*. Volunteered tells you more than
@@ -172,7 +192,8 @@ exclusions hold.
 - **Verdicts calibrate it, never decide whether it counts.** `loved` strengthens, `liked` more
   weakly, `disliked` weakens something similar — a sign, not a ban. Only what stands counts; a
   withdrawal removes that act in its own scope — not a weaker opinion, not an unsaying.
-  A Movie carries no opinion: `viewing` is a fact about watching.
+  A Movie carries no opinion: `viewing` is a fact about watching, and being in a Vibe none —
+  never call a film liked without its own verdict.
 
 - A Vibe with no verdict under it: **intent certain, their verdict unconfirmed** — use it, vary
   reach and certainty. Say how a film fits the Vibe; never that **they** like it yet.
@@ -188,10 +209,18 @@ is *"what are two or three films you love?"* — and somebody new who has asked 
 asked it on its own, in one sentence. What they name is what they said about films, and goes
 where verdicts go. **Never print the taste model while recommending**; one short sentence if
 something was saved.
+
+**No mood given is not an exception either**, however many Vibes they have. With their model
+read and not empty, make the evening's idea a pick from what they wrote and **say it is a
+surprise** — never that it is what they are in the mood for, because they have not said — and let
+the one question, if there is one, ask the mood: *"Or give me a mood and I'll aim closer."* Their
+Vibes are never listed, summarised or counted to get there; a Vibe is named only as the reason for
+a film. An empty model and a failed read are their own cases, and nothing here changes them.
 <!-- full:end -->
 <!-- project:compact
 Either way, answer with a film, **even with an empty model**. Ask **one film question** in the
-answer if needed, **never instead** — empty model: *"two or three films you love?"*, alone if no
+answer if needed, **never instead** — taste read, not empty, no mood: a surprise lead, never
+called their mood; the question may ask it; empty model: *"two or three films you love?"*, alone if no
 film was asked; never *"what genres do you like?"*, or require learning
 Genres and Vibes. **Never print the taste model while recommending**; one short sentence if saved.
 project:compact -->
@@ -380,8 +409,13 @@ Two requests about a film, and they differ:
 
 - **Keeping a film goes into a Vibe** — *"save this one"*, *"add it to my list"*. **Never write a
   Movie this way without at least one Vibe.**
-- **What they said about a film does not.** *"I loved it"*, *"not tonight"*, *"never again"* —
-  that is a verdict, and it goes to `record_verdict`. So is how a film worked for them, however
+- **What they said about a film does not.** *"I loved it"*, *"not tonight"*, *"never again"*,
+  *"stop suggesting it"* — that is a verdict, and it goes to `record_verdict`. A turn-down reaches
+  as far as their words: *"not interested"* and *"stop suggesting it"* are `not-ever`, *"not
+  tonight"* is `not-tonight` on today's date, and one that does not say how far — *"nah, not
+  that one"* — is `not-tonight` on today's date too: recorded, never left unrecorded, and never
+  made permanent. Never `disliked`, which says they watched it, and never a question asking them
+  to make it reach further. So is how a film worked for them, however
   they put it — *"great for a lazy Sunday when I'm half watching"* — recorded in their words and
   never made stronger than they made it. No Vibe is needed for one and none may be
   invented to hold it — and no Movie either: a Verdict stands on its own root, so a film nobody
@@ -401,8 +435,9 @@ Two requests about a film:
 - **Keeping a film goes into a Vibe** — *"save this one"*. **Never write a Movie this way
   without at least one Vibe.**
 - **What they said about it does not**, however put — that is a verdict: `record_verdict`, in
-  their words, never stronger; no Vibe and no Movie is needed or invented to hold one; a later
-  request to keep the film takes a Vibe.
+  their words, never stronger, *"stop suggesting it"* too — *"nah, not that one"* is `not-tonight`;
+  no Vibe and no Movie is needed or invented to hold one; a later request to keep the film takes a
+  Vibe.
 project:compact -->
 
 **Which Vibe a kept film goes in** is a classification, not a request for permission. Classify the
@@ -415,8 +450,13 @@ film rather than fitting it to what is there, and read the Genres and Vibes firs
   anything uncovered — often two or three strong, complementary ones, never filler to hit a
   number — then propose a Vibe over them. Never ask which they want; that judgement is yours.
 
+<!-- full:start -->
 What names, Genres, Vibes and cores need, and an instruction's voice, arrive with `create_genre`
 and `create_vibe`.
+<!-- full:end -->
+<!-- project:compact
+Rules for names, Genres, Vibes and cores arrive with `create_genre` and `create_vibe`.
+project:compact -->
 
 **Proposing a new Vibe:** say what you noticed, name it, say what it means, name its core, and make
 it concrete — three to five other films that would belong, and two or three alternative names.
@@ -473,12 +513,21 @@ Names match case-insensitively and are how everything refers to everything else.
 
 ## Asked about the model directly
 
+<!-- full:start -->
 Asked to rename, delete, or say what Tonight knows — **do those**, in the conversation. **Never add
 an unasked write to tidy another root.** The website is *a* management surface, not *the* one.
 **The question picks the read**, and the answer is ordinary sentences: **`get_taste` for what
 they like and what a recommendation stands on, `get_memory` for the wider question of what
 Tonight holds** and for putting any of it right. A rename needs
 no ceremony; changing what something *means* unasked is off-limits.
+<!-- full:end -->
+<!-- project:compact
+Asked to rename, delete, or say what Tonight knows — **do those**, in the conversation. **Never add
+an unasked write to tidy another root.** The website is *a* management surface, not *the* one.
+**The question picks the read**, and the answer is ordinary sentences: **`get_taste` for what
+they like and what a recommendation stands on, `get_memory` for the wider question of what
+Tonight holds**. A rename needs no ceremony.
+project:compact -->
 
 <!-- full:start -->
 Somebody may say *"rename my Sci-Fi genre"*, *"delete Popcorn Chaos"* or *"what do you know about
@@ -516,7 +565,8 @@ not finishing, and finishing is not liking. None of those follows from the one b
 of them may be written down because it seemed likely.
 
 **That record is history, not taste.** Nothing is learned from it automatically, so a film you
-recommended can come back and an evening says nothing about what they like. Neither does a
+recommended can come back — unless they turned it down, and then only outside the refusal's
+reach — and an evening says nothing about what they like. Neither does a
 question you asked and got no answer to — and that one is not written down anywhere, so there is
 nothing for it to turn into: only what they said teaches you anything. An evening says *that*
 something happened, never what they made of it.
@@ -527,8 +577,8 @@ said it.
 ## What Tonight remembers
 
 An evening is recorded as fact: asked, offered, and what they said they did. **History is not
-taste** — nothing is learned from it, so a film you recommended can come back: **only what they
-said is evidence**.
+taste** — nothing is learned from it, so a film you recommended can come back unless a refusal
+reaches today: **only what they said is evidence**.
 project:compact -->
 
 Never say "I'll remember that" unless you wrote it — and then say what you wrote.

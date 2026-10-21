@@ -1,0 +1,13 @@
+[
+  { "fixture": "m6-01-buddy-crime", "prompt": "not-interested-nice-guys", "family": "G1-not-ever", "gate": "every-run", "sources": ["projection", "plugin-skills"], "smoke": ["projection", "plugin-skills"] },
+  { "fixture": "m6-01-buddy-crime", "prompt": "not-tonight-nice-guys", "family": "G2-not-tonight", "gate": "every-run", "sources": ["projection", "plugin-skills"], "smoke": ["projection"] },
+  { "fixture": "m6-01-buddy-crime", "prompt": "nah-nice-guys", "family": "G3-unclear-reach", "gate": "threshold", "sources": ["projection", "plugin-skills"], "smoke": ["projection"] },
+  { "fixture": "m6-02-refused-ever", "prompt": "funny-tonight", "family": "R1-standing-not-ever", "gate": "every-run", "sources": ["projection", "plugin-skills", "recommend-only"] },
+  { "fixture": "m6-03-refused-tonight", "prompt": "funny-tonight", "family": "R2-dated-today", "gate": "every-run", "sources": ["projection", "plugin-skills", "recommend-only"], "smoke": ["projection"] },
+  { "fixture": "m6-04-unseen-member", "prompt": "my-taste-tonight", "family": "U1-unseen-member", "gate": "threshold", "sources": ["projection", "plugin-skills", "recommend-only"], "smoke": ["projection"] },
+  { "fixture": "m6-04-unseen-member", "prompt": "heat-anchor", "family": "U2-unseen-core", "gate": "every-run", "sources": ["plugin-skills"] },
+  { "fixture": "m6-04-unseen-member", "prompt": "heat-seen-now", "family": "U3-seen-now", "gate": "threshold", "sources": ["plugin-skills"] },
+  { "fixture": "m6-04-unseen-member", "prompt": "collateral-anchor", "then": "yes-seen-it", "family": "U4-contradiction", "gate": "every-run", "sources": ["plugin-skills"], "smoke": ["plugin-skills"] },
+  { "fixture": "m6-05-fifty-vibes", "prompt": "what-tonight", "family": "M1-moodless", "gate": "threshold", "sources": ["projection", "plugin-skills"], "smoke": ["projection"] },
+  { "fixture": "m6-05-fifty-vibes", "prompt": "recommend-me", "family": "M1-moodless", "gate": "threshold", "sources": ["projection", "plugin-skills"] }
+]

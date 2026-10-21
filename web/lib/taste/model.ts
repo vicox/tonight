@@ -121,9 +121,14 @@ export type Vibe = {
    * neither taken out of the vibe nor deleted while it is the core.
    *
    * What a core may be — a film they have seen and stand behind, never one only
-   * offered as an illustration — is a judgement about what they said, and what
-   * they said is in another root. The store checks the shape and the
-   * membership; the skill and the tool descriptions carry the rest.
+   * offered as an illustration — is mostly a judgement about what they said, and
+   * most of what they said is in another root. The one part this root holds is
+   * the film's own `viewing`: a film saved as `unseen` is one they said they have
+   * not watched, so the store refuses it as a core and refuses to mark a core
+   * `unseen`. It reads that raw fact only — a standing judgement implies watching
+   * (`lib/seen.ts`), but judgements are verdicts and the store does not read
+   * them. The store checks the shape, the membership and that one fact; the skill
+   * and the tool descriptions carry the rest.
    */
   core: MovieHandle | null;
   /**
@@ -772,16 +777,36 @@ export function movieAnchorsVibe(
   title: string,
   year: number,
   vibes: readonly string[],
-  doing: "delete" | "unfile",
+  doing: "delete" | "unfile" | "unsee",
 ): TasteError {
   const which = `${vibes.length === 1 ? "the vibe" : "the vibes"} ${vibes
     .map((one) => `"${one}"`)
     .join(", ")}`;
+  const why = {
+    delete: `cannot delete ${handleOf(title, year)}: it is the core of ${which}`,
+    unfile: `cannot take ${handleOf(title, year)} out of ${which}: it is the core there`,
+    unsee:
+      `cannot mark ${handleOf(title, year)} unseen: it is the core of ${which}, and a core ` +
+      "is a film they have seen",
+  }[doing];
   return new TasteError(
-    (doing === "delete"
-      ? `cannot delete ${handleOf(title, year)}: it is the core of ${which}`
-      : `cannot take ${handleOf(title, year)} out of ${which}: it is the core there`) +
-      " — make another film the core with update_vibe first, or delete the vibe",
+    why + " — make another film the core with update_vibe first, or delete the vibe",
+  );
+}
+
+/**
+ * A film whose saved viewing says they have not watched it, named as a core.
+ *
+ * The raw `viewing` only, and on purpose: a standing liked or loved implies they
+ * watched it, but that is a verdict, and only they can settle a contradiction
+ * between two things they said. So the way through is their word — never a
+ * viewing written to get past this.
+ */
+export function coreUnseen(title: string, year: number): TasteError {
+  return new TasteError(
+    `cannot make ${handleOf(title, year)} a core: its saved viewing says they have not seen ` +
+      "it, and a core is a film they have seen. Change the viewing only if they tell you they " +
+      "have watched it — then record that with update_movie and try again",
   );
 }
 

@@ -912,6 +912,96 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     );
   });
 
+  test("a film being made a core cannot be marked unseen underneath it", async (t) => {
+    // Core change against `updateMovie(viewing: unseen)`. The core change holds
+    // the film and waits for the vibe; marking the film unseen reaches for the
+    // same film and waits, and when it gets it the film is a core, so it is
+    // refused with a sentence.
+    const anchoring = await connection();
+    const holder = await connection();
+    const marking = await connection();
+    const watcher = await connection();
+    const owner = await fresh(anchoring, "core-vs-unseen");
+
+    const store = sqlTasteStore(anchoring, owner);
+    await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: ARRIVAL });
+    await store.createMovie({ ...MOON, viewing: "seen" });
+
+    const vibe = holdVibe(t, holder, owner, "space tension");
+    await vibe.ready;
+
+    const change = watch(store.updateVibe("Space Tension", { core: MOON }));
+    await pause(SETTLE);
+    assert.equal(change.state.settled, false, "the core change did not wait for the vibe");
+
+    const unsee = watch(sqlTasteStore(marking, owner).updateMovie(MOON.title, MOON.year, { viewing: "unseen" }));
+    await pause(SETTLE);
+    assert.equal(unsee.state.settled, false, "marking it unseen did not wait for the film being anchored");
+
+    vibe.release();
+    await vibe.done;
+    await change.done;
+    await unsee.done;
+
+    assert.equal(change.state.error, undefined);
+    assert.ok(unsee.state.error instanceof TasteError, "marking a core unseen was not refused with a sentence");
+    assert.match(
+      (unsee.state.error as TasteError).message,
+      /^cannot mark "Moon" \(2009\) unseen: it is the core of the vibe "Space Tension"/,
+    );
+
+    const afterwards = await sqlTasteStore(watcher, owner).taste();
+    assert.deepEqual(afterwards.vibes[0]!.core, MOON);
+    assert.equal(afterwards.movies.find((one) => one.title === "Moon")!.viewing, "seen");
+  });
+
+  test("whichever of marking a film unseen and anchoring on it wins, no core is unseen", async (t) => {
+    // The same two writes queued on the film itself, so either may get it first.
+    // Unseen first: the core change then finds an unseen film and is refused.
+    // Core first: marking it unseen then finds a core and is refused. Exactly one
+    // lands, with a sentence for the other, and never an unseen core.
+    const anchoring = await connection();
+    const holder = await connection();
+    const marking = await connection();
+    const watcher = await connection();
+    const owner = await fresh(anchoring, "unseen-or-core");
+
+    const store = sqlTasteStore(anchoring, owner);
+    await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: ARRIVAL });
+    await store.createMovie({ ...MOON, viewing: "seen", vibes: ["Space Tension"] });
+
+    const hold = holdMovie(t, holder, owner, "moon");
+    await hold.ready;
+
+    const unsee = watch(sqlTasteStore(marking, owner).updateMovie(MOON.title, MOON.year, { viewing: "unseen" }));
+    await pause(SETTLE);
+    const change = watch(store.updateVibe("Space Tension", { core: MOON }));
+    await pause(SETTLE);
+    assert.equal(unsee.state.settled, false, "marking it unseen did not wait for the film");
+    assert.equal(change.state.settled, false, "the core change did not wait for the film");
+
+    hold.release();
+    await hold.done;
+    await unsee.done;
+    await change.done;
+
+    const failed = [unsee.state.error, change.state.error].filter((error) => error !== undefined);
+    assert.equal(failed.length, 1, "exactly one of the two writes should have been refused");
+    assert.ok(failed[0] instanceof TasteError, "the refusal was not a sentence");
+    assert.match((failed[0] as TasteError).message, /unseen|a core is a film they have seen/);
+
+    const afterwards = await sqlTasteStore(watcher, owner).taste();
+    const moon = afterwards.movies.find((one) => one.title === "Moon")!;
+    const core = afterwards.vibes[0]!.core;
+    assert.ok(
+      (JSON.stringify(core) === JSON.stringify(MOON) && moon.viewing === "seen") ||
+        (JSON.stringify(core) === JSON.stringify(ARRIVAL) && moon.viewing === "unseen"),
+      `an unseen core, or neither write landed: core ${JSON.stringify(core)}, viewing ${moon.viewing}`,
+    );
+  });
+
   test("a vibe's answer names its core among its own films, whatever is retitled meanwhile", async (t) => {
     // Codex's implementation review reproduced this: an update holding the vibe
     // read its films, a retitle of the core committed, then the update read its

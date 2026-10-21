@@ -1,0 +1,39 @@
+{
+  "id": "m6-01-buddy-crime",
+  "user": "google:eval-m6-01-buddy-crime",
+  "title": "A model whose obvious funny lead is The Nice Guys, which is not in it",
+  "exists_for": ["G1 not-ever wording", "G2 not-tonight wording", "G3 a turn-down that does not say how far"],
+  "construction_note": "Two Vibes about mismatched partners, banter and plans going sideways, anchored on films they loved or liked — so for something funny tonight, The Nice Guys (2016) is the film any agent reaches for. It is deliberately absent: no Movie, no verdict. Each prompt refuses it by title and year, so the right write is unambiguous.",
+  "writes": true,
+  "model": {
+    "genres": [
+      { "name": "Buddy Crime", "instruction": "Mismatched partners on a case. Violence is allowed, cruelty isn't." },
+      { "name": "Banter", "instruction": "People who talk fast and funny under pressure. I like dialogue that does the work." },
+      { "name": "Heist Comedy", "instruction": "Capers where the plan is the joke. Light on stakes, heavy on charm." }
+    ],
+    "vibes": [
+      {
+        "name": "Two Idiots, One Case",
+        "genres": ["Buddy Crime", "Banter"],
+        "instruction": "Two people who should not be partners, a case that keeps getting worse, and jokes that never let the danger off the hook.",
+        "core": { "title": "Kiss Kiss Bang Bang", "year": 2005 }
+      },
+      {
+        "name": "Plan Goes Sideways",
+        "genres": ["Banter", "Heist Comedy"],
+        "instruction": "A plan that was never going to work, and people talking their way through it falling apart.",
+        "core": { "title": "Logan Lucky", "year": 2017 }
+      }
+    ],
+    "movies": [
+      { "title": "Kiss Kiss Bang Bang", "year": 2005, "vibes": ["Two Idiots, One Case"], "viewing": "seen" },
+      { "title": "21 Jump Street", "year": 2012, "vibes": ["Two Idiots, One Case"], "viewing": "seen" },
+      { "title": "Logan Lucky", "year": 2017, "vibes": ["Plan Goes Sideways"], "viewing": "seen" }
+    ]
+  },
+  "acts": [
+    { "do": "verdict", "film": { "title": "Kiss Kiss Bang Bang", "year": 2005 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "loved" } },
+    { "do": "verdict", "film": { "title": "21 Jump Street", "year": 2012 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "liked" } },
+    { "do": "verdict", "film": { "title": "Logan Lucky", "year": 2017 }, "told": "volunteered", "said": { "about": "judgement", "judgement": "liked" } }
+  ]
+}
