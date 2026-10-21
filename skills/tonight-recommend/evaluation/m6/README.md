@@ -43,6 +43,13 @@ It needs `web/.env.local` (the seeder mints its tokens from it) and refuses to r
 `SKILL.md`, the generated projection or the MCP server differs from `HEAD`. Results go to
 `m6/results/`, which is ignored.
 
+**The host.** `--bare` is the default and authenticates only with `ANTHROPIC_API_KEY`. On a
+machine with only the user's normal Claude login, add `--host login` to any runner (this one,
+M3's, Phase 1's). That host is not `--bare`, and `evaluation/host.mjs` says exactly what it is:
+no user or project settings, skills, CLAUDE.md or memory, but the CLI's own context still
+reaches the agent. Its artifacts say so in a `host_isolation` line, and its results go in a
+`-login` directory: a login recording is never mixed with, or compared as, a bare one.
+
 ## The baseline, and what comes after it
 
 - **The baseline** is recorded at the commit that adds this harness and nothing else of M6, on the

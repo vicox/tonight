@@ -35,6 +35,7 @@ import { existsSync, globSync, mkdirSync, readFileSync, rmSync, writeFileSync } 
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { agentHost } from "../host.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const EVAL = join(here, "..");
@@ -52,6 +53,8 @@ const ONLY = option("only", null);
 const PORT = Number(option("port", "3998"));
 const DRY = args.includes("--dry-run");
 const FORCE = args.includes("--force");
+/** `--host bare` (the default) or `--host login`: see `../host.mjs`. */
+const HOST = agentHost(option("host", "bare"));
 
 const CLI = execFileSync("claude", ["--version"], { encoding: "utf8" }).trim().split(" ")[0];
 
@@ -120,7 +123,7 @@ const scenarioFile = SET === null ? "scenarios.json" : `${SET}.scenarios.json`;
 const promptFile = SET === null ? "prompts.md" : `${SET}.prompts.md`;
 const namespace = SET === null ? `m3-${VERSION}-${TARGET}` : `m3-${SET}-${VERSION}-${TARGET}`;
 
-const OUT = join(here, "results", namespace, "runs");
+const OUT = join(here, "results", `${namespace}${HOST.suffix}`, "runs");
 
 const scenarios = JSON.parse(readFileSync(join(here, scenarioFile), "utf8"));
 const fixture = (id) => JSON.parse(readFileSync(join(here, "fixtures", `${id}.json`), "utf8"));
@@ -260,7 +263,7 @@ async function run(scenario, said, index) {
       "claude",
       [
         "-p", said,
-        "--bare",
+        ...HOST.flags,
         "--model", MODEL,
         "--mcp-config", config,
         "--strict-mcp-config",
@@ -270,7 +273,7 @@ async function run(scenario, said, index) {
         "--permission-mode", "bypassPermissions",
         "--output-format", "json",
       ],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024, cwd: HOST.cwd },
     );
     const parsed = JSON.parse(printed.slice(printed.indexOf("{")));
     answer = parsed.result ?? "";
@@ -314,8 +317,8 @@ run: ${String(index).padStart(2, "0")}
 side: m3
 instructions: ${VERSION}
 target: ${TARGET}
-host: claude -p (Claude Code CLI, --bare)
-model_requested: ${MODEL}
+host: ${HOST.line}
+${HOST.isolation ? `host_isolation: ${HOST.isolation}\n` : ""}model_requested: ${MODEL}
 model_resolved: ${result.resolved}
 cli_version: ${CLI}
 session: ${result.session}

@@ -41,6 +41,7 @@ import { existsSync, globSync, mkdirSync, readFileSync, readdirSync, writeFileSy
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { agentHost } from "./host.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..", "..");
@@ -62,8 +63,10 @@ const ONLY = option("only", null);
 const PORT = Number(option("port", "3999"));
 const DRY = args.includes("--dry-run");
 const FORCE = args.includes("--force");
+/** `--host bare` (the default) or `--host login`: see `./host.mjs`. */
+const HOST = agentHost(option("host", "bare"));
 
-const OUT = join(here, "results", SIDE, "runs");
+const OUT = join(here, "results", `${SIDE}${HOST.suffix}`, "runs");
 
 /** Which CLI produced the runs, asked of the CLI rather than assumed. */
 const CLI = execFileSync("claude", ["--version"], { encoding: "utf8" }).trim().split(" ")[0];
@@ -232,7 +235,7 @@ async function run(fixture, prompt, said, index) {
       "claude",
       [
         "-p", said,
-        "--bare",
+        ...HOST.flags,
         "--model", MODEL,
         "--mcp-config", config,
         "--strict-mcp-config",
@@ -242,7 +245,7 @@ async function run(fixture, prompt, said, index) {
         "--permission-mode", "bypassPermissions",
         "--output-format", "json",
       ],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024, cwd: HOST.cwd },
     );
     const parsed = JSON.parse(printed.slice(printed.indexOf("{")));
     answer = parsed.result ?? "";
@@ -307,8 +310,8 @@ prompt: ${prompt}
 run: ${String(index).padStart(2, "0")}
 side: ${SIDE}
 instructions: ${version()}
-host: claude -p (Claude Code CLI, --bare)
-model_requested: ${MODEL}
+host: ${HOST.line}
+${HOST.isolation ? `host_isolation: ${HOST.isolation}\n` : ""}model_requested: ${MODEL}
 model_resolved: ${result.resolved}
 cli_version: ${CLI}
 session: ${result.session}

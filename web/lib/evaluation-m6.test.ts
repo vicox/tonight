@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import test from "node:test";
 
 /**
@@ -286,6 +287,52 @@ test("the runner runs the M6 set with one date per run, told, seeded and voided 
   assert.match(runner, /^today: \$\{result\.today\}/m, "an artifact does not record its date");
   assert.match(runner, /^side: \$\{SET\}$/m);
   assert.match(readme, /--set m6 --source projection/);
+});
+
+test("the agent's host is bare unless --host login is asked for, and a login run says what it is", async () => {
+  // The user's decision, 2026-10-21: run the semantic sweeps on their normal login,
+  // because --bare reads only ANTHROPIC_API_KEY and there is none. Opt-in, never the
+  // default, and never silently comparable with a --bare recording.
+  type Host = { name: string; flags: string[]; cwd?: string; line: string; isolation: string | null; suffix: string };
+  const url = new URL("host.mjs", EVALUATION).href;
+  const { agentHost, HOSTS } = (await import(url)) as { agentHost: (name: string) => Host; HOSTS: string[] };
+
+  assert.deepEqual(HOSTS, ["bare", "login"]);
+  const bare = agentHost("bare");
+  assert.deepEqual(bare, {
+    name: "bare",
+    flags: ["--bare"],
+    cwd: undefined,
+    line: "claude -p (Claude Code CLI, --bare)",
+    isolation: null,
+    suffix: "",
+  });
+
+  const login = agentHost("login");
+  // Exactly the flags probed: settings only from the (empty) working directory, no
+  // skills or commands. --safe-mode drops the --mcp-config server, so it is not one.
+  assert.deepEqual(login.flags, ["--setting-sources", "local", "--disable-slash-commands"]);
+  assert.ok(!login.flags.includes("--bare") && !login.flags.includes("--safe-mode"));
+  assert.ok(login.cwd && login.cwd.startsWith(tmpdir()), "the login agent does not start in a fresh temp directory");
+  assert.deepEqual(readdirSync(login.cwd), [], "the login agent's directory is not empty");
+  assert.match(login.line, /NOT --bare/);
+  assert.match(login.isolation ?? "", /Not equivalent to a --bare recording/);
+  assert.match(login.isolation ?? "", /user-context reminder/, "the probed contamination is not named");
+  assert.equal(login.suffix, "-login", "login results would share a directory with bare ones");
+  assert.throws(() => agentHost("safe-mode"), /--host is one of bare, login/);
+
+  // Every runner takes its host from there: bare by default, its flags and directory
+  // passed to claude, the host and its isolation in the artifact, its own results.
+  for (const path of ["run-baseline.mjs", "m3/run.mjs", "m5/run.mjs"]) {
+    const source = readFileSync(new URL(path, EVALUATION), "utf8");
+    assert.match(source, /const HOST = agentHost\(option\("host", "bare"\)\);/, `${path}: bare is not the default`);
+    assert.match(source, /\.\.\.HOST\.flags,/, `${path}: the host's flags are not passed`);
+    assert.match(source, /cwd: HOST\.cwd \}/, `${path}: the host's directory is not used`);
+    assert.match(source, /^host: \$\{HOST\.line\}/m, `${path}: the artifact does not name its host`);
+    assert.match(source, /host_isolation: \$\{HOST\.isolation\}/, `${path}: a login run does not say what it is`);
+    assert.match(source, /HOST\.suffix\}/, `${path}: login results share bare results' directory`);
+    assert.doesNotMatch(source, /"--bare",/, `${path}: --bare is still hard-coded`);
+  }
 });
 
 test("the seeder writes @today as the date it is given, only for an occasion, and never guesses", () => {

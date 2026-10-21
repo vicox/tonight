@@ -60,6 +60,7 @@ import { existsSync, globSync, mkdirSync, readdirSync, readFileSync, rmSync, wri
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { agentHost } from "../host.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const EVAL = join(here, "..");
@@ -95,6 +96,8 @@ const PORT = Number(option("port", "3997"));
 const DRY = args.includes("--dry-run");
 const FORCE = args.includes("--force");
 const LEGACY_SEEDED = args.includes("--legacy-seeded");
+/** `--host bare` (the default) or `--host safe-mode`: see `../host.mjs`. */
+const HOST = agentHost(option("host", "bare"));
 
 if (!SOURCES.includes(SOURCE)) {
   throw new Error(`--source is required: one of ${SOURCES.join(", ")}`);
@@ -178,7 +181,7 @@ function refuseIfPromptsMoved() {
 
 const VERSION = version();
 const TARGET = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim();
-const OUT = join(SET_DIR, "results", `${SET}-${SOURCE}-${VERSION}-${TARGET}`, "runs");
+const OUT = join(SET_DIR, "results", `${SET}-${SOURCE}-${VERSION}-${TARGET}${HOST.suffix}`, "runs");
 
 const scenarios = JSON.parse(readFileSync(join(SET_DIR, "scenarios.json"), "utf8"));
 const fixture = (id) => JSON.parse(readFileSync(join(FIXTURES, `${id}.json`), "utf8"));
@@ -276,7 +279,7 @@ function turn(said, config, resume) {
       [
         "-p", said,
         ...(resume ? ["--resume", resume] : []),
-        "--bare",
+        ...HOST.flags,
         "--model", MODEL,
         "--mcp-config", config,
         "--strict-mcp-config",
@@ -286,7 +289,7 @@ function turn(said, config, resume) {
         "--permission-mode", "bypassPermissions",
         "--output-format", "json",
       ],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024, cwd: HOST.cwd },
     );
     const parsed = JSON.parse(printed.slice(printed.indexOf("{")));
     return {
@@ -380,8 +383,8 @@ side: ${SET}
 today: ${result.today}${SET === "m6" ? " (told to the agent as a host line; @today seeded as this)" : " (not told)"}
 source: ${SOURCE}
 skills: ${skillsGiven().join(", ") || "none — the projection"}
-host: claude -p (Claude Code CLI, --bare), instructions as the system prompt
-instructions: ${VERSION}
+host: ${HOST.line}, instructions as the system prompt
+${HOST.isolation ? `host_isolation: ${HOST.isolation}\n` : ""}instructions: ${VERSION}
 target: ${TARGET}
 model_requested: ${MODEL}
 model_resolved: ${result.resolved}
@@ -459,7 +462,7 @@ if (LEGACY_SEEDED) {
 
 const planned = chosen.length * RUNS;
 console.error(
-  `${SET.toUpperCase()} semantic evaluation on ${SOURCE} — instructions ${VERSION} at ${TARGET}, model ${MODEL}, CLI ${CLI}\n` +
+  `${SET.toUpperCase()} semantic evaluation on ${SOURCE} — instructions ${VERSION} at ${TARGET}, model ${MODEL}, CLI ${CLI}, host ${HOST.name}\n` +
     `${chosen.length} scenarios × ${RUNS} runs = ${planned} runs → ${OUT}`,
 );
 if (DRY) {
