@@ -4,6 +4,26 @@ Where each pre-deploy gate stands, the thresholds the semantic sweeps are scored
 the user has to do. Written 2026-10-21 after Codex implementation READY (`820d02b`). Nothing here
 changes the reviewed implementation. Nothing has been pushed, merged or deployed.
 
+## Superseded on 2026-10-22: lean semantic acceptance (the user's decision)
+
+The three-runs-per-scenario thresholds below are **superseded**. Over 300 runs per milestone is not
+affordable, and the first sweep used up a usage window in about 22 minutes. From here:
+
+- **Deterministic gates** stay free and required: unit, PGlite and real PostgreSQL, projection
+  pins and cap, skill contracts, the plugin package, harness integrity.
+- **Semantic** is the M6 smoke set: `--smoke`, 9 model calls, one run each, under a hard
+  `--budget`. A run passes when its required outcome is met and nothing inadmissible happens. A
+  harness failure or an ambiguous answer gets one rerun, which counts against the budget. Two
+  fails in two runs is a finding, not a reason to sample more.
+- **Evidence already recorded** at instructions `410eb470` counts. Projection, 2–3 runs each:
+  - G1, G2, R1 and R2 pass;
+  - G3 misses 0/3 (unclear turn-down not recorded);
+  - U1 has one inadmissible run in 3 ("you liked Heat");
+  - M1 lacks the surprise framing in 2 runs of 2.
+- **Full suites** (Phase 1, M3, M5, M6 at three runs) stay as optional history: they run only
+  when `--budget` names their size, or through their own runners by explicit decision.
+- **The manual iOS smoke** on the 1.3.0 plugin remains a release gate.
+
 ## Gate status
 
 | gate | state | evidence or blocker |

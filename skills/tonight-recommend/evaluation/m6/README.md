@@ -43,6 +43,26 @@ It needs `web/.env.local` (the seeder mints its tokens from it) and refuses to r
 `SKILL.md`, the generated projection or the MCP server differs from `HEAD`. Results go to
 `m6/results/`, which is ignored.
 
+**Lean by default** (the user's decision, 2026-10-22; rules in `evaluation/lean.mjs`):
+
+- **`--smoke`** runs only the scenarios whose `smoke` array names the source: 6 on
+  `projection`, G1 and U4 on `plugin-skills`, 9 model calls in all. One run each unless
+  `--runs` says otherwise.
+- **`--budget N`** caps the model calls of an invocation. It defaults to 12, and a plan over
+  it is refused before anything is seeded or called, dry runs included. A full sweep (3 runs
+  of every scenario) is opt-in: it runs only when `--budget` names its size.
+- **`--resume`** makes only the runs not already recorded ok in this commit's results
+  directory, and never re-records a good run. `--force` re-records all of them; the two are
+  exclusive.
+- **A quota or sign-in failure stops the invocation at once** (exit 3) and is recorded with
+  the CLI's own words. Fix it, then `--resume`.
+- Each artifact records its `selection` and `budget`.
+
+```bash
+node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source projection --smoke --host login
+node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source projection --smoke --host login --resume
+```
+
 **The host.** `--bare` is the default and authenticates only with `ANTHROPIC_API_KEY`. On a
 machine with only the user's normal Claude login, add `--host login` to any runner (this one,
 M3's, Phase 1's). That host is not `--bare`, and `evaluation/host.mjs` says exactly what it is:
