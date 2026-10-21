@@ -14,8 +14,8 @@
   "apps": "./.app.json",
   "interface": {
     "displayName": "Tonight",
-    "shortDescription": "Build your taste. Find your movie.",
-    "longDescription": "Tonight is a personal movie recommender in which you own the recommender. Instead of a profile that watches what you do and never shows you what it concluded, you write down what you like, and you can read it, edit it and delete it at any time. Your Genres, Vibes, Movies and Verdicts live in the Tonight app.",
+    "shortDescription": "Movies That Get You.",
+    "longDescription": "Tonight doesn’t just remember what you love. It understands why. Discover what makes movies special to you through personal Vibes — and get recommendations that truly match your taste. Tonight is a personal movie recommender in which you own the recommender. Instead of a profile that watches what you do and never shows you what it concluded, you write down what you like, and you can read it, edit it and delete it at any time. Your Genres, Vibes, Movies and Verdicts live in the Tonight app.",
     "developerName": "Georg Schmidl",
     "category": "Entertainment",
     "capabilities": ["Read", "Write"],

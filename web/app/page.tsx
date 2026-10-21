@@ -84,9 +84,14 @@ function Landing() {
 
       <section>
         <p className="font-display text-[28px] leading-tight sm:text-[32px]">
-          Build your taste.
+          Tonight doesn&rsquo;t just remember what you love.
           <br />
-          Find your movie.
+          It understands why.
+        </p>
+
+        <p className="mt-5 text-[15px] leading-relaxed text-ink-soft">
+          Discover what makes movies special to you through personal Vibes — and get
+          recommendations that truly match your taste.
         </p>
 
         <p className="mt-6 text-[13px] leading-relaxed text-ink-soft">

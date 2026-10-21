@@ -18,7 +18,9 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Tonight",
-  description: "Build your taste. Find your movie.",
+  description:
+    "Movies That Get You. Discover what makes movies special to you through personal Vibes — " +
+    "and get recommendations that truly match your taste.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
