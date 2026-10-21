@@ -1773,7 +1773,7 @@ test("M6: a turn-down is a verdict, and a refused film comes back only outside i
   // D1, after the verdict routing it extends — which stays whole.
   assert.match(
     flat,
-    /that is a verdict: `record_verdict`, in their words, never stronger, \*"stop suggesting it"\* too;/,
+    /that is a verdict: `record_verdict`, in their words, never stronger, \*"stop suggesting it"\* too — \*"nah, not that one"\* is `not-tonight`;/,
   );
   // D2, after the sentence it narrows, and before the exception it already named.
   assert.match(
@@ -1783,7 +1783,13 @@ test("M6: a turn-down is a verdict, and a refused film comes back only outside i
   // The skill says both at length.
   const canonical = canonicalSkill().replace(/\s+/g, " ");
   assert.match(canonical, /\*"not interested"\* and \*"stop suggesting it"\* are `not-ever`/);
-  assert.match(canonical, /one that does not say how far is `not-tonight` — never `disliked`, which says they watched it/);
+  // G3 (M6 smoke, 0 of 3): an unclear turn-down was not recorded at all. It is a
+  // verdict, dated today, and never made permanent.
+  assert.match(
+    canonical,
+    /one that does not say how far — \*"nah, not that one"\* — is `not-tonight` on today's date too: recorded, never left unrecorded, and never made permanent/,
+  );
+  assert.match(canonical, /Never `disliked`, which says they watched it/);
   assert.match(canonical, /never a question asking them to make it reach further/);
   assert.match(canonical, /\*\*Within its reach a refused film is not offered again\*\*/);
   assert.match(canonical, /a `not-tonight` reaches the evening its occasion names, which for tonight is today's date/);
@@ -1793,12 +1799,21 @@ test("M6: a turn-down is a verdict, and a refused film comes back only outside i
 test("M6: being in a Vibe is no opinion, and a film new to them there is a candidate", () => {
   const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
   // D3, appended to the pinned sentence rather than rewording it.
-  assert.match(flat, /A Movie carries no opinion: `viewing` is a fact about watching, and being in a Vibe none\./);
+  // U1 (M6 smoke, 1 of 3): an unseen film with no verdict was called liked because it
+  // sat in a Vibe beside films that were. Liking is a film's own verdict, nothing else.
+  assert.match(
+    flat,
+    /A Movie carries no opinion: `viewing` is a fact about watching, and being in a Vibe none — never call a film liked without its own verdict\./,
+  );
   // The candidate half was already projected, and stays.
   assert.match(flat, /`unseen` does not, so it stays/);
   const canonical = canonicalSkill().replace(/\s+/g, " ");
   assert.match(canonical, /\*\*Being in a Vibe is no opinion either\*\*/);
   assert.match(canonical, /only a standing liked or loved says that/);
+  assert.match(
+    canonical,
+    /\*\*Never call a film liked or loved without its own verdict\*\*, however many films beside it in the Vibe they did like/,
+  );
   assert.match(
     canonical,
     /A film there that is new to them is a candidate for that evening and may lead, as `unseen` always could; Tonight is still not the shortlist/,

@@ -992,9 +992,10 @@ check "a turn-down is a verdict, and reaches as far as their words" \
     "$(order_check '*"stop suggesting it"* — that is a verdict, and it goes to `record_verdict`' \
         '*"not interested"* and *"stop suggesting it"* are `not-ever`' \
         '*"not tonight"* is `not-tonight` on today' \
-        'one that does not say how far is `not-tonight`' \
-        'never `disliked`, which says they watched it' \
-        'never a question asking them to make it reach further')" "True"
+        'one that does not say how far — *"nah, not' 'that one"* — is `not-tonight` on today' \
+        'recorded, never left unrecorded, and never' 'made permanent' \
+        'Never `disliked`, which says they watched it' \
+        'never a question asking them' 'to make it reach further')" "True"
 check "within its reach a refused film is not offered again, nor the refusal raised" \
     "$(order_check '**A refusal reaches exactly as far as they said.**' \
         '**Within its reach a refused film is not offered again**' \
@@ -1006,6 +1007,8 @@ check "a recommended film comes back only outside a refusal's reach" \
 check "being in a Vibe is no opinion; only a standing liked or loved is" \
     "$(order_check 'A Movie carries no opinion at all' \
         '**Being in a Vibe is no opinion either**' 'only a standing liked or loved says that' \
+        '**Never call a film liked or loved without its own verdict**' 'however many' \
+        'films beside it in the Vibe they did like' \
         'is a candidate for that evening and may lead, as `unseen` always could' \
         'Tonight is still not the shortlist')" "True"
 check "no mood given is answered, led as a surprise, never claimed as their mood" \
