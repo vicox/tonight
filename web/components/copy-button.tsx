@@ -6,19 +6,14 @@ import { useEffect, useId, useRef, useState } from "react";
  * Puts a piece of text on the clipboard, says it did, and has an answer for when
  * it could not.
  *
- * The setup steps hand people two things to paste — the MCP endpoint and the
- * project instructions — and the second is long enough that selecting it by hand
- * is the step somebody gives up on. So the text is not shown as something to
- * highlight: the button is the whole interaction, right up until it fails.
+ * The button is the whole interaction, right up until it fails. When it does, the
+ * text appears in a box that is focused and selected, and the reader is told to
+ * copy it. That is the difference between a fallback and a dead end: telling
+ * somebody to press a keyboard shortcut without first selecting anything asks them
+ * to copy the empty selection they already had — and names a key that half of them
+ * do not have.
  *
- * When it does fail, the text appears in a box that is focused and selected, and
- * the reader is told to copy it. That is the difference between a fallback and a
- * dead end: telling somebody to press a keyboard shortcut without first selecting
- * anything asks them to copy the empty selection they already had — and names a
- * key that half of them do not have.
- *
- * It knows nothing about what it is copying. Whatever the project instructions
- * turn out to be, this component does not change.
+ * It knows nothing about what it is copying.
  */
 
 type Props = {

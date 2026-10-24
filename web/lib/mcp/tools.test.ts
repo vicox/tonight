@@ -620,7 +620,8 @@ test("the write tools carry the rules that apply at the moment they are called",
 
     // As one passage rather than sentences that drifted apart: the readings have
     // to arrive together to be read as a mapping at all. This assertion moved
-    // here from `lib/instructions.test.ts` with the rule it guards.
+    // here from the skill's contracts (now `lib/recommend-skill.test.ts`) with
+    // the rule it guards.
     const from = described.indexOf("Take it from what they said");
     const to = described.indexOf(`"watched it years ago"`);
     assert.ok(from >= 0 && to > from, `${name}: the mapping is not one thought`);

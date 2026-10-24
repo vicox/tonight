@@ -31,6 +31,7 @@
  * proxy's, written as the calls happen.
  */
 import { execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, globSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -40,7 +41,6 @@ import { agentHost } from "../host.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 const EVAL = join(here, "..");
 const ROOT = join(here, "..", "..", "..", "..");
-const WEB = join(ROOT, "web");
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => {
@@ -58,16 +58,14 @@ const HOST = agentHost(option("host", "bare"));
 
 const CLI = execFileSync("claude", ["--version"], { encoding: "utf8" }).trim().split(" ")[0];
 
+/** `tonight-recommend`'s `SKILL.md`, whole: the text a host loads. */
 function instructions() {
-  const source = readFileSync(join(WEB, "lib", "generated", "project-instructions.ts"), "utf8");
-  const open = source.indexOf("PROJECT_INSTRUCTIONS = `") + "PROJECT_INSTRUCTIONS = `".length;
-  const body = source.slice(open, source.indexOf("`;", open));
-  return body.replace(/\\`/g, "`").replace(/\\\$\{/g, "${").replace(/\\\\/g, "\\");
+  return readFileSync(join(ROOT, "skills", "tonight-recommend", "SKILL.md"), "utf8");
 }
 
+/** Eight hex characters of the SHA-256 of exactly the text the agent was given. */
 function version() {
-  const source = readFileSync(join(WEB, "lib", "generated", "project-instructions.ts"), "utf8");
-  return source.match(/PROJECT_INSTRUCTIONS_VERSION = "([a-f0-9]+)"/)[1];
+  return createHash("sha256").update(instructions(), "utf8").digest("hex").slice(0, 8);
 }
 
 /**
@@ -79,7 +77,6 @@ function version() {
 function refuseIfPromptsMoved() {
   for (const file of [
     "skills/tonight-recommend/SKILL.md",
-    "web/lib/generated/project-instructions.ts",
     "web/lib/mcp/server.ts",
   ]) {
     try {

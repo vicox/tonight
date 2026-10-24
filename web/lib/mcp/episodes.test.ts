@@ -254,9 +254,9 @@ describe("episode tools", () => {
     // this tool in that sweep did it. The films existed only in the call, and
     // the user was handed nothing they could act on.
     //
-    // The skill says a tool call is not an answer; the projection carries it as
-    // one short clause, and this tool — the one that makes the substitution
-    // available — said nothing at all. So the rule is stated here, at the point
+    // The skill says a tool call is not an answer; the ChatGPT-project text of
+    // the time carried it as one short clause, and this tool — the one that makes
+    // the substitution available — said nothing at all. So the rule is stated here, at the point
     // where a model is deciding to write an evening down.
     const said = ana.record_episode!.description ?? "";
 

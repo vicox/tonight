@@ -1,12 +1,12 @@
 /**
  * The M5 semantic evaluation, one fresh agent per run.
  *
- *   node evaluation/m5/run.mjs --source projection                 every scenario that runs there
+ *   node evaluation/m5/run.mjs --source recommend-only             every scenario that runs there
  *   node evaluation/m5/run.mjs --source plugin-skills --only m5-01-anchored__logan-lucky-sunday
  *   node evaluation/m5/run.mjs --source recommend-only --runs 3
- *   node evaluation/m5/run.mjs --source projection --dry-run       what it would do, and nothing else
- *   node evaluation/m5/run.mjs --set m6 --source projection        the M6 set (evaluation/m6/)
- *   node evaluation/m5/run.mjs --set m6 --source projection --smoke --host login
+ *   node evaluation/m5/run.mjs --source recommend-only --dry-run   what it would do, and nothing else
+ *   node evaluation/m5/run.mjs --set m6 --source recommend-only    the M6 set (evaluation/m6/)
+ *   node evaluation/m5/run.mjs --set m6 --source recommend-only --smoke --host login
  *                                    the lean default: smoke scenarios, one run each
  *   … --resume                       make only runs not yet recorded ok
  *   … --budget N                     the most model calls allowed (default 12, ../lean.mjs);
@@ -17,17 +17,17 @@
  *
  * M3's runner, with three differences and a reason for each.
  *
- * **It is told which instructions the agent gets.** The project projection and the
- * plugin are different hosts carrying different text (the plan's R3-2): a project
- * gets `tonight-recommend`'s projection and nothing else; the plugin ships both full
- * `SKILL.md` files; and the plugin may select recommend alone. `--source` names
- * which of the three a run stands for, and the artifact records it:
+ * **It is told which instructions the agent gets.** The plugin ships both
+ * `SKILL.md` files, and ChatGPT may select recommend alone (the plan's R3-2).
+ * `--source` names which of the two a run stands for, and the artifact records it:
  *
- *     projection       the generated projection, exactly as the website hands it out
- *     plugin-skills    every full SKILL.md the plugin package carries — every folder
+ *     plugin-skills    every SKILL.md the plugin package carries — every folder
  *                      under skills/, as `chatgpt-plugin/build.sh` packages them —
  *                      recommend first, each under a line naming it
  *     recommend-only   tonight-recommend/SKILL.md alone
+ *
+ * A third source, `projection` — the text a ChatGPT project was once given — was
+ * retired with that text. Its recordings keep their own result directories.
  *
  * `plugin-skills` reads whatever skills exist rather than naming two, and that is
  * what makes the baseline runnable: at the commit before `tonight-vibes` exists,
@@ -64,6 +64,7 @@
  * than scored (`docs/work/m6/PLAN.md`, §5.2).
  */
 import { execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, globSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -74,7 +75,6 @@ import { DEFAULT_BUDGET, checkBudget, failureOf, pending, plannedCalls, recorded
 const here = dirname(fileURLToPath(import.meta.url));
 const EVAL = join(here, "..");
 const ROOT = join(here, "..", "..", "..", "..");
-const WEB = join(ROOT, "web");
 const SEEDER = join(EVAL, "m3", "seed.mjs");
 
 const args = process.argv.slice(2);
@@ -96,7 +96,7 @@ function localDate() {
 }
 let TODAY = localDate();
 
-const SOURCES = ["projection", "plugin-skills", "recommend-only"];
+const SOURCES = ["plugin-skills", "recommend-only"];
 const SOURCE = option("source", null);
 /** `--smoke`: only the scenarios marked smoke for this source, one run each by default. */
 const SMOKE = args.includes("--smoke");
@@ -122,13 +122,6 @@ if (!SOURCES.includes(SOURCE)) {
 
 const CLI = execFileSync("claude", ["--version"], { encoding: "utf8" }).trim().split(" ")[0];
 
-function projection() {
-  const source = readFileSync(join(WEB, "lib", "generated", "project-instructions.ts"), "utf8");
-  const open = source.indexOf("PROJECT_INSTRUCTIONS = `") + "PROJECT_INSTRUCTIONS = `".length;
-  const body = source.slice(open, source.indexOf("`;", open));
-  return body.replace(/\\`/g, "`").replace(/\\\$\{/g, "${").replace(/\\\\/g, "\\");
-}
-
 const skill = (name) => readFileSync(join(ROOT, "skills", name, "SKILL.md"), "utf8");
 
 /** The skills the plugin package carries right now: recommend first, then the rest by name. */
@@ -140,11 +133,9 @@ function packaged() {
   return ["tonight-recommend", ...all.filter((name) => name !== "tonight-recommend")];
 }
 
-/** The skills a run on this source is given, by name; empty for the projection. */
+/** The skills a run on this source is given, by name. */
 function skillsGiven() {
   switch (SOURCE) {
-    case "projection":
-      return [];
     case "recommend-only":
       return ["tonight-recommend"];
     case "plugin-skills":
@@ -155,8 +146,6 @@ function skillsGiven() {
 /** The instructions a run on this source is given, and nothing else. */
 function instructions() {
   switch (SOURCE) {
-    case "projection":
-      return projection();
     case "recommend-only":
       return skill("tonight-recommend");
     case "plugin-skills":
@@ -175,9 +164,13 @@ function systemPrompt() {
   return SET === "m6" ? `${instructions()}\n\nToday's date is ${TODAY}.` : instructions();
 }
 
+/**
+ * Eight hex characters of the SHA-256 of exactly the skills this source supplies,
+ * as they are joined into the system prompt — never the M6 date line, which is the
+ * host's and not the instructions'. Either skill changing changes it.
+ */
 function version() {
-  const source = readFileSync(join(WEB, "lib", "generated", "project-instructions.ts"), "utf8");
-  return source.match(/PROJECT_INSTRUCTIONS_VERSION = "([a-f0-9]+)"/)[1];
+  return createHash("sha256").update(instructions(), "utf8").digest("hex").slice(0, 8);
 }
 
 /** The same guard as Phase 1 and M3: a recording of edited instructions describes nothing. */
@@ -185,7 +178,6 @@ function refuseIfPromptsMoved() {
   for (const file of [
     "skills/tonight-recommend/SKILL.md",
     "skills/tonight-vibes/SKILL.md",
-    "web/lib/generated/project-instructions.ts",
     "web/lib/mcp/server.ts",
   ]) {
     try {
@@ -408,7 +400,7 @@ run: ${String(index).padStart(2, "0")}
 side: ${SET}
 today: ${result.today}${SET === "m6" ? " (told to the agent as a host line; @today seeded as this)" : " (not told)"}
 source: ${SOURCE}
-skills: ${skillsGiven().join(", ") || "none — the projection"}
+skills: ${skillsGiven().join(", ")}
 host: ${HOST.line}, instructions as the system prompt
 ${HOST.isolation ? `host_isolation: ${HOST.isolation}\n` : ""}instructions: ${VERSION}
 target: ${TARGET}

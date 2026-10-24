@@ -119,41 +119,26 @@ recommendation idea, that a good one is called `Popcorn Chaos` rather than `Acti
 user stated, or a meaning they confirmed when the agent asked — never what the agent concluded
 on its own, and never a request for tonight, which says what they want now.
 
-### One specification, several projections
+### One specification
 
-Each `SKILL.md` is a specification, and the only file anybody edits. A host that reads skills reads
-them. Other hosts get a **generated projection** — `web/lib/generated/project-instructions.ts`
-is the one for the instructions box of a ChatGPT project, produced by `npm run sync:instructions`
-from `tonight-recommend` alone. A project has one instruction slot and no second skill, so what
-it carries of Vibes is the floor recommend states for itself; the full Vibe lifecycle is the
-plugin's.
-
-A projection is not a copy. It drops the rationale that sits between `full:` markers, and where a
-rule's canonical wording will not fit the target, a `project:compact` block in the skill supplies
-a shorter wording of **that same rule** — written beside the rule it restates, never in a second
-document. A ChatGPT project silently truncates at about 8,000 characters, so that projection is
-held under a 7,900 guard by `web/lib/instructions.test.ts`. **Those limits bound the projection,
-not the product**: when the specification outgrows a target, the projection for that target
-adapts, and no approved rule is dropped to make a number work.
-
-What keeps the two honest is a contract rather than a convention. For every section with a
-compact wording, the same list of behaviours is asserted against the skill and against the
-projection separately, so a rule lost or weakened on either side fails the suite. A projection
-may be terser; it may not mean anything else.
+Each `SKILL.md` is a specification, the only file anybody edits, and the text a host reads: there
+is no generated copy of it for any host. What keeps it honest is a contract rather than a
+convention — `test.sh` beside each skill, and for `tonight-recommend` also
+`web/lib/recommend-skill.test.ts`, assert that each rule is still stated, where it is stated, and
+that what it replaced has not come back.
 
 ### The ChatGPT plugin
 
 ChatGPT can also read the skill itself, packaged as a plugin. `chatgpt-plugin/` holds its
 manifest and a reference to the Tonight connector, and `build.sh` packages them together with
-the `SKILL.md` of every skill under `skills/` — the specification unchanged, not a projection:
+the `SKILL.md` of every skill under `skills/` — the specification unchanged:
 
 ```bash
 bash chatgpt-plugin/build.sh      # → chatgpt-plugin/dist/tonight.zip
 ```
 
 Upload the ZIP in ChatGPT as a plugin. It does not bundle the MCP server: `.app.json` names the
-connector by its registered app ID, so the connector has to be installed as well. The plugin is
-an install path of its own; the connector-and-project setup on `/setup` is unchanged.
+connector by its registered app ID, so the connector has to be installed as well.
 
 ## The MCP tools
 

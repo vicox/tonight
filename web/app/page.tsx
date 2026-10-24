@@ -1,15 +1,11 @@
 import { LegalLinks } from "@/components/legal";
-import { SetupSteps } from "@/components/setup-steps";
-import { SiteHeader, SignIn, Account, SetupLink } from "@/components/site-header";
+import { SiteHeader, SignIn, Account } from "@/components/site-header";
 import { WorkedExamples } from "@/components/worked-examples";
 import { TasteView } from "@/components/taste-view";
-import { PROJECT_INSTRUCTIONS, PROJECT_INSTRUCTIONS_VERSION } from "@/lib/instructions";
-import { setupSteps } from "@/lib/setup-steps";
 import type { Taste } from "@/lib/taste/model";
 import { tasteStore } from "@/lib/taste/store";
 import type { Standing } from "@/lib/verdicts/model";
 import { verdictStore } from "@/lib/verdicts/store";
-import { mcpEndpoint } from "@/lib/web/setup";
 import { currentVisitor, type SignedInVisitor } from "@/lib/web/visitor";
 
 /**
@@ -63,19 +59,11 @@ async function resolveVisitor(): Promise<SignedInVisitor | null> {
 }
 
 /**
- * The public page: what the loop is, and how to join it.
- *
- * Setup is the body of the page rather than a link off it. The product happens in
- * a conversation, so the useful thing this page can do for a stranger is hand
- * them the two things they have to carry into one — Tonight's address and the
- * project instructions — and say what to do with them. Signing in is not how
- * somebody starts; connecting their assistant is.
+ * The public page: what the loop is, shown with worked examples.
  *
  * It reads nothing about the visitor and renders the same for everybody.
  */
 function Landing() {
-  const endpoint = mcpEndpoint();
-
   return (
     <main className="mx-auto max-w-2xl px-5 py-10 sm:px-8 sm:py-14">
       <SiteHeader>
@@ -111,21 +99,6 @@ function Landing() {
 
       <WorkedExamples />
 
-      <div className="mt-14">
-        {endpoint === null ? (
-          <p className="rounded-xl border border-rule bg-screen px-5 py-4 text-[13.5px] leading-relaxed text-ink-soft">
-            The setup steps cannot be shown just now. Try again in a moment.
-          </p>
-        ) : (
-          <SetupSteps
-            steps={setupSteps(endpoint)}
-            endpoint={endpoint}
-            instructions={PROJECT_INSTRUCTIONS}
-            version={PROJECT_INSTRUCTIONS_VERSION}
-          />
-        )}
-      </div>
-
       {/*
         Linked rather than merely present: Google's OAuth branding step asks for a
         home page, a privacy policy and terms on the app's own domain, and a page
@@ -146,10 +119,7 @@ async function Yours({ visitor }: { visitor: SignedInVisitor }) {
   return (
     <main className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
       <SiteHeader>
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-2">
-          <SetupLink />
-          <Account email={visitor.email} />
-        </div>
+        <Account email={visitor.email} />
       </SiteHeader>
 
       {held === "unavailable" ? (

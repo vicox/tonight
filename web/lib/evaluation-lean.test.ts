@@ -33,9 +33,9 @@ const EVALUATION = new URL("../../skills/tonight-recommend/evaluation/", import.
 const lean = (await import(new URL("lean.mjs", EVALUATION).href)) as Lean;
 const runner = readFileSync(new URL("m5/run.mjs", EVALUATION), "utf8");
 
-const one: Scenario = { fixture: "f1", prompt: "p1", family: "A", sources: ["projection"], smoke: ["projection"] };
-const two: Scenario = { fixture: "f2", prompt: "p2", then: "yes", family: "B", sources: ["projection", "plugin-skills"], smoke: ["plugin-skills"] };
-const three: Scenario = { fixture: "f2", prompt: "p3", family: "B", sources: ["projection", "plugin-skills"] };
+const one: Scenario = { fixture: "f1", prompt: "p1", family: "A", sources: ["recommend-only"], smoke: ["recommend-only"] };
+const two: Scenario = { fixture: "f2", prompt: "p2", then: "yes", family: "B", sources: ["recommend-only", "plugin-skills"], smoke: ["plugin-skills"] };
+const three: Scenario = { fixture: "f2", prompt: "p3", family: "B", sources: ["recommend-only", "plugin-skills"] };
 
 test("a plan's model calls count every turn, and a plan over budget is refused before it runs", () => {
   assert.equal(lean.DEFAULT_BUDGET, 12);
@@ -52,12 +52,12 @@ test("a plan's model calls count every turn, and a plan over budget is refused b
 
 test("smoke selects only what is marked smoke for this source, and --only takes a list", () => {
   const all = [one, two, three];
-  assert.deepEqual(lean.select(all, { source: "projection", smoke: true }), [one]);
+  assert.deepEqual(lean.select(all, { source: "recommend-only", smoke: true }), [one]);
   assert.deepEqual(lean.select(all, { source: "plugin-skills", smoke: true }), [two]);
-  assert.deepEqual(lean.select(all, { source: "projection" }), [one, two, three], "without --smoke, the source's full list");
-  assert.deepEqual(lean.select(all, { source: "projection", only: "f1__p1, B" }), [one, two, three]);
-  assert.deepEqual(lean.select(all, { source: "projection", only: "f2__p3" }), [three]);
-  assert.deepEqual(lean.select(all, { source: "projection", only: "f2__p2__then-yes" }), [two], "the full key with its second turn");
+  assert.deepEqual(lean.select(all, { source: "recommend-only" }), [one, two, three], "without --smoke, the source's full list");
+  assert.deepEqual(lean.select(all, { source: "recommend-only", only: "f1__p1, B" }), [one, two, three]);
+  assert.deepEqual(lean.select(all, { source: "recommend-only", only: "f2__p3" }), [three]);
+  assert.deepEqual(lean.select(all, { source: "recommend-only", only: "f2__p2__then-yes" }), [two], "the full key with its second turn");
   assert.deepEqual(lean.select(all, { source: "plugin-skills", only: "f1" }), [], "a scenario never leaves its sources");
 });
 
@@ -139,19 +139,21 @@ test("the runner uses the lean rules: budget before any call, smoke, resume, and
 });
 
 test("the M6 smoke set is the planned nine calls, inside the default cap", () => {
+  // The smoke scenarios the retired projection ran are recommend alone's now: the
+  // same six families, the same nine calls in all.
   const scenarios = JSON.parse(readFileSync(new URL("m6/scenarios.json", EVALUATION), "utf8")) as Scenario[];
   const calls = (source: string) =>
     lean.plannedCalls(lean.select(scenarios, { source, smoke: true }).map((scenario) => ({ scenario, index: 1 })));
   assert.deepEqual(
-    lean.select(scenarios, { source: "projection", smoke: true }).map((s) => s.family),
+    lean.select(scenarios, { source: "recommend-only", smoke: true }).map((s) => s.family),
     ["G1-not-ever", "G2-not-tonight", "G3-unclear-reach", "R2-dated-today", "U1-unseen-member", "M1-moodless"],
   );
   assert.deepEqual(
     lean.select(scenarios, { source: "plugin-skills", smoke: true }).map((s) => s.family),
     ["G1-not-ever", "U4-contradiction"],
   );
-  assert.equal(lean.select(scenarios, { source: "recommend-only", smoke: true }).length, 0);
-  assert.equal(calls("projection") + calls("plugin-skills"), 9);
-  assert.ok(calls("projection") + calls("plugin-skills") <= lean.DEFAULT_BUDGET);
+  assert.equal(lean.select(scenarios, { source: "projection", smoke: true }).length, 0);
+  assert.equal(calls("recommend-only") + calls("plugin-skills"), 9);
+  assert.ok(calls("recommend-only") + calls("plugin-skills") <= lean.DEFAULT_BUDGET);
   for (const s of scenarios) for (const source of s.smoke ?? []) assert.ok(s.sources.includes(source), `${s.family}: smoke on a source it does not run on`);
 });

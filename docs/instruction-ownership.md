@@ -7,10 +7,10 @@ rule is written, and it follows from who owns the decision — never from how mu
 
 | Layer | Carries | Because |
 | --- | --- | --- |
-| **Skill**, and its projections | semantics and behavioural invariants applied generally, independent of any one call | they have to hold while reading, recommending and writing alike |
+| **Skill** | semantics and behavioural invariants applied generally, independent of any one call — with the reasoning and worked cases that make them followable | they have to hold while reading, recommending and writing alike |
 | **Tool description or argument** | guidance that matters because *this* operation is about to happen | it is read at the moment the decision is made |
 | **Store and model code** | what can be decided mechanically | a rule a machine can check is not one anybody should have to remember |
-| **Full-skill and in-file prose** | reasoning, worked cases, maintenance context | a maintainer needs the why; a runtime does not |
+| **In-file prose** | maintenance context: why the code and its tests are shaped as they are | a maintainer needs it; a runtime does not |
 
 ## A worked example
 
@@ -22,7 +22,8 @@ Genres' instructions before you write the sentence* is advice to somebody mid-wr
 `create_vibe`'s; *replacing the Genres changes what the Vibe means* is `update_vibe`'s, for the
 same reason. *A Vibe has at least one Genre, and each must exist* is checkable, so the store
 decides it and the tools state it as a precondition rather than asking for judgement. The
-reasoning, and the case that shows the rule failing, are full-skill only.
+reasoning, and the case that shows the rule failing, sit in the skill beside the rule; why the
+tests pin it the way they do sits in the tests.
 
 Nothing about that split is particular to Vibes. The same four questions are asked of a rule
 about Movies, Episodes, Verdicts, recommendation behaviour, or anything added later.

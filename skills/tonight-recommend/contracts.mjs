@@ -1,12 +1,10 @@
 /**
- * Definitions shared by the skill's own `test.sh` and the web instruction
- * contracts, so the two cannot drift apart while both claim to check the same
- * rule.
+ * Definitions shared by the skill's own `test.sh` and the web skill contracts
+ * (`web/lib/recommend-skill.test.ts`), so the two cannot drift apart while both
+ * claim to check the same rule.
  *
- * The skill and its ChatGPT projection are written separately and asserted
- * separately — that is the point of `project:compact`. It also means a rule
- * expressed as two regexes in two languages will eventually be two rules: the
- * shared-retry prohibition below was written twice and immediately diverged,
+ * A rule expressed as two regexes in two languages will eventually be two rules:
+ * the shared-retry prohibition below was written twice and immediately diverged,
  * with `whichever` covered on one side and in one word order only. Anything
  * stated here is stated once.
  */
