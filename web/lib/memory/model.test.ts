@@ -91,7 +91,7 @@ describe("the memory composer", () => {
       instruction: "room to unfold",
       core: HEAT_1995,
     });
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: null });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "want-to-see" });
     await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z", "the tension"));
 
     const { held } = await her.memory();
@@ -578,7 +578,7 @@ describe("the memory composer", () => {
     // Anchored on another film, which a vibe now has to be: the film under test
     // is an ordinary member, filed from its own side as before.
     await her.taste.createVibe({ name: "Long Nights", genres: ["Slow Burn"], instruction: "room", core: HEAT_1995 });
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "unseen", vibes: ["Long Nights"] });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "want-to-see", vibes: ["Long Nights"] });
 
     const film = async () => {
       const movie = of((await her.memory()).held, "movie").find(
@@ -587,7 +587,7 @@ describe("the memory composer", () => {
       return movie?.of === "movie" ? { viewing: movie.viewing, vibes: [...movie.vibes] } : null;
     };
     const before = await film();
-    assert.deepEqual(before, { viewing: "unseen", vibes: ["Long Nights"] });
+    assert.deepEqual(before, { viewing: "want-to-see", vibes: ["Long Nights"] });
 
     const act = await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
     assert.deepEqual(await film(), before, "recording a verdict changed the film");
@@ -599,8 +599,8 @@ describe("the memory composer", () => {
     assert.deepEqual(await film(), before, "forgetting a verdict changed the film");
 
     // And the film is still the only thing that says anything about watching:
-    // the `unseen` they set is exactly as they left it, contradiction and all.
-    assert.equal((await film())?.viewing, "unseen");
+    // the `want-to-see` they set is exactly as they left it, contradiction and all.
+    assert.equal((await film())?.viewing, "want-to-see");
   });
 
   test("a movie root carries whether they watched it, and nothing evaluative", async () => {

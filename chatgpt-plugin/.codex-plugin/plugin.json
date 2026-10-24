@@ -1,6 +1,6 @@
 {
   "name": "tonight",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Find a film to watch tonight, using and growing the taste model you own in the Tonight app.",
   "author": {
     "name": "Georg Schmidl",

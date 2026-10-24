@@ -75,9 +75,8 @@ export type VibeChanges = {
  * What creating a movie is given.
  *
  * `title` and `year` are required because together they are how a movie is
- * addressed. Everything else is optional, and `viewing` is optional in the sense
- * that matters: leaving it out records that nothing was said, not that they have
- * not seen it.
+ * addressed. Everything else is optional, and leaving `viewing` out saves the
+ * film as `want-to-see`, on their list — `DEFAULT_VIEWING`.
  */
 export type MovieDraft = {
   title: unknown;
@@ -90,10 +89,9 @@ export type MovieDraft = {
 /**
  * What updating a movie may change.
  *
- * `undefined` means leave it alone; `null` is a value the caller can set. The
- * distinction carries the whole of the viewing semantics — omitting `viewing`
- * keeps what was there, passing `null` says Tonight no longer knows — so these are
- * `unknown` rather than typed optionals, and the domain decides.
+ * `undefined` means leave it alone; `null` is a value the caller can send. It
+ * clears an IMDb id and is refused for a viewing, which always stands somewhere —
+ * so these are `unknown` rather than typed optionals, and the domain decides.
  *
  * Passing `vibes` replaces the filing exactly, `[]` included. Omitting it leaves
  * the relation rows untouched: not re-derived, not re-resolved, not rewritten.

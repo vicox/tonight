@@ -247,11 +247,11 @@ check "the three judgements keep their meanings" \
         '`disliked` weakens something similar' 'negative sign, not a ban')" "True"
 # A Movie carries no opinion at all now, so what has to be said is that its one
 # field is a fact rather than a sign — and that giving no opinion is not the same
-# as having said nothing, because `seen` or `unseen` is something they said.
+# as having said nothing, because where it stands on their list is something they said.
 check "a saved film carries a fact about watching and never an opinion" \
     "$(order_check 'A Movie carries no opinion at all' \
-        '`viewing` says whether they watched it and that is a' \
-        'fact, never a sign for or against' \
+        '`viewing` says where the film stands on their list and' \
+        'that is a fact, never a sign for or against' \
         'no opinion' \
         'not the same as having said nothing about')" "True"
 check "an empty Vibe changes how you speak, not whether you use it" \
@@ -331,10 +331,10 @@ check "no film count from the old form survives anywhere" \
     "$(grep -ciE 'three to six|six films|3 to 6' "$SKILL")" "0"
 
 echo
-echo "--- unseen by default, and a stretch is anchored ---"
+echo "--- the list stays eligible, and a stretch is anchored ---"
 
-# P4 and P10. `unseen` is deliberately absent from the list: it means they told
-# Tonight they have not seen it, which is a reason to offer it, not a reason not to.
+# P4 and P10. `want-to-see` is deliberately absent from the list: it means the film
+# is on their list to see, which is a reason to offer it, not a reason not to.
 # A refusal is absent too, and for a different reason — it says nothing about
 # whether they watched the film.
 check "the target is what they have not seen or judged" \
@@ -344,22 +344,21 @@ check "the target is what they have not seen or judged" \
         'nobody likes a film they have not seen')" "True"
 check "and never restated as whatever Tonight has not heard of" \
     "$(grep -ciE 'told Tonight nothing about|Tonight (has )?(knows|heard) nothing about' "$SKILL")" "0"
-# The positive half. Absence from the list is not enough: `unseen` has to be named
-# and said to stay available, or a reader may still treat a film Tonight knows of as
-# spent. And `null` has to be told apart from it: it may lead too, but saying they
-# have not seen it would be putting a sentence in their mouth.
-check "unseen is named, and named as still eligible" \
-    "$(order_check 'rules a Movie out as new' '`unseen` does' \
-        'not rule it out' 'so it stays on the table')" "True"
+# The positive half. Absence from the list is not enough: `want-to-see` has to be
+# named and said to stay available, or a reader may still treat a film Tonight knows
+# of as spent. And `dont-want-to-see` is the one viewing that takes a film off the
+# table, so it is named as never recommended.
+check "want-to-see is named, and named as still eligible" \
+    "$(order_check 'rules a Movie out as new' '`want-to-see`' \
+        'does not rule it out' 'so it stays on the table')" "True"
 check "a refusal is not read as having watched it" \
     "$(order_check 'A refusal is not evidence they saw it' \
         'neither says they watched it')" "True"
-check "an unknown viewing may lead but is never called unseen" \
-    "$(order_check '`null` is not `unseen`' \
-        'nobody has said either way' \
-        'must never be' \
-        'described as one they have not seen')" "True"
-check "and nothing in that sentence rules an unseen film out" \
+check "dont-want-to-see is never recommended, nor raised" \
+    "$(order_check 'so it stays on the table' '**`dont-want-to-see` is' \
+        'never recommended**' 'not as the lead, not as a direction' \
+        'is not brought up')" "True"
+check "and nothing in that sentence rules a want-to-see film out" \
     "$(sed -n '/rules a Movie out as new/,/`loved` one is a/p' "$SKILL" \
         | grep -ciE 'never (offer|present|suggest)|not (offered|presented|eligible)')" "0"
 check "a loved film is spent as a reason rather than suggested again" \
@@ -718,8 +717,8 @@ echo
 echo "--- a Movie is the user's own object ---"
 
 check "a Movie is the saved, filed, viewing root, and theirs" \
-    "$(order_check 'a film in their library: one they asked Tonight to keep, or' \
-        'one they told it they had watched' \
+    "$(order_check 'a film on their list: one they asked Tonight to keep, one they' \
+        'told it they had watched, or one they do not want recommended' \
         'A Movie is theirs, the same way a Genre or a Vibe is' \
         'never an entry from a catalogue')" "True"
 # The independence the split introduced, in the direction that is easy to get
@@ -743,7 +742,7 @@ check "the model concepts are counted as the four that exist" \
 check "a Movie is named by its title and its year" \
     "$(order_check 'Title and year name it')" "True"
 check "the three Movie tools are the way a direct request is done" \
-    "$(order_check 'Two requests about a film, and they differ' \
+    "$(order_check 'Three requests about a film, and they differ' \
         'The tools are `create_movie`, `update_movie` and `delete_movie`')" "True"
 check "a recommendation is not persistence, for a film as for a Genre" \
     "$(order_check 'A recommendation is not a saved Movie' \
@@ -761,7 +760,15 @@ check "the handle is settled before a write, and asking which film is not ceremo
         'not permission')" "True"
 
 check "keeping a film and saying something about one are different requests" \
-    "$(order_check 'Two requests about a film, and they differ')" "True"
+    "$(order_check 'Three requests about a film, and they differ')" "True"
+# M7, My List. Three sentences set where a film stands, the assistant says what it
+# stored so a default they did not mean is corrected, and the third sentence is a
+# viewing rather than the verdict it used to be.
+check "the three list sentences set the viewing, and what was stored is said" \
+    "$(order_check '**Where a film stands on their list is its viewing**' \
+        'is `seen`; *"put it on my list"* is `want-to-see`' \
+        'recommend it again"* is `dont-want-to-see` — not a verdict' \
+        'Then say in one sentence' 'what you stored' 'so they can correct it')" "True"
 check "a film the user asks to keep goes into a Vibe, and they need not know that" \
     "$(order_check 'Keeping a film goes into a Vibe' \
         'Never write a Movie this way without at least one Vibe')" "True"
@@ -946,7 +953,7 @@ check "no film is described as having a state set on it" \
 # And the positive half, so the prohibition cannot be satisfied by saying
 # nothing: the skill has to describe the split that replaced it.
 check "the skill says a Movie carries a viewing and no opinion" \
-    "$(order_check 'A Movie carries no opinion at all' '`viewing` says whether they watched it')" "True"
+    "$(order_check 'A Movie carries no opinion at all' '`viewing` says where the film stands on their list')" "True"
 check "and names the tool an opinion goes to instead" \
     "$(order_check 'What they say about a film is a verdict' '`record_verdict`, never a Movie field')" "True"
 
@@ -977,7 +984,7 @@ check "being in a Vibe is no opinion; only a standing liked or loved is" \
         '**Being in a Vibe is no opinion either**' 'only a standing liked or loved says that' \
         '**Never call a film liked or loved without its own verdict**' 'however many' \
         'films beside it in the Vibe they did like' \
-        'is a candidate for that evening and may lead, as `unseen` always could' \
+        'is a candidate for that evening and may lead, as `want-to-see` always could' \
         'Tonight is still not the shortlist')" "True"
 check "no mood given is answered, led as a surprise, never claimed as their mood" \
     "$(order_check 'in the answer, never instead of it' \

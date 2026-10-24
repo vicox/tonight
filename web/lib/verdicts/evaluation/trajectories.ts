@@ -47,7 +47,7 @@ export type Step =
   /** The user says what became of the evening. Never a verdict. */
   | { act: "outcome"; chose?: boolean; watched?: boolean; finished?: boolean }
   /** A film saved, with whether the user said they watched it. */
-  | { act: "viewing"; film: Film; viewing: "seen" | "unseen" }
+  | { act: "viewing"; film: Film; viewing: "seen" | "want-to-see" | "dont-want-to-see" }
   /** The user says what they think. The only thing that creates taste evidence. */
   | {
       act: "verdict";

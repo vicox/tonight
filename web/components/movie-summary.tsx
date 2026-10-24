@@ -39,17 +39,17 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  *
  * What replaced it is two answers, not one arrangement of one:
  *
- *     Not seen 14 · Seen 38 · Not said 4 · Liked 5 · ♥ Loved 3 · Disliked 2 · 44 with no opinion
+ *     Seen 38 · Want to see 14 · Don't want to see 4 · Liked 5 · ♥ Loved 3 · Disliked 2 · 44 with no opinion
  *
  *     6 recently added →
  *
  * Watching is the first three and opinion is the last four, and **each of the
  * two accounts for every film exactly once** — separately. Every film is counted
- * on both halves: not because it has a stored value on both roots, but because
- * each half is exhaustive over the whole collection and its last part is the
- * one for films with nothing stored. A film nobody has said anything about is
- * `Not said` on the first half and `with no opinion` on the second; a film that
- * is seen and loved is `Seen` and `Loved`. Neither half cancels the other, so
+ * on both halves: each half is exhaustive over the whole collection, and the
+ * opinion half's last part is the one for films with nothing stored. A film on
+ * their list that nobody has judged is `Want to see` on the first half and
+ * `with no opinion` on the second; a film that is seen and loved is `Seen` and
+ * `Loved`. Neither half cancels the other, so
  * the line as a whole adds up to twice the heading's count, and that is the
  * arrangement being honest rather than a fault in it. The single row that did
  * add up once could only exist while one field held both answers, which is the
@@ -148,9 +148,8 @@ export function MovieSummary({
    * The summary's own row, which is where focus goes when the control that
    * opened a dialog is not there to take it back.
    *
-   * Its first button is `Not seen`, which is rendered whatever the collection
-   * looks like — so the fallback is a control that exists rather than whichever
-   * one happens to be first today.
+   * Its first button is whichever part has films in it first — so the fallback
+   * is a control that exists rather than one that might not.
    */
   const lines = useRef<HTMLParagraphElement>(null);
   /**

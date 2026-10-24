@@ -193,7 +193,7 @@ test("a vibe written through the route is anchored on its core, which the same w
   ]);
 
   assert.deepEqual((await taste(id)).movies.map(orderMovie), [
-    { title: "Arrival", year: 2016, imdbId: null, viewing: null, vibes: ["My Sci-Fi"] },
+    { title: "Arrival", year: 2016, imdbId: null, viewing: "seen", vibes: ["My Sci-Fi"] },
   ]);
 });
 
@@ -322,9 +322,9 @@ test("a session cannot change, delete or borrow another account's genres", async
  * The film is an ordinary member, not the vibe's core. A vibe is written with a
  * core, so it is anchored on another film — `Moon`, which sorts after `Arrival`
  * and so never becomes "the film" these tests read — and the marks are free to
- * say anything about `Arrival`, `unseen` included, which a core may not be.
+ * say anything about `Arrival`, including the two answers a core may not have.
  */
-async function withFilm(said: { viewing?: "seen" | "unseen" } = {}) {
+async function withFilm(said: { viewing?: "seen" | "want-to-see" | "dont-want-to-see" } = {}) {
   const { cookie, id } = await signedIn();
   await createGenre(
     request("/api/genres", "POST", { name: "Sci-Fi", instruction: "Ideas." }, { cookie }),
@@ -401,52 +401,53 @@ test("a refusal still carries the reason, which is the part a caller can act on"
   assert.match(refused.message ?? "", /no movie "Gone" \(1999\)/);
 });
 
-test("marking a vibe's core unseen is refused in the store's own words", async () => {
+test("marking a vibe's core anything but seen is refused in the store's own words", async () => {
   // A core is a film they have seen. The page has no way to know which film is
   // a core, so the store decides, and the page shows what it said.
   const { cookie, id } = await withFilm();
   await mark(cookie, { ...MOON, viewing: "seen" });
 
-  const refused = await answer(await mark(cookie, { ...MOON, viewing: "unseen" }));
+  const refused = await answer(await mark(cookie, { ...MOON, viewing: "want-to-see" }));
   assert.equal(refused.status, 400);
   assert.equal(refused.error, "refused");
   assert.equal(
     refused.message,
-    'cannot mark "Moon" (2009) unseen: it is the core of the vibe "Space Tension", and a core ' +
-      "is a film they have seen — make another film the core with update_vibe first, or delete " +
-      "the vibe",
+    'cannot mark "Moon" (2009) anything but seen: it is the core of the vibe "Space Tension", ' +
+      "and a core is a film they have seen — make another film the core with update_vibe first, " +
+      "or delete the vibe",
   );
   const moon = (await taste(id)).movies.find((one) => one.title === "Moon");
   assert.equal(moon?.viewing, "seen", "a refused mark changed the core's viewing");
 });
 
-test("pressing a choice on a film nobody has said anything about records it", async () => {
+test("pressing a choice on a film saved without one records it", async () => {
   const { cookie, id } = await withFilm();
-  assert.equal((await film(id))?.viewing, null, "a saved film starts with nothing said");
+  assert.equal((await film(id))?.viewing, "want-to-see", "a saved film starts on the list to see");
 
   const marked = await answer(await mark(cookie, { title: "Arrival", year: 2016, viewing: "seen" }));
   assert.equal(marked.status, 200);
   assert.equal((await film(id))?.viewing, "seen");
 
   // And each answer replaces the last: one answer, not a set of flags.
-  for (const viewing of ["unseen", "seen"] as const) {
+  for (const viewing of ["dont-want-to-see", "want-to-see", "seen"] as const) {
     await mark(cookie, { title: "Arrival", year: 2016, viewing });
     assert.equal((await film(id))?.viewing, viewing);
   }
 });
 
-test("a press never returns a film to having been said nothing about", async () => {
-  // The page draws two choices; the store keeps a third. `null` is silence and
-  // `unseen` is something they said, and pressing anything is a statement — so
-  // this route cannot write the silence back, and refuses rather than guess.
+test("a press never empties a film's viewing", async () => {
+  // A film on the list always stands somewhere, so there is no null to send —
+  // and the old spelling is refused like anything else that is not one of three.
   const { cookie, id } = await withFilm({ viewing: "seen" });
 
-  const refused = await answer(await mark(cookie, { title: "Arrival", year: 2016, viewing: null }));
-  assert.equal(refused.status, 400);
-  assert.equal(refused.error, "refused");
-  assert.match(refused.message ?? "", /"viewing" must be one of seen, unseen/);
+  for (const wrong of [null, "unseen"]) {
+    const refused = await answer(await mark(cookie, { title: "Arrival", year: 2016, viewing: wrong }));
+    assert.equal(refused.status, 400);
+    assert.equal(refused.error, "refused");
+    assert.match(refused.message ?? "", /"viewing" must be one of seen, want-to-see, dont-want-to-see/);
+  }
 
-  assert.equal((await film(id))?.viewing, "seen", "a refused null cleared a stated answer");
+  assert.equal((await film(id))?.viewing, "seen", "a refused value changed a stated answer");
 });
 
 test("a press changes the viewing and leaves the rest of the film alone", async () => {
@@ -505,10 +506,10 @@ test("a mark on a film that is not there is the domain's own refusal", async () 
     assert.equal(refused.error, "refused");
   }
 
-  assert.equal((await film(id))?.viewing, null, "a refused press changed something");
+  assert.equal((await film(id))?.viewing, "want-to-see", "a refused press changed something");
 });
 
-test("a value that is not one of the two is refused before the store is asked", async () => {
+test("a value that is not one of the three is refused before the store is asked", async () => {
   const { cookie, id } = await withFilm();
 
   // The three that used to be states here are refused like anything else: an
@@ -521,7 +522,7 @@ test("a value that is not one of the two is refused before the store is asked", 
     assert.match(refused.message ?? "", /"viewing" must be one of/);
   }
 
-  assert.equal((await film(id))?.viewing, null, "a refused value reached the store");
+  assert.equal((await film(id))?.viewing, "want-to-see", "a refused value reached the store");
 });
 
 test("a mark cannot be pressed on somebody else's film", async () => {
@@ -533,7 +534,7 @@ test("a mark cannot be pressed on somebody else's film", async () => {
   const refused = await answer(await mark(theirs, { title: "Arrival", year: 2016, viewing: "seen" }));
   assert.equal(refused.status, 400);
   assert.match(refused.message ?? "", /no movie "Arrival" \(2016\)/);
-  assert.equal((await film(mine))?.viewing, null, "their press reached my film");
+  assert.equal((await film(mine))?.viewing, "want-to-see", "their press reached my film");
 });
 
 test("a mark with no session, or from another site, writes nothing", async () => {
@@ -554,7 +555,7 @@ test("a mark with no session, or from another site, writes nothing", async () =>
   );
   assert.equal(forged.status, 403);
 
-  assert.equal((await film(id))?.viewing, null, "a refused press reached the store");
+  assert.equal((await film(id))?.viewing, "want-to-see", "a refused press reached the store");
 });
 
 // --- what they thought of it ------------------------------------------------
@@ -691,7 +692,7 @@ test("a judgement never touches the film, and a viewing never touches the verdic
   // The whole point of the split. A judgement already means they watched it —
   // that is derived — so writing `viewing` here as well would store a second
   // copy of a fact that could outlive what it came from.
-  const { cookie, id } = await withFilm({ viewing: "unseen" });
+  const { cookie, id } = await withFilm({ viewing: "want-to-see" });
   const before = await film(id);
 
   await judge(cookie, { title: "Arrival", year: 2016, judgement: "loved" });

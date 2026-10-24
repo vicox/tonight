@@ -217,7 +217,7 @@ describe("the production migration catalog", () => {
  *   the opinions convert   `state: 'loved'` was the only opinion the old schema
  *                          could hold, and the new one holds opinions as
  *                          Verdicts — so the upgrade has to move them, and a
- *                          film whose state said nothing must gain nothing
+ *                          film whose state was no opinion must gain none
  *   nothing is built to be thrown away
  *                          production never had the retired tables, so the
  *                          upgrade must not create them on its way to dropping
@@ -259,7 +259,7 @@ describe("upgrading the database production actually has", () => {
         { title: "Heat", year: 1995, state: "loved" },
         { title: "Zodiac", year: 2007, state: "disliked" },
         { title: "Prisoners", year: 2013, state: "seen" },
-        { title: "Dune", year: 2021, state: null },
+        { title: "Dune", year: 2021, state: "not_seen" },
       ];
       for (const movie of saved) {
         await driver.query(
@@ -285,7 +285,7 @@ describe("upgrading the database production actually has", () => {
       for (const schema of ALL_SCHEMAS) await migrate(driver, schema);
 
       // The schema moved the whole way.
-      assert.deepEqual(await applied("taste"), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+      assert.deepEqual(await applied("taste"), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
       assert.deepEqual(await applied("episodes"), [1, 2]);
       assert.deepEqual(await applied("verdicts"), [1, 2]);
       // The retirements run here too, and record nothing but themselves: this
@@ -305,8 +305,8 @@ describe("upgrading the database production actually has", () => {
       assert.deepEqual(model.genres.map((one) => one.name), ["Slow Burn"]);
       assert.equal((await sqlEpisodeStore(driver, user).episodes()).length, 1, "the upgrade lost an evening");
 
-      // (5) The opinions moved to where opinions live now. `seen` and a film
-      // with nothing said are facts about watching, not opinions, and must
+      // (5) The opinions moved to where opinions live now. `seen` and
+      // `not_seen` are facts about watching, not opinions, and must
       // arrive as no verdict at all — an upgrade that read either as an opinion
       // would be inventing one.
       const standing = await sqlVerdictStore(driver, user).standing();
@@ -325,7 +325,7 @@ describe("upgrading the database production actually has", () => {
       const viewingOf = (title: string) => model.movies.find((one) => one.title === title)?.viewing;
       assert.equal(viewingOf("Prisoners"), "seen");
       assert.equal(viewingOf("Heat"), "seen", "a film they loved is a film they watched");
-      assert.equal(viewingOf("Dune"), null, "a film nobody said anything about gained a viewing");
+      assert.equal(viewingOf("Dune"), "want-to-see", "a film they had not seen is not on their list");
     } finally {
       await driver.close();
     }

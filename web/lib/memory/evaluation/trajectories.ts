@@ -36,7 +36,7 @@
  */
 
 export type Film = { title: string; year: number };
-export type Viewing = "seen" | "unseen";
+export type Viewing = "seen" | "want-to-see" | "dont-want-to-see";
 export type Told = "volunteered" | "confirmed";
 export type Offer = { title: string; year: number; lead: boolean };
 
@@ -64,7 +64,7 @@ export type Step =
    * also how a vibe comes to have films in it — so one scripted movie with a
    * vibe name in it is what gives that vibe a non-empty membership.
    */
-  | { act: "movie"; film: Film; viewing: Viewing | null; imdbId?: string; vibes?: string[] }
+  | { act: "movie"; film: Film; viewing?: Viewing; imdbId?: string; vibes?: string[] }
   /** Something they said about a film. */
   | {
       act: "verdict";
@@ -144,8 +144,8 @@ export const TRAJECTORIES: readonly Trajectory[] = [
       { act: "genre", name: "Slow Burn", instruction: "takes its time" },
       { act: "genre", name: "Heist", instruction: "a crew and a plan" },
       // The vibe is anchored on the film they loved, which nobody had saved: the
-      // vibe saves it, with no viewing and no IMDb id because nobody said either,
-      // and files it. A third film, and the only one that arrives that way.
+      // vibe saves it as seen, with no IMDb id because nobody said one, and
+      // files it. A third film, and the only one that arrives that way.
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved", because: "the tension never lets up" },
       { act: "vibe", name: "Long Nights", genres: ["Slow Burn"], instruction: "room to unfold", core: prisoners },
       // One film with everything a film can carry, and one with none of it, so
@@ -192,8 +192,8 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   },
   {
     name: "a-film-nobody-has-spoken-about",
-    proves: "a film saved with nothing said about watching it, and no verdict either",
-    steps: [{ act: "movie", film: zodiac, viewing: null }],
+    proves: "a film saved with nothing said about watching it is on the list, with no verdict",
+    steps: [{ act: "movie", film: zodiac }],
   },
   {
     name: "a-verdict-with-no-saved-film",
@@ -204,7 +204,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "withdrawal-leaves-the-film-alone",
     proves: "taking the verdict back leaves silence, and the saved film exactly as it was",
     steps: [
-      { act: "movie", film: blackBag, viewing: "unseen" },
+      { act: "movie", film: blackBag, viewing: "want-to-see" },
       { act: "verdict", film: blackBag, told: "volunteered", judgement: "disliked" },
       { act: "withdraw", film: blackBag },
     ],

@@ -142,7 +142,7 @@ describe("M3 — explains itself, and can be corrected", () => {
         case "movie":
           await call("create_movie", {
             ...step.film,
-            viewing: step.viewing,
+            ...(step.viewing === undefined ? {} : { viewing: step.viewing }),
             ...(step.imdbId === undefined ? {} : { imdb_id: step.imdbId }),
             ...(step.vibes === undefined ? {} : { vibes: step.vibes }),
           });
@@ -520,9 +520,10 @@ describe("M3 — explains itself, and can be corrected", () => {
       "the side-by-side history does not save a film",
     );
 
-    // Both viewing answers are filed somewhere, so neither is untested.
+    // Seen, on the list, and a film filed with no viewing at all, so none of
+    // them is untested.
     const filed = TRAJECTORIES.flatMap((one) => one.steps).filter((step) => step.act === "movie");
-    for (const viewing of ["seen", "unseen", null]) {
+    for (const viewing of ["seen", "want-to-see", undefined]) {
       assert.ok(
         filed.some((step) => step.act === "movie" && step.viewing === viewing),
         `no history ever files a film as ${String(viewing)}`,
@@ -679,12 +680,12 @@ describe("M3 — explains itself, and can be corrected", () => {
     });
   });
 
-  test("a core saved as watched when nobody said so is caught", () => {
-    probe("anchoring a vibe infers a viewing", "fidelity", (copy) => {
+  test("a core saved as anything but seen is caught", () => {
+    probe("anchoring a vibe saves its core as not seen", "fidelity", (copy) => {
       const core = copy.seen["one-of-everything"]!.memory.held.find(
         (root) => root.of === "movie" && (root.film as Film).title === "Prisoners",
       )!;
-      (core as { viewing?: unknown }).viewing = "seen";
+      (core as { viewing?: unknown }).viewing = "want-to-see";
     });
   });
 
@@ -717,7 +718,7 @@ describe("M3 — explains itself, and can be corrected", () => {
   test("a film refiled under a viewing nobody chose is caught", () => {
     probe("what came back is not what was made", "fidelity", (copy) => {
       const movie = copy.seen["one-of-everything"]!.memory.held.find((root) => root.of === "movie")!;
-      (movie as { viewing?: unknown }).viewing = "unseen";
+      (movie as { viewing?: unknown }).viewing = "dont-want-to-see";
     });
   });
 

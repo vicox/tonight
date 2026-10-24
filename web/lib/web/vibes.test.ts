@@ -19,7 +19,7 @@ import { filmsIn, filmsUnder, inNoVibe, inOrder, preview, spokenVibe } from "./v
 const film = (
   title: string,
   judgement: Judgement | null,
-  viewing: Viewing | null = null,
+  viewing: Viewing = "want-to-see",
 ): Shown => ({
   title,
   year: 2000,
@@ -34,7 +34,7 @@ const film = (
 const MOVIES: Shown[] = [
   film("Solaris", "loved"),
   film("Stalker", "loved"),
-  film("Dune", null, "unseen"),
+  film("Dune", null, "dont-want-to-see"),
   film("Heat", null, "seen"),
   film("Nosferatu", null),
   { ...film("Arrival", "loved"), vibes: ["Space Tension"] },
@@ -223,7 +223,7 @@ const dated = (
   title,
   year: 2000,
   imdbId: null,
-  viewing: judgement === null ? null : "seen",
+  viewing: judgement === null ? "want-to-see" : "seen",
   vibes: ["Quiet Dread"],
   createdAt,
   updatedAt: "2026-01-01T00:00:00.000Z",
@@ -402,7 +402,7 @@ function inVibe(
     title,
     year: 2000,
     imdbId: null,
-    viewing: judgement === null ? null : "seen",
+    viewing: judgement === null ? "want-to-see" : "seen",
     vibes: [vibe],
     createdAt,
     updatedAt: "2026-01-01T00:00:00.000Z",

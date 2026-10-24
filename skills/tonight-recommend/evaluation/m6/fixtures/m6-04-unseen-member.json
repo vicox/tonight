@@ -3,7 +3,7 @@
   "user": "google:eval-m6-04-unseen-member",
   "title": "A Vibe holding a film they have not seen, and one whose saved viewing contradicts a standing liked",
   "exists_for": ["U1 an unseen member is a candidate, never evidence", "U2 an unseen film is not a core", "U3 their word that they have seen it", "U4 the contradiction case"],
-  "construction_note": "Night Shift is anchored on Thief (1981), seen and loved. Heat (1995) is in it unseen, with no verdict: a candidate for that evening, never evidence of what they like, never a core. Collateral (2004) is in it with a saved viewing of unseen and a standing liked — two things they said that disagree: for recommending the liked stands and the film is not new; as a core the store refuses it, and only their word changes the viewing. Drive (2011) is an ordinary seen, liked member.",
+  "construction_note": "Night Shift is anchored on Thief (1981), seen and loved. Heat (1995) is in it as want-to-see (unseen before My List), with no verdict: a candidate for that evening, never evidence of what they like, never a core. Collateral (2004) is in it with a saved viewing of want-to-see and a standing liked — two things they said that disagree: for recommending the liked stands and the film is not new; as a core the store refuses it, and only their word changes the viewing. Drive (2011) is an ordinary seen, liked member.",
   "contradictions": [{ "title": "Collateral", "year": 2004 }],
   "writes": true,
   "model": {
@@ -21,8 +21,8 @@
     ],
     "movies": [
       { "title": "Thief", "year": 1981, "vibes": ["Night Shift"], "viewing": "seen" },
-      { "title": "Heat", "year": 1995, "vibes": ["Night Shift"], "viewing": "unseen" },
-      { "title": "Collateral", "year": 2004, "vibes": ["Night Shift"], "viewing": "unseen" },
+      { "title": "Heat", "year": 1995, "vibes": ["Night Shift"], "viewing": "want-to-see" },
+      { "title": "Collateral", "year": 2004, "vibes": ["Night Shift"], "viewing": "want-to-see" },
       { "title": "Drive", "year": 2011, "vibes": ["Night Shift"], "viewing": "seen" }
     ]
   },

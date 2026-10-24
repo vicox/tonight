@@ -61,13 +61,13 @@ export function positionOf(
 /**
  * Whether the user has watched a film, from both things that can say so.
  *
- * The page's use of `lib/seen.ts`: the viewing fact if there is one, and
- * otherwise whatever a standing judgement implies. Shown as a fact about
+ * The page's use of `lib/seen.ts`: `seen` on their list, or whatever a standing
+ * judgement implies. Shown as a fact about
  * watching and never as an opinion — a film that counts as seen because they
  * loved it is still a film they loved, and the love is displayed separately.
  */
 export function seen(
-  movie: { viewing: Viewing | null } & { title: string; year: number },
+  movie: { viewing: Viewing } & { title: string; year: number },
   found: ReadonlyMap<string, Position>,
 ): boolean {
   const position = positionOf(movie, found);

@@ -779,17 +779,17 @@ describe("the verdict tools", () => {
     })) as unknown as { verdict: { ref: string } };
     await said(ana, "create_movie", { ...f, viewing: "seen" });
 
-    // "Forget my verdict, and clear what you have saved about my watching it."
+    // "Forget my verdict, and put the film back on my list."
     await said(ana, "forget_verdict", { ref: stated.verdict.ref });
-    await said(ana, "update_movie", { ...f, viewing: null });
+    await said(ana, "update_movie", { ...f, viewing: "want-to-see" });
 
     assert.deepEqual(await history(ana, f), [], "the verdict act survived");
     const taste = (await said(ana, "get_taste")) as unknown as {
-      movies: { title: string; viewing: string | null }[];
+      movies: { title: string; viewing: string }[];
     };
     const movie = taste.movies.find((one) => one.title === f.title);
-    assert.ok(movie, "clearing the viewing removed the film, which is delete_movie's job");
-    assert.equal(movie.viewing, null, "the explicitly requested clearing did not happen");
+    assert.ok(movie, "changing the viewing removed the film, which is delete_movie's job");
+    assert.equal(movie.viewing, "want-to-see", "the explicitly requested change did not happen");
   });
 
   test("stripping the handles did not change what the answer means", async () => {

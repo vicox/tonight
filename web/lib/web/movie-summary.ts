@@ -31,7 +31,7 @@ import type { Positioned } from "./judgements.ts";
  * So there are two rows, each exhaustive over its own question and neither
  * pretending to be exhaustive over the other:
  *
- *     watched       seen + not seen + not said        = every film
+ *     watched       seen + want to see + don't want to see   = every film
  *     said          loved + liked + disliked + no opinion    = every film
  *
  * Each row sums to the collection. The rows do not sum to each other, and
@@ -98,35 +98,27 @@ export const SEEN: Selection = {
 };
 
 /**
- * The films they said they have not watched, and nothing contradicts it.
+ * The films on their list to see, and nothing contradicts it.
  *
- * `unseen` beside a standing judgement is a contradiction the user can create,
- * and this row resolves it the way everything else does — the opinion wins,
- * because nobody likes a film they have not seen. So such a film is counted as
- * seen and not here, which is what keeps the three buckets exclusive.
+ * `want-to-see` beside a standing judgement is a contradiction the user can
+ * create, and this row resolves it the way everything else does — the opinion
+ * wins, because nobody likes a film they have not seen. So such a film is
+ * counted as seen and not here, which is what keeps the three buckets exclusive.
  *
  * Nothing is hidden by that. The raw fact is still on the film's own mark, where
  * the user set it and can change it; this row is the count, not the record.
  */
-export const NOT_SEEN: Selection = {
-  key: "unseen",
-  holds: (movie) => movie.viewing === "unseen" && !SEEN.holds(movie),
-  label: "Not seen",
+export const WANT_TO_SEE: Selection = {
+  key: "want_to_see",
+  holds: (movie) => movie.viewing === "want-to-see" && !SEEN.holds(movie),
+  label: "Want to see",
 };
 
-/**
- * The films nobody has said either way about watching.
- *
- * Not "not seen". A film here may well have been watched; what is true is that
- * Tonight has not been told, and a film that counts as seen through a judgement
- * is not here either — that is something it does know.
- */
-export const WATCHING_UNSAID: Selection = {
-  key: "watching_unsaid",
-  holds: (movie) => movie.viewing === null && movie.position?.judgement === undefined,
-  label: "Not said",
-  phrase: "not said",
-  meaning: "nobody has said whether they watched it",
+/** The films they do not want recommended, resolved against `SEEN` the same way. */
+export const DONT_WANT_TO_SEE: Selection = {
+  key: "dont_want_to_see",
+  holds: (movie) => movie.viewing === "dont-want-to-see" && !SEEN.holds(movie),
+  label: "Don't want to see",
 };
 
 export const LOVED: Selection = { key: "loved", holds: judged("loved"), label: "Loved" };
@@ -143,7 +135,7 @@ export const DISLIKED: Selection = { key: "disliked", holds: judged("disliked"),
  * "No opinion" rather than "nothing said", because the two are different and
  * the difference matters here. A film they turned down for good has a standing
  * verdict — they said a great deal about it — and it is in this bucket, because
- * a refusal is not a judgement. So is a film they marked `unseen`. What they
+ * a refusal is not a judgement. So is a film on their list to see. What they
  * have not done is say what they made of it.
  */
 export const NO_OPINION: Selection = {
@@ -155,14 +147,14 @@ export const NO_OPINION: Selection = {
 };
 
 /**
- * What is known about watching. Exhaustive: every film is in exactly one.
+ * Where the films stand on their list. Exhaustive: every film is in exactly one.
  *
  * `Seen` first because a judgement puts a film there, so it is the largest of
  * the three for most people, and the other two are what is left — each defined
  * as what `Seen` did not take, which is what makes the three a partition rather
  * than three questions that happen not to overlap today.
  */
-export const WATCHED: readonly Selection[] = [SEEN, NOT_SEEN, WATCHING_UNSAID];
+export const WATCHED: readonly Selection[] = [SEEN, WANT_TO_SEE, DONT_WANT_TO_SEE];
 
 /**
  * What they have said. Exhaustive over the same collection, independently.

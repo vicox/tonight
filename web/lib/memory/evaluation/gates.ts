@@ -213,7 +213,7 @@ export type ExpectedVibe = {
 
 export type ExpectedMovie = {
   film: Film;
-  viewing: Viewing | null;
+  viewing: Viewing;
   imdbId: string | null;
   vibes: string[];
 };
@@ -277,14 +277,14 @@ export function expected(steps: readonly Step[]): Expected {
       case "vibe": {
         // The core is filed by the vibe that names it. A film already saved
         // keeps everything it had and gains this vibe; one nobody saved is saved
-        // here with its title and year and nothing else, because nobody said
-        // whether they watched it or which IMDb entry it is.
+        // here with its title and year, as seen — a core is a film they have
+        // seen — and no IMDb entry, because nobody said which it is.
         const saved = movies.get(filmKey(step.core));
         if (saved) {
           // A new list rather than a push: the one there may be the script's own.
           if (!saved.vibes.includes(step.name)) saved.vibes = [...saved.vibes, step.name];
         } else {
-          movies.set(filmKey(step.core), { film: step.core, viewing: null, imdbId: null, vibes: [step.name] });
+          movies.set(filmKey(step.core), { film: step.core, viewing: "seen", imdbId: null, vibes: [step.name] });
         }
         const core = saved?.film ?? step.core;
         vibes.set(step.name, {
@@ -302,7 +302,8 @@ export function expected(steps: readonly Step[]): Expected {
       case "movie":
         movies.set(filmKey(step.film), {
           film: step.film,
-          viewing: step.viewing,
+          // Nothing said is on the list to see: My List's default, restated.
+          viewing: step.viewing ?? "want-to-see",
           imdbId: step.imdbId ?? null,
           vibes: step.vibes ?? [],
         });
@@ -1645,7 +1646,7 @@ export function identity(world: World): Failure[] {
 /** What the public round trip changes, so the gate and the driver agree on it. */
 export const ROUND_TRIP = {
   request: "put right from the view",
-  viewing: "unseen",
+  viewing: "want-to-see",
 } as const;
 
 /**

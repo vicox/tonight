@@ -86,9 +86,9 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * film that has no row here at all, and nothing in this schema is written to
  * hold one.
  *
- * What a Movie does carry is **a fact, not a history**: `viewing` says whether
- * the user told us they watched it, as one column on one row that is
- * overwritten. There is no `watched_at`, no ordering, no count, and no way to
+ * What a Movie does carry is **a fact, not a history**: `viewing` says where
+ * the film stands on their list — seen, want to see, don't want to see — as one
+ * column on one row that is overwritten. There is no `watched_at`, no ordering, no count, and no way to
  * ask what happened when, because none of that was ever written down. When
  * watching history does arrive it will be its own migration and its own tables,
  * referencing `(user_id, id)` so a rename costs it nothing. It will be evidence
@@ -1258,6 +1258,49 @@ export const TASTE_SCHEMA: SchemaModule = {
         -- every re-filing of a film, without a scan.
         CREATE INDEX tonight_mixes_core_index
           ON tonight_mixes (user_id, core_movie_id) WHERE core_movie_id IS NOT NULL;
+      `,
+    },
+
+    /**
+     * My List. A film's viewing is always one of three, and never nothing.
+     *
+     *     seen               they have watched it
+     *     want-to-see        on their list to see — and what a new film is
+     *     dont-want-to-see   not to be recommended
+     *
+     * `unseen` was them saying they had not watched it, which is a film on their
+     * list to see, so it becomes `want-to-see`. That is the whole conversion.
+     *
+     * ## No backfill for NULL, on purpose
+     *
+     * Production has been checked and holds no NULL viewing, so `SET NOT NULL`
+     * is the backfill's guard rather than a step after one: a NULL row would fail
+     * this migration and roll it back whole, with nothing changed. Guessing what
+     * an unknown viewing was is the thing this deliberately does not do.
+     *
+     * The trigger comes off for the conversion, as in v10: the rows are
+     * relabelled, not touched by the user, and `updated_at` is on the read.
+     *
+     * ## Order of the release
+     *
+     * Stop the application, migrate, deploy. The build serving v13 writes
+     * `unseen`, which the new `CHECK` refuses, and a NULL viewing, which the new
+     * `NOT NULL` refuses — so it cannot serve against this schema.
+     */
+    {
+      version: 14,
+      sql: `
+        ALTER TABLE tonight_movies DROP CONSTRAINT tonight_movies_viewing;
+
+        ALTER TABLE tonight_movies DISABLE TRIGGER tonight_movies_written_at;
+        UPDATE tonight_movies SET viewing = 'want-to-see' WHERE viewing = 'unseen';
+        ALTER TABLE tonight_movies ENABLE TRIGGER tonight_movies_written_at;
+
+        ALTER TABLE tonight_movies
+          ADD CONSTRAINT tonight_movies_viewing
+            CHECK (viewing IN ('seen', 'want-to-see', 'dont-want-to-see'));
+        ALTER TABLE tonight_movies ALTER COLUMN viewing SET DEFAULT 'want-to-see';
+        ALTER TABLE tonight_movies ALTER COLUMN viewing SET NOT NULL;
       `,
     },
   ],

@@ -206,11 +206,11 @@ test("every fixture is a shape the product can hold, written by an M6 evaluation
       );
     }
 
-    // A raw-unseen film with a standing judgement is a contradiction, and only where
-    // the fixture lists it as one — never a core.
+    // A film not saved as seen with a standing judgement is a contradiction, and
+    // only where the fixture lists it as one — never a core.
     const unseenJudged = spec.model.movies.filter(
       (movie) =>
-        movie.viewing === "unseen" &&
+        movie.viewing !== "seen" &&
         spec.acts?.some((act) => act.do === "verdict" && same(act.film, movie) && act.said?.about === "judgement"),
     );
     assert.deepEqual(
@@ -245,7 +245,7 @@ test("every fixture is a shape the product can hold, written by an M6 evaluation
 
   const unseen = fixtures.get("m6-04-unseen-member")!;
   const heat = unseen.model.movies.find((movie) => movie.title === "Heat")!;
-  assert.equal(heat.viewing, "unseen");
+  assert.equal(heat.viewing, "want-to-see");
   assert.ok(!unseen.acts?.some((act) => act.film.title === "Heat"), "Heat carries a verdict");
   assert.deepEqual(unseen.contradictions, [{ title: "Collateral", year: 2004 }]);
 
@@ -255,7 +255,7 @@ test("every fixture is a shape the product can hold, written by an M6 evaluation
   assert.ok(!buddy.acts?.some((act) => act.film.title === "The Nice Guys"));
 });
 
-test("no evaluation fixture in any set anchors a Vibe on a film it saves as unseen", () => {
+test("no evaluation fixture in any set anchors a Vibe on a film it does not save as seen", () => {
   // The in-repo half of the existing-data check (PLAN §2.2): the store now refuses
   // such a core, so a fixture that held one could not be seeded — and would be
   // teaching the wrong thing if it could.
@@ -267,7 +267,11 @@ test("no evaluation fixture in any set anchors a Vibe on a film it saves as unse
         if (!vibe.core) continue;
         cores += 1;
         const film = spec.model.movies.find((movie) => same(movie, vibe.core!));
-        assert.notEqual(film?.viewing, "unseen", `${dir}${id}: ${vibe.name} is anchored on a film saved as unseen`);
+        // Not listed, or listed with no viewing, is the core `create_vibe` saved as seen.
+        assert.ok(
+          film?.viewing == null || film.viewing === "seen",
+          `${dir}${id}: ${vibe.name} is anchored on a film saved as ${String(film?.viewing)}`,
+        );
       }
     }
   }

@@ -1,6 +1,15 @@
 "use client";
 
-import { Circle, Eye, EyeOff, Heart, MessageCircleOff, ThumbsDown, ThumbsUp } from "lucide-react";
+import {
+  Bookmark,
+  Circle,
+  Eye,
+  EyeOff,
+  Heart,
+  MessageCircleOff,
+  ThumbsDown,
+  ThumbsUp,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
@@ -12,7 +21,7 @@ import { pending } from "@/lib/web/pending";
  * One thing the user has said about a film: a mark, and a menu to change it.
  *
  * Two of these sit on a row and they say different kinds of thing. The first is
- * a **fact** — have they watched it — and writes the film. The second is an
+ * a **fact** — where it stands on their list — and writes the film. The second is an
  * **opinion** — what did they make of it — and writes a verdict. They are drawn
  * alike because they are both "what you said", and they are separate controls
  * because they are separate answers: a film can be seen and loved at once, and a
@@ -29,9 +38,8 @@ import { pending } from "@/lib/web/pending";
  *
  * ## What "nothing said" is on each
  *
- * On the viewing mark it is drawn and cannot be chosen: a press is a statement,
- * and unsaying one is a real operation that stays with the assistant. On the
- * judgement mark it *is* choosable, because taking back what you said about a
+ * On the viewing mark there is none: a film on the list always stands
+ * somewhere. On the judgement mark it *is* choosable, because taking back what you said about a
  * film is an ordinary thing to want and the verdict model has a word for it —
  * a withdrawal, which leaves silence rather than a neutral opinion.
  *
@@ -84,16 +92,17 @@ type Mark<T> = {
 };
 
 /**
- * Whether they watched it.
+ * Where it stands on their list.
  *
- * Two answers and no third: the same eye, struck through and not, which is one
- * question with two answers. `null` is drawn — an empty circle — and is not in
- * `choices`, so there is no way back to "never told" from here.
+ * Three answers, in the direction a film moves — on the list, then seen — and
+ * then the one that takes it off the table. A film always has one, so `unset`
+ * is never drawn here; it is kept only because every mark has one.
  */
 export const VIEWING: Mark<Viewing> = {
   choices: [
-    { value: "unseen", label: "Not seen", icon: EyeOff },
+    { value: "want-to-see", label: "Want to see", icon: Bookmark },
     { value: "seen", label: "Seen", icon: Eye },
+    { value: "dont-want-to-see", label: "Don't want to see", icon: EyeOff },
   ],
   unset: { label: "Not said", icon: Circle },
   asks: "Whether you have seen",

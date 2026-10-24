@@ -2,7 +2,7 @@ import { TasteError, VIEWINGS, checkMovieTitle, checkYear } from "../../../lib/t
 import { authorized, given } from "../../../lib/web/api.ts";
 
 /**
- * Saying whether the user has watched one film they saved.
+ * Saying where one film they saved stands on their list.
  *
  * ## Why the handle is in the body rather than the path
  *
@@ -39,12 +39,9 @@ import { authorized, given } from "../../../lib/web/api.ts";
  * would be capability with no caller, and the assistant already reaches all of
  * it through `update_movie`.
  *
- * The store's nullable viewing is untouched, and this route is narrower than it
- * is on purpose: it takes one of the two answers and nothing else. A press on
- * the page is something the user did, so it always says something — and a `null`
- * arriving here is a caller this page does not have, which is worth a refusal
- * rather than a silent third meaning. Returning a film to "never told" is a real
- * operation and it stays with the assistant, where `update_movie` accepts it.
+ * It takes one of the three answers and nothing else, which is also all the
+ * store takes: a film on the list always stands somewhere, so there is no `null`
+ * for a press to send.
  *
  * The handle is checked here rather than cast, because a JSON body is `unknown`
  * where a path segment is at least a string. `checkMovieTitle` and `checkYear`
@@ -54,12 +51,11 @@ import { authorized, given } from "../../../lib/web/api.ts";
 export const dynamic = "force-dynamic";
 
 /**
- * The viewing as this route accepts it: one of the two, or not mentioned.
+ * The viewing as this route accepts it: one of the three, or not mentioned.
  *
  * `undefined` is passed straight through, because that is what the store already
- * reads as "leave it alone". Everything else that is not one of the two — `null`
- * included — is refused before the store is asked, so nothing on this path can
- * put a film back to having been said nothing about.
+ * reads as "leave it alone". Everything else that is not one of the three — `null`
+ * included — is refused before the store is asked.
  */
 function pressed(body: Record<string, unknown>): string | undefined {
   const value = given(body, "viewing");
@@ -70,8 +66,7 @@ function pressed(body: Record<string, unknown>): string | undefined {
 
   throw new TasteError(
     `"viewing" must be one of ${VIEWINGS.join(", ")} here — a press on the page is something ` +
-      "the user did. Setting it back to null, meaning Tonight was never told, is done through " +
-      "an assistant. What they thought of the film is a verdict, not a viewing.",
+      "the user did. What they thought of the film is a verdict, not a viewing.",
   );
 }
 

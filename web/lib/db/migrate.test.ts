@@ -264,6 +264,16 @@ const upTo = (version: number): SchemaModule => ({
   migrations: TASTE_SCHEMA.migrations.filter((one) => one.version <= version),
 });
 
+/**
+ * Every migration before My List, v14.
+ *
+ * The legacy rows below are written the way old builds wrote them, with nothing
+ * said about watching — a NULL viewing — and v14 does not run over one: it
+ * backfills no NULL, because production holds none. So a contract about an
+ * earlier migration is checked in the last schema that could hold such a row.
+ */
+const BEFORE_MY_LIST = upTo(13);
+
 /** Rows exactly as the v1 schema held them: names, and no ids anywhere. */
 async function seedV1(sql: SqlDriver): Promise<void> {
   for (const [name, instruction] of [
@@ -771,7 +781,7 @@ test("v6 leaves a pre-existing movie with no creation time and one baseline", as
   await migrate(sql, upTo(5));
   for (const title of ["Arrival", "Moon"]) await oldCode.createMovie(sql, title);
 
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, BEFORE_MY_LIST);
 
   const [tracking] = await sql.query<{ applied: string }>(
     `SELECT to_char(applied_at, 'YYYY-MM-DD HH24:MI:SS.US') AS applied
@@ -820,7 +830,7 @@ test("the old build still dates a movie it edits, without naming the column", as
   const sql = await fresh();
   await migrate(sql, upTo(5));
   const id = await oldCode.createMovie(sql, "Arrival");
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, BEFORE_MY_LIST);
 
   const was = await stamps(sql, "Arrival");
   assert.equal(was.created, null, "a legacy row was given a creation time");
@@ -838,7 +848,7 @@ test("the old build still dates a movie whose filing it replaces", async () => {
   await migrate(sql, upTo(5));
   await oldCode.createVibe(sql, "Space Tension", "Sci-Fi");
   const id = await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, BEFORE_MY_LIST);
   const was = await stamps(sql, "Arrival");
 
   // Taken out of every vibe, by a build that writes no timestamp and does not
@@ -855,7 +865,7 @@ test("the old build deleting a vibe still dates the films that were in it", asyn
   await oldCode.createVibe(sql, "Space Tension", "Sci-Fi");
   await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
   await oldCode.createMovie(sql, "Moon");
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, BEFORE_MY_LIST);
 
   const filedWas = await stamps(sql, "Arrival");
   const looseWas = await stamps(sql, "Moon");
@@ -952,8 +962,8 @@ test("everything before film identity still deploys ahead of its migration", asy
   assert.equal(Number(count), 2, "deleting a vibe took the films with it");
 
   // And the rest of the list still applies cleanly on top of that database.
-  const remaining = TASTE_SCHEMA.migrations.filter((one) => one.version > 5).length;
-  assert.equal(await migrate(sql, TASTE_SCHEMA), remaining);
+  const remaining = BEFORE_MY_LIST.migrations.filter((one) => one.version > 5).length;
+  assert.equal(await migrate(sql, BEFORE_MY_LIST), remaining);
 });
 
 /** Whether the database still has a thing of this kind by this name. */
@@ -1025,7 +1035,7 @@ test("what the user said survives the contract migration, on both axes", async (
     [ALICE],
   );
 
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, BEFORE_MY_LIST);
   await migrate(sql, VERDICTS_SCHEMA);
 
   // Every state maps to the viewing it implied, and the three evaluative ones
@@ -1067,22 +1077,22 @@ test("a viewing is still written and read after the contract migration", async (
 
   const store = sqlTasteStore(sql, { id: ALICE });
   await store.createMovie({ title: "Arrival", year: 2016, viewing: "seen" });
-  await store.updateMovie("Arrival", 2016, { viewing: "unseen" });
+  await store.updateMovie("Arrival", 2016, { viewing: "dont-want-to-see" });
   await store.createMovie({ title: "Moon", year: 2009 });
 
   const { movies } = await store.taste();
   assert.deepEqual(
     movies.map((one) => [one.title, one.viewing]),
     [
-      ["Arrival", "unseen"],
-      ["Moon", null],
+      ["Arrival", "dont-want-to-see"],
+      ["Moon", "want-to-see"],
     ],
   );
 
-  // Silence is still not a statement, and the check refuses anything that is
-  // not one of the two — an opinion included, which is what the column used to
-  // accept and must never accept again.
-  for (const wrong of ["neutral", "liked", "loved", "disliked", "not_seen"]) {
+  // The check refuses anything that is not one of the three — an opinion
+  // included, which is what the column used to accept and must never accept
+  // again, and the two spellings of "not seen" it has held before.
+  for (const wrong of ["neutral", "liked", "loved", "disliked", "not_seen", "unseen"]) {
     await assert.rejects(
       sql.query(
         `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing)
@@ -1229,7 +1239,7 @@ test("every legacy state becomes the viewing it implied, and nothing else moves"
                    FROM tonight_movies WHERE user_id = $1 ORDER BY title`;
   const before = await sql.query(shape, [ALICE]);
 
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, BEFORE_MY_LIST);
 
   assert.deepEqual(
     await sql.query<{ title: string; viewing: string | null }>(
@@ -1696,6 +1706,8 @@ test("v13 stands beside every vibe, and a vibe from before it stays usable unanc
   // Written the way every build before v13 wrote a vibe: no core anywhere.
   await oldCode.createVibe(sql, "Space Tension", "Sci-Fi");
   await oldCode.createMovie(sql, "Arrival", ["Space Tension"]);
+  // Seen, as a film has to be to anchor a vibe — and v14 runs over no NULL.
+  await sql.query(`UPDATE tonight_movies SET viewing = 'seen' WHERE user_id = $1`, [ALICE]);
 
   const versions = async () =>
     await sql.query<{ v: string }>(`SELECT xmin::text AS v FROM tonight_mixes WHERE user_id = $1`, [
@@ -1797,4 +1809,94 @@ test("the core's key holds at commit, against a build that has never heard of it
   const after = await store.taste();
   assert.deepEqual(after.vibes.map(orderVibe), intact.vibes.map(orderVibe));
   assert.deepEqual(after.movies.map(orderMovie), intact.movies.map(orderMovie));
+});
+
+/* ------------------------------------------------------- v14: My List */
+
+/** Films as a v13 build left them, written as raw rows with the viewing given. */
+async function v13Films(sql: SqlDriver, films: [string, string | null][]): Promise<void> {
+  await migrate(sql, BEFORE_MY_LIST);
+  for (const [title, viewing] of films) {
+    await sql.query(
+      `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing)
+       VALUES ($1, $2, lower($2), 2016, $3)`,
+      [ALICE, title, viewing],
+    );
+  }
+}
+
+test("v14 turns unseen into want-to-see, keeps seen, and moves nothing else", async () => {
+  const sql = await fresh();
+  await v13Films(sql, [
+    ["Arrival", "seen"],
+    ["Moon", "unseen"],
+  ]);
+
+  // The whole row but the viewing, stamps included: the rows are relabelled,
+  // not touched by the user, and `updated_at` is on the read.
+  const shape = `SELECT title, canonical_title, year, imdb_id, created_at, updated_at
+                   FROM tonight_movies WHERE user_id = $1 ORDER BY title`;
+  const before = await sql.query(shape, [ALICE]);
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  assert.deepEqual(
+    await sql.query(`SELECT title, viewing FROM tonight_movies WHERE user_id = $1 ORDER BY title`, [
+      ALICE,
+    ]),
+    [
+      { title: "Arrival", viewing: "seen" },
+      { title: "Moon", viewing: "want-to-see" },
+    ],
+  );
+  assert.deepEqual(await sql.query(shape, [ALICE]), before, "the relabelling moved something else");
+});
+
+test("v14 refuses to run over a NULL viewing rather than guess one, and changes nothing", async () => {
+  const sql = await fresh();
+  await v13Films(sql, [
+    ["Arrival", "unseen"],
+    ["Moon", null],
+  ]);
+
+  await assert.rejects(() => migrate(sql, TASTE_SCHEMA));
+
+  // Rolled back whole: not recorded, and not half-converted either.
+  const [recorded] = await sql.query<{ count: string }>(
+    "SELECT count(*) AS count FROM schema_migrations WHERE module = 'taste' AND version = 14",
+  );
+  assert.equal(Number(recorded!.count), 0, "a failed v14 was recorded");
+  assert.deepEqual(
+    await sql.query(`SELECT title, viewing FROM tonight_movies WHERE user_id = $1 ORDER BY title`, [
+      ALICE,
+    ]),
+    [
+      { title: "Arrival", viewing: "unseen" },
+      { title: "Moon", viewing: null },
+    ],
+  );
+});
+
+test("after v14 a viewing is never NULL, and a film written without one is want-to-see", async () => {
+  const sql = await fresh();
+  await migrate(sql, TASTE_SCHEMA);
+
+  // The column's own default, for a writer that names no viewing at all.
+  await sql.query(
+    `INSERT INTO tonight_movies (user_id, title, canonical_title, year) VALUES ($1, 'Moon', 'moon', 2009)`,
+    [ALICE],
+  );
+  assert.deepEqual(
+    await sql.query(`SELECT viewing FROM tonight_movies WHERE user_id = $1`, [ALICE]),
+    [{ viewing: "want-to-see" }],
+  );
+
+  await assert.rejects(
+    sql.query(
+      `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing)
+       VALUES ($1, 'Arrival', 'arrival', 2016, NULL)`,
+      [ALICE],
+    ),
+    (error: unknown) => (error as { code?: string }).code === "23502",
+  );
 });
