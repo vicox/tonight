@@ -8,8 +8,7 @@ payload then told the user the truth about it. That is what this measures.
 
 It is **not** the Phase-1 sweep and does not replace it. Phase 1 asks whether Tonight recommends
 like a curator; this asks whether it explains itself like an honest one. Both run on the same
-instruction version, and a change to `SKILL.md`, the generated instructions or the tool
-descriptions reopens both.
+instruction version, and a change to `SKILL.md` or the tool descriptions reopens both.
 
 ```
   fixtures/          seven histories, as seed definitions
@@ -77,11 +76,12 @@ node evaluation/m3/run.mjs --only H --runs 1      one family
 node evaluation/m3/run.mjs --only m3-01-long-history__why-think
 ```
 
-It refuses to start if `SKILL.md`, the generated instructions or the tool descriptions differ from
-`HEAD`, for the reason the Phase-1 orchestrator does: a behavioural recording made against edited
-instructions describes a version that exists nowhere.
+It refuses to start if `SKILL.md` or the tool descriptions differ from `HEAD`, for the reason the
+Phase-1 orchestrator does: a behavioural recording made against edited instructions describes a
+version that exists nowhere.
 
-The host is `claude -p` with `--bare` and `--strict-mcp-config`, Tonight as the only MCP server, the
-generated instructions passed verbatim with `--system-prompt`, and `external_tools: disabled`
-throughout — the same configuration the Phase-1 baseline was recorded with, so the two sets describe
-the same agent.
+The host is `claude -p` with `--bare` and `--strict-mcp-config`, Tonight as the only MCP server,
+`tonight-recommend`'s `SKILL.md` passed verbatim with `--system-prompt`, and `external_tools:
+disabled` throughout — the same configuration the Phase-1 runner uses, so the two sets describe the
+same agent. Recordings made before the ChatGPT-project text was retired were given that generated
+text instead; their `instructions:` digest names it, and they stay in their own result directories.

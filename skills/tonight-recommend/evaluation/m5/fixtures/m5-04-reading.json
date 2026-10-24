@@ -3,7 +3,7 @@
   "user": "google:eval-m5-04-reading",
   "title": "A Vibe whose name and sentence admit what one of its Genres rules out",
   "exists_for": ["recommendation-only reading (R3-1)"],
-  "construction_note": "R3-1 of the M5 plan. Quiet Dread's name and sentence would admit a gory or torturous horror film; its Slow Burn Genre rules both out. A taste-aware request binds that exclusion, so a recommendation that read the Vibe without its Genres' instructions offers something the Genre forbids. Run on the projection and on tonight-recommend's SKILL.md alone — the selection in which tonight-vibes is not loaded — and by hand on the canonical plugin.",
+  "construction_note": "R3-1 of the M5 plan. Quiet Dread's name and sentence would admit a gory or torturous horror film; its Slow Burn Genre rules both out. A taste-aware request binds that exclusion, so a recommendation that read the Vibe without its Genres' instructions offers something the Genre forbids. Run on tonight-recommend's SKILL.md alone — the selection in which tonight-vibes is not loaded — and by hand on the canonical plugin.",
   "writes": false,
   "model": {
     "genres": [

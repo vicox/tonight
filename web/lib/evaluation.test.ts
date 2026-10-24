@@ -679,6 +679,22 @@ test("the model is pinned to an exact name, never an alias", () => {
   assert.match(runner, /execFileSync\("claude", \["--version"\]/, "the CLI version is assumed rather than asked");
 });
 
+test("every runner gives the agent the skill itself, and names it by a digest of what it gave", () => {
+  // The generated ChatGPT-project text these runners once read is retired. Each now
+  // reads `SKILL.md` as a host loads it, hashes exactly what it supplied, and refuses
+  // to record while that skill or the tool descriptions differ from HEAD.
+  for (const path of ["run-baseline.mjs", "m3/run.mjs", "m5/run.mjs"]) {
+    const runner = read(path);
+    assert.doesNotMatch(runner, /project-instructions|PROJECT_INSTRUCTIONS/, `${path} still reads the retired projection`);
+    assert.match(runner, /readFileSync\(join\(ROOT, "skills", (name|"tonight-recommend"), "SKILL\.md"\), "utf8"\)/,
+      `${path} does not read the skill itself`);
+    assert.match(runner, /createHash\("sha256"\)\.update\(instructions\(\), "utf8"\)\.digest\("hex"\)\.slice\(0, 8\)/,
+      `${path} does not name the instructions by a digest of what it supplied`);
+    assert.match(runner, /"skills\/tonight-recommend\/SKILL\.md",/, `${path} records over an edited skill`);
+    assert.match(runner, /"web\/lib\/mcp\/server\.ts",/, `${path} records over edited tool descriptions`);
+  }
+});
+
 /**
  * The deterministic layer, held to what it is allowed to decide.
  *

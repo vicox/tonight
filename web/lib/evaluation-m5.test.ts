@@ -14,9 +14,10 @@ import { tonightMcpServer } from "./mcp/server.ts";
  * person — and nothing here runs an agent.
  *
  * What the set is for is in `docs/work/m5/M5-PLAN.md`: S1 builds it, S3, S5 and S6
- * reuse it, and Revision 4 splits it by host. A ChatGPT project gets the
- * projection and is scored on the floor; the plugin gets both skills and is
- * scored on the lifecycle; recommend alone is the reading case.
+ * reuse it, and Revision 4 splits it by host. Recommend alone is scored on the
+ * floor and the reading case; the plugin with both skills is scored on the
+ * lifecycle. (The floor ran on a ChatGPT-project projection until that text was
+ * retired.)
  */
 
 const M5 = new URL("../../skills/tonight-recommend/evaluation/m5/", import.meta.url);
@@ -58,7 +59,7 @@ const fixtures = new Map(
     .map((name) => [name.replace(/\.json$/, ""), JSON.parse(read(`fixtures/${name}`)) as Fixture]),
 );
 
-const SOURCES = ["projection", "plugin-skills", "recommend-only"];
+const SOURCES = ["plugin-skills", "recommend-only"];
 
 test("every scenario resolves to a fixture and to requests that exist, and every request is used", () => {
   const used = new Set<string>();
@@ -124,7 +125,24 @@ test("the missed-consideration metric counts only positives, and never an intent
     }
   }
   assert.match(rubric, /\*\*Intentional opt-outs are excluded\*\*/);
-  assert.match(rubric, /On `projection` runs a stop after a positive verdict is correct and is never\s+scored as a miss/);
+  assert.match(rubric, /On `recommend-only` runs a stop after a positive verdict is correct and is never\s+scored as a miss/);
+});
+
+test("what the retired projection covered runs on recommend alone, and the lifecycle stays on the plugin", () => {
+  // The floor — routing into `record_verdict`, the keep flow, the first-film question —
+  // ran on the ChatGPT-project projection, which had one skill and no second. It moved
+  // to `recommend-only`, the selection that likewise has recommend and nothing else, and
+  // not onto `plugin-skills`, where the same scenario would be a lifecycle case.
+  const lifecycleOnly = ["second-turn", "going-through"];
+  for (const one of scenarios) {
+    assert.ok(!one.sources.includes("projection"), `${one.fixture}__${one.prompt} still runs on the projection`);
+    assert.equal(new Set(one.sources).size, one.sources.length, `${one.fixture}__${one.prompt} lists a source twice`);
+    if (lifecycleOnly.includes(one.family)) {
+      assert.deepEqual(one.sources, ["plugin-skills"], `${one.family} left the plugin`);
+    } else {
+      assert.ok(one.sources.includes("recommend-only"), `${one.fixture}__${one.prompt} lost the floor`);
+    }
+  }
 });
 
 test("the plan's routing rows, second turns and families are all in the matrix", () => {
@@ -141,10 +159,10 @@ test("the plan's routing rows, second turns and families are all in the matrix",
   for (const answer of ["yes", "no", "partial"]) assert.ok(then.has(answer), `no second turn of ${answer}`);
 });
 
-test("the recommendation-only reading case runs on the projection and on recommend alone (R3-1)", () => {
+test("the recommendation-only reading case runs on recommend alone (R3-1)", () => {
   const reading = scenarios.filter((one) => one.family === "recommendation-only-reading");
   assert.equal(reading.length, 1);
-  assert.deepEqual([...reading[0]!.sources].sort(), ["projection", "recommend-only"]);
+  assert.deepEqual([...reading[0]!.sources].sort(), ["recommend-only"]);
 
   // The fixture is the shape the case needs: a Vibe whose own sentence would admit
   // what one of its Genres rules out.
@@ -201,20 +219,34 @@ test("every fixture is a shape the product can hold, written by an evaluation us
 });
 
 test("the runner gives each source its own instructions, and records the source and the skills", () => {
-  assert.match(runner, /const SOURCES = \["projection", "plugin-skills", "recommend-only"\]/);
+  assert.match(runner, /const SOURCES = \["plugin-skills", "recommend-only"\]/);
   // The plugin is every skill the package carries, recommend first — both since
   // S3, recommend alone at the baseline commit (Codex implementation review #4).
   assert.match(runner, /readdirSync\(join\(ROOT, "skills"\)/, "plugin-skills does not read the skills that exist");
   assert.match(runner, /return \["tonight-recommend", \.\.\.all\.filter\(\(name\) => name !== "tonight-recommend"\)\]/);
   assert.match(runner, /case "plugin-skills":\s*return packaged\(\)/);
   assert.match(runner, /case "recommend-only":\s*return skill\("tonight-recommend"\)/);
-  assert.match(runner, /case "projection":\s*return projection\(\)/);
   assert.match(runner, /^source: \$\{SOURCE\}$/m, "an artifact does not say which instructions it ran on");
   assert.match(runner, /^skills: \$\{skillsGiven\(\)/m, "an artifact does not say which skills it was given");
   assert.match(runner, /^considers: /m);
-  // Either skill changing invalidates a recording, not only the projection.
+  // Either skill changing invalidates a recording.
+  assert.match(runner, /"skills\/tonight-recommend\/SKILL\.md"/);
   assert.match(runner, /"skills\/tonight-vibes\/SKILL\.md"/);
   assert.match(readme, /## The baseline \(S1\)/, "the baseline has no recipe");
+});
+
+test("a recording is named by the skills it was given, the source and the commit", () => {
+  // The digest is of exactly what the source supplies — never a generated text beside
+  // it, and never the M6 date line, which is the host's — so two sources, or two
+  // versions of either skill, never share a result directory.
+  assert.doesNotMatch(runner, /project-instructions|PROJECT_INSTRUCTIONS|projection\(\)/,
+    "the runner still reads the retired projection");
+  assert.match(runner, /createHash\("sha256"\)\.update\(instructions\(\), "utf8"\)\.digest\("hex"\)\.slice\(0, 8\)/,
+    "the version is not a digest of the instructions supplied");
+  assert.match(runner, /const OUT = join\(SET_DIR, "results", `\$\{SET\}-\$\{SOURCE\}-\$\{VERSION\}-\$\{TARGET\}\$\{HOST\.suffix\}`, "runs"\);/,
+    "the result directory no longer names set, source, digest, commit and host");
+  assert.match(runner, /\binstructions: \$\{VERSION\}$/m, "an artifact does not name the digest it ran on");
+  assert.match(runner, /^target: \$\{TARGET\}$/m, "an artifact does not name its commit");
 });
 
 test("the runner reseeds every run, snapshots after every run, and never reseeds a legacy fixture", () => {

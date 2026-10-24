@@ -10,9 +10,12 @@ The `source` field says which instructions the agent was given:
 
 | source | instructions | stands for |
 | --- | --- | --- |
-| `projection` | the generated ChatGPT-project projection, as the system prompt | a ChatGPT project |
-| `plugin-skills` | both full `SKILL.md` files, recommend first, exactly the packaged bytes | the canonical plugin with both skills loaded |
+| `plugin-skills` | both `SKILL.md` files, recommend first, exactly the packaged bytes | the canonical plugin with both skills loaded |
 | `recommend-only` | `tonight-recommend/SKILL.md` alone | the plugin when ChatGPT selects only recommend |
+
+Runs recorded with `source: projection` stood for a ChatGPT project given a generated text, which
+has since been retired; they are scored as what they were, and new runs of what they covered are
+on `recommend-only`.
 
 The `today` field is **`D`**: the local date the run started on. The seeder wrote it wherever a
 fixture says `@today`, the agent was told it in one host line, and every date below is scored

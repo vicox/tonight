@@ -11,9 +11,12 @@ part of every score: the same request is a different test on a different source.
 
 | source | instructions | stands for |
 | --- | --- | --- |
-| `projection` | the generated ChatGPT-project projection, as the system prompt | a ChatGPT project (one instruction slot, no second skill) |
-| `plugin-skills` | both full `SKILL.md` files, recommend first, exactly the packaged bytes | the canonical plugin with both skills loaded |
+| `plugin-skills` | both `SKILL.md` files, recommend first, exactly the packaged bytes | the canonical plugin with both skills loaded |
 | `recommend-only` | `tonight-recommend/SKILL.md` alone | the plugin when ChatGPT selects only recommend |
+
+Runs recorded with `source: projection` stood for a ChatGPT project given a generated text, which
+has since been retired; they are scored as what they were, and new runs of what they covered are
+on `recommend-only`.
 
 The canonical plugin itself, on the user's ChatGPT account with iOS as the hard surface, is scored
 by hand against this same rubric and recorded with `source: chatgpt-plugin (manual)`.
@@ -55,8 +58,8 @@ film the agent named only to illustrate an idea.
 `stopped_after_record: yes` over the `plugin-skills` runs of scenarios marked `"considers": true`
 in `scenarios.json`. **Intentional opt-outs are excluded**: the opt-out, lukewarm, negative,
 not-tonight, watched-only and request scenarios are `"considers": false`, and a stop there is a
-pass, never a miss. On `projection` runs a stop after a positive verdict is correct and is never
-scored as a miss: the lifecycle is the plugin's.
+pass, never a miss. On `recommend-only` runs a stop after a positive verdict is correct and is never
+scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 
 ## What each family has to show
 

@@ -62,7 +62,7 @@ const fixturesIn = (dir: URL) =>
   );
 const fixtures = fixturesIn(new URL("fixtures/", M6));
 
-const SOURCES = ["projection", "plugin-skills", "recommend-only"];
+const SOURCES = ["plugin-skills", "recommend-only"];
 const same = (a: Film, b: Film) => a.title === b.title && a.year === b.year;
 
 test("every scenario resolves to a fixture and to requests that exist, and every request is used", () => {
@@ -133,17 +133,21 @@ test("the plan's families are all in the matrix, each with its required outcome 
   assert.match(rubric, /\*\*G3-unclear-reach\*\*[^\n]*`not-tonight`, occasion = `D`/);
   assert.match(rubric, /\*\*U4-contradiction\*\*[^\n]*\*\*Turn 1:\*\* no viewing write, no core change/);
 
-  // Who runs where: the lifecycle cases only where the vibes skill is loaded, the
-  // reading cases on recommend alone too.
+  // Who runs where: the lifecycle cases only where the vibes skill is loaded; every
+  // other family on recommend alone too — which is where what ran on the retired
+  // ChatGPT-project projection now runs.
   const sources = (family: string) => [...new Set(scenarios.filter((one) => one.family === family).flatMap((one) => one.sources))].sort();
   for (const family of ["U2-unseen-core", "U3-seen-now", "U4-contradiction"]) {
     assert.deepEqual(sources(family), ["plugin-skills"], family);
   }
-  for (const family of ["R1-standing-not-ever", "R2-dated-today", "U1-unseen-member"]) {
+  for (const family of [
+    "G1-not-ever", "G2-not-tonight", "G3-unclear-reach",
+    "R1-standing-not-ever", "R2-dated-today", "U1-unseen-member", "M1-moodless",
+  ]) {
     assert.deepEqual(sources(family), [...SOURCES].sort(), family);
   }
-  for (const family of ["G1-not-ever", "G2-not-tonight", "G3-unclear-reach", "M1-moodless"]) {
-    assert.deepEqual(sources(family), ["plugin-skills", "projection"], family);
+  for (const one of scenarios) {
+    assert.equal(new Set(one.sources).size, one.sources.length, `${one.family} lists a source twice`);
   }
   assert.equal(scenarios.find((one) => one.family === "U4-contradiction")?.then, "yes-seen-it");
 });
@@ -286,7 +290,8 @@ test("the runner runs the M6 set with one date per run, told, seeded and voided 
   assert.match(runner, /void: started on \$\{today\}, ended on \$\{ended\} — rerun/);
   assert.match(runner, /^today: \$\{result\.today\}/m, "an artifact does not record its date");
   assert.match(runner, /^side: \$\{SET\}$/m);
-  assert.match(readme, /--set m6 --source projection/);
+  assert.match(readme, /--set m6 --source recommend-only/);
+  assert.doesNotMatch(readme, /--source projection/, "the runbook still runs the retired projection");
 });
 
 test("the agent's host is bare unless --host login is asked for, and a login run says what it is", async () => {

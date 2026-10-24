@@ -8,7 +8,7 @@ Written in English to match the rest of the repository.
 
 This is Step 1 of `docs/work/phase-1-implementation.md`. It exists because every change in Phase 1
 is a change to instructions, and the effect of an instruction is invisible to every test in this
-repository: `instructions.test.ts` and `test.sh` prove a rule is **present in the text**, never
+repository: `recommend-skill.test.ts` and `test.sh` prove a rule is **present in the text**, never
 that a model **follows** it. The paired blind evaluation is the behavioural acceptance gate, and
 this directory is what it is run from.
 
@@ -28,10 +28,10 @@ this directory is what it is run from.
 
 > **The baseline is captured against instructions that have not been touched.**
 
-A baseline recorded after a prompt edit is not a baseline. If any of
-`skills/tonight-recommend/SKILL.md`, `web/lib/generated/project-instructions.ts` or the tool
-descriptions in `web/lib/mcp/server.ts` differs from the commit the baseline claims, the recording
-is void and Step 8 has nothing to compare against.
+A baseline recorded after a prompt edit is not a baseline. If either
+`skills/tonight-recommend/SKILL.md` or the tool descriptions in `web/lib/mcp/server.ts` differs
+from the commit the baseline claims, the recording is void and Step 8 has nothing to compare
+against.
 
 Every recorded run carries a provenance header naming the instruction version it was produced
 under. At the time of writing that is **`f098fd5b`**.
@@ -114,8 +114,8 @@ cannot also be the evidence for it.
 Then, in the host:
 
 - endpoint `http://localhost:3999/mcp`, token from step 2;
-- project instructions `PROJECT_INSTRUCTIONS`, pasted **verbatim** — no summary, no additions,
-  and nothing about the evaluation;
+- the instructions — `tonight-recommend`'s `SKILL.md` — given **verbatim**: no summary, no
+  additions, and nothing about the evaluation;
 - record which other tools the host has. It changes what the *unsupported claims* criterion can
   catch, so it goes in the header.
 
@@ -330,9 +330,11 @@ a failure fixture still has a full snapshot beside a run whose agent could not r
 
 `claude -p` with `--bare`, `--strict-mcp-config` and Tonight as the only MCP server: no memory, no
 `CLAUDE.md`, no hooks, no plugins, and eleven tools — confirmed in every one of the sixty runs by
-the discovery line in the proxy log. The instructions are passed with `--system-prompt`, read out
-of the generated module and un-escaped, so the agent's whole standing context is the text somebody
-would paste into a project.
+the discovery line in the proxy log. The instructions were passed with `--system-prompt`: at the
+time, the generated text a ChatGPT project was given, so the agent's whole standing context was
+what somebody would paste into a project. That text has since been retired. `run-baseline.mjs` now
+passes `tonight-recommend`'s `SKILL.md`, whole, and names it in `instructions:` by the first eight
+hex characters of its SHA-256.
 
 `external_tools` is therefore `disabled` for the whole baseline: the agent was launched with
 Tonight's tools and no others. That is a sanctioned state and the cleanest condition for the

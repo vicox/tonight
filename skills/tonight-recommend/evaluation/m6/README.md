@@ -11,7 +11,7 @@ no mood is still answered — the plan is `docs/work/m6/PLAN.md`, §5.2.
 | `rubric.md` | how a run is scored: the required outcomes per family, the twelve inadmissible outcomes, the gate |
 | `fixtures/` | the five models the scenarios start from |
 
-There is no runner of its own: M5's runs this set with `--set m6`, with the same three sources,
+There is no runner of its own: M5's runs this set with `--set m6`, with the same two sources,
 the same reseed of every run through the M3 seeder (**vibes, then films, then genres** torn down,
 then written again through the public tools), the same snapshots and the same second-turn resume.
 
@@ -33,20 +33,18 @@ midnight, and nothing tests it.
 
 ```bash
 cd web && npm run dev                                          # the server the proxy fronts
-node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source projection --dry-run
-node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source projection
-node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source plugin-skills
+node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source recommend-only --dry-run
 node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source recommend-only
+node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source plugin-skills
 ```
 
 It needs `web/.env.local` (the seeder mints its tokens from it) and refuses to run while either
-`SKILL.md`, the generated projection or the MCP server differs from `HEAD`. Results go to
-`m6/results/`, which is ignored.
+`SKILL.md` or the MCP server differs from `HEAD`. Results go to `m6/results/`, which is ignored.
 
 **Lean by default** (the user's decision, 2026-10-22; rules in `evaluation/lean.mjs`):
 
 - **`--smoke`** runs only the scenarios whose `smoke` array names the source: 6 on
-  `projection`, G1 and U4 on `plugin-skills`, 9 model calls in all. One run each unless
+  `recommend-only`, G1 and U4 on `plugin-skills`, 9 model calls in all. One run each unless
   `--runs` says otherwise.
 - **`--budget N`** caps the model calls of an invocation. It defaults to 12, and a plan over
   it is refused before anything is seeded or called, dry runs included. A full sweep (3 runs
@@ -59,8 +57,8 @@ It needs `web/.env.local` (the seeder mints its tokens from it) and refuses to r
 - Each artifact records its `selection` and `budget`.
 
 ```bash
-node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source projection --smoke --host login
-node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source projection --smoke --host login --resume
+node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source recommend-only --smoke --host login
+node skills/tonight-recommend/evaluation/m5/run.mjs --set m6 --source recommend-only --smoke --host login --resume
 ```
 
 **The host.** `--bare` is the default and authenticates only with `ANTHROPIC_API_KEY`. On a
@@ -81,3 +79,8 @@ reaches the agent. Its artifacts say so in a `host_isolation` line, and its resu
   cases.
 - **By hand:** the canonical plugin, on the 1.3.0 upload, over these families and a sample of the
   M5 set, recorded with `source: chatgpt-plugin (manual)`.
+
+That is M6 as it was recorded. `projection` — the text a ChatGPT project was given — has since been
+retired with that text: the families that ran there now run on `recommend-only`, Phase 1 and M3
+run on `tonight-recommend`'s `SKILL.md`, and the recordings made on the projection stay in their
+own result directories.

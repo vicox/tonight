@@ -17,27 +17,11 @@
 set -u
 
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd -P)"
-CANONICAL="$SCRIPT_DIR/SKILL.md"
+SKILL="$SCRIPT_DIR/SKILL.md"
 SKILLS_DIR="$(cd -P "$SCRIPT_DIR/.." && pwd -P)"
 export CONTRACTS="file://$SCRIPT_DIR/contracts.mjs"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-
-# Every check below reads the *specification*. A `project:compact` block holds a
-# shorter wording of a rule for one delivery target; it sits in the same file, so a
-# plain grep would find a rule in either and a rule deleted from the canonical text
-# would still appear to be there. Stripped once, here.
-SKILL="$WORK/canonical.md"
-python3 - "$CANONICAL" "$SKILL" <<'PYEOF'
-import re, sys
-block = re.compile(
-    r"^[ \t]*<!--[ \t]*project:compact[ \t]*\r?\n.*?^[ \t]*project:compact[ \t]*-->[ \t]*\r?\n?",
-    re.S | re.M,
-)
-open(sys.argv[2], "w", encoding="utf-8").write(
-    block.sub("", open(sys.argv[1], encoding="utf-8").read())
-)
-PYEOF
 
 pass=0
 fail=0
@@ -85,7 +69,7 @@ in_slice() { printf '%s' "$1" | grep -ciE "$2"; }
 
 # Is the retry written as one obligation covering both failure branches?
 #
-# The definition is `contracts.mjs`, which `web/lib/instructions.test.ts` imports
+# The definition is `contracts.mjs`, which `web/lib/recommend-skill.test.ts` imports
 # too. Stated twice — once here in grep and once there in a regex literal — this
 # rule diverged immediately: one side covered `whichever` and only one word order.
 shared_retry_in() {
@@ -119,6 +103,10 @@ check "the name is the skill own name" \
     "$(sed -n '2p' "$SKILL")" "name: tonight-recommend"
 check "there is a description, and the block closes on line 4" \
     "$(sed -n '3p' "$SKILL" | cut -c1-12)|$(sed -n '4p' "$SKILL")" "description:|---"
+# The skill is the text the agent reads, whole. There is no second rendering of it,
+# so nothing in it is marked for one and no rule has a second, shorter wording.
+check "nothing is marked for a projection, and nothing is hidden in a comment" \
+    "$(grep -cE 'full:(start|end)|project:compact|<!--' "$SKILL")" "0"
 
 # The frontmatter is what a host reads to decide whether this skill applies, so
 # all three ways into the conversation have to be visible in it. Keyword-level on
@@ -212,17 +200,6 @@ check "a non-binding exclusion is not mentioned either" \
     "$(order_check 'one that does not bind is **not mentioned either**' \
         'not raised, not contrasted with, not waived out loud' \
         'no part in tonight')" "True"
-# And the same three verbs in the projection. The compact form carried only
-# "never mentioned", and one certification run waived the exclusion aloud —
-# "I'm going with your ask tonight rather than your saved taste, since what's
-# filed there is built to rule out exactly this kind of gore" — which is not
-# what "mentioned" warns a reader against. The failure form has to survive the
-# compression, and it sits beside "show the positive evidence you used", which
-# is what a model resolves it against.
-check "the projection carries the failure form, not only the conclusion" \
-    "$(tr '\n' ' ' < "$CANONICAL" | grep -coE 'never mentioned\*\* +— not raised, not contrasted with, not waived aloud')" "1"
-check "and the weaker compact wording is gone rather than kept beside it" \
-    "$(tr '\n' ' ' < "$CANONICAL" | grep -coE 'it is +\*\*never mentioned\*\*\. ')" "0"
 
 check "and the positive preference that shaped it is recognisable in the answer" \
     "$(order_check 'the positive preference that shaped' \
@@ -571,7 +548,7 @@ check "so an offer is only ever one it could act on now" \
 check "recording an evening is a fact and not the inference this rules out" \
     "$(order_check 'recording the evening it was offered on is a fact and is not this')" "True"
 check "the Skill never forbids noting what was recommended, which record_episode does" \
-    "$(grep -ciE 'note what you recommended' "$CANONICAL")" "0"
+    "$(grep -ciE 'note what you recommended' "$SKILL")" "0"
 check "an evening is what holds the offer, as fact" \
     "$(order_check 'An evening is recorded as fact' 'what they asked for, what was offered')" "True"
 check "the user own words are never widened into a claim about them" \
@@ -608,7 +585,7 @@ check "the two reads are told apart where a read-back is decided" \
     "$(order_check '`get_taste` for what they like' \
         '`get_memory` for the wider')" "True"
 check "and the read-back names a criterion rather than offering both reads" \
-    "$(grep -ciE 'Read back with .get_taste., or .get_memory.' "$CANONICAL")" "0"
+    "$(grep -ciE 'Read back with .get_taste., or .get_memory.' "$SKILL")" "0"
 check "the skill explains why they are two reads, not one" \
     "$(order_check 'is a different question from' \
         '`get_taste` is what a recommendation stands on' \
@@ -758,11 +735,9 @@ check "and the write flow says it where a verdict is recorded" \
         'no Movie either' \
         'a film nobody' \
         'has saved may still carry one')" "True"
-check "the projection carries the same independence" \
-    "$(tr '\n' ' ' < "$CANONICAL" | grep -coE 'no Vibe and no +Movie is needed or +invented to hold one')" "1"
 # And the false rule is gone rather than reworded.
 check "a Movie no longer comes into being because somebody said something" \
-    "$(grep -ciE 'asked for it to be kept, or said something about it' "$CANONICAL")" "0"
+    "$(grep -ciE 'asked for it to be kept, or said something about it' "$SKILL")" "0"
 check "the model concepts are counted as the four that exist" \
     "$(order_check '`get_taste` describes all four in its own text')" "True"
 check "a Movie is named by its title and its year" \
@@ -803,8 +778,8 @@ check "an existing Vibe is not a bucket, and its meaning is never widened to fit
         'not a bucket' \
         'a different evening is a different Vibe')" "True"
 # M5: from here the keep flow is pinned in recommend's own statement of it — the
-# shorter wording a ChatGPT project receives, now plain text here because its full
-# prose and worked example moved to tonight-vibes (whose test.sh pins them).
+# shorter wording, because its full prose and worked example moved to tonight-vibes
+# (whose test.sh pins them).
 check "with no good fit the film waits, and a Vibe is devised rather than asked for" \
     "$(order_check 'None fits' \
         'do not save the film yet' \
@@ -844,7 +819,7 @@ check "a film in no Vibe is a legitimate state, listed and left alone" \
         'Do not sort them' \
         'when they ask you to **keep** a film')" "True"
 
-# M5's floor in recommend — what every host needs, the ChatGPT project included.
+# M5's floor in recommend — what every selection of the plugin needs, recommend alone included.
 check "however they put how a film worked for them, it is a verdict in their words" \
     "$(order_check 'So is how a film worked for them, however' \
         'recorded in their words and' 'never made stronger')" "True"
@@ -874,9 +849,8 @@ check "no starter genres and no onboarding vocabulary" \
 #
 # Matched on the idea rather than on the sentence that was removed. The first
 # version of these checks named the exact wording, and the same rules were still
-# being stated a second way inside the full-skill blocks — which ship to a host
-# that loads the whole skill and are invisible to every assertion over the
-# generated text. A check that only knows one phrasing cannot see a paraphrase.
+# being stated a second way elsewhere in the skill. A check that only knows one
+# phrasing cannot see a paraphrase.
 check "the sentence-to-state readings live only on the tool" \
     "$(grep -ciE '"seen it"\* → |"it was good"\* → |"loved it"\* → |at its most specific' "$SKILL")" \
     "0"
@@ -929,13 +903,13 @@ echo "--- a question of your own is not something Tonight remembers ---"
 # something Tonight does and the skill may say so. What may not come back is a
 # question that *persists* — one that waits, stays open, or gets closed.
 check "no question is described as waiting on an answer" \
-    "$(grep -ciE 'questions? (still )?(waiting|left) (on an answer|itself)|waiting on an answer, however long' "$CANONICAL")" "0"
+    "$(grep -ciE 'questions? (still )?(waiting|left) (on an answer|itself)|waiting on an answer, however long' "$SKILL")" "0"
 check "no question is described as open, pending or carried" \
-    "$(grep -ciE '(an? )?(open|pending|outstanding) questions?|questions? (it|you|tonight) (is|are) carrying' "$CANONICAL")" "0"
+    "$(grep -ciE '(an? )?(open|pending|outstanding) questions?|questions? (it|you|tonight) (is|are) carrying' "$SKILL")" "0"
 check "no call is described as closing a question" \
-    "$(grep -ciE 'closes? (it|the|a|any) question|this closes it' "$CANONICAL")" "0"
+    "$(grep -ciE 'closes? (it|the|a|any) question|this closes it' "$SKILL")" "0"
 check "no removed lifecycle tool is named" \
-    "$(grep -ciE 'record_observation|propose_change|get_proposals|accept_proposal|reject_proposal|get_open_questions|record_opportunity' "$CANONICAL")" "0"
+    "$(grep -ciE 'record_observation|propose_change|get_proposals|accept_proposal|reject_proposal|get_open_questions|record_opportunity' "$SKILL")" "0"
 
 # And the positive half, so the prohibition cannot be satisfied by saying
 # nothing: the agent has to be told where an unanswered question actually goes.
@@ -953,34 +927,28 @@ echo "--- the model that was replaced cannot come back ---"
 # Movie carried one answer out of five, with a sixth meaning nothing had been
 # said, and the skill described it that way throughout. Any of these returning
 # fails here whatever else the text says correctly.
-#
-# Read against $CANONICAL rather than $SKILL on purpose: the raw file holds both
-# the full wording and the compact projection, and a rule must not come back in
-# either of them.
 check "no legacy state spelling survives" \
-    "$(grep -ciE '\bnot_seen\b' "$CANONICAL")" "0"
+    "$(grep -ciE '\bnot_seen\b' "$SKILL")" "0"
 check "no Movie is described as carrying a state" \
-    "$(grep -ciE "movie'?s state|movie state|state of (a|the) (movie|film)" "$CANONICAL")" "0"
+    "$(grep -ciE "movie'?s state|movie state|state of (a|the) (movie|film)" "$SKILL")" "0"
 check "no five-value enumeration survives" \
-    "$(grep -ciE 'five (states|answers|values)|one state holds five' "$CANONICAL")" "0"
+    "$(grep -ciE 'five (states|answers|values)|one state holds five' "$SKILL")" "0"
 # The shape of the old enum: an opinion listed beside the viewing answers.
 check "no opinion is listed as a viewing answer" \
-    "$(grep -ciE '`(seen|unseen)`[^.]{0,40}`(liked|loved|disliked)`' "$CANONICAL")" "0"
+    "$(grep -ciE '`(seen|unseen)`[^.]{0,40}`(liked|loved|disliked)`' "$SKILL")" "0"
 check "no Verdict is described as overriding a Movie" \
-    "$(grep -ciE 'outranks? a (disagreeing )?state|verdict outranks|overlays? (the|a) (saved|movie)' "$CANONICAL")" "0"
+    "$(grep -ciE 'outranks? a (disagreeing )?state|verdict outranks|overlays? (the|a) (saved|movie)' "$SKILL")" "0"
 check "no withdrawal is described as revealing a Movie opinion" \
-    "$(grep -ciE 'state (is|underneath)[^.]{0,40}(shows|applies) again|the Movie state said is then what is left' "$CANONICAL")" "0"
+    "$(grep -ciE 'state (is|underneath)[^.]{0,40}(shows|applies) again|the Movie state said is then what is left' "$SKILL")" "0"
 check "no film is described as having a state set on it" \
-    "$(grep -ciE 'set (a|the|its) state|change its state|given a state' "$CANONICAL")" "0"
+    "$(grep -ciE 'set (a|the|its) state|change its state|given a state' "$SKILL")" "0"
 
 # And the positive half, so the prohibition cannot be satisfied by saying
-# nothing: both wordings have to describe the split that replaced it.
+# nothing: the skill has to describe the split that replaced it.
 check "the skill says a Movie carries a viewing and no opinion" \
     "$(order_check 'A Movie carries no opinion at all' '`viewing` says whether they watched it')" "True"
-check "the compact projection says it too" \
-    "$(grep -ciE 'A Movie carries no opinion' "$CANONICAL")" "2"
-check "and both name the tool an opinion goes to instead" \
-    "$(grep -ciE '`record_verdict`' "$CANONICAL")" "4"
+check "and names the tool an opinion goes to instead" \
+    "$(order_check 'What they say about a film is a verdict' '`record_verdict`, never a Movie field')" "True"
 
 echo
 echo "--- M6: refusals, a film in a Vibe, and a request with no mood ---"

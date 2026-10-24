@@ -6,78 +6,31 @@ import {
   SHARED_QUALIFIERS,
   sharedRetry,
 } from "../../skills/tonight-recommend/contracts.mjs";
-import {
-  instructionsFrom,
-  markerFor,
-  projectInstructionsFrom,
-  versionOf,
-} from "../scripts/sync-instructions.mjs";
-import {
-  PROJECT_INSTRUCTIONS,
-  PROJECT_INSTRUCTIONS_LENGTH,
-  PROJECT_INSTRUCTIONS_VERSION,
-} from "./instructions.ts";
 
 /**
- * The mirror of the skill that the website hands people to paste.
+ * What `tonight-recommend` has to keep telling the agent, asserted against the
+ * skill itself.
  *
- * `skills/tonight-recommend/SKILL.md` is the source of truth; the generated
- * module is committed so a fresh checkout builds without a prebuild step. What
- * makes that safe rather than a second version to maintain is the first test
- * below: edit the skill without re-running the sync and the suite says so, and
- * says which command to run.
+ * `skills/tonight-recommend/SKILL.md` is the text a host loads, whole: the plugin
+ * packages it byte for byte (`chatgpt-plugin/test.sh`), and there is no second
+ * rendering of it to check instead. What is asserted here is behaviour — that a
+ * rule is stated, in which section and in what order, and that what it replaced
+ * has not come back. `skills/tonight-recommend/test.sh` holds the same file to its
+ * own list, and the two share their definitions through `contracts.mjs`.
  */
 
 const SKILL = new URL("../../skills/tonight-recommend/SKILL.md", import.meta.url);
 
 const skill = () => readFileSync(SKILL, "utf8");
 
-/**
- * The skill without its compact projections.
- *
- * `project:compact` blocks hold a shorter wording of a rule *for one target*. They
- * live in the same file as the canonical sentences, so a plain read finds a rule in
- * either — and an assertion that the skill still states a rule would be satisfied by
- * the projection's copy of it. That is exactly the drift these tests exist to catch,
- * so anything checking the specification reads the specification alone.
- */
-const COMPACT_BLOCK = /^[ \t]*<!--[ \t]*project:compact[ \t]*\r?\n[\s\S]*?^[ \t]*project:compact[ \t]*-->[ \t]*\r?\n?/gm;
-const canonicalSkill = () => skill().replace(COMPACT_BLOCK, "");
-
-test("the copied instructions are the transform of the skill, byte for byte", () => {
-  assert.equal(
-    PROJECT_INSTRUCTIONS,
-    projectInstructionsFrom(skill()),
-    "the generated instructions no longer match the skill — run `npm run sync:instructions`",
-  );
-});
-
-test("the frontmatter goes, and what is left is the skill's own sentences", () => {
-  const source = skill();
-
-  // The frontmatter names the skill for a host that discovers skills. Inside a
-  // ChatGPT project it is noise.
-  assert.match(source, /^---\nname: tonight-recommend\n/, "the skill still opens with frontmatter");
-  assert.equal(PROJECT_INSTRUCTIONS.includes("name: tonight-recommend"), false);
-  assert.match(PROJECT_INSTRUCTIONS, /^# Tonight — recommend\n/, "and starts at the heading");
-
-  // Nothing is summarised or reflowed. Whole blocks are removed and the rest is
-  // carried over as written, with the marker the only thing added.
-  const body = instructionsFrom(source);
-  assert.ok(PROJECT_INSTRUCTIONS.startsWith(body), "the body is not carried over unchanged");
-  assert.equal(PROJECT_INSTRUCTIONS.slice(body.length).trim(), markerFor(versionOf(body)));
-
-  // Every line of the output is a line of the skill.
-  for (const line of body.split("\n")) {
-    if (line.trim()) assert.ok(source.includes(line), `the generator invented: ${line}`);
-  }
-});
+/** The skill with whitespace collapsed: where a sentence wraps is not part of a contract. */
+const flatSkill = () => skill().replace(/\s+/g, " ");
 
 test("surfacing a pattern stays optional, and gated on the taste looking durable", () => {
-  // The compressed wording had turned a judgement into an instruction: ask, every
+  // An earlier wording had turned a judgement into an instruction: ask, every
   // time. That makes an ordinary recommendation into a save prompt, which is the
   // one thing this product is trying not to be.
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   assert.match(flat, /looks lasting\? You \*\*may\*\*/, "the durability gate is gone");
   assert.match(flat, /You \*\*may\*\* ask/, "asking has become obligatory");
@@ -93,7 +46,7 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   // saved. What is actually true is narrower and more useful: no tool turns a
   // taste into a recommendation. Losing that distinction either hides their own
   // Movies from them or implies Tonight does the choosing.
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   assert.match(flat, /`get_taste` returns what they saved, not a shortlist/);
   assert.match(flat, /no tool here turns a taste into films/);
@@ -111,10 +64,9 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   // update_vibe's, where the change is being made.
   assert.match(flat, /in that order — the\s+three are one idea/);
   assert.match(flat, /arrive with `create_genre` and `create_vibe`/);
-  // The projection states the verdict routing once, where the two requests are
-  // told apart, and keeps only the `viewing` pointer here — the sentence used to
-  // carry both and said the first of them twice.
-  assert.match(flat, /that is a verdict: `record_verdict`/);
+  // The verdict routing is stated where the two requests about a film are told
+  // apart, and the `viewing` pointer where a recommendation is told from a save.
+  assert.match(flat, /that is a verdict, and it goes to `record_verdict`/);
   assert.match(flat, /`create_movie` carries `viewing` and no opinion/);
 
   // And the ratings wording was too broad twice over: liked and disliked are
@@ -136,7 +88,7 @@ test("what moved to the tools is no longer stated here as well", () => {
    * Their new home is `lib/mcp/tools.test.ts`, which holds the same contracts
    * against the descriptions a client actually discovers.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   // Each pattern is deliberately broader than the sentence that moved. A rule
   // that came back reworded is the same duplicate as one that came back verbatim,
@@ -151,14 +103,14 @@ test("what moved to the tools is no longer stated here as well", () => {
     ],
     ["the score prohibition", /score/i],
     ["the Vibe naming test", /already tells you the name|what would I get wrong|the instruction test/i],
-    // `unseen` itself stays: the instructions still say what a *stored* answer
-    // means when recommending. What moved is what *saving* does to the field.
+    // `unseen` itself stays: the skill still says what a *stored* answer means
+    // when recommending. What moved is what *saving* does to the field.
     [
       "what saving does to the state",
       /never makes it `unseen`|nothing said is `null`|absence is never unseen|not the same as unseen/i,
     ],
   ] as [string, RegExp][]) {
-    assert.equal(gone.test(flat), false, `${what} is still stated in the instructions as well`);
+    assert.equal(gone.test(flat), false, `${what} is still stated in the skill as well`);
   }
 
   // And a pointer is left where the skill still has to refer to the behaviour,
@@ -175,7 +127,7 @@ test("what is conversation rather than a field stays here", () => {
   // The two the Step 2 review sent back. Both are about what to do *before* a
   // call rather than about what a call may contain, and a description cannot be
   // read before the call it describes.
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   assert.match(flat, /[Nn]ever ask for what their sentence gave you/, "asking before calling");
   assert.match(flat, /Say so and let them decide/, "how a change is agreed to");
@@ -201,19 +153,20 @@ test("both kinds of request read the model; only an exclusion is mode-dependent"
    * *written into an instruction* binds. Tonight's own words bind absolutely either
    * way, which is what stops evidence-always from becoming a filter-always.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   for (const [what, rule] of [
     ["that there are two kinds of request", /Two kinds of request, told apart from what they said/],
     ["that it is never asked about", /never by asking/],
-    ["to read the model either way", /Read `get_taste` either\s*way/],
-    ["that what is written is evidence on any night", /what they wrote is evidence on any night/],
+    ["to read the model either way", /Read `get_taste`\s*either way/],
+    ["that what is written is evidence on any night",
+      /What they have written down is evidence about what they like on any night/],
     ["that tonight's words bind", /What they said tonight binds/],
     ["that this includes tonight's exclusions", /ruled out just now/],
     ["that availability binds too", /can watch/],
     ["which one is the default", /\*\*Discovery is the default\*\*/],
     ["that discovery is exploring", /you are exploring/i],
-    ["and explores from what they wrote", /from what they wrote/],
+    ["and explores from what they wrote", /what they have written is where you explore from/],
     ["when taste leads instead", /\*\*Taste-aware is what they ask for\*\*/],
     ["that the model is then the brief", /the model is the brief/],
     ["that its exclusions then hold", /exclusions hold/],
@@ -221,25 +174,27 @@ test("both kinds of request read the model; only an exclusion is mode-dependent"
     assert.match(flat, rule, `the agent is never told ${what}`);
   }
 
-  // The one mode-dependent thing, stated as the exception it is. The projection
-  // says it more briefly than the skill — the *reason* an exclusion does not
-  // travel is rationale and stays canonical-only — so this reads the rule.
+  // The one mode-dependent thing, stated as the exception it is.
   const exclusion = flat.slice(
-    flat.indexOf("stored exclusion"),
+    flat.indexOf("An exclusion written into"),
     flat.indexOf("Discovery is the default"),
   );
   assert.ok(exclusion.length > 80, "the exclusion rule could not be found");
   assert.match(exclusion, /binds only when they asked for their taste/,
     "the exclusion is not scoped to a taste request");
-  assert.match(exclusion, /Everything else is evidence either way/,
+  assert.match(exclusion, /Everything else in the model is evidence either way/,
     "the exception is not bounded, so it reads as the rule");
 
   // R3, both halves in one breath. Either alone is a way to pass while failing:
   // the retained candidate had runs that used the model by narrating the
   // exclusion, and runs that stayed silent about it and showed no model at all.
-  assert.match(exclusion, /when it does not bind it is \*\*never\s+mentioned\*\*/i,
+  // One certification run waived the exclusion aloud, which is why the failure
+  // form is named and not only the conclusion.
+  assert.match(exclusion, /one that does not bind is \*\*not mentioned either\*\*/i,
     "a non-binding exclusion may still be surfaced");
-  assert.match(exclusion, /show the positive evidence you used/i,
+  assert.match(exclusion, /not raised, not contrasted with, not waived out loud/i,
+    "the ways of mentioning it are no longer named");
+  assert.match(exclusion, /the positive preference that shaped\s+the answer is recognisable in it/i,
     "positive evidence need not be visible in the answer");
 
   // The visibility rule is about a *positive* preference, and about it being
@@ -248,8 +203,10 @@ test("both kinds of request read the model; only an exclusion is mode-dependent"
   // mandating a name would rule out a paraphrase the user would recognise as
   // their own, which the approved behaviour allows.
   assert.match(exclusion, /positive/i, "the visibility rule does not require positive evidence");
+  assert.match(exclusion, /is one\s+way to do that and not the only one/,
+    "naming a stored object is no longer one way among others");
   assert.doesNotMatch(exclusion, /\b(must|always) name\b|\bname (the|a) (Vibe|Genre)\b/i,
-    "the projection makes literal naming mandatory");
+    "the skill makes literal naming mandatory");
 
   // And the silence rule is about the exclusion, never about the model: an
   // instruction not to mention stored taste at all would destroy the other half.
@@ -264,7 +221,7 @@ test("both kinds of request read the model; only an exclusion is mode-dependent"
   assert.doesNotMatch(flat, /Read it with `get_taste` and weigh it/i);
 });
 
-test("a Vibe is evidence, and the states under it calibrate rather than gate", () => {
+test("a Vibe is evidence, and the verdicts under it calibrate rather than gate", () => {
   /**
    * Step 6, adopting P5 — the highest-risk change in Phase 1.
    *
@@ -274,38 +231,41 @@ test("a Vibe is evidence, and the states under it calibrate rather than gate", (
    * Vibe written in last night's conversation is exactly the one tonight's answer
    * should be using, and it is the most current thing the user has said.
    *
-   * So: a Vibe is declarative evidence from the moment it exists, and states are
-   * confirmatory — they move confidence, never eligibility. A Vibe with nothing
+   * So: a Vibe is declarative evidence from the moment it exists, and verdicts are
+   * confirmatory — they move confidence, never eligibility. A Vibe with no verdict
    * under it is less certain about specifics and no less weighty about intent.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   for (const [what, rule] of [
     ["that a matching Vibe is a reason, not a filter",
-      /A matching Vibe is a reason the recommendation fits/],
-    ["that it counts immediately", /from the moment it exists/],
+      /a Vibe that matches is a reason\s*the recommendation fits/],
+    ["that it counts immediately", /counts from\s*the moment it exists/],
     // M5: a Vibe written since S2 always holds its core, so "nothing under it"
     // stopped describing anything new. What still varies is whether a verdict
     // stands under it, which was the point of the rule all along.
-    ["that an empty Vibe says as much as a full one",
-      /A Vibe with no verdict under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
+    ["that a new Vibe says as much as a full one",
+      /only its core under it says as much about\s*what they like as one with ten films under it/],
     ["that a Genre is thinner", /A Genre is an ingredient/],
-    ["that a Genre name alone justifies nothing", /a Genre name alone is a label/],
-    ["that verdicts calibrate", /Verdicts calibrate it, never decide whether it counts/],
-    ["that a Movie carries no opinion", /A Movie carries no opinion: `viewing` is a fact about watching/],
-    ["that loved strengthens", /`loved` strengthens/],
-    ["that liked strengthens less", /`liked` more\s*weakly/],
+    ["that a Genre name alone justifies nothing", /justified only by a Genre name is justified by a label/],
+    ["that verdicts calibrate", /Verdicts calibrate that evidence\. They never decide whether it counts/],
+    ["that a Movie carries no opinion", /A Movie carries no opinion at all/],
+    ["that loved strengthens", /`loved`\s*strengthens it/],
+    ["that liked strengthens less", /`liked` strengthens it more weakly/],
     ["that disliked weakens the similar", /`disliked` weakens something similar/],
-    ["that disliked is not a ban", /a sign, not a ban/],
+    ["that disliked is not a ban", /negative sign, not a ban/],
     // Not "leaves nothing", which was false of a scoped one: taking back an
     // evening's refusal leaves a judgement about the film exactly where it was.
-    ["what a withdrawal removes", /a\s*withdrawal removes that act in its own scope/],
-    ["that a withdrawal is not an unsaying", /not a weaker opinion, not an unsaying/],
-    ["that viewing is a fact and not taste", /`viewing` is a fact about watching/],
-    ["how an empty Vibe is read", /intent certain, their verdict unconfirmed/],
-    ["that describing the match stays allowed", /Say how a film fits the Vibe/],
-    ["that their verdict may not be claimed", /never that \*\*they\*\* like it yet/],
-    ["that this changes reach, not eligibility", /use it, vary\s+reach and certainty/],
+    ["what a withdrawal removes", /taking a verdict back removes that\s*act from what stands/],
+    ["that it reaches only as far as the act did", /It reaches exactly\s*as far as the act reached/],
+    ["that it leaves no weaker opinion", /leaves no quieter opinion underneath it/],
+    ["that a withdrawal is not an unsaying", /it is not an unsaying/],
+    ["that viewing is a fact and not taste",
+      /`viewing` says whether they watched it and that is a\s*fact, never a sign for or against/],
+    ["how a Vibe with no verdict is read", /less confidence about specifics and just as\s*much about intent/],
+    ["that describing the match stays allowed", /say how well a film answers what the Vibe asks for/],
+    ["that their verdict may not be claimed", /What you may not say is that \*\*they\*\*\s*like it/],
+    ["that this changes reach, not eligibility", /never whether you use it/],
   ] as [string, RegExp][]) {
     assert.match(flat, rule, `the agent is never told ${what}`);
   }
@@ -329,11 +289,11 @@ test("an unconfirmed Vibe bounds the claim about a film, never the Vibe itself",
    * that anything did.
    *
    * The repair is to the language of the recommendation, not to the standing of
-   * the Vibe. P5 is untouched: the Vibe counts fully and immediately, states
+   * the Vibe. P5 is untouched: the Vibe counts fully and immediately, verdicts
    * calibrate rather than gate, and confidence about what the user *meant* is
    * never reduced — only confidence that this film is the thing they meant.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
   const bullet = flat.slice(
     flat.indexOf("A Vibe with no verdict under it"),
     flat.indexOf("Either way"),
@@ -341,15 +301,19 @@ test("an unconfirmed Vibe bounds the claim about a film, never the Vibe itself",
   assert.ok(bullet.length > 60, "the unconfirmed-Vibe rule could not be found");
 
   // Intent is certain; what they made of any film is what is not.
-  assert.match(bullet, /intent certain/i, "confidence about intent was reduced");
-  assert.match(bullet, /verdict unconfirmed/i, "the missing verdict is not named");
+  assert.match(bullet, /just as much about intent/i, "confidence about intent was reduced");
+  assert.match(bullet, /what they meant is not in question/i, "confidence about intent was reduced");
+  assert.match(bullet, /no particular film has been confirmed to fit it yet/i,
+    "what is unconfirmed is not named");
   // Describing the match is the thing a written Vibe makes checkable, so it stays allowed.
-  assert.match(bullet, /Say how a film fits the Vibe/i, "describing the match was forbidden");
-  // What is refused is a verdict they never gave. Two sweeps failed while the rule chased
-  // phrasing instead; the projection now names the claim rather than the words.
-  assert.match(bullet, /never that \*\*they\*\* like it yet/i, "their verdict may still be claimed");
+  assert.match(bullet, /say how well a film answers what the Vibe asks for/i, "describing the match was forbidden");
+  // What is refused is a verdict they never gave. Two sweeps failed while the rule
+  // chased phrasing instead; the rule names the claim rather than the words.
+  assert.match(bullet, /What you may not say is that \*\*they\*\* like it/i, "their verdict may still be claimed");
+  assert.match(bullet, /their verdict is what they said about the film, and there is none yet/i,
+    "the missing verdict is not named");
   // The Vibe still counts: this changes how you speak, not whether you use it.
-  assert.match(bullet, /use it, vary/i, "an unconfirmed Vibe stopped counting");
+  assert.match(bullet, /never whether you use it/i, "an unconfirmed Vibe stopped counting");
 
   // None of the rejected mechanisms came back with it.
   assert.doesNotMatch(flat, /\b(aspirational|untested|unproven|provisional|tentative Vibe)\b/i,
@@ -366,24 +330,18 @@ test("taste is read qualitatively — no score, no threshold, no count", () => {
    * read or correct — and a count of states deciding whether a Vibe counts is the
    * exact P5 regression Step 6 exists to remove.
    *
-   * Checked on **both** artifacts, independently. The specification and the
-   * projection are written separately, so arithmetic can be introduced into either
-   * one alone; a guard on the shipped text only would miss it in the skill, which
-   * is the copy a skill-capable host actually reads.
-   *
    * Scoped to this passage rather than the file. Numbers are legitimate elsewhere —
    * "three to five other films", "two or three directions" — and this is the one
    * place where a number would be a rule about how much taste is worth.
    */
-  const between = (text: string) => {
-    const flat = text.replace(/\s+/g, " ");
-    const from = flat.indexOf("Two kinds of request");
-    const to = flat.indexOf("Either way", from + 1);
-    assert.ok(from >= 0 && to > from, "the recommendation-model passage could not be found");
-    return flat.slice(from, to);
-  };
+  const flat = flatSkill();
+  const from = flat.indexOf("Two kinds of request");
+  const to = flat.indexOf("Either way", from + 1);
+  assert.ok(from >= 0 && to > from, "the recommendation-model passage could not be found");
+  const passage = flat.slice(from, to);
+  assert.ok(passage.length > 200, "the passage is too short to be the right one");
 
-  const arithmetic: [string, RegExp][] = [
+  for (const [what, pattern] of [
     ["points or scoring", /\b(points?|scores?|scoring|scored)\b/i],
     ["a threshold", /\bthresholds?\b/i],
     ["weighting", /\bweigh(t|ts|ted|ting)\b/i],
@@ -392,17 +350,8 @@ test("taste is read qualitatively — no score, no threshold, no count", () => {
     ["a spelled state count", /\b(one|two|three|four|five|several)\s+(loved|liked|disliked)\b/i],
     ["a gate on counting", /\bbefore it counts\b|\bbefore trusting\b/i],
     ["counting states", /\bcount(s|ing)?\s+(the\s+)?(loved|liked|films|states)\b/i],
-  ];
-
-  for (const [where, text] of [
-    ["the skill", canonicalSkill()],
-    ["the projection", PROJECT_INSTRUCTIONS],
-  ] as [string, string][]) {
-    const passage = between(text);
-    assert.ok(passage.length > 200, `${where}: the passage is too short to be the right one`);
-    for (const [what, pattern] of arithmetic) {
-      assert.doesNotMatch(passage, pattern, `${where} reads taste as arithmetic: ${what}`);
-    }
+  ] as [string, RegExp][]) {
+    assert.doesNotMatch(passage, pattern, `the skill reads taste as arithmetic: ${what}`);
   }
 });
 
@@ -414,7 +363,7 @@ test("the answer has one lead, and the rest are directions from it", () => {
    * there is one lead, that it is committed to out loud, that the rest are directions
    * ordered by distance, and that the set is small enough not to be a menu.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   for (const [what, rule] of [
     ["to open with an idea", "One idea for the evening, in a line"],
@@ -433,17 +382,14 @@ test("the answer has one lead, and the rest are directions from it", () => {
     // Said with its condition attached, which is the b343335b repair: unconditioned,
     // the rule reads as "an answer is always owed", and a run of that sweep applied
     // it inside the branch that must stop.
-    ["that the answer is what reaches them", "a tool call is not one"],
-    ["that the rule holds where an answer is owed", "Owed an answer"],
+    ["that the answer is what reaches them", "a tool call is not an answer"],
+    ["that the rule holds where an answer is owed", "Where an answer is owed"],
   ] as [string, string][]) {
     assert.ok(flat.includes(rule.replace(/\s+/g, " ")), `the agent is never told ${what}`);
   }
 
-  // "never a runner-up" and "another way out" said this in the projection and were
-  // the local budget that paid for the rule above. What they guarded survives: a
-  // direction is an alternative rather than a ranking, which is what "not quality"
-  // says, and the canonical keeps the fuller wording.
-  assert.match(flat, /not\s+quality/);
+  // A direction is an alternative rather than a ranking.
+  assert.match(flat, /another way out, never a\s+runner-up/);
 
   // A quality order says "this is the fourth best", which is useless and probably
   // false. The prohibition has to be explicit: leaving it out reads as a free choice.
@@ -453,29 +399,29 @@ test("the answer has one lead, and the rest are directions from it", () => {
   assert.doesNotMatch(flat, /three to six|six films|\b3 to 6\b/i);
 });
 
-test("how many Genres to create stays guidance, in both wordings", () => {
+test("how many Genres to create stays guidance", () => {
   /**
-   * The canonical rule is *"two or three strong, complementary ones is often the
-   * shape, never filler to hit a number"*. Both halves matter and they pull against
-   * each other: the numbers say what usually works, the hedge says it is not a quota,
-   * and `never filler` stops the numbers being hit for their own sake.
+   * The rule is *"often two or three strong, complementary ones, never filler to
+   * hit a number"*. Both halves matter and they pull against each other: the
+   * numbers say what usually works, the hedge says it is not a quota, and `never
+   * filler` stops the numbers being hit for their own sake.
    *
-   * A compact projection that keeps the numbers and drops the hedge reads as
-   * "create two or three Genres", which is a rule the skill does not have — and the
-   * failure is invisible, because every word in it came from the canonical sentence.
+   * A wording that keeps the numbers and drops the hedge reads as "create two or
+   * three Genres", which is a rule the skill does not have — and the failure is
+   * invisible, because every word in it came from the sentence it replaced.
    */
-  const projected = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
-  const at = projected.search(/two or three strong, complementary ones/);
+  const flat = flatSkill();
+  const at = flat.search(/two or three strong, complementary ones/);
   assert.ok(at >= 0, "the guidance on how many Genres could not be found");
 
   // The hedge sits with the numbers, not somewhere else in the document.
-  const clause = projected.slice(Math.max(0, at - 60), at + 80);
+  const clause = flat.slice(Math.max(0, at - 60), at + 80);
   assert.match(clause, /\b(often|usually|commonly|typically|tend|can be|may be)\b/,
-    "the projection states two or three as a requirement rather than the usual shape");
+    "the skill states two or three as a requirement rather than the usual shape");
 
   // And padding to reach them is still forbidden.
   assert.match(clause, /never filler to hit a number/,
-    "the projection names a count without forbidding padding to reach it");
+    "the skill names a count without forbidding padding to reach it");
 });
 
 test("a film they have seen or judged is not offered as a new one", () => {
@@ -486,18 +432,20 @@ test("a film they have seen or judged is not offered as a new one", () => {
    * it, so it is the one state that keeps a Movie eligible. A `loved` film is spent
    * as evidence instead, which is worth more than suggesting it again.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   for (const [what, rule] of [
     ["what the target is", "Lead with what they have not seen or judged"],
     ["what rules a film out",
-     "`seen`, and any standing judgement — which\nmeans they watched it — rule a Movie out as new"],
-    ["that unseen does not", "`unseen` does not"],
-    ["that an unseen film stays eligible", "so it stays"],
-    ["that a refusal proves nothing about watching", "a refusal proves nothing about watching"],
-    ["that null may lead", "`null` may lead but is"],
-    ["that null is not unseen", "**nobody having said**"],
-    ["that being ruled out covers being called new", "out of being called new or unseen"],
+     "`viewing` of `seen` rules a Movie out as new,\nand so does a standing judgement"],
+    ["why a judgement does", "**nobody likes a film they have not seen**"],
+    ["that unseen does not", "`unseen` does\nnot rule it out"],
+    ["that an unseen film stays eligible", "so it stays on the table"],
+    ["that a refusal proves nothing about watching", "A refusal is not evidence they saw it"],
+    ["that null is not unseen", "`null` is not `unseen`"],
+    ["that null is nobody having said", "**nobody has said either way**"],
+    ["that null may lead", "so it may lead but must never be\ndescribed as one they have not seen"],
+    ["that being ruled out covers being called new", "never called new, unseen or not yet watched"],
     ["what a loved film is for", "`loved` one is a **reason**, not a suggestion"],
     ["that a stretch needs a positive anchor", "Anchor a stretch in something they like"],
     ["that an absence is not a reason", "an absence shows where to look, never why"],
@@ -510,15 +458,15 @@ test("a film they have seen or judged is not offered as a new one", () => {
   // or implied by a standing judgement. `unseen` joining that would silently turn
   // "I have not seen this" into a reason to withhold the film, which is the
   // precise inversion of the rule.
-  const ruledOut = flat.slice(flat.indexOf("`seen`, and any"), flat.indexOf("rule a Movie out as new"));
-  assert.ok(ruledOut.length > 0 && ruledOut.length < 120, "the list that rules a film out moved");
-  assert.doesNotMatch(ruledOut, /unseen/);
+  const ruledOut = flat.slice(flat.indexOf("`viewing` of `seen`"), flat.indexOf("`unseen` does not"));
+  assert.ok(ruledOut.length > 0 && ruledOut.length < 300, "the sentence that rules a film out moved");
+  assert.doesNotMatch(ruledOut, /`unseen`/);
 
   // Positive half: absence from that list is not enough on its own — a reader could
   // still conclude that a film Tonight has heard of is spent. Somewhere after the
   // list, `unseen` must be named and said to remain available, and the sentence
   // saying so must not be a negation of eligibility.
-  const after = flat.slice(flat.indexOf("rule a Movie out as new"));
+  const after = flat.slice(flat.indexOf("rules a Movie out as new"));
   const eligibility = after.slice(after.indexOf("`unseen`"), after.indexOf("`loved` one is"));
   assert.ok(eligibility.includes("`unseen`"), "`unseen` is never mentioned as still eligible");
   assert.match(
@@ -528,7 +476,7 @@ test("a film they have seen or judged is not offered as a new one", () => {
   );
   assert.doesNotMatch(
     eligibility,
-    /\bnever (offer|present|suggest)|not (offered|presented|eligible)|rules? (it|a Movie) out/,
+    /\bnever (offer|present|suggest)|not (offered|presented|eligible)|(?<!not )rules? (it|a Movie) out/,
     "the text treats an `unseen` film as spent",
   );
 
@@ -576,8 +524,8 @@ function forbidsLearningTheModel(text: string) {
 
 test("a retry covering both branches is rejected, in either word order", () => {
   // The shared definition, checked directly. `test.sh` calls the same function
-  // over the canonical text, so canonical and projection cannot diverge on which
-  // qualifiers count or on which direction is checked.
+  // over the skill, so the two suites cannot diverge on which qualifiers count or
+  // on which direction is checked.
   for (const qualifier of SHARED_QUALIFIERS) {
     for (const phrasing of [
       `${qualifier}, offer to retry.`,
@@ -627,12 +575,10 @@ test("the data-model prohibition is read as a prohibition, in any wording", () =
 test("a request for a film is still not a configuration session", () => {
   // The guard that had to survive the rewrite. It is the oldest rule in this section
   // and the one the new answer form is most likely to quietly displace.
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
-  // Matched by what each prohibition forbids, not by its wording: the projection
-  // says the same two in fewer words than the skill does.
   for (const [what, rule] of [
-    ["that the one question is about films", /ask \*\*one (question about films|film question)\*\*/i],
+    ["that the one question is about films", /ask \*\*one question about films\*\*/],
     ["not to ask about genres", /never \*"what genres do you like\?"\*/],
     ["never to print the model", /\*\*Never print the taste model while recommending\*\*/],
   ] as [string, RegExp][]) {
@@ -651,19 +597,10 @@ test("a request for a film is still not a configuration session", () => {
   const passage = flat.slice(flat.indexOf("Either way"), flat.indexOf("**The shape"));
   assert.ok(passage.length > 100, "the R1 passage could not be found");
   assert.ok(forbidsLearningTheModel(passage), "the data-model prohibition is not stated as one");
-
-  // The same rule holds of the skill, which says it in its own words.
-  const canonicalPassage = canonicalSkill()
-    .replace(/\s+/g, " ")
-    .slice(canonicalSkill().replace(/\s+/g, " ").indexOf("Either way"));
-  assert.ok(
-    forbidsLearningTheModel(canonicalPassage.slice(0, canonicalPassage.indexOf("**The shape"))),
-    "the skill's data-model prohibition is not stated as one",
-  );
 });
 
 test("saving a film classifies it, and may grow the model rather than bend it", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   for (const [what, rule] of [
     ["to classify rather than fit", /Classify the film rather than fitting it to what is there/],
@@ -691,7 +628,7 @@ test("a proposed Vibe is made tangible before it is agreed to", () => {
    * pinned here as hard as the behaviour is: illustration, no write, no state, no
    * Vibe, no classification. Only the film they asked to keep is in the flow.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   for (const [what, rule] of [
     ["to show the idea rather than only name it", /make (the idea|it) concrete/],
@@ -723,7 +660,7 @@ test("a proposed Vibe is made tangible before it is agreed to", () => {
 });
 
 test("the model can be inspected and changed in the conversation, in plain sentences", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   assert.match(flat, /## Asked about the model directly/);
   assert.match(flat, /\*\*do those\*\*, in the conversation/);
@@ -745,7 +682,7 @@ test("the model can be inspected and changed in the conversation, in plain sente
  * both tools are named and told apart, in whatever wording carries it.
  */
 test("a read-back names both reads, and says which is for what", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   // Both are named where a read-back is decided.
   const section = flat.slice(
@@ -755,10 +692,6 @@ test("a read-back names both reads, and says which is for what", () => {
   assert.ok(section.length > 100, "the read-back section could not be found");
   assert.match(section, /`get_taste`/, "the taste read is not named where a read-back is decided");
   assert.match(section, /`get_memory`/, "the memory read is not named where a read-back is decided");
-  // And the memory read is tied to remembering rather than to liking. The word
-  // was "remembers" until the sentence had to carry the disagreement rule as
-  // well; what has to hold is that `get_memory` is named for memory and
-  // `get_taste` is not, which is the routing the whole section exists for.
   // Not an inclusive "get_taste, or get_memory for the whole of it": that named
   // both reads and gave no criterion, and four certification runs sent a narrow
   // taste question to the wider read. The section states which question each
@@ -812,7 +745,7 @@ test("a read-back names both reads, and says which is for what", () => {
  * What is checked is what the rule establishes, not one arrangement of words.
  */
 test("what may be persisted is about persisting, and says inference is not", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
   const persisted = flat.slice(
     flat.indexOf("## What may be persisted"),
     flat.indexOf("## Films they tell you about"),
@@ -843,7 +776,7 @@ test("what may be persisted is about persisting, and says inference is not", () 
  * the previous two versions did.
  */
 test("authorising a direct operation does not authorise tidying another root", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
   const asked = flat.slice(
     flat.indexOf("## Asked about the model directly"),
     flat.indexOf("## What Tonight remembers"),
@@ -883,12 +816,6 @@ test("authorising a direct operation does not authorise tidying another root", (
     "the boundary is in two places, so neither is the one that governs",
   );
 
-  // (4) and (5): what the rule must NOT have forbidden. It bites on *unasked*
-  // writes to *another* root — so a change the user asked for is untouched, and
-  // so is correcting several fields of the one root they named. A rule that had
-  // said "one write per turn" or "never touch two roots" would read differently
-  // here, and would break `correct_episode`, which exists to put a whole
-  // evening right in one call.
   // (D) Structural rather than a list of forbidden phrasings: whatever the rule
   // says, the thing it forbids has to be qualified as *unasked* and as
   // reaching *another* root. A rule that dropped either qualifier would forbid
@@ -907,10 +834,6 @@ test("authorising a direct operation does not authorise tidying another root", (
     `the boundary stopped being about a second, different root: ${JSON.stringify(clause)}`,
   );
 
-  // And the shapes it must never take. Each of these would read as a cap on
-  // how much one turn may change, which would break both an explicitly
-  // requested multi-root change and `correct_episode`, whose whole purpose is
-  // putting several fields of one evening right in a single call.
   // (E), (F) and (G): the shapes it must never take. Each would read as a cap on
   // how much one turn may change, which would break an explicitly requested
   // multi-root change and `correct_episode`, whose whole purpose is putting
@@ -929,7 +852,7 @@ test("authorising a direct operation does not authorise tidying another root", (
 });
 
 test("a question about what disagrees is routed to the read that can see both sides", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
   const asked = flat.slice(
     flat.indexOf("## Asked about the model directly"),
     flat.indexOf("## What Tonight remembers"),
@@ -953,7 +876,7 @@ test("a question about what disagrees is routed to the read that can see both si
   // And the disagreement routing is gone rather than reworded. Nothing carries
   // two opinions any more, so there is no disagreement between roots to route —
   // a rule still promising one would describe behaviour Tonight does not have.
-  assert.doesNotMatch(asked, /disagreement/iu, "the instructions still promise to resolve a disagreement");
+  assert.doesNotMatch(asked, /disagreement/iu, "the skill still promises to resolve a disagreement");
 
   // (7) And the limit on `get_verdicts` is not restated here. It is a rule about
   // what one tool's answer covers, it is in that tool's own description, and
@@ -964,34 +887,40 @@ test("a question about what disagrees is routed to the read that can see both si
 });
 
 test("recommending still reads the taste model, and never the memory view", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
   const recommending = flat.slice(
     flat.indexOf("## Recommending"),
     flat.indexOf("## What may be persisted"),
   );
 
   assert.ok(recommending.length > 500, "the recommending section could not be found");
-  assert.match(recommending, /\*\*Read `get_taste` either way\*\*/, "recommendation lost its read");
-  assert.equal(
-    recommending.includes("get_memory"),
-    false,
+  assert.match(recommending, /\*\*Read `get_taste` either way\.\*\*/, "recommendation lost its read");
+  // `get_memory` is named here once, and only as where a withdrawn verdict is
+  // still remembered — never as something a recommendation reads, calls or uses.
+  assert.doesNotMatch(
+    recommending,
+    /\b(read|call|use|check|consult)s?\b[^.]{0,20}`get_memory`/i,
     "the memory view was made part of recommending",
   );
+  for (const mention of recommending.matchAll(/`get_memory`/g)) {
+    const sentence = recommending.slice(Math.max(0, mention.index - 60), mention.index + 40);
+    assert.match(sentence, /remembers/, `get_memory appears in recommending for something else: ${sentence}`);
+  }
 });
 
 /**
- * Remembering is not believing, and the instructions still say so.
+ * Remembering is not believing, and the skill still says so.
  *
  * M3 makes this reachable — an agent can now ask for the whole of what Tonight
  * holds, most of which is history. The rule that history teaches nothing was
  * already there for M1's sake; this pins it against the new way of meeting it.
  */
 test("what is remembered is still not what is believed", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
-  assert.match(flat, /\*\*History is not taste\*\*/);
-  assert.match(flat, /nothing is learned from it/);
+  const flat = flatSkill();
+  assert.match(flat, /\*\*That record is history, not taste\.\*\*/);
+  assert.match(flat, /Nothing is learned from it automatically/);
   // And the one thing that is evidence is still named as the exception.
-  assert.match(flat, /\*\*only what they said is evidence\*\*/iu);
+  assert.match(flat, /\*\*What they said about a film is different\*\*: that is evidence/iu);
 });
 
 test("a taste read that fails is split by what was asked, not by what broke", () => {
@@ -1000,17 +929,11 @@ test("a taste read that fails is split by what was asked, not by what broke", ()
    * The rule it supersedes stopped in both cases, which turned a store outage into a
    * total product outage for requests that never needed the data.
    *
-   * This projection says the rule in fewer words than the skill does — strategy 9.5,
-   * and the `project:compact` block in `## When something fails`. So the assertions
-   * below are about behaviour, never about the skill's sentences: what has to survive
-   * projection is the rule, in whichever wording this target can carry. The canonical
-   * wording is asserted separately, against `SKILL.md`, by the skill's own test.sh.
-   *
-   * Each branch is still read on its own. Against the whole section, a rule that moved
+   * Each branch is read on its own. Against the whole section, a rule that moved
    * from one branch to the other still matches: "stop" landing in the ordinary branch,
    * or both retry offers sitting in one of them, would pass.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   const sliceBetween = (from: string, to: string) => {
     const at = flat.indexOf(from);
@@ -1022,8 +945,8 @@ test("a taste read that fails is split by what was asked, not by what broke", ()
   // R2 put the retry back inside each branch. Factored out in front of both it was
   // semantically equivalent and behaviourally weaker — furthest from the branch
   // that had to perform it — and one recorded run dropped it.
-  const taste = sliceBetween("*Taste question*", "*Ordinary*");
-  const ordinary = sliceBetween("*Ordinary*", "**A write fails**");
+  const taste = sliceBetween("`get_taste` fails on a taste question", "`get_taste` fails on an ordinary request");
+  const ordinary = sliceBetween("`get_taste` fails on an ordinary request", "**A write fails**");
 
   // --- the taste-explicit branch, read alone ---
   assert.match(taste, /\bstop\b/i, "the taste branch does not stop");
@@ -1071,10 +994,10 @@ test("a taste read that fails is split by what was asked, not by what broke", ()
   // the retained candidate showed to be less reliable, and having both would
   // reinstate it while every positive assertion above still passed.
   const aboveBranches = flat.slice(
-    flat.indexOf("**`get_taste` fails**"),
-    flat.indexOf("*Taste question*"),
+    flat.indexOf("## When something fails"),
+    flat.indexOf("`get_taste` fails on a taste question"),
   );
-  assert.ok(aboveBranches.length > 0, "the failure bullet could not be found");
+  assert.ok(aboveBranches.length > 0, "the failure section could not be found");
   assert.doesNotMatch(aboveBranches, /retry/i,
     "a retry instruction sits above the branches rather than inside them");
 
@@ -1088,62 +1011,27 @@ test("a taste read that fails is split by what was asked, not by what broke", ()
   // The superseded rule must not survive beside its replacement.
   assert.doesNotMatch(flat, /report the error verbatim|Never recommend from a model you could not read/i);
 
-  // Write-failure behaviour is projected verbatim and is unchanged by any of this.
-  // Write-failure behaviour is unchanged by R2 and is projected in fewer words.
-  assert.match(flat, /\*\*A write fails\*\* — the recommendation stands; say what was not saved/);
-  assert.match(flat, /(Never claim something was stored when the tool refused|never that it was stored)/);
-});
-
-test("the compact projection of a failure says the same thing the skill does", () => {
-  /**
-   * Strategy 9.5: the skill is the specification, this file is one projection of
-   * it, and a projection may use shorter wording but may not mean anything else.
-   * `## When something fails` is the first place the two wordings differ.
-   *
-   * One list of behaviours, applied to both artifacts. Each behaviour is a pair of
-   * patterns — what the canonical sentence looks like, and what the compact one
-   * looks like — so this fails if a rule is present in one artifact and absent from
-   * the other, whichever side loses it. It is deliberately not a string comparison:
-   * equal strings would defeat the point of having a compact projection at all.
-   */
-  const canonical = canonicalSkill().replace(/\s+/g, " ");
-  const projected = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
-
-  const behaviours: [string, RegExp, RegExp][] = [
-    ["the taste branch stops", /— stop\. \*\*No answer is owed here\*\*/, /\*Taste question\*: stop/],
-    ["it reports the tool's own words", /in the tool's own words/, /quote the error/],
-    ["the taste branch offers its own retry",
-      /own words, offer to retry/, /stop, quote the error, offer to retry/],
+  // Each behaviour in the skill's own words, so a rule that lost its sentence
+  // fails here even where a looser pattern above would still find something.
+  for (const [what, rule] of [
+    ["the taste branch stops", /— stop\. \*\*No answer is owed here\*\*/],
+    ["it reports the tool's own words", /in the tool's own words/],
+    ["the taste branch offers its own retry", /own words, offer to retry/],
     // The b343335b repair. Stopping said what to do and not what to stop doing, and
     // one run read the shape rule as an obligation that outlived the stop.
-    ["the taste branch recommends nothing", /and recommend nothing/, /\*\*recommend nothing\*\*/],
-    ["the ordinary branch answers", /recommend anyway/, /answer anyway/],
-    ["the disclosure is the first sentence", /\*\*first sentence\*\*/, /first sentence/],
-    ["it says the read failed", /their model could not be read/, /model unread/],
-    ["it says the answer is not based on it", /not based on it/, /not based on it/],
-    ["it forbids a personal claim", /Claim \*\*nothing\*\* about them/, /claim nothing about them/],
-    ["the ordinary branch offers its own retry",
-      /about them\. Offer to retry/, /claim nothing about them; offer to retry/],
-    ["the ordinary branch owes the answer shape",
-      /recommend anyway, \*\*in the shape above\*\*/, /answer anyway \*\*in the usual shape\*\*/],
-    ["a failed write still reports", /Never claim something was stored when the tool refused/,
-      /say what was not saved, never that it was stored/],
-  ];
-
-  for (const [what, inSkill, inProjection] of behaviours) {
-    assert.match(canonical, inSkill, `the skill lost: ${what}`);
-    assert.match(projected, inProjection, `the projection lost: ${what}`);
+    ["the taste branch recommends nothing", /and recommend nothing/],
+    ["the ordinary branch answers", /recommend anyway/],
+    ["the disclosure is the first sentence", /\*\*first sentence\*\*/],
+    ["it says the read failed", /their model could not be read/],
+    ["it says the answer is not based on it", /not based on it/],
+    ["it forbids a personal claim", /Claim \*\*nothing\*\* about them/],
+    ["the ordinary branch offers its own retry", /about them\. Offer to retry/],
+    ["the ordinary branch owes the answer shape", /recommend anyway, \*\*in the shape above\*\*/],
+    ["a failed write still reports", /\*\*A write fails\*\* — the recommendation stands; say what was not saved/],
+    ["a failed write is never claimed as stored", /Never claim something was stored when the tool refused/],
+  ] as [string, RegExp][]) {
+    assert.match(flat, rule, `the skill lost: ${what}`);
   }
-
-  // The canonical wording is the specification and must not leak into this target,
-  // or the section would ship twice and the compact block would save nothing.
-  assert.doesNotMatch(projected, /fails on a taste question|fails on an ordinary request/,
-    "both wordings of the failure rule reached the projection");
-
-  // And the compact wording is owned by the skill: it is read out of `SKILL.md`,
-  // never written here. If it stops being there, this projection has a second source.
-  // The raw file, not the canonical-only view, because the block is what is sought.
-  assert.match(skill(), /<!-- project:compact/, "the compact wording is not in the skill");
 });
 
 test("a branch that stops outranks the rule that shapes an answer", () => {
@@ -1159,20 +1047,17 @@ test("a branch that stops outranks the rule that shapes an answer", () => {
    * So the repair is a precedence, not a retreat. The rule still says the reply is
    * what reaches them; what it no longer says is that a reply is always owed.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
-  const canonical = canonicalSkill().replace(/\s+/g, " ");
+  const flat = flatSkill();
 
-  // --- the rule carries its condition, in both artifacts ---
+  // --- the rule carries its condition ---
   // Unconditioned it reads as an obligation to answer, which is how it was misread.
-  assert.match(flat, /Owed an answer, a tool call is not one/,
-    "the projection states the integration rule with no condition on it");
-  assert.match(canonical, /Whether an answer is owed is settled before this rule, never by it/,
+  assert.match(flat, /Whether an answer is owed is settled before this rule, never by it/,
     "the skill does not say what settles whether an answer is owed");
-  assert.match(canonical, /This rule says what an owed answer must contain, never that one is owed/,
+  assert.match(flat, /This rule says what an owed answer must contain, never that one is owed/,
     "the skill does not say what the rule is silent about");
   // And it names which rule decides instead, so the precedence is followable rather
   // than inferred: a reader landing here is sent to the branch table.
-  assert.match(canonical, /\*\*When something fails\*\* decides that, and decides it first/,
+  assert.match(flat, /\*\*When something fails\*\* decides that, and decides it first/,
     "the skill does not say which rule settles it");
 
   // --- and nothing about it is weakened ---
@@ -1187,236 +1072,159 @@ test("a branch that stops outranks the rule that shapes an answer", () => {
     /Where an answer is owed, it arrives whole and in the shape above/,
     /nothing is left out of the reply because it was written down/,
   ] as RegExp[]) {
-    assert.match(canonical, kept, `the integration rule lost: ${String(kept)}`);
+    assert.match(flat, kept, `the integration rule lost: ${String(kept)}`);
   }
 
   // --- where a recommendation is owed, a write is still additive ---
   // The ordinary branch is a branch that owes one, so the shape obligation has to
   // survive there. If the precedence had been written as "the shape applies less
   // often", this is the assertion that would fail.
-  const ordinary = flat.slice(flat.indexOf("*Ordinary*"), flat.indexOf("**A write fails**"));
-  assert.match(ordinary, /in the usual shape/, "a branch that owes an answer lost the shape");
-  assert.match(canonical, /- \*\*`get_taste` fails on an ordinary request\*\* — recommend anyway/,
+  const ordinary = flat.slice(
+    flat.indexOf("`get_taste` fails on an ordinary request"),
+    flat.indexOf("**A write fails**"),
+  );
+  assert.match(ordinary, /in the shape above/, "a branch that owes an answer lost the shape");
+  assert.match(flat, /- \*\*`get_taste` fails on an ordinary request\*\* — recommend anyway/,
     "the ordinary branch no longer answers");
 
   // --- and where one is not owed, the stop is the whole of it ---
   // AC6a, said as a prohibition rather than left to follow from "stop". The observed
   // run obeyed "stop" and recommended anyway, so "stop" alone is demonstrably not
   // enough to carry it.
-  const taste = flat.slice(flat.indexOf("*Taste question*"), flat.indexOf("*Ordinary*"));
+  const taste = flat.slice(
+    flat.indexOf("`get_taste` fails on a taste question"),
+    flat.indexOf("`get_taste` fails on an ordinary request"),
+  );
   assert.match(taste, /recommend nothing/i, "the stop branch does not forbid recommending");
-  assert.match(canonical, /No answer is owed here/, "the skill does not say the stop owes nothing");
-  assert.match(canonical, /no general pick, no film \*"in the meantime"\*/,
+  assert.match(taste, /No answer is owed here/, "the skill does not say the stop owes nothing");
+  assert.match(taste, /no general pick, no film \*"in the meantime"\*/,
     "the skill does not name the substitution that was observed");
-  assert.match(canonical, /The shape of an answer does not reach into this branch/,
+  assert.match(taste, /The shape of an answer does not reach into this branch/,
     "the skill does not put the shape rule out of this branch");
-  assert.match(canonical,
+  assert.match(flat,
     /\*\*A stop is not an incomplete reply\*\*: nothing is missing from it that the shape of an answer would supply/,
     "the skill does not say a stop is complete as it stands");
 
   // The precedence is stated where the rule is, not only where the branch is. A
   // reader who never reaches `## When something fails` still meets the condition.
   assert.ok(
-    canonical.indexOf("Whether an answer is owed is settled before this rule")
-      < canonical.indexOf("## When something fails"),
+    flat.indexOf("Whether an answer is owed is settled before this rule")
+      < flat.indexOf("## When something fails"),
     "the precedence is stated only inside the branch it governs",
   );
 });
 
-test("the compact projection of the write flow says the same thing the skill does", () => {
-  /**
-   * Strategy 9.5, the same contract as `## When something fails` and for the same
-   * reason: this target cannot carry the canonical wording of everything, so it
-   * carries a shorter wording of the same rules.
-   *
-   * One list of behaviours, applied to both artifacts. Each is a pair of patterns —
-   * the canonical sentence and the compact one — so a rule lost on either side fails
-   * here, whichever side loses it. Deliberately not a string comparison: equal
-   * strings would defeat the point of a compact projection.
-   */
-  const canonical = canonicalSkill().replace(/\s+/g, " ");
-  const projected = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+test("the write flow is stated whole: what may be written, where, and on whose yes", () => {
+  const flat = flatSkill();
 
-  const behaviours: [string, RegExp, RegExp][] = [
+  for (const [what, rule] of [
     // Watching is a fact the user reported, so it may be written down; what it
-    // may never become is an opinion. Both renderings have to draw that line,
-    // and the compact one used to state the rule without it.
-    ["watching writes no taste", /writes \*\*no taste\*\*/, /writes \*\*no taste\*\*/],
+    // may never become is an opinion.
+    ["watching writes no taste", /writes \*\*no taste\*\*/],
     ["and the viewing and the evening may still be written",
-      /`viewing` may hold it, and an evening may record what they said they did/,
-      /the viewing and the evening may be recorded/],
-    ["keeping a film needs a Vibe",
-      /Never write a Movie this way without at least one Vibe/,
-      /Never write a Movie this way without at least one Vibe/],
-    ["a verdict never invents a Vibe",
-      /No Vibe is needed for one and none may be invented to hold it/,
-      /no Vibe and no Movie is needed or\s+invented to hold one/],
-    ["a verdict never invents a Movie either",
-      /a Verdict stands on its own root/,
-      /no Vibe and no Movie is needed or\s+invented to hold one/],
-    ["a later keep still takes a Vibe", /a later request to keep the film takes a Vibe/,
-      /a later request to keep the film takes a Vibe/],
+      /`viewing` may hold it, and an evening may record what they said they did/],
+    ["keeping a film needs a Vibe", /Never write a Movie this way without at least one Vibe/],
+    ["a verdict never invents a Vibe", /No Vibe is needed for one and none may be invented to hold it/],
+    ["a verdict never invents a Movie either", /a Verdict stands on its own root/],
+    ["a later keep still takes a Vibe", /a later request to keep the film takes a Vibe/],
     // M5 (S3): however a film's working for them is put, it is a verdict, in their
-    // words and no stronger — on every host, so in both renderings.
-    ["however it is put, it is a verdict", /how a film worked for them, however\s+they put it/,
-      /What they said about it does not\*\*, however put — that is a verdict/],
+    // words and no stronger.
+    ["however it is put, it is a verdict", /how a film worked for them, however\s+they put it/],
     ["kept in their words, never made stronger",
-      /recorded in their words and\s+never made stronger than they made it/, /in their words, never stronger/],
+      /recorded in their words and\s+never made stronger than they made it/],
     // M5 (S3, R3-2 of the plan): the full prose of classifying a kept film and of
-    // proposing a Vibe moved to the tonight-vibes skill, and what was the compact
-    // wording here is now recommend's own statement of those rules — so the skill
-    // side of these rows reads that statement. The full prose is pinned where it
+    // proposing a Vibe moved to the tonight-vibes skill, and what is here is
+    // recommend's own statement of those rules. The full prose is pinned where it
     // lives, in `skills/tonight-vibes/test.sh`.
     ["the Vibe question is classification, not permission",
-      /is a classification, not a request for permission/,
       /is a classification, not a request for permission/],
-    ["classify rather than fit", /Classify the film/, /Classify the film/],
-    ["read first", /Read the Genres and Vibes first/i, /read the Genres and Vibes first/i],
-    ["one that fits is just saved", /save it there, say so in one sentence, ask nothing further/,
-      /save it there, say so in one sentence, ask nothing further/],
-    ["never stretch a Vibe", /Never stretch a Vibe to avoid making one/,
-      /Never stretch a Vibe to avoid making one/],
-    ["none fitting means not yet", /do not save the film yet/, /do not save the film yet/],
-    ["reuse what fits", /Reuse the Genres that fit/, /Reuse the Genres that fit/],
-    ["create for what is uncovered", /create one for anything uncovered/,
-      /create one for anything uncovered/],
-    // "Two or three" is guidance, not a quota. Both wordings have to say so: a
-    // projection that names the numbers without the hedge reads as a requirement,
-    // which is a different rule from the one the skill states.
-    ["two or three is the usual shape, not a requirement",
-      /often two or three strong, complementary ones/,
-      /often two or three strong, complementary ones/],
-    ["and padding is still forbidden",
-      /never filler to hit a number/, /never filler to hit a number/],
-    ["the Vibe choice is yours", /Never ask which they want; that judgement is yours/,
-      /Never ask which they want; that judgement is yours/],
-    ["a proposal is made concrete", /make\s+it concrete/, /make\s+it concrete/],
-    ["and names its core", /name its core/, /name its core/],
-    ["with three to five films", /three to five other films that would belong/,
-      /three to five other films that would belong/],
-    ["and two or three names", /two or three alternative names/,
-      /two or three alternative names/],
-    ["those films are illustration only", /Those films are illustration only/,
-      /Those films are illustration only/],
-    ["never written, never filed", /never written, never filed/, /never written, never filed/],
-    ["no viewing, no verdict", /never given a viewing or a\s+verdict/,
-      /never given a viewing or a\s+verdict/],
-    ["only the kept film and the core are saved", /only the kept film and the core\s+are saved/,
-      /only the kept film and the core\s+are saved/],
-    ["a yes covers the whole flow", /A yes is the whole permission/,
-      /A yes is the whole permission/],
-    ["and the Vibe is written with its core", /then the Vibe with its core/,
-      /then the Vibe with its core/],
-    ["and is never asked twice", /never ask twice/, /never ask twice/],
-    ["a no settles it", /A no settles it\*\*, never saving the film loose/,
-      /A no settles it\*\*, never saving the film loose/],
-    ["propose while saving", /Propose while saving, not while recommending/,
-      /Propose while saving, not while recommending/],
-    ["a fitting Vibe skips it", /a Vibe that (genuinely )?fits needs none of this/,
-      /a Vibe that (genuinely )?fits needs none of this/],
-    ["a film in no Vibe is fine", /A film in no Vibe is legitimate/, /A film in no Vibe is legitimate/],
-    // M5 (S3): "never unasked" narrows only as far as stays true on both hosts —
-    // a film they ask about, or say something about, is no longer unasked.
-    ["and is left alone", /Do not sort them, propose Vibes for them, or mention them\s*unless they ask or speak of one/,
+    ["classify rather than fit", /Classify the film/],
+    ["read first", /read the Genres and Vibes first/i],
+    ["one that fits is just saved", /save it there, say so in one sentence, ask nothing further/],
+    ["never stretch a Vibe", /Never stretch a Vibe to avoid making one/],
+    ["none fitting means not yet", /do not save the film yet/],
+    ["reuse what fits", /Reuse the Genres that fit/],
+    ["create for what is uncovered", /create one for anything uncovered/],
+    // "Two or three" is guidance, not a quota: the numbers without the hedge read
+    // as a requirement, which is a different rule.
+    ["two or three is the usual shape, not a requirement", /often two or three strong, complementary ones/],
+    ["and padding is still forbidden", /never filler to hit a number/],
+    ["the Vibe choice is yours", /Never ask which they want; that judgement is yours/],
+    ["a proposal is made concrete", /make\s+it concrete/],
+    ["and names its core", /name its core/],
+    ["with three to five films", /three to five other films that would belong/],
+    ["and two or three names", /two or three alternative names/],
+    ["those films are illustration only", /Those films are illustration only/],
+    ["never written, never filed", /never written, never filed/],
+    ["no viewing, no verdict", /never given a viewing or a\s+verdict/],
+    ["only the kept film and the core are saved", /only the kept film and the core\s+are saved/],
+    ["a yes covers the whole flow", /A yes is the whole permission/],
+    ["and the Vibe is written with its core", /then the Vibe with its core/],
+    ["and is never asked twice", /never ask twice/],
+    ["a no settles it", /A no settles it\*\*, never saving the film loose/],
+    ["propose while saving", /Propose while saving, not while recommending/],
+    ["a fitting Vibe skips it", /a Vibe that (genuinely )?fits needs none of this/],
+    ["a film in no Vibe is fine", /A film in no Vibe is legitimate/],
+    // M5 (S3): "never unasked" narrows only as far as stays true for every
+    // selection of the plugin — a film they ask about, or say something about, is
+    // no longer unasked.
+    ["and is left alone",
       /Do not sort them, propose Vibes for them, or mention them\s*unless they ask or speak of one/],
-  ];
-
-  for (const [what, inSkill, inProjection] of behaviours) {
-    assert.match(canonical, inSkill, `the skill lost: ${what}`);
-    assert.match(projected, inProjection, `the projection lost: ${what}`);
+  ] as [string, RegExp][]) {
+    assert.match(flat, rule, `the skill lost: ${what}`);
   }
 
-  // The unqualified rule, which neither rendering may carry again. A film the
-  // user says they watched writes no *taste*; it does not write nothing, and an
-  // agent told otherwise would decline to record a viewing it was given.
-  for (const [where, said] of [["the skill", canonical], ["the projection", projected]] as const) {
-    assert.doesNotMatch(
-      said,
-      /watch(?:ed|ing)[^.]{0,40}(?:said nothing|no opinion)[^.]{0,30}writes \*\*nothing\*\*/i,
-      `${where} says a watched film writes nothing at all`,
-    );
-  }
-
-  // The canonical wording must not also reach this target, or the section would ship
-  // twice and the compact block would save nothing.
-  assert.doesNotMatch(projected, /Two requests write a Movie, and they differ/,
-    "both wordings of the write flow reached the projection");
-  assert.doesNotMatch(projected, /may I save this/,
-    "the canonical framing of the Vibe question reached the projection");
+  // The unqualified rule, which the skill may not carry again. A film the user
+  // says they watched writes no *taste*; it does not write nothing, and an agent
+  // told otherwise would decline to record a viewing it was given.
+  assert.doesNotMatch(
+    flat,
+    /watch(?:ed|ing)[^.]{0,40}(?:said nothing|no opinion)[^.]{0,30}writes \*\*nothing\*\*/i,
+    "the skill says a watched film writes nothing at all",
+  );
 });
 
-test("the compact projection of the taste model says the same thing the skill does", () => {
+test("the taste model is evidence, and the skill says how strong", () => {
   /**
-   * Strategy 9.5, third use of the mechanism. P3 and P5 are the semantics most
-   * likely to be lost in a shorter wording, because the losses are quiet: a Vibe
-   * described in fewer words easily reads as a filter again, and states described
-   * in fewer words easily read as a gate.
+   * P3 and P5 are the semantics most likely to be lost in a rewording, because the
+   * losses are quiet: a Vibe described in fewer words easily reads as a filter
+   * again, and verdicts described in fewer words easily read as a gate.
    */
-  const canonical = canonicalSkill().replace(/\s+/g, " ");
-  const projected = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
-  const behaviours: [string, RegExp, RegExp][] = [
-    ["the model is read either way", /Read `get_taste`\s*either way/, /Read `get_taste` either\s*way/],
-    ["tonight's words bind", /What they said tonight binds/, /What they said tonight binds/],
-    ["an exclusion is mode-dependent",
-      /binds only when they asked for their taste/, /binds only when they asked for their taste/],
-    ["a non-binding exclusion is not mentioned",
-      /one that does not bind is \*\*not mentioned either\*\*/,
-      /when it does not bind it is \*\*never\s+mentioned\*\*/],
+  for (const [what, rule] of [
+    ["the model is read either way", /Read `get_taste`\s*either way/],
+    ["tonight's words bind", /What they said tonight binds/],
+    ["an exclusion is mode-dependent", /binds only when they asked for their taste/],
+    ["a non-binding exclusion is not mentioned", /one that does not bind is \*\*not mentioned either\*\*/],
     ["the positive preference used is recognisable in the answer",
-      /the positive preference that shaped\s+the answer is recognisable in it/,
-      /show the positive evidence you used/],
-    ["and naming it is one way rather than the only one",
-      /is one\s+way to do that and not the only one/, /show the positive evidence/],
-    ["and is the only thing that is",
-      /Everything else in the model is evidence either way/, /Everything else is evidence either way/],
-    ["discovery explores from what they wrote",
-      /what they have written is where you explore from/, /you are exploring, from what they wrote/],
-    ["taste-aware makes the model the brief",
-      /Now the model is the brief, and its exclusions hold/, /the model is the brief, and its\s*exclusions hold/],
-    ["a matching Vibe is a reason",
-      /a Vibe that matches is a reason\s*the recommendation fits/,
-      /A matching Vibe is a reason the recommendation fits/],
-    ["it counts immediately", /counts from\s*the moment it exists/, /from the moment it exists/],
+      /the positive preference that shaped\s+the answer is recognisable in it/],
+    ["and naming it is one way rather than the only one", /is one\s+way to do that and not the only one/],
+    ["and is the only thing that is", /Everything else in the model is evidence either way/],
+    ["discovery explores from what they wrote", /what they have written is where you explore from/],
+    ["taste-aware makes the model the brief", /Now the model is the brief, and its exclusions hold/],
+    ["a matching Vibe is a reason", /a Vibe that matches is a reason\s*the recommendation fits/],
+    ["it counts immediately", /counts from\s*the moment it exists/],
     // M5: every new Vibe holds its core, so the illustration is a Vibe with only
-    // its core under it, and the projected rule is about a Vibe with no verdict.
-    ["an empty Vibe says as much as a full one",
-      /only its core under it says as much about\s*what they like as one with ten films under it/,
-      // The projection carries the consequence rather than the illustration:
-      // an empty Vibe is used, with reach and certainty varied.
-      /A Vibe with no verdict under it: \*\*intent certain, their verdict unconfirmed\*\* — use it/],
-    ["a Genre is thinner", /A Genre is an ingredient/, /A Genre is an ingredient/],
-    ["verdicts calibrate rather than gate",
-      /Verdicts calibrate that evidence. They never decide whether it counts/,
-      /Verdicts calibrate it, never decide whether it counts/],
-    ["loved strengthens", /`loved`\s*strengthens it/, /`loved` strengthens/],
-    ["liked less so", /`liked` strengthens it more weakly/, /`liked` more\s*weakly/],
-    ["disliked is a sign, not a ban", /negative sign, not a ban/, /a sign, not a ban/],
+    // its core under it.
+    ["a new Vibe says as much as a full one",
+      /only its core under it says as much about\s*what they like as one with ten films under it/],
+    ["a Genre is thinner", /A Genre is an ingredient/],
+    ["verdicts calibrate rather than gate", /Verdicts calibrate that evidence. They never decide whether it counts/],
+    ["loved strengthens", /`loved`\s*strengthens it/],
+    ["liked less so", /`liked` strengthens it more weakly/],
+    ["disliked is a sign, not a ban", /negative sign, not a ban/],
     ["a Movie carries no opinion at all",
-      /`viewing` says whether they watched it and that is a\s*fact, never a sign for or against/,
-      /A Movie carries no opinion: `viewing` is a fact about watching/],
-    ["an empty Vibe changes reach, not eligibility",
-      /never whether you use it/, /use it, vary\s+reach and certainty/],
-    ["intent stays certain while the fit does not",
-      /what\s+they meant is not in question/, /intent certain/],
-    ["no film is confirmed to fit it yet",
-      /no particular film has been confirmed to fit it yet/, /verdict unconfirmed/],
-    ["that describing the match stays allowed",
-      /say how well a film answers what the Vibe asks for/, /Say how a film fits the Vibe/],
-    ["to say how sure it is", /Say how sure you are/, /vary\s+reach and certainty/],
-    ["that their verdict may not be claimed",
-      /it is confirmed, proven or settled for them/, /never that \*\*they\*\* like it yet/],
-  ];
-
-  for (const [what, inSkill, inProjection] of behaviours) {
-    assert.match(canonical, inSkill, `the skill lost: ${what}`);
-    assert.match(projected, inProjection, `the projection lost: ${what}`);
+      /`viewing` says whether they watched it and that is a\s*fact, never a sign for or against/],
+    ["an unconfirmed Vibe changes reach, not eligibility", /never whether you use it/],
+    ["intent stays certain while the fit does not", /what\s+they meant is not in question/],
+    ["no film is confirmed to fit it yet", /no particular film has been confirmed to fit it yet/],
+    ["that describing the match stays allowed", /say how well a film answers what the Vibe asks for/],
+    ["to say how sure it is", /Say how sure you are/],
+    ["that their verdict may not be claimed", /it is confirmed, proven or settled for them/],
+  ] as [string, RegExp][]) {
+    assert.match(flat, rule, `the skill lost: ${what}`);
   }
-
-  // Both wordings must not ship: the canonical passage is the longer one, and its
-  // presence here would mean the compact block saved nothing.
-  assert.doesNotMatch(projected, /not a\s*setting that one kind of request switches on/,
-    "both wordings of the taste model reached the projection");
 });
 
 test("an ordinary request is answered, never only interviewed", () => {
@@ -1434,36 +1242,18 @@ test("an ordinary request is answered, never only interviewed", () => {
    *
    * The question survives; what it may no longer do is replace the answer.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   for (const [what, rule] of [
-    ["that the request is answered with a film",
-      /(the answer is a film, not a question|answer with a film)/i],
-    ["that a question goes in the answer, never in place of it",
-      /in the answer[^.]{0,30}never instead/i],
-    ["that an empty model is no exception",
-      /(an empty model is no exception|even with an empty model)/i],
+    ["that the request is answered with a film", /they asked for a film and the answer is one/],
+    ["that a question goes in the answer, never in place of it", /in the answer, never instead of it/],
+    ["that an empty model is no exception", /An empty model is not\s+an exception/],
   ] as [string, RegExp][]) {
     assert.match(flat, rule, `the agent is never told ${what}`);
   }
 
   // The question is still permitted — R1 removes the substitution, not the ask.
-  assert.match(flat, /ask \*\*one (question about films|film question)\*\*/i);
-
-  // The skill says the same rule at greater length; the projection carries a
-  // shorter wording of it. Both must say it, or the two have drifted.
-  const canonical = canonicalSkill().replace(/\s+/g, " ");
-  for (const [what, inSkill, inProjection] of [
-    ["the answer is a film",
-      /they asked for a film and the answer is one/, /answer with a film/],
-    ["a question does not replace it",
-      /in the answer, never instead of it/, /in the answer[^.]{0,30}never instead/],
-    ["an empty model is no exception",
-      /An empty model is not\s+an exception/, /even with an empty model/],
-  ] as [string, RegExp, RegExp][]) {
-    assert.match(canonical, inSkill, `the skill lost: ${what}`);
-    assert.match(flat, inProjection, `the projection lost: ${what}`);
-  }
+  assert.match(flat, /ask \*\*one question about films\*\*/);
 
   // And the Step 4 obligations it defers to are untouched.
   for (const shape of [
@@ -1483,14 +1273,20 @@ test("R1 does not force the branch that is required to stop", () => {
    * produce an answer, and must not reach across into that branch — the two
    * live in different sections and the failure branch is the more specific.
    */
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
 
   // The two branches read separately. Spanning both would let a recommendation
   // obligation injected into the taste branch pass on the ordinary branch's
-  // "answer anyway" — the branches are adjacent and share a bullet, so the slice
-  // has to stop where the other begins.
-  const taste = flat.slice(flat.indexOf("*Taste question*"), flat.indexOf("*Ordinary*"));
-  const ordinary = flat.slice(flat.indexOf("*Ordinary*"), flat.indexOf("**A write fails**"));
+  // "recommend anyway" — the branches are adjacent, so the slice has to stop
+  // where the other begins.
+  const taste = flat.slice(
+    flat.indexOf("`get_taste` fails on a taste question"),
+    flat.indexOf("`get_taste` fails on an ordinary request"),
+  );
+  const ordinary = flat.slice(
+    flat.indexOf("`get_taste` fails on an ordinary request"),
+    flat.indexOf("**A write fails**"),
+  );
   assert.ok(taste.length > 20 && ordinary.length > 40, "the failure branches could not be found");
 
   assert.match(taste, /\bstop\b/, "the taste branch no longer stops");
@@ -1499,7 +1295,8 @@ test("R1 does not force the branch that is required to stop", () => {
   // any of its wordings. A branch told to stop and also told to recommend is a
   // contradiction the more specific rule would be expected to lose.
   for (const [what, leak] of [
-    ["the current projection wording", /answer with a film/i],
+    ["the rule's own wording", /they asked for a film and the answer is one/i],
+    ["a shorter wording of the same rule", /answer with a film/i],
     ["an earlier wording of the same rule", /the answer is a film/i],
     ["the ordinary branch's instruction", /answer anyway|recommend anyway/i],
     ["the answer shape itself", /one lead|two or three (directions|\*\*directions)/i],
@@ -1510,153 +1307,16 @@ test("R1 does not force the branch that is required to stop", () => {
 
   // And the ordinary branch keeps its opposite obligation, which is R1 reaching
   // it through the shared section rather than through a copy of the rule.
-  assert.match(ordinary, /answer anyway/, "the ordinary branch no longer answers");
+  assert.match(ordinary, /recommend anyway/, "the ordinary branch no longer answers");
 });
 
-test("the version marker is the last line, and is derived from the body without it", () => {
-  const lines = PROJECT_INSTRUCTIONS.split("\n");
+test("every rule the agent cannot work out for itself is in the skill", () => {
+  // One line per rule, whitespace collapsed on both sides, because where a sentence
+  // wraps is a detail of the source file and not of the contract. A rule that is
+  // reworded has to be re-pinned here, which is the point: rewording a rule is a
+  // decision, and this list is where it is seen.
+  const flat = flatSkill();
 
-  // Trailing newline, then the marker, then the blank line separating it from
-  // the instructions — the three steps of the transform, read backwards.
-  assert.equal(lines.at(-1), "", "the text should end with a newline");
-  assert.equal(lines.at(-2), markerFor(PROJECT_INSTRUCTIONS_VERSION));
-  assert.equal(lines.at(-3), "", "the marker should stand alone after a blank line");
-
-  // Hashing text that already carried the digest would be circular, so the
-  // digest covers the body as it stands after the frontmatter is stripped and
-  // before anything is appended.
-  assert.equal(PROJECT_INSTRUCTIONS_VERSION, versionOf(instructionsFrom(skill())));
-
-  // A change anywhere in the instructions has to reach the version, or a stale
-  // paste would keep claiming to be current.
-  assert.notEqual(PROJECT_INSTRUCTIONS_VERSION, versionOf(instructionsFrom(skill()) + "edited\n"));
-});
-
-/**
- * The cap, measured rather than guessed.
- *
- * A 22,080-character version pasted into a ChatGPT project was cut off at 8,083
- * with nothing to say so — more than half the skill never reached the agent. That
- * is what `full:start` … `full:end` exists for, and this is what stops it
- * regressing.
- */
-const CAP = 8000;
-
-/**
- * Where the guard sits.
- *
- * Above the 6,800 originally aimed for. The complete normative contract measures
- * ~7,700 written telegraphically, and the last 900 characters are not prose but
- * rules — reaching 6,800 would mean dropping some. The number here is therefore
- * what the contract actually costs plus a little room; lowering it is a product
- * decision about which rules stop reaching the agent, not an editing task.
- *
- * Raised from 7,900 when M3 gave Tonight a second thing to read — `get_memory`
- * beside `get_taste` — and the rule saying which to reach for would not fit.
- * The alternative was deleting a Phase-1 rule to make room, which is the
- * decision the paragraph above says this number exists to make explicit. The
- * cap did not move and cannot: it is measured, not chosen.
- *
- * Then it was retired, and the reason is worth keeping. M3's semantic sweep
- * found two rules the model does not follow while they live only in a tool's
- * own description: forgetting one statement destroyed the saved film in three
- * runs of three, and a question about a contradiction was answered "nothing
- * conflicts" from a read that cannot see the other side. Both had been written
- * into the tool descriptions first and neither took. Moving them into the
- * projection cost 71 characters and crossed the guard — and every way of
- * getting back under it meant dropping a rule that is still true, which is the
- * one thing the paragraph above says this number exists to prevent.
- *
- * So the guard is gone and `CAP` is the only limit, because `CAP` is the only
- * one that was ever measured. What replaces the guard is the paragraph above:
- * room is not made by deleting rules. If the next rule does not fit under
- * 8,000, something has to be genuinely redundant — not merely expendable.
- */
-
-test("all of the instructions fit in a ChatGPT project", () => {
-  assert.equal(PROJECT_INSTRUCTIONS_LENGTH, PROJECT_INSTRUCTIONS.length);
-  assert.ok(PROJECT_INSTRUCTIONS_LENGTH > 0);
-
-  // The one limit, and it is measured rather than chosen: a 22,080-character
-  // version came back truncated at 8,083. Nothing about being close to it is a
-  // failure; being over it means rules silently stop reaching the agent.
-  //
-  // Inclusive, because 8,000 characters is what fits — the cap is the last
-  // admissible length, not the first inadmissible one. `<` was off by one and
-  // would have rejected a projection that the host accepts.
-  assert.ok(
-    PROJECT_INSTRUCTIONS_LENGTH <= CAP,
-    `the instructions are ${PROJECT_INSTRUCTIONS_LENGTH} characters and would be truncated at ${CAP} — ` +
-      "move rationale between full:start and full:end, or find something genuinely redundant; " +
-      "a rule that is still true is not headroom",
-  );
-});
-
-test("the cap admits exactly 8,000 characters and refuses 8,001", () => {
-  // The boundary itself, since the assertion above can only ever exercise
-  // whichever side today's projection happens to fall on.
-  const fits = (length: number) => length <= CAP;
-
-  assert.equal(CAP, 8000);
-  assert.equal(fits(CAP), true, "8,000 characters is what fits and must be admissible");
-  assert.equal(fits(CAP + 1), false, "8,001 characters would be truncated and must be refused");
-  assert.equal(fits(CAP - 1), true);
-});
-
-test("nothing marked full-skill-only reaches the agent", () => {
-  // Both that the blocks are gone and that the markers themselves are: a stray
-  // `<!-- full:end -->` in the output would mean the regex matched nothing and
-  // the whole file shipped.
-  assert.doesNotMatch(PROJECT_INSTRUCTIONS, /full:(start|end)/);
-
-  for (const onlyInTheSkill of [
-    "want to watch  →  recommend",
-    "A Vibe name is evocative, not descriptive",
-    "playlist somebody made at two in the morning",
-    "Knives Out",
-    "| Ask this | Not this |",
-  ]) {
-    assert.equal(
-      PROJECT_INSTRUCTIONS.includes(onlyInTheSkill),
-      false,
-      `"${onlyInTheSkill}" is rationale and should not be spending the agent's budget`,
-    );
-  }
-});
-
-test("the projection is tonight-recommend's alone, and nothing of tonight-vibes reaches it", () => {
-  /**
-   * M5 (R3-2 of the plan). A ChatGPT project has one instruction slot and no
-   * second skill, so the projection is generated from `tonight-recommend` and
-   * nothing else. The Vibe lifecycle, the walk through existing Vibes and the
-   * grouping of a new user's first films are the plugin's: written in
-   * `tonight-vibes`, which a project never receives. What a project does get is
-   * the floor recommend states for itself — pinned in the test above.
-   */
-  const vibes = readFileSync(new URL("../../skills/tonight-vibes/SKILL.md", import.meta.url), "utf8");
-  for (const heading of vibes.match(/^##+ .+$/gm) ?? []) {
-    assert.equal(
-      PROJECT_INSTRUCTIONS.includes(heading),
-      false,
-      `"${heading}" is tonight-vibes' and has reached the project projection`,
-    );
-  }
-  assert.equal(PROJECT_INSTRUCTIONS.includes("name: tonight-vibes"), false);
-});
-
-test("an unbalanced marker is an error rather than a silent half-copy", () => {
-  // Left to the regex, a missing `full:end` eats the rest of the file and a
-  // missing `full:start` keeps a block. Both ship the wrong instructions and
-  // neither says anything.
-  assert.throws(() => instructionsFrom("---\nname: x\n---\n\n<!-- full:start -->\nrationale\n"), {
-    message: /unbalanced/,
-  });
-});
-
-test("every rule the agent cannot work out for itself is in the text it is given", () => {
-  // The contract is asserted against the GENERATED instructions, not the skill.
-  // Marking a block full-skill-only is a one-line edit, and until this test
-  // existed it could quietly take a rule out of the agent's hands.
   for (const rule of [
     // scope and boundaries
     "There is no setup",
@@ -1666,41 +1326,40 @@ test("every rule the agent cannot work out for itself is in the text it is given
     // reading and recommending
     "Read `get_taste` either",
     "binds only when they asked for their taste",
-    "A matching Vibe is a reason the recommendation fits",
-    "Verdicts calibrate it, never decide whether it counts",
+    "a Vibe that matches is a reason the recommendation fits",
+    "Verdicts calibrate that evidence. They never decide whether it counts",
     "exclusions hold",
     "Never print the taste model while",
     "one lead, named as such",
     "distance from the lead",
-    "rule a Movie out as new",
-    "out of being called new or unseen",
-    "`unseen` does not",
+    "rules a Movie out as new",
+    "never called new, unseen or not yet watched",
+    "`unseen` does not rule it out",
     "Anchor a stretch in something they like",
     // ownership and semantic confirmation
-    // Two rules, and they live in two sections now: persistence under "What may
-    // be persisted", the cross-root boundary beside the operation it qualifies.
+    // Two rules, and they live in two sections: persistence under "What may be
+    // persisted", the cross-root boundary beside the operation it qualifies.
     "Persist durable taste they express or confirm—not inference.",
     "Never add an unasked write to tidy another root.",
     "only the meaning they could agree to",
-    "Asking is not permission",
+    "Asking is not asking permission",
     // Tonight persists nothing it thought of by itself, so an offer is a thing
     // said in a conversation and nothing else. The rule the agent cannot work
     // out alone is what that implies: a yes is the only thing that writes, and
     // a no leaves nothing — not a pending offer, not a record it was made.
-    "Noticing writes nothing;\nonly their yes does, and no trace of the offer outlives it.",
-    // The mood rule, at its own statement rather than at the worked instance
-    // that restated it two lines later — "an ordinary recommendation or a mood
-    // for tonight is no reason to", which is pinned above as well.
+    "Noticing is free and costs nothing; writing needs a yes",
+    "no pending offer, no note that you asked, no record that they declined",
+    // The mood rule, at its own statement.
     "or a mood for tonight is no reason to",
     // The judgement half of the same rule: do not offer what you would not act
     // on now, because there is nowhere for an unacted offer to wait.
-    "Offer only what you would write now.",
-    "or anything you\nnoticed or offered yourself",
+    "offer only what you could create on the spot",
+    "or from anything you noticed or offered yourself",
     // Not "watched and said nothing writes nothing", which was false: watching
     // is a fact the user reported, and both the viewing and the evening may be
     // written from it. What may not be written is an opinion.
-    "Watching writes **no taste**",
-    "the viewing and the evening may be recorded",
+    "A film they watched and said nothing about writes **no taste**",
+    "`viewing` may hold it, and an evening may record what they said they did with a film",
     "Never infer a preference from silence",
     "Say so and let them decide",
     // genre against vibe
@@ -1708,7 +1367,7 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "Never stretch a Vibe to avoid making one",
     // movies
     "Never write a Movie this way without at least one Vibe",
-    "no Vibe and no Movie",
+    "No Vibe is needed for one and none may be invented to hold it — and no Movie either",
     "not a bucket",
     "do not save the film yet",
     "Never ask which they want",
@@ -1716,16 +1375,16 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "A yes is the whole permission",
     "never ask twice",
     "A film in no Vibe is legitimate",
-    // M5 (S3): narrowed to what stays true on both hosts.
+    // M5 (S3): narrowed to what stays true for every selection of the plugin.
     "Do not sort them, propose Vibes for them, or mention them unless they ask or speak of one",
     "A recommendation is not a saved Movie",
     "ever ask for what their sentence gave you",
-    "that is a verdict: `record_verdict`",
-    // M5 — the projected floor. However a film's working is put, it is a verdict
-    // in their words (S3); a proposed Vibe names its core and is written with it
-    // (S2); an empty model's one question is the films they love (S6).
-    "however put — that is a verdict",
-    "in their words, never stronger",
+    "that is a verdict, and it goes to `record_verdict`",
+    // M5 — the floor. However a film's working is put, it is a verdict in their
+    // words (S3); a proposed Vibe names its core and is written with it (S2); an
+    // empty model's one question is the films they love (S6).
+    "So is how a film worked for them, however they put it",
+    "recorded in their words and never made stronger than they made it",
     "name its core",
     "then the Vibe with its core",
     "two or three films you love",
@@ -1743,14 +1402,11 @@ test("every rule the agent cannot work out for itself is in the text it is given
     "the answer is ordinary sentences",
     // failures
     "offer to retry",
-    "*Taste question*: stop",
-    "*Ordinary*: answer anyway",
-    "claim nothing about them",
-    "never that it was stored",
+    "`get_taste` fails on a taste question** — stop",
+    "`get_taste` fails on an ordinary request** — recommend anyway",
+    "Claim **nothing** about them",
+    "Never claim something was stored when the tool refused",
   ]) {
-    // Compared with whitespace collapsed on both sides, because where a sentence
-    // wraps is a detail of the source file and not of the contract.
-    const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
     assert.ok(
       flat.includes(rule.replace(/\s+/g, " ")),
       `the agent is never told: ${JSON.stringify(rule)}`,
@@ -1759,129 +1415,91 @@ test("every rule the agent cannot work out for itself is in the text it is given
 });
 
 /**
- * M6 — the projected floor, and what it must leave exactly as it was.
+ * M6 — the deltas, and where they sit.
  *
- * `docs/work/m6/PLAN.md` §2–§3. Four projected deltas, each a skill-owned rule
- * both hosts need: a turn-down is a verdict (D1), a recommended film comes back
- * only outside a refusal's reach (D2), being in a Vibe is no opinion (D3), and a
- * request with taste read and no mood is still answered, led as a surprise (D4).
- * Where the deltas sit is pinned too: D4 inside the sentence that already says
- * *never instead*, so it cannot become R1's licence to interview.
+ * `docs/work/m6/PLAN.md` §2–§3. Four skill-owned rules: a turn-down is a verdict
+ * (D1), a recommended film comes back only outside a refusal's reach (D2), being
+ * in a Vibe is no opinion (D3), and a request with taste read and no mood is still
+ * answered, led as a surprise (D4). Where D4 sits is pinned too: after the
+ * sentence that already says *never instead*, so it cannot become R1's licence to
+ * interview.
  */
 test("M6: a turn-down is a verdict, and a refused film comes back only outside its reach", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
+  const flat = flatSkill();
   // D1, after the verdict routing it extends — which stays whole.
   assert.match(
     flat,
-    /that is a verdict: `record_verdict`, in their words, never stronger, \*"stop suggesting it"\* too — \*"nah, not that one"\* is `not-tonight`;/,
+    /that is a verdict, and it goes to `record_verdict`\. A turn-down reaches as far as their words/,
   );
-  // D2, after the sentence it narrows, and before the exception it already named.
-  assert.match(
-    flat,
-    /a film you recommended can come back unless a refusal reaches today: \*\*only what they said is evidence\*\*/,
-  );
-  // The skill says both at length.
-  const canonical = canonicalSkill().replace(/\s+/g, " ");
-  assert.match(canonical, /\*"not interested"\* and \*"stop suggesting it"\* are `not-ever`/);
+  assert.match(flat, /\*"not interested"\* and \*"stop suggesting it"\* are `not-ever`/);
   // G3 (M6 smoke, 0 of 3): an unclear turn-down was not recorded at all. It is a
   // verdict, dated today, and never made permanent.
   assert.match(
-    canonical,
+    flat,
     /one that does not say how far — \*"nah, not that one"\* — is `not-tonight` on today's date too: recorded, never left unrecorded, and never made permanent/,
   );
-  assert.match(canonical, /Never `disliked`, which says they watched it/);
-  assert.match(canonical, /never a question asking them to make it reach further/);
-  assert.match(canonical, /\*\*Within its reach a refused film is not offered again\*\*/);
-  assert.match(canonical, /a `not-tonight` reaches the evening its occasion names, which for tonight is today's date/);
-  assert.match(canonical, /Any other occasion is another evening's, and binds nothing tonight/);
+  assert.match(flat, /Never `disliked`, which says they watched it/);
+  assert.match(flat, /never a question asking them to make it reach further/);
+  // D2, inside the sentence it narrows, before the exception it already named.
+  assert.match(
+    flat,
+    /a film you recommended can come back — unless they turned it down, and then only outside the refusal's reach/,
+  );
+  assert.match(flat, /\*\*Within its reach a refused film is not offered again\*\*/);
+  assert.match(flat, /a `not-tonight` reaches the evening its occasion names, which for tonight is today's date/);
+  assert.match(flat, /Any other occasion is another evening's, and binds nothing tonight/);
 });
 
 test("M6: being in a Vibe is no opinion, and a film new to them there is a candidate", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
-  // D3, appended to the pinned sentence rather than rewording it.
-  // U1 (M6 smoke, 1 of 3): an unseen film with no verdict was called liked because it
-  // sat in a Vibe beside films that were. Liking is a film's own verdict, nothing else.
+  const flat = flatSkill();
+  // D3. U1 (M6 smoke, 1 of 3): an unseen film with no verdict was called liked
+  // because it sat in a Vibe beside films that were. Liking is a film's own verdict,
+  // nothing else.
+  assert.match(flat, /\*\*Being in a Vibe is no opinion either\*\*/);
+  assert.match(flat, /only a standing liked or loved says that/);
   assert.match(
     flat,
-    /A Movie carries no opinion: `viewing` is a fact about watching, and being in a Vibe none — never call a film liked without its own verdict\./,
-  );
-  // The candidate half was already projected, and stays.
-  assert.match(flat, /`unseen` does not, so it stays/);
-  const canonical = canonicalSkill().replace(/\s+/g, " ");
-  assert.match(canonical, /\*\*Being in a Vibe is no opinion either\*\*/);
-  assert.match(canonical, /only a standing liked or loved says that/);
-  assert.match(
-    canonical,
     /\*\*Never call a film liked or loved without its own verdict\*\*, however many films beside it in the Vibe they did like/,
   );
+  // The candidate half, and the rule it leans on.
   assert.match(
-    canonical,
+    flat,
     /A film there that is new to them is a candidate for that evening and may lead, as `unseen` always could; Tonight is still not the shortlist/,
   );
+  assert.match(flat, /`unseen` does not rule it out: they have not seen it, so it stays on the table/);
 });
 
 test("M6: with taste read and no mood, the answer still comes first, led as a surprise", () => {
-  const flat = PROJECT_INSTRUCTIONS.replace(/\s+/g, " ");
-  // D4 sits inside the one-question sentence, after "never instead" and before the
-  // empty-model clause — the question it allows is the answer's, never a substitute.
-  const sentence = flat.slice(flat.indexOf("Ask **one film question**"), flat.indexOf("**Never print the taste model"));
-  assert.ok(sentence.length > 0, "the one-question sentence is gone");
-  const instead = sentence.indexOf("**never instead**");
-  const mood = sentence.indexOf(
-    "taste read, not empty, no mood: a surprise lead, never called their mood; the question may ask it;",
-  );
-  const empty = sentence.indexOf("empty model:");
+  const flat = flatSkill();
+  // D4 comes after the sentence that says *never instead*, so the question it allows
+  // is the answer's, never a substitute.
+  const instead = flat.indexOf("**in the answer, never instead of it**");
+  const mood = flat.indexOf("**No mood given is not an exception either**");
+  const shape = flat.indexOf("**The shape:**");
   assert.ok(
-    instead >= 0 && mood > instead && empty > mood,
-    "D4 is not inside the never-instead sentence, ahead of the empty model",
+    instead >= 0 && mood > instead && shape > mood,
+    "D4 is not after the never-instead sentence, ahead of the answer's shape",
   );
-  // Its precondition is all of it, on both surfaces: the model was read AND is not
-  // empty (Codex implementation review 1). "Taste read" alone is met by a read
-  // that succeeded on an empty model, and would hand that case a mood question in
-  // competition with its own first-films question. The rule's own clause, before
-  // the colon, has to say both halves.
-  const precondition = sentence.slice(mood, sentence.indexOf(":", mood));
-  assert.match(precondition, /\bread\b/, "D4 no longer requires the taste to have been read");
-  assert.match(precondition, /\bnot empty\b/, "D4 no longer requires a model that is not empty");
-  const canonicalD4 = canonicalSkill().replace(/\s+/g, " ");
+  // Its precondition is all of it: the model was read AND is not empty (Codex
+  // implementation review 1). "Taste read" alone is met by a read that succeeded on
+  // an empty model, and would hand that case a mood question in competition with
+  // its own first-films question.
   assert.match(
-    canonicalD4,
+    flat,
     /\*\*No mood given is not an exception either\*\*, however many Vibes they have\. With their model read and not empty,/,
     "the skill's moodless rule lost half of its precondition",
   );
-  // The empty model and a failed read keep their own rules, worded exactly as they
-  // were before M6 (a22a09f4).
-  const before: [string, string][] = [
-    [
-      "the empty-model clause",
-      'empty model: *"two or three films you love?"*, alone if no\n' +
-        'film was asked; never *"what genres do you like?"*, or require learning\n' +
-        "Genres and Vibes.",
-    ],
-    [
-      "the failed-read branches",
-      "- **`get_taste` fails** — *Taste question*: stop, quote the error, offer to retry, **recommend\n" +
-        "  nothing**. *Ordinary*: answer anyway **in the usual shape**; first sentence: model unread,\n" +
-        "  answer not based on it; claim nothing about them; offer to retry.",
-    ],
-    [
-      "the shape",
-      "**The shape:** One idea for the evening, in a line. Then **one lead, named as such** — " +
-        '*"I\'d start with X"* — and why it, for them. Then two or three **directions**, each\n' +
-        "opened by when it wins, ordered by **distance from the lead**, not quality. Close with one\n" +
-        "question **or** one lever, never both. **Owed an answer, a tool call is not one.**",
-    ],
-  ];
-  for (const [what, unchanged] of before) {
-    assert.ok(PROJECT_INSTRUCTIONS.includes(unchanged), `M6 changed ${what}`);
-  }
-  // The skill gives the reason, and keeps the two other cases apart.
-  const canonical = canonicalSkill().replace(/\s+/g, " ");
-  assert.match(canonical, /\*\*No mood given is not an exception either\*\*, however many Vibes they have/);
+  // The reason, and the two other cases kept apart.
   assert.match(
-    canonical,
+    flat,
     /\*\*say it is a surprise\*\* — never that it is what they are in the mood for, because they have not said/,
   );
-  assert.match(canonical, /Their Vibes are never listed, summarised or counted/);
-  assert.match(canonical, /An empty model and a failed read are their own cases, and nothing here changes them/);
+  assert.match(flat, /let the one question, if there is one, ask the mood/);
+  assert.match(flat, /Their Vibes are never listed, summarised or counted/);
+  assert.match(flat, /An empty model and a failed read are their own cases, and nothing here changes them/);
+  // The empty model keeps its own question, and asks it alone when nothing was asked.
+  assert.match(
+    flat,
+    /With an empty model the question is \*"what are two or three films you love\?"\* — and somebody new who has asked for nothing yet is asked it on its own, in one sentence/,
+  );
 });

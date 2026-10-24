@@ -13,17 +13,19 @@ reruns it (`docs/work/m5/M5-PLAN.md`, §10 and Revision 4).
 | `fixtures/` | the four models the scenarios start from |
 | `run.mjs` | the runner |
 
-## Three sources, because there are two hosts
+## Two sources, because the plugin may load either skill
 
-A ChatGPT project gets `tonight-recommend`'s projection and nothing else. The canonical plugin
-ships both full skills, and ChatGPT may load either or both. So every run says which instructions
-it was given (`--source`), and a scenario lists the sources it is scored on:
+The canonical plugin ships both skills, and ChatGPT may load either or both. So every run says
+which instructions it was given (`--source`), and a scenario lists the sources it is scored on:
 
 | source | instructions | scored for |
 | --- | --- | --- |
-| `projection` | the generated projection | the floor every host needs: routing into `record_verdict` with faithful words, the ten inadmissible outcomes, the §5 *Never* column, the keep flow with a core, the first-film question, and the recommendation-only reading case. **A stop after a positive verdict is correct here and is never scored as a miss.** |
-| `plugin-skills` | every full `SKILL.md` the plugin package carries (every folder under `skills/`), recommend first, exactly the packaged bytes — both skills since S3, `tonight-recommend` alone before it | the lifecycle: consideration, offers, several Vibes, a new core, a new Vibe, the opt-out, yes / no / partial, a new user's first Vibes, going through existing Vibes — and the ten inadmissible outcomes |
-| `recommend-only` | `tonight-recommend/SKILL.md` alone | the recommendation-only reading case: the plugin when only recommend is selected |
+| `recommend-only` | `tonight-recommend/SKILL.md` alone — the plugin when only recommend is selected | the floor recommend states for itself: routing into `record_verdict` with faithful words, the ten inadmissible outcomes, the §5 *Never* column, the keep flow with a core, the first-film question, and the recommendation-only reading case. **A stop after a positive verdict is correct here and is never scored as a miss.** |
+| `plugin-skills` | every `SKILL.md` the plugin package carries (every folder under `skills/`), recommend first, exactly the packaged bytes — both skills since S3, `tonight-recommend` alone before it | the lifecycle: consideration, offers, several Vibes, a new core, a new Vibe, the opt-out, yes / no / partial, a new user's first Vibes, going through existing Vibes — and the ten inadmissible outcomes |
+
+Until the ChatGPT-project text was retired there was a third source, `projection`, and the floor
+ran there. It now runs on `recommend-only`. Recordings made on `projection` stay in their own
+result directories and are read as what they were.
 
 The CLI cannot reproduce ChatGPT's choice of skill, so the chosen text goes into the system prompt
 and the artifact says so. **The canonical plugin is also evaluated by hand** — on the user's
@@ -35,15 +37,15 @@ instructions.
 
 ```bash
 cd web && npm run dev                                          # the server the proxy fronts
-node skills/tonight-recommend/evaluation/m5/run.mjs --source projection --dry-run
-node skills/tonight-recommend/evaluation/m5/run.mjs --source projection
-node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills
+node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only --dry-run
 node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only
+node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills
 ```
 
 It needs `web/.env.local` (the seeder mints its tokens from it) and refuses to run while either
-`SKILL.md`, the generated projection or the MCP server differs from `HEAD`. Three runs per
-scenario unless `--runs` says otherwise. Results go to `results/`, which is ignored.
+`SKILL.md` or the MCP server differs from `HEAD`. Three runs per scenario unless `--runs` says
+otherwise. Results go to `results/`, which is ignored, in a directory named by the set, the
+source, a digest of exactly the skills that source supplies, and the commit.
 
 Every run reseeds its fixture first, through the M3 seeder and the public tools: **vibes, then
 films, then genres** are deleted — a film that anchors a vibe cannot be deleted until the vibe is
@@ -69,7 +71,8 @@ node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only
 ```
 
 `plugin-skills` there is the plugin as it then shipped — the full, untouched `tonight-recommend`
-alone — so the routing matrix and the second turns are recorded against it. The seeder asks the
+alone — so the routing matrix and the second turns are recorded against it. Those commands are
+that commit's: its runner still had the `projection` source, which this one does not. The seeder asks the
 server whether `create_vibe` takes a `core`: a v12 build is given each Vibe without one and files
 the core film from the film's side, so the fixtures seed the same films into the same Vibes on
 either build, anchored only on v13.

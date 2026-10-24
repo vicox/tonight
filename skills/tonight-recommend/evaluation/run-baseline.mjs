@@ -45,7 +45,6 @@ import { agentHost } from "./host.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..", "..");
-const WEB = join(ROOT, "web");
 const ORIGIN = process.env.TONIGHT_ORIGIN ?? "http://localhost:3000";
 
 const args = process.argv.slice(2);
@@ -72,22 +71,17 @@ const OUT = join(here, "results", `${SIDE}${HOST.suffix}`, "runs");
 const CLI = execFileSync("claude", ["--version"], { encoding: "utf8" }).trim().split(" ")[0];
 
 /**
- * The instructions, exactly as somebody pastes them.
- *
- * Read out of the generated module and un-escaped, which is the reverse of what
- * `scripts/sync-instructions.mjs` does when it writes it. Nothing is summarised:
- * a run against a paraphrase is a run against different instructions.
+ * The instructions, exactly as a host loads them: `tonight-recommend`'s
+ * `SKILL.md`, whole. Nothing is summarised: a run against a paraphrase is a run
+ * against different instructions.
  */
 function instructions() {
-  const source = readFileSync(join(WEB, "lib", "generated", "project-instructions.ts"), "utf8");
-  const open = source.indexOf("PROJECT_INSTRUCTIONS = `") + "PROJECT_INSTRUCTIONS = `".length;
-  const body = source.slice(open, source.indexOf("`;", open));
-  return body.replace(/\\`/g, "`").replace(/\\\$\{/g, "${").replace(/\\\\/g, "\\");
+  return readFileSync(join(ROOT, "skills", "tonight-recommend", "SKILL.md"), "utf8");
 }
 
+/** Eight hex characters of the SHA-256 of exactly the text the agent was given. */
 function version() {
-  const source = readFileSync(join(WEB, "lib", "generated", "project-instructions.ts"), "utf8");
-  return source.match(/PROJECT_INSTRUCTIONS_VERSION = "([a-f0-9]+)"/)[1];
+  return createHash("sha256").update(instructions(), "utf8").digest("hex").slice(0, 8);
 }
 
 /**
@@ -98,7 +92,6 @@ function version() {
 function refuseIfPromptsMoved() {
   const watched = [
     "skills/tonight-recommend/SKILL.md",
-    "web/lib/generated/project-instructions.ts",
     "web/lib/mcp/server.ts",
   ];
   for (const file of watched) {

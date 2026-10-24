@@ -7,10 +7,8 @@
 # they catch deletion and edit of an explicit contract rule, not every sentence that
 # could contradict one.
 #
-# This skill is plugin-only. A ChatGPT project receives tonight-recommend's projection
-# and nothing of this file, so nothing here is marked for projection and nothing here
-# is checked against the generated instructions — the rules below are asserted against
-# this file, which the canonical plugin ships byte for byte.
+# The rules below are asserted against this file, which the canonical plugin ships
+# byte for byte. There is no other rendering of it.
 #
 # Prints one line per check and exits non-zero if any of them fails.
 
@@ -79,7 +77,7 @@ check "and it does not claim a request for a film" \
 echo
 echo "--- plugin-only, and not a second copy of recommend ---"
 
-check "nothing here is marked for a projection that never reads this file" \
+check "nothing here is marked for a projection" \
     "$(grep -cE 'full:(start|end)|project:compact' "$SKILL")" "0"
 # R3-1 of the M5 plan: how a Vibe is read is recommend's, so a conversation that only
 # recommends keeps it. Restated here, the two would be free to drift apart.
