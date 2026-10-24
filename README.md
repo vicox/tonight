@@ -30,10 +30,13 @@ produced `Space Tension`.
 
 **Movies** are the films you have told Tonight about. A Movie has a title and a release year —
 together they are its name, so `Dune / 1984` and `Dune / 2021` are two of them — and it may carry
-an IMDb id and a **viewing**: seen, not seen, or nothing said either way, which is not the same
-as not seen. That is the whole of what a Movie says about you, and it is a fact about watching
-rather than an opinion. A Movie may be in no Vibe, one, or several, and it is yours in its own
-right either way: nothing is looked up, and no film is here unless you put it there.
+an IMDb id. Its **viewing** says where it stands on your list — always one of `seen`
+(*"I've seen it"*), `want-to-see` (*"Put it on my list"*) and `dont-want-to-see` (*"Don't recommend
+it again"*) — and a film saved without one is `want-to-see`. The assistant says what it stored, so
+you can correct it. That is the whole of what a Movie says about you, and it is a fact rather than
+an opinion: a `want-to-see` film may be recommended, a `dont-want-to-see` one never is. A Movie
+may be in no Vibe, one, or several, and it is yours in its own right either way: nothing is
+looked up, and no film is here unless you put it there.
 
 **Verdicts** are what you thought. One film, one thing said: `liked`, `loved` or `disliked`, or
 a refusal — `not-tonight` for one evening, `not-ever` for good — with your own words for why if
@@ -205,9 +208,10 @@ addressed from outside, and there is no id in any tool schema or any answer.
   refused — the instruction is written from what that person actually said.
 - **A Movie is named by its title and year together**, unique per user ignoring case, so one
   person's list can hold both `Dune`s.
-- **A Movie's `viewing` has no default**, and is constrained to two values. The column is
-  nullable and nothing fills it in: `null` means Tonight was never told, `unseen` means the
-  user said so, and turning the first into the second would put a statement in their mouth.
+- **A Movie's `viewing` is always one of three** — `seen`, `want-to-see`, `dont-want-to-see` —
+  `NOT NULL`, with `want-to-see` as the default for a film saved without one. Taste v14 turned
+  the old `unseen` into `want-to-see`; it backfills no `NULL`, and fails rather than guess if
+  one is there.
 - **A Movie carries no opinion.** What somebody thought of a film is a Verdict, with a scope, a
   provenance, an instant and a history no column here could hold — so there is nowhere on a
   Movie to put one. Taking a Verdict back removes that act from what stands and reaches exactly
@@ -217,10 +221,10 @@ addressed from outside, and there is no id in any tool schema or any answer.
   one of its own films: a column on the Vibe with a deferred foreign key into its memberships. A
   core is required to create a Vibe, can be replaced — the old one stays a member — and is never
   cleared. A Vibe from before cores existed reads `core: null` and works as it is until somebody
-  chooses its core; nothing anchors one automatically. **A core is never a film whose saved viewing
-  says unseen**: the store refuses one as a core, and refuses to mark a core unseen. It reads that
-  saved fact alone — whether a verdict says otherwise is the user's to settle, never a viewing
-  written to get past the refusal.
+  chooses its core; nothing anchors one automatically. **A core is a film saved as `seen`**: the
+  store saves a new core that way, refuses a saved film that is anything else as a core, and
+  refuses to mark a core anything else. It reads that saved fact alone — whether a verdict says
+  otherwise is the user's to settle, never a viewing written to get past the refusal.
 - **Deleting a Movie is allowed unless it anchors a Vibe**, and takes only its Vibe memberships
   with it. A Vibe is *defined by* its Genres and its core, and merely *holds* its other Movies,
   which is why those restrict and the rest cascade. Taking a core out of its Vibe is refused the
@@ -233,10 +237,10 @@ and — for whoever is signed in — their own taste model, read and managed thr
 the MCP tools use. There is no second surface and no second copy of the rules.
 
 The website shows a Vibe-oriented view of the model and edits part of it: Genres and Vibes are
-managed there, whether a film has been seen and what the user thought of it can be set there, and
-everything else about a Movie is done through an assistant. It does not recommend, and it has no
-model inside it to recommend with: the panel at the foot of the page names the sentence to take
-to your assistant. It is *a* place to manage the model rather than the only one — an assistant
+managed there, where a film stands on the user's list and what they thought of it can be set
+there, and everything else about a Movie is done through an assistant. It does not recommend,
+and it has no model inside it to recommend with: the panel at the foot of the page names the
+sentence to take to your assistant. It is *a* place to manage the model rather than the only one — an assistant
 asked outright to rename a Genre or delete a Vibe uses the same tools and does it there and then.
 
 The page is organised around Vibes, and a Movie in no Vibe is listed under *Other movies* beneath
@@ -263,7 +267,8 @@ that needs it.
 Most migrations only add. Some remove something the running build still writes, and those are
 **roll-forward only**: once the column is gone, the build that wrote it cannot serve, and there
 is no ordering that makes it safe to leave running. Taste v12, which drops the Movie `state`
-column, is one of these.
+column, is one of these, and so is taste v14, which refuses the `unseen` and `NULL` viewings the
+build before it writes.
 
 So the contract for any release carrying one is four steps and their order is the whole of it:
 

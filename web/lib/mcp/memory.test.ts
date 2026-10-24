@@ -180,8 +180,8 @@ describe("the memory tools", () => {
 
   test("a refusal stays a refusal, and says nothing about the film being watched", async () => {
     // `not-ever` and `not-tonight` turn a film down. Neither is a dislike and
-    // neither is evidence that they watched it, so a film with a refusal and no
-    // viewing is still a film nobody has said they have seen.
+    // neither is evidence that they watched it, so a film on their list with a
+    // refusal is still a film nobody has said they have seen.
     for (const rejection of [
       { about: "rejection", reach: "not-ever" },
       { about: "rejection", reach: "not-tonight", occasion: "tue" },
@@ -192,7 +192,7 @@ describe("the memory tools", () => {
 
       const { held } = await memory(her);
       const [movie] = of(held, "movie");
-      assert.equal(movie?.viewing, null, "a refusal was read as having watched it");
+      assert.equal(movie?.viewing, "want-to-see", "a refusal was read as having watched it");
       assert.equal(
         JSON.stringify(held).includes("disliked"),
         false,

@@ -273,22 +273,25 @@ const imdbId = z
 
 const movieViewing = z
   .enum(VIEWINGS)
-  .nullable()
   .describe(
-    "Whether they have watched it, as one answer: seen (they said they watched it), unseen " +
-      "(they said they have not). Take it from what they said: \"haven't seen it\" / \"want to " +
-      "watch it\" -> unseen, \"seen it\" / \"watched it years ago\" -> seen. Omit the field when " +
-      "they have not said; that records nothing, and it is not the same as unseen.\n\n" +
-      "**This is a fact, never an opinion.** It says whether they watched the film and nothing " +
+    "Where the film stands on their list, always one of three: seen (they have watched it), " +
+      "want-to-see (on their list to see), dont-want-to-see (never to be recommended). Take " +
+      "it from what they said: \"I've seen it\" / \"watched it years ago\" -> seen, \"haven't " +
+      "seen it\" / \"put it on my list\" / \"want to watch it\" -> want-to-see, \"don't recommend " +
+      "it again\" -> dont-want-to-see. A film saved without one is want-to-see, so say seen " +
+      "whenever they told you they watched it.\n\n" +
+      "**Say what you stored.** After the write, tell them in one short sentence where the film " +
+      "now stands — *\"saved Arrival as want to see\"* — so that a status they did not mean is " +
+      "corrected there and then. A correction is another `update_movie`.\n\n" +
+      "**This is a fact, never an opinion.** It says where the film stands for them and nothing " +
       "about whether they liked it — it is never a score or star rating, and never where a " +
       "fresh opinion goes. Liked, loved and disliked are verdicts and `record_verdict` " +
       "is what records them; a judgement already says they watched it, so there is nothing to " +
       "write here as well.\n\n" +
-      "Pass null to go back to having been told nothing — and only where clearing the saved " +
-      "viewing is itself what they asked for. **Null is not a way to tidy up after something " +
-      "else.** Forgetting or withdrawing a verdict leaves this standing on purpose: it is a " +
-      "different thing they said and it is still true. Clearing it then destroys a second " +
-      "thing they never asked you to remove. If they asked for both, do both.",
+      "**Not a way to tidy up after something else.** Forgetting or withdrawing a verdict " +
+      "leaves this standing on purpose: it is a different thing they said and it is still " +
+      "true. Change it only where changing it is itself what they asked for. If they asked " +
+      "for both, do both.",
   );
 
 const movieVibes = z
@@ -306,10 +309,9 @@ const vibeCore = z
       "behind — one they liked or loved, or one they named as what the vibe means — and never a " +
       "film you only offered as an illustration, one they said they have not seen, or one they " +
       "disliked or turned down for good. The core is filed in the vibe by this same call, and " +
-      "saved first if it is not saved yet, with nothing else about it.\n\n" +
-      "Refused when the saved film's viewing is `unseen` — a liked or loved does not override " +
-      "it, and a viewing is changed only on their word, never to get past this. A film with " +
-      "no viewing (null) is accepted.",
+      "saved first if it is not saved yet, as seen and with nothing else about it.\n\n" +
+      "Refused when the saved film's viewing is anything but `seen` — a liked or loved does " +
+      "not override it, and a viewing is changed only on their word, never to get past this.",
   );
 
 /**
@@ -361,7 +363,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "listed by title and year, and `core` names the one that best embodies it — always one " +
         "of its films, or null on a vibe written before vibes were anchored to a film, which is " +
         "complete and usable as it is. Each film also appears once in movies, carrying its identity, " +
-        "where it is filed, and `viewing`: seen, unseen, or null for never told. A new user has " +
+        "where it is filed, and `viewing`: seen, want-to-see or dont-want-to-see. A new user has " +
         "none of it, which is the normal state " +
         "rather than an error. It is context and the vocabulary to reuse when writing — not a " +
         "list of what may be recommended, and a genre or vibe existing does not by itself say " +
@@ -371,12 +373,14 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "differently. Both are Tonight's own, ISO 8601 in UTC. No tool takes either, and " +
         "nothing you send can set or move them. createdAt is null on a film saved before " +
         "Tonight recorded creation times; that is not known rather than not set.\n\n" +
-        "**A movie says nothing about whether they liked it.** `viewing` is a fact about " +
-        "watching and the only fact a movie carries about them; every opinion is a verdict. So a " +
-        "film in `movies` with no verdict is a film **no current opinion stands about**, however " +
-        "long it has been saved — which is not the same as their having said nothing, because " +
-        "`viewing` may be something they told you. And `viewing` is never evidence for or " +
-        "against recommending it, only for whether it would be new to them.\n\n" +
+        "**A movie says nothing about whether they liked it.** `viewing` is where the film " +
+        "stands on their list and the only fact a movie carries about them; every opinion is a " +
+        "verdict. So a film in `movies` with no verdict is a film **no current opinion stands " +
+        "about**, however long it has been saved — which is not the same as their having said " +
+        "nothing, because `viewing` may be something they told you. And `viewing` is never " +
+        "evidence about their taste. It settles two things only: a `want-to-see` film is new " +
+        "to them and may be recommended, and a `dont-want-to-see` film is **never recommended** " +
+        "— not as the lead, not as a direction.\n\n" +
         "**What you find here is theirs; what you make of it is yours.** Report a verdict as the " +
         "verdict it is — *\"you loved Paterson\"* — and where several of them line up, the line-up " +
         "is your reading and has to sound like one: *\"there may be a quiet, patient thread " +
@@ -412,9 +416,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "one film refused. Neither says they have seen it.\n\n" +
         "A standing judgement means they watched the film, whether or not a movie here says so " +
         "— nobody likes a film they have not seen. So a film is new to them when `viewing` is " +
-        "not seen **and** no judgement stands; `unseen` is them saying they have not watched it, " +
-        "and a null `viewing` with no judgement is nobody having said either way, which you may " +
-        "not describe as unseen.\n\n" +
+        "not seen **and** no judgement stands.\n\n" +
         "Only what currently stands is here. A verdict they corrected shows as the correction and " +
         "the one it replaced is gone from this list; one they took back is gone too. **A taking-back " +
         "reaches exactly as far as the verdict it takes back**, so withdrawing a judgement leaves " +
@@ -598,17 +600,18 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Save a movie",
       description:
-        "File a film the user told you about, and whether they have watched it. What they are " +
-        "telling you they *thought* of a film — that they loved it, that it is not for tonight, " +
-        "that they never want it again — is a verdict and belongs to `record_verdict`; nothing " +
-        "here carries an opinion. A recommendation " +
+        "File a film on their list, and where it stands for them: *\"I've seen it\"* is seen, " +
+        "*\"put it on my list\"* is want-to-see, *\"don't recommend it again\"* is " +
+        "dont-want-to-see. What they are telling you they *thought* of a film — that they loved " +
+        "it, that it is not for tonight, that they are not interested — is a verdict and belongs " +
+        "to `record_verdict`; nothing here carries an opinion. A recommendation " +
         "is not a saved movie: naming three films persists nothing, and neither does the user " +
         "liking your suggestion of one. Write only Movie identity and what the user expressed, " +
         "or a meaning you put to them and they confirmed — and a confirmation covers only the " +
         "meaning they were shown, settling that it is theirs rather than granting permission to " +
-        "write. Absence is never unseen: leave viewing out when you were not told, because " +
-        "having said nothing is not the same as having said they have not seen it. Addressed " +
-        "by title and year together, so establish the year before writing.",
+        "write. Leave viewing out and the film is saved as want-to-see; then say what you " +
+        "stored, so they can correct it. Addressed by title and year together, so establish " +
+        "the year before writing.",
       inputSchema: z.object({
         title: movieTitle,
         year: movieYear,
@@ -631,9 +634,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
       description:
         "Change what is stored about a saved film, or which vibes it is in. Addressed " +
         "by its current title and year; new_title and new_year change either half and the film " +
-        "stays the same object, so its filings follow it. Omitting a field leaves it alone — " +
-        "passing null is what clears one back to unknown, and the two are not the same. " +
-        "Absence is never unseen: say a viewing only when they said it. What they are telling " +
+        "stays the same object, so its filings follow it. Omitting a field leaves it alone, " +
+        "and passing null clears an IMDb id. A viewing is never cleared: it is always seen, " +
+        "want-to-see or dont-want-to-see — change it when they tell you where the film stands, " +
+        "and say what you stored. What they are telling " +
         "you now about a film is a verdict, not a viewing: `record_verdict` records it and " +
         "`withdraw_verdict` takes one back, and neither touches what is stored here. " +
         "A recommendation is " +
@@ -641,9 +645,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "proposed, is nothing Tonight knows unless they said so. Write only what they " +
         "expressed or confirmed, and a confirmation covers only the meaning they were shown; " +
         "it is not permission to write more than that.\n\n" +
-        "A film cannot be taken out of a vibe it is the core of, nor marked unseen while it is " +
-        "a core. The refusal names the vibes: make another film the core with `update_vibe` " +
-        "first, or delete the vibe.",
+        "A film cannot be taken out of a vibe it is the core of, nor marked anything but seen " +
+        "while it is a core. The refusal names the vibes: make another film the core with " +
+        "`update_vibe` first, or delete the vibe.",
       inputSchema: z.object({
         title: movieTitle.describe("The film to change, by its current title."),
         year: movieYear.describe("The film to change, by its current year."),
@@ -869,10 +873,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
                 .enum(REACHES)
                 .describe(
                   "`not-tonight` turns it down for one evening and means nothing beyond it; " +
-                    "`not-ever` turns it down for good. *\"Not interested\"*, *\"stop " +
-                    "suggesting it\"* and *\"don't recommend it again\"* are `not-ever`; *\"not " +
-                    "tonight\"* and *\"not in the mood for it\"* are `not-tonight`. A refusal is " +
-                    "never `disliked` — that is a judgement, and says they watched it.",
+                    "`not-ever` turns it down for good. *\"Not interested\"* and *\"stop " +
+                    "suggesting it\"* are `not-ever`; *\"not tonight\"* and *\"not in the mood " +
+                    "for it\"* are `not-tonight`. *\"Don't recommend it again\"* is not a " +
+                    "verdict: it puts the film on their list as dont-want-to-see, with " +
+                    "`create_movie` or `update_movie`. A refusal is never `disliked` — that is " +
+                    "a judgement, and says they watched it.",
                 ),
               reason: verdictWords("Why they turned it down, if they said."),
               occasion: verdictOccasion.optional(),
@@ -1002,15 +1008,15 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "you know about me?\" has a complete and honest answer.\n\n" +
         "`held` is what it currently holds as theirs: their genres, their vibes — each with its " +
         "`core`, the film anchoring it, or null where none has been chosen yet — the films they " +
-        "saved with whether they have watched them, and the verdicts that still stand. " +
+        "saved with where each stands on their list, and the verdicts that still stand. " +
         "`remembered` is what it remembers happening: evenings, " +
         "verdicts they replaced, verdicts they took back. **Remembered is not evidence about " +
         "them.** An evening is not a preference, and something they stopped saying is not " +
         "something they say.\n\n" +
         "A film and a verdict are different kinds of thing and neither contradicts the other. A " +
-        "film carries `viewing` — whether they watched it — and no opinion at all; every opinion " +
-        "is a verdict. So there is nothing here to rank against anything else: what they think " +
-        "of a film is whatever verdict stands, and if none stands, no current opinion stands — " +
+        "film carries `viewing` — where it stands on their list — and no opinion at all; every " +
+        "opinion is a verdict. So there is nothing here to rank against anything else: what they " +
+        "think of a film is whatever verdict stands, and if none stands, no current opinion stands — " +
         "which `remembered` may still show them having given and taken back.\n\n" +
         "Every entry carries where it came from and, where one exists, the handle you correct " +
         "it by: a genre or vibe by its name, a film by title and year, an evening by its id, and " +

@@ -166,13 +166,13 @@ export type VibeRoot = {
   handle: Handle;
 };
 
-/** A film they filed, and whether they have said they watched it. */
+/** A film they filed, and where it stands on their list. */
 export type MovieRoot = {
   placement: "held";
   of: "movie";
   film: Film;
-  /** `null` is never told, which is not the same as `unseen`. */
-  viewing: Viewing | null;
+  /** Seen, want to see, or don't want to see. */
+  viewing: Viewing;
   imdbId: string | null;
   vibes: readonly string[];
   basis: Saved;

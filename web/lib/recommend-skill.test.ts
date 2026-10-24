@@ -103,8 +103,8 @@ test("what moved to the tools is no longer stated here as well", () => {
     ],
     ["the score prohibition", /score/i],
     ["the Vibe naming test", /already tells you the name|what would I get wrong|the instruction test/i],
-    // `unseen` itself stays: the skill still says what a *stored* answer means
-    // when recommending. What moved is what *saving* does to the field.
+    // The viewing answers themselves stay: the skill still says what a *stored*
+    // answer means when recommending. What moved is what *saving* does to the field.
     [
       "what saving does to the state",
       /never makes it `unseen`|nothing said is `null`|absence is never unseen|not the same as unseen/i,
@@ -261,7 +261,7 @@ test("a Vibe is evidence, and the verdicts under it calibrate rather than gate",
     ["that it leaves no weaker opinion", /leaves no quieter opinion underneath it/],
     ["that a withdrawal is not an unsaying", /it is not an unsaying/],
     ["that viewing is a fact and not taste",
-      /`viewing` says whether they watched it and that is a\s*fact, never a sign for or against/],
+      /`viewing` says where the film stands on their list and\s*that is a fact, never a sign for or against/],
     ["how a Vibe with no verdict is read", /less confidence about specifics and just as\s*much about intent/],
     ["that describing the match stays allowed", /say how well a film answers what the Vibe asks for/],
     ["that their verdict may not be claimed", /What you may not say is that \*\*they\*\*\s*like it/],
@@ -427,10 +427,10 @@ test("how many Genres to create stays guidance", () => {
 test("a film they have seen or judged is not offered as a new one", () => {
   /**
    * P4 and P10. The target is what they have not seen or judged — which is not the
-   * same as what Tonight has never heard of. `unseen` is something they said, and it
-   * means they told Tonight they have *not* seen the film: that is a reason to offer
-   * it, so it is the one state that keeps a Movie eligible. A `loved` film is spent
-   * as evidence instead, which is worth more than suggesting it again.
+   * same as what Tonight has never heard of. `want-to-see` is their list: they have
+   * *not* seen the film and want to, which is a reason to offer it, so it is the
+   * state that keeps a Movie eligible. `dont-want-to-see` is never offered. A `loved`
+   * film is spent as evidence instead, which is worth more than suggesting it again.
    */
   const flat = flatSkill();
 
@@ -439,12 +439,10 @@ test("a film they have seen or judged is not offered as a new one", () => {
     ["what rules a film out",
      "`viewing` of `seen` rules a Movie out as new,\nand so does a standing judgement"],
     ["why a judgement does", "**nobody likes a film they have not seen**"],
-    ["that unseen does not", "`unseen` does\nnot rule it out"],
-    ["that an unseen film stays eligible", "so it stays on the table"],
+    ["that want-to-see does not", "`want-to-see`\ndoes not rule it out"],
+    ["that a film on the list stays eligible", "so it stays on the table"],
+    ["that dont-want-to-see is never recommended", "**`dont-want-to-see` is\nnever recommended**"],
     ["that a refusal proves nothing about watching", "A refusal is not evidence they saw it"],
-    ["that null is not unseen", "`null` is not `unseen`"],
-    ["that null is nobody having said", "**nobody has said either way**"],
-    ["that null may lead", "so it may lead but must never be\ndescribed as one they have not seen"],
     ["that being ruled out covers being called new", "never called new, unseen or not yet watched"],
     ["what a loved film is for", "`loved` one is a **reason**, not a suggestion"],
     ["that a stretch needs a positive anchor", "Anchor a stretch in something they like"],
@@ -455,33 +453,33 @@ test("a film they have seen or judged is not offered as a new one", () => {
   }
 
   // Negative half: what rules a Movie out is having watched it — said outright,
-  // or implied by a standing judgement. `unseen` joining that would silently turn
-  // "I have not seen this" into a reason to withhold the film, which is the
+  // or implied by a standing judgement. `want-to-see` joining that would silently
+  // turn "put it on my list" into a reason to withhold the film, which is the
   // precise inversion of the rule.
-  const ruledOut = flat.slice(flat.indexOf("`viewing` of `seen`"), flat.indexOf("`unseen` does not"));
+  const ruledOut = flat.slice(flat.indexOf("`viewing` of `seen`"), flat.indexOf("`want-to-see` does not"));
   assert.ok(ruledOut.length > 0 && ruledOut.length < 300, "the sentence that rules a film out moved");
-  assert.doesNotMatch(ruledOut, /`unseen`/);
+  assert.doesNotMatch(ruledOut, /`want-to-see`/);
 
   // Positive half: absence from that list is not enough on its own — a reader could
   // still conclude that a film Tonight has heard of is spent. Somewhere after the
-  // list, `unseen` must be named and said to remain available, and the sentence
-  // saying so must not be a negation of eligibility.
+  // list, `want-to-see` must be named and said to remain available, and the
+  // sentence saying so must not be a negation of eligibility.
   const after = flat.slice(flat.indexOf("rules a Movie out as new"));
-  const eligibility = after.slice(after.indexOf("`unseen`"), after.indexOf("`loved` one is"));
-  assert.ok(eligibility.includes("`unseen`"), "`unseen` is never mentioned as still eligible");
+  const eligibility = after.slice(after.indexOf("`want-to-see`"), after.indexOf("**`dont-want-to-see`"));
+  assert.ok(eligibility.includes("`want-to-see`"), "`want-to-see` is never mentioned as still eligible");
   assert.match(
     eligibility,
     /does not|still|remains|stays/,
-    "`unseen` is named but never said to remain available",
+    "`want-to-see` is named but never said to remain available",
   );
   assert.doesNotMatch(
     eligibility,
     /\bnever (offer|present|suggest)|not (offered|presented|eligible)|(?<!not )rules? (it|a Movie) out/,
-    "the text treats an `unseen` film as spent",
+    "the text treats a `want-to-see` film as spent",
   );
 
   // And the target may not be restated as "what Tonight has heard nothing about",
-  // which reads on `unseen` films as well and is how this rule was wrong before.
+  // which reads on films on their list as well and is how this rule was wrong before.
   assert.doesNotMatch(
     flat,
     /told Tonight nothing about|Tonight (has )?(knows|heard) nothing about|no stored state/i,
@@ -1215,7 +1213,7 @@ test("the taste model is evidence, and the skill says how strong", () => {
     ["liked less so", /`liked` strengthens it more weakly/],
     ["disliked is a sign, not a ban", /negative sign, not a ban/],
     ["a Movie carries no opinion at all",
-      /`viewing` says whether they watched it and that is a\s*fact, never a sign for or against/],
+      /`viewing` says where the film stands on their list and\s*that is a fact, never a sign for or against/],
     ["an unconfirmed Vibe changes reach, not eligibility", /never whether you use it/],
     ["intent stays certain while the fit does not", /what\s+they meant is not in question/],
     ["no film is confirmed to fit it yet", /no particular film has been confirmed to fit it yet/],
@@ -1334,7 +1332,8 @@ test("every rule the agent cannot work out for itself is in the skill", () => {
     "distance from the lead",
     "rules a Movie out as new",
     "never called new, unseen or not yet watched",
-    "`unseen` does not rule it out",
+    "`want-to-see` does not rule it out",
+    "**`dont-want-to-see` is never recommended**",
     "Anchor a stretch in something they like",
     // ownership and semantic confirmation
     // Two rules, and they live in two sections: persistence under "What may be
@@ -1464,9 +1463,9 @@ test("M6: being in a Vibe is no opinion, and a film new to them there is a candi
   // The candidate half, and the rule it leans on.
   assert.match(
     flat,
-    /A film there that is new to them is a candidate for that evening and may lead, as `unseen` always could; Tonight is still not the shortlist/,
+    /A film there that is new to them is a candidate for that evening and may lead, as `want-to-see` always could; Tonight is still not the shortlist/,
   );
-  assert.match(flat, /`unseen` does not rule it out: they have not seen it, so it stays on the table/);
+  assert.match(flat, /`want-to-see` does not rule it out: it is on their list, so it stays on the table/);
 });
 
 test("M6: with taste read and no mood, the answer still comes first, led as a surprise", () => {

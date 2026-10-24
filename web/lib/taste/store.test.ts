@@ -423,7 +423,7 @@ for (const driver of drivers) {
           },
         ],
         movies: [
-          { title: "Moon", year: 2009, imdbId: null, viewing: null, vibes: ["Space Tension"] },
+          { title: "Moon", year: 2009, imdbId: null, viewing: "seen", vibes: ["Space Tension"] },
         ],
       });
       assert.equal(await touchedAt(sql, "tonight_genres", "Sci-Fi"), genreAt);
@@ -922,7 +922,7 @@ for (const driver of drivers) {
       assert.deepEqual(content(await alice.taste()), {
         genres: [],
         vibes: [],
-        movies: [{ title: "Moon", year: 2009, imdbId: null, viewing: null, vibes: [] }],
+        movies: [{ title: "Moon", year: 2009, imdbId: null, viewing: "seen", vibes: [] }],
       });
     });
 
@@ -1054,7 +1054,7 @@ for (const driver of drivers) {
         title: "Arrival",
         year: 2016,
         imdbId: null,
-        viewing: null,
+        viewing: "want-to-see",
         vibes: [],
       });
 
@@ -1360,24 +1360,16 @@ for (const driver of drivers) {
       assert.deepEqual((await alice.taste()).movies.length, 1, "the refused create left a movie");
     });
 
-    test("viewing holds two answers, and silence is a third it never invents", async () => {
+    test("viewing holds three answers, and a film saved without one is on the list", async () => {
       const { alice } = await fresh();
 
       const created = await alice.createMovie({ title: "Arrival", year: 2016 });
-      assert.equal(created.viewing, null, "saving a movie put a statement in the user's mouth");
+      assert.equal(created.viewing, "want-to-see", "a new film is not on the list to see");
 
-      // Both answers persist and read back as themselves. `unseen` is in there
-      // twice over: it is a real answer, and it is not the absence of one.
-      for (const viewing of ["unseen", "seen"] as const) {
+      // All three persist and read back as themselves.
+      for (const viewing of ["seen", "dont-want-to-see", "want-to-see"] as const) {
         assert.equal((await alice.updateMovie("Arrival", 2016, { viewing })).viewing, viewing);
         assert.equal((await movieOf(alice, "Arrival", 2016))?.viewing, viewing);
-      }
-
-      // Cleared from either, and clearing is not the same as `unseen`.
-      for (const from of ["unseen", "seen"] as const) {
-        await alice.updateMovie("Arrival", 2016, { viewing: from });
-        const cleared = await alice.updateMovie("Arrival", 2016, { viewing: null });
-        assert.equal(cleared.viewing, null, `${from} could not be cleared`);
       }
 
       // Omitted is not a value either — an unrelated change leaves it standing.
@@ -1385,39 +1377,39 @@ for (const driver of drivers) {
       const untouched = await alice.updateMovie("Arrival", 2016, { imdbId: "tt0000001" });
       assert.equal(untouched.viewing, "seen", "an unrelated update rewrote the viewing");
 
-      // An opinion is not a viewing, and the three that used to be states here
-      // are refused in the same words as anything else that is not one.
-      for (const wrong of ["yes", "watched", "liked", "loved", "disliked", true, 1, {}]) {
+      // There is no clearing it, an opinion is not a viewing, and the old
+      // spellings are refused in the same words as anything else that is not one.
+      for (const wrong of [null, "unseen", "yes", "watched", "liked", "loved", "disliked", true, 1, {}]) {
         assert.match(
           await refusal(alice.updateMovie("Arrival", 2016, { viewing: wrong })),
-          /must be one of seen, unseen/,
+          /must be one of seen, want-to-see, dont-want-to-see/,
           JSON.stringify(wrong),
         );
       }
       assert.equal((await movieOf(alice, "Arrival", 2016))?.viewing, "seen", "a refusal wrote");
     });
 
-    test("nothing infers a viewing: not saving a movie, not filing one", async () => {
+    test("a saved film is want-to-see, a core it saves is seen, and filing changes neither", async () => {
       const { alice, sql } = await fresh();
       await vibe(alice, "Space Tension");
 
       const created = await alice.createMovie({ title: "Arrival", year: 2016 });
-      assert.equal(created.viewing, null);
+      assert.equal(created.viewing, "want-to-see");
 
       await alice.updateMovie("Arrival", 2016, { vibes: ["Space Tension"] });
       const filed = await movieOf(alice, "Arrival", 2016);
-      assert.equal(filed?.viewing, null, "filing a movie decided something about it");
+      assert.equal(filed?.viewing, "want-to-see", "filing a movie decided something about it");
 
-      // And the column itself is null rather than a value. A `DEFAULT` in the
-      // schema would satisfy every assertion above through the store while
-      // making the model claim something nobody said. Both films: the one filed,
-      // and the one the vibe was anchored on, which was saved by anchoring it and
-      // is no more a statement about watching than filing is.
-      const rows = await sql.query<{ viewing: string | null }>(
-        `SELECT viewing FROM tonight_movies WHERE user_id = $1`,
+      // And the column agrees: the filed film, and the core the vibe was
+      // anchored on, which anchoring saved as seen.
+      const rows = await sql.query<{ title: string; viewing: string }>(
+        `SELECT title, viewing FROM tonight_movies WHERE user_id = $1 ORDER BY title`,
         [ALICE.id],
       );
-      assert.deepEqual(rows, [{ viewing: null }, { viewing: null }]);
+      assert.deepEqual(rows, [
+        { title: "Arrival", viewing: "want-to-see" },
+        { title: coreOf("Space Tension").title, viewing: "seen" },
+      ]);
     });
 
     test("a movie is filed under none, one or several vibes, and listed once", async () => {
@@ -1524,8 +1516,8 @@ for (const driver of drivers) {
       // The two cores are what is left: one still anchoring its vibe, and one
       // whose vibe went, which a vibe's deletion never takes with it.
       assert.deepEqual(content(await alice.taste()).movies, [
-        { ...coreOf("Quiet Dread"), imdbId: null, viewing: null, vibes: ["Quiet Dread"] },
-        { ...coreOf("Space Tension"), imdbId: null, viewing: null, vibes: [] },
+        { ...coreOf("Quiet Dread"), imdbId: null, viewing: "seen", vibes: ["Quiet Dread"] },
+        { ...coreOf("Space Tension"), imdbId: null, viewing: "seen", vibes: [] },
       ]);
 
       assert.match(await refusal(alice.deleteMovie("Under the Skin", 2013)), /no movie/);
@@ -1847,7 +1839,7 @@ for (const driver of drivers) {
       const { vibes, movies } = await alice.taste();
 
       assert.deepEqual(movies.map(orderMovie), [
-        { title: "Arrival", year: 2016, imdbId: null, viewing: null, vibes: [] },
+        { title: "Arrival", year: 2016, imdbId: null, viewing: "want-to-see", vibes: [] },
         {
           title: "Dune",
           year: 1984,
@@ -1863,8 +1855,8 @@ for (const driver of drivers) {
           vibes: ["Quiet Dread", "Space Tension"],
         },
         // Each vibe's core is a film in the model like any other, listed once.
-        { ...coreOf("Quiet Dread"), imdbId: null, viewing: null, vibes: ["Quiet Dread"] },
-        { ...coreOf("Space Tension"), imdbId: null, viewing: null, vibes: ["Space Tension"] },
+        { ...coreOf("Quiet Dread"), imdbId: null, viewing: "seen", vibes: ["Quiet Dread"] },
+        { ...coreOf("Space Tension"), imdbId: null, viewing: "seen", vibes: ["Space Tension"] },
       ]);
 
       // A vibe names the whole handle. A title alone could not tell one Dune from
@@ -1951,7 +1943,7 @@ for (const driver of drivers) {
       const { vibes, movies } = content(await alice.taste());
       assert.deepEqual(vibes, [created]);
       assert.deepEqual(movies, [
-        { title: "Arrival", year: 2016, imdbId: null, viewing: null, vibes: ["Space Tension"] },
+        { title: "Arrival", year: 2016, imdbId: null, viewing: "seen", vibes: ["Space Tension"] },
       ]);
     });
 
@@ -2061,7 +2053,7 @@ for (const driver of drivers) {
 
       // A film already in the vibe can be made its core, and is not filed twice.
       // Reached in any case, it is the stored film that becomes the core.
-      await alice.createMovie({ title: "Alien", year: 1979, vibes: ["Space Tension"] });
+      await alice.createMovie({ title: "Alien", year: 1979, viewing: "seen", vibes: ["Space Tension"] });
       const promoted = await alice.updateVibe("Space Tension", {
         core: { title: "ALIEN", year: 1979 },
       });
@@ -2207,7 +2199,7 @@ for (const driver of drivers) {
           title: "Arrival",
           year: 2016,
           imdbId: null,
-          viewing: null,
+          viewing: "seen",
           vibes: ["Quiet Dread", "Space Tension"],
         },
       ]);
@@ -2229,7 +2221,7 @@ for (const driver of drivers) {
       assert.deepEqual(await alice.taste(), before);
     });
 
-    test("a core that is not saved yet is saved for the vibe, with nothing said about it", async () => {
+    test("a core that is not saved yet is saved for the vibe, as seen and nothing more", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await alice.createVibe({
@@ -2239,15 +2231,15 @@ for (const driver of drivers) {
         core: { title: "  Arrival  ", year: 2016 },
       });
 
-      // Its title, normalised as any film's is, and its year — and nothing else.
-      // Anchoring a vibe on a film says nothing about having watched it or where
-      // to look it up, so there is no viewing and no IMDb id.
+      // Its title, normalised as any film's is, its year, and seen — a core is a
+      // film they have seen. Anchoring a vibe on a film says nothing about where
+      // to look it up, so there is no IMDb id.
       const arrival = (await movieOf(alice, "Arrival", 2016))!;
       assert.deepEqual(orderMovie(arrival), {
         title: "Arrival",
         year: 2016,
         imdbId: null,
-        viewing: null,
+        viewing: "seen",
         vibes: ["Space Tension"],
       });
       // Created with its filing, which is still only being created.
@@ -2261,7 +2253,7 @@ for (const driver of drivers) {
         title: "Moon",
         year: 2009,
         imdbId: null,
-        viewing: null,
+        viewing: "seen",
         vibes: ["Space Tension"],
       });
       assert.equal(moon.updatedAt, moon.createdAt);
@@ -2325,7 +2317,7 @@ for (const driver of drivers) {
         instruction: "Tense.",
         core: { title: "Arrival", year: 2016 },
       });
-      await alice.createMovie({ title: "Moon", year: 2009 });
+      await alice.createMovie({ title: "Moon", year: 2009, viewing: "seen" });
 
       // An ordinary film filed: the film is dated and the vibe is not. That is
       // v4's asymmetry, and a vibe having a core does not change it for any
@@ -2382,7 +2374,7 @@ for (const driver of drivers) {
         [ALICE.id, legacy!.id, sciFi!.id],
       );
       // A film filed in it the ordinary way, which nothing about it prevents.
-      await alice.createMovie({ title: "Arrival", year: 2016, vibes: ["Old Vibe"] });
+      await alice.createMovie({ title: "Arrival", year: 2016, viewing: "seen", vibes: ["Old Vibe"] });
 
       // Read as it is: complete, with no core, rather than refused or filled in.
       assert.deepEqual(content(await alice.taste()).vibes, [
@@ -2437,7 +2429,7 @@ for (const driver of drivers) {
 
     test("a core is one of this user's films, never another's with the same handle", async () => {
       const { alice, bob, sql } = await fresh();
-      await alice.createMovie({ title: "Arrival", year: 2016, viewing: "seen" });
+      await alice.createMovie({ title: "Arrival", year: 2016, viewing: "dont-want-to-see" });
       const hers = await movieOf(alice, "Arrival", 2016);
 
       await genre(bob, "Sci-Fi");
@@ -2448,10 +2440,10 @@ for (const driver of drivers) {
         core: { title: "Arrival", year: 2016 },
       });
 
-      // Bob has an Arrival of his own now, saved for his vibe, with nothing in it
-      // he did not say — not Alice's viewing, which is hers.
+      // Bob has an Arrival of his own now, saved for his vibe as seen — not with
+      // Alice's viewing, which is hers.
       assert.deepEqual(content(await bob.taste()).movies, [
-        { title: "Arrival", year: 2016, imdbId: null, viewing: null, vibes: ["Space Tension"] },
+        { title: "Arrival", year: 2016, imdbId: null, viewing: "seen", vibes: ["Space Tension"] },
       ]);
       // Alice's is exactly as it was: not filed, not dated.
       assert.deepEqual(await movieOf(alice, "Arrival", 2016), hers);
@@ -2512,13 +2504,15 @@ for (const driver of drivers) {
       assert.equal(await movieOf(alice, "Arrival", 2016), undefined);
     });
 
-    test("a film saved as unseen cannot be made a core, and nothing is written", async () => {
+    test("a film not saved as seen cannot be made a core, and nothing is written", async () => {
       const { alice } = await fresh();
       await genre(alice, "Crime");
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "unseen" });
+      await alice.createMovie({ title: "Heat", year: 1995 });
+      await alice.createMovie({ title: "Thief", year: 1981, viewing: "dont-want-to-see" });
       const before = await alice.taste();
 
-      // On create, addressed in another case, and named back as it is stored.
+      // On create, addressed in another case, and named back as it is stored —
+      // including a film saved without a viewing, which is on the list to see.
       // The refusal sends them to their own word, never to a viewing written to
       // get past it.
       assert.equal(
@@ -2530,9 +2524,20 @@ for (const driver of drivers) {
             core: { title: "HEAT", year: 1995 },
           }),
         ),
-        `cannot make "Heat" (1995) a core: its saved viewing says they have not seen it, and a ` +
-          "core is a film they have seen. Change the viewing only if they tell you they have " +
-          "watched it — then record that with update_movie and try again",
+        `cannot make "Heat" (1995) a core: it is saved as want-to-see, and a core is a film ` +
+          "they have seen. Change the viewing only if they tell you they have watched it — " +
+          "then record seen with update_movie and try again",
+      );
+      assert.match(
+        await refusal(
+          alice.createVibe({
+            name: "Night Shift",
+            genres: ["Crime"],
+            instruction: "Long nights.",
+            core: { title: "Thief", year: 1981 },
+          }),
+        ),
+        /^cannot make "Thief" \(1981\) a core: it is saved as dont-want-to-see/,
       );
       // Refused whole: no vibe, no genre reference, no filing, no stamp moved.
       assert.deepEqual(await alice.taste(), before, "a refused core wrote something");
@@ -2547,7 +2552,7 @@ for (const driver of drivers) {
       const anchored = await alice.taste();
       assert.match(
         await refusal(alice.updateVibe("Night Shift", { core: { title: "Heat", year: 1995 } })),
-        /^cannot make "Heat" \(1995\) a core: its saved viewing says they have not seen it/,
+        /^cannot make "Heat" \(1995\) a core: it is saved as want-to-see/,
       );
       assert.deepEqual(await alice.taste(), anchored, "a refused core change wrote something");
 
@@ -2557,7 +2562,7 @@ for (const driver of drivers) {
       assert.deepEqual(now.core, { title: "Heat", year: 1995 });
     });
 
-    test("a core is never marked unseen, and every other viewing stays free", async () => {
+    test("a core is never marked anything but seen, and every other film stays free", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await alice.createVibe({
@@ -2569,45 +2574,45 @@ for (const driver of drivers) {
       const before = await alice.taste();
 
       assert.equal(
-        await refusal(alice.updateMovie("ARRIVAL", 2016, { viewing: "unseen" })),
-        `cannot mark "Arrival" (2016) unseen: it is the core of the vibe "Space Tension", and a ` +
-          "core is a film they have seen — make another film the core with update_vibe first, " +
-          "or delete the vibe",
+        await refusal(alice.updateMovie("ARRIVAL", 2016, { viewing: "want-to-see" })),
+        `cannot mark "Arrival" (2016) anything but seen: it is the core of the vibe "Space ` +
+          'Tension", and a core is a film they have seen — make another film the core with ' +
+          "update_vibe first, or delete the vibe",
       );
       // Refused whole: a retitle riding along is not written either.
       assert.match(
-        await refusal(alice.updateMovie("Arrival", 2016, { title: "Arrival!", viewing: "unseen" })),
-        /^cannot mark "Arrival" \(2016\) unseen/,
+        await refusal(
+          alice.updateMovie("Arrival", 2016, { title: "Arrival!", viewing: "dont-want-to-see" }),
+        ),
+        /^cannot mark "Arrival" \(2016\) anything but seen/,
       );
       assert.deepEqual(await alice.taste(), before, "a refused viewing changed something");
 
-      // Seen is a core's natural state, and null — nobody said — is not "unseen".
+      // Seen is a core's natural state, and saying it again is no change.
       assert.equal((await alice.updateMovie("Arrival", 2016, { viewing: "seen" })).viewing, "seen");
-      assert.equal((await alice.updateMovie("Arrival", 2016, { viewing: null })).viewing, null);
 
       // A film they have not seen may sit in a vibe: a candidate for that evening.
-      const heat = await alice.createMovie({
-        title: "Heat",
-        year: 1995,
-        viewing: "unseen",
-        vibes: ["Space Tension"],
-      });
+      const heat = await alice.createMovie({ title: "Heat", year: 1995, vibes: ["Space Tension"] });
       assert.deepEqual(heat.vibes, ["Space Tension"]);
-      await alice.updateMovie("Heat", 1995, { viewing: "seen" });
-      assert.equal((await alice.updateMovie("Heat", 1995, { viewing: "unseen" })).viewing, "unseen");
+      assert.equal(heat.viewing, "want-to-see");
+      assert.equal(
+        (await alice.updateMovie("Heat", 1995, { viewing: "dont-want-to-see" })).viewing,
+        "dont-want-to-see",
+      );
 
-      // And a core it no longer is may be marked unseen like any film.
+      // And a core it no longer is may be marked like any film.
       await alice.updateVibe("Space Tension", { core: { title: "Moon", year: 2009 } });
       assert.equal(
-        (await alice.updateMovie("Arrival", 2016, { viewing: "unseen" })).viewing,
-        "unseen",
+        (await alice.updateMovie("Arrival", 2016, { viewing: "want-to-see" })).viewing,
+        "want-to-see",
       );
     });
 
-    test("a core already saved as unseen is left alone by writes that do not touch it", async () => {
-      // Written before the store refused it — set here the only way it can be now,
-      // under the store's feet. Such a vibe is not made worse and blocks nothing
-      // unrelated; it is re-anchored when somebody chooses another core.
+    test("a core already saved as not seen is left alone by writes that do not touch it", async () => {
+      // Written before the store refused it — an `unseen` core v14 relabelled —
+      // and set here the only way it can be now, under the store's feet. Such a
+      // vibe is not made worse and blocks nothing unrelated; it is re-anchored
+      // when somebody chooses another core.
       const { alice, sql } = await fresh();
       await genre(alice, "Sci-Fi");
       await alice.createVibe({
@@ -2617,15 +2622,21 @@ for (const driver of drivers) {
         core: { title: "Arrival", year: 2016 },
       });
       await sql.query(
-        `UPDATE tonight_movies SET viewing = 'unseen' WHERE user_id = $1 AND title = 'Arrival'`,
+        `UPDATE tonight_movies SET viewing = 'want-to-see' WHERE user_id = $1 AND title = 'Arrival'`,
         [ALICE.id],
       );
 
-      // Retitled, re-stated as unseen, and its vibe renamed: none of it is refused.
+      // Retitled, re-stated as it is, and its vibe renamed: none of it is refused.
       const retitled = await alice.updateMovie("Arrival", 2016, { title: "Arrival (2016 cut)" });
-      assert.equal(retitled.viewing, "unseen");
-      await alice.updateMovie("Arrival (2016 cut)", 2016, { viewing: "unseen" });
+      assert.equal(retitled.viewing, "want-to-see");
+      await alice.updateMovie("Arrival (2016 cut)", 2016, { viewing: "want-to-see" });
       assert.equal((await alice.updateVibe("Space Tension", { name: "Deep Space" })).name, "Deep Space");
+
+      // But not moved to another answer that is not seen either.
+      assert.match(
+        await refusal(alice.updateMovie("Arrival (2016 cut)", 2016, { viewing: "dont-want-to-see" })),
+        /^cannot mark "Arrival \(2016 cut\)" \(2016\) anything but seen/,
+      );
 
       // Naming it as the core again is what the guard is for.
       assert.match(

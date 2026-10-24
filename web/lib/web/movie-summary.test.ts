@@ -8,13 +8,13 @@ import {
   DISLIKED,
   LIKED,
   LOVED,
+  DONT_WANT_TO_SEE,
   NO_OPINION,
-  NOT_SEEN,
   OTHER_MOVIES,
   SAID,
   SEEN,
+  WANT_TO_SEE,
   WATCHED,
-  WATCHING_UNSAID,
   filedUnder,
   recentlyAdded,
   selected,
@@ -49,7 +49,7 @@ import {
 /** A film, with only the parts a count or a row cares about spelled out. */
 function film(
   title: string,
-  viewing: Viewing | null,
+  viewing: Viewing,
   judgement: Judgement | null = null,
   vibes: string[] = [],
 ): Shown {
@@ -69,21 +69,20 @@ function film(
 /**
  * A collection covering both axes and their combinations.
  *
- * Every viewing answer, every judgement, a film that is seen *and* judged, one
- * that is explicitly unseen while judged — the contradiction a user can create —
- * and two nobody has said anything about at all. A count that matched by
- * accident is a count that fails here.
+ * Every viewing answer, every judgement, a film that is seen *and* judged, and
+ * two that are judged while the list says they are not seen — the contradiction
+ * a user can create. A count that matched by accident is a count that fails here.
  */
 const COLLECTION: Shown[] = [
   film("Heat", "seen"),
   film("Sunset", "seen"),
-  film("Dune", "unseen", null, ["Space Tension"]),
+  film("Dune", "want-to-see", null, ["Space Tension"]),
   film("Arrival", "seen", "liked", ["Space Tension"]),
-  film("Solaris", null, "loved", ["Quiet Dread"]),
+  film("Solaris", "want-to-see", "loved", ["Quiet Dread"]),
   film("Stalker", "seen", "loved", ["Quiet Dread", "Slow Cinema"]),
-  film("Cats", "unseen", "disliked", ["Popcorn Chaos"]),
-  film("Sunrise", null, null, ["Slow Cinema"]),
-  film("Nosferatu", null),
+  film("Cats", "dont-want-to-see", "disliked", ["Popcorn Chaos"]),
+  film("Sunrise", "want-to-see", null, ["Slow Cinema"]),
+  film("Nosferatu", "dont-want-to-see"),
 ];
 
 const titles = (movies: readonly Shown[]) => movies.map((movie) => movie.title);
@@ -93,22 +92,22 @@ const count = (selection: Selection, movies: readonly Shown[] = COLLECTION) =>
 /** Every control the summary can render. */
 const KNOWN: readonly Selection[] = [...WATCHED, ...SAID];
 
-test("the total is the collection, films nobody has spoken about included", () => {
+test("the total is the collection, films nobody has judged included", () => {
   // Not a selection at all: it belongs beside the heading the way a genre count
-  // does, and a film Tonight was never told about is still a film the user saved.
+  // does, and a film with no opinion on it is still a film the user saved.
   assert.equal(COLLECTION.length, 9);
   assert.equal(
-    COLLECTION.filter((one) => one.viewing === null && one.position === undefined).length,
-    2,
-    "the collection has no silent films to include",
+    COLLECTION.filter((one) => one.position === undefined).length,
+    5,
+    "the collection has no unjudged films to include",
   );
 });
 
 test("Seen is what they said, and what a judgement implies", () => {
-  // The derived one. `Solaris` has no viewing at all and is here because it is
+  // The derived one. `Solaris` is on the list to see and is here because it is
   // loved — nobody likes a film they have not seen — and `Cats` is here despite
-  // saying `unseen`, because the opinion is the stronger evidence about
-  // watching. That is `lib/seen.ts`'s rule, so the page and a recommendation
+  // saying `dont-want-to-see`, because the opinion is the stronger evidence
+  // about watching. That is `lib/seen.ts`'s rule, so the page and a recommendation
   // cannot disagree about what "seen" means.
   assert.deepEqual(titles(selected(SEEN, COLLECTION)), [
     "Heat",
@@ -119,39 +118,28 @@ test("Seen is what they said, and what a judgement implies", () => {
     "Cats",
   ]);
 
-  // And it never claims a film nobody has said anything about.
+  // And it never claims a film whose list says otherwise and nothing implies it.
   assert.equal(
-    selected(SEEN, COLLECTION).some((one) => one.viewing === null && one.position === undefined),
+    selected(SEEN, COLLECTION).some((one) => one.viewing !== "seen" && one.position === undefined),
     false,
-    "silence was counted as having watched something",
+    "a film on the list was counted as having been watched",
   );
 });
 
-test("Not seen is what they said, where nothing contradicts it", () => {
-  // `Cats` says `unseen` and is judged, which is a contradiction the user can
+test("Want to see is the list, where nothing contradicts it", () => {
+  // `Solaris` is on the list and loved, which is a contradiction the user can
   // create. The row resolves it the way everything else does — the opinion wins
-  // — so `Cats` is counted as seen and not here, and the three buckets stay
-  // exclusive. Nothing is hidden: the raw `unseen` is still on the film's mark.
-  assert.deepEqual(titles(selected(NOT_SEEN, COLLECTION)), ["Dune"]);
-  assert.equal(count(SEEN, [film("Cats", "unseen", "disliked")]), 1);
-  assert.equal(count(NOT_SEEN, [film("Cats", "unseen", "disliked")]), 0);
+  // — so `Solaris` is counted as seen and not here, and the three buckets stay
+  // exclusive. Nothing is hidden: the raw viewing is still on the film's mark.
+  assert.deepEqual(titles(selected(WANT_TO_SEE, COLLECTION)), ["Dune", "Sunrise"]);
+  assert.equal(count(SEEN, [film("Solaris", "want-to-see", "loved")]), 1);
+  assert.equal(count(WANT_TO_SEE, [film("Solaris", "want-to-see", "loved")]), 0);
 });
 
-test("Not said is nobody having said, and never the same as not seen", () => {
-  // `null` is the absence of an answer and `unseen` is something the user said.
-  // A film that counts as seen through a judgement is not here either — that is
-  // something Tonight does know.
-  assert.deepEqual(titles(selected(WATCHING_UNSAID, COLLECTION)), ["Sunrise", "Nosferatu"]);
-  assert.equal(
-    selected(WATCHING_UNSAID, COLLECTION).some((one) => one.viewing === "unseen"),
-    false,
-    "something they said was counted as silence",
-  );
-  assert.equal(
-    selected(WATCHING_UNSAID, COLLECTION).some((one) => one.position?.judgement !== undefined),
-    false,
-    "a judged film was counted as nobody having said",
-  );
+test("Don't want to see is what they said, where nothing contradicts it", () => {
+  assert.deepEqual(titles(selected(DONT_WANT_TO_SEE, COLLECTION)), ["Nosferatu"]);
+  assert.equal(count(SEEN, [film("Cats", "dont-want-to-see", "disliked")]), 1);
+  assert.equal(count(DONT_WANT_TO_SEE, [film("Cats", "dont-want-to-see", "disliked")]), 0);
 });
 
 test("each opinion is exactly its own standing judgement", () => {
@@ -191,7 +179,7 @@ test("a film turned down for good is in No opinion, and is not seen either", () 
     { title: "Solaris", year: 1972, rejected: "not-ever", reason: "three hours of misery", told: "confirmed" },
   ];
   const [shown] = withPositions(
-    [{ ...film("Solaris", null), title: "Solaris", year: 1972 }],
+    [{ ...film("Solaris", "want-to-see"), title: "Solaris", year: 1972 }],
     positions(refused),
   );
   assert.ok(shown);
@@ -208,7 +196,7 @@ test("a film turned down for good is in No opinion, and is not seen either", () 
   // And it says nothing about watching, in either direction: `not ever` is most
   // often said about a film somebody has never seen.
   assert.equal(count(SEEN, [shown]), 0, "a refusal was read as having watched it");
-  assert.equal(count(WATCHING_UNSAID, [shown]), 1, "the refusal decided the watching question");
+  assert.equal(count(WANT_TO_SEE, [shown]), 1, "the refusal decided the watching question");
 });
 
 test("an evening's refusal never reaches a page showing a collection", () => {
@@ -228,9 +216,9 @@ test("an evening's refusal never reaches a page showing a collection", () => {
   assert.equal(positions(loved).size, 0, "an evening's judgement became the standing one");
 });
 
-test("a film the user marked unseen and never judged is in No opinion", () => {
-  assert.equal(count(NO_OPINION, [film("Unwatched", "unseen")]), 1);
-  assert.equal(count(NOT_SEEN, [film("Unwatched", "unseen")]), 1, "the raw fact stopped being shown");
+test("a film on the list to see and never judged is in No opinion", () => {
+  assert.equal(count(NO_OPINION, [film("Unwatched", "want-to-see")]), 1);
+  assert.equal(count(WANT_TO_SEE, [film("Unwatched", "want-to-see")]), 1, "the raw fact stopped being shown");
 });
 
 test("each row accounts for every film exactly once, and the rows are independent", () => {
@@ -240,11 +228,11 @@ test("each row accounts for every film exactly once, and the rows are independen
   for (const movies of [
     COLLECTION,
     [],
-    [film("only", null)],
-    [film("a", "seen"), film("b", null, "loved")],
-    [film("a", "unseen"), film("b", "unseen")],
-    [film("a", "seen", "loved"), film("b", null, "loved"), film("c", "unseen", "disliked")],
-    COLLECTION.filter((one) => one.viewing !== null),
+    [film("only", "want-to-see")],
+    [film("a", "seen"), film("b", "want-to-see", "loved")],
+    [film("a", "dont-want-to-see"), film("b", "want-to-see")],
+    [film("a", "seen", "loved"), film("b", "dont-want-to-see", "loved"), film("c", "want-to-see", "disliked")],
+    COLLECTION.filter((one) => one.viewing !== "seen"),
   ]) {
     const shape = JSON.stringify(titles(movies));
 
@@ -298,7 +286,7 @@ test("the controls are a fixed list in a fixed order, countable to nought", () =
   // does not move.
   assert.deepEqual(
     KNOWN.map((selection) => selection.key),
-    ["seen", "unseen", "watching_unsaid", "liked", "loved", "disliked", "no_opinion"],
+    ["seen", "want_to_see", "dont_want_to_see", "liked", "loved", "disliked", "no_opinion"],
     "the controls are not a fixed list in a fixed order",
   );
 
@@ -328,17 +316,14 @@ test("a mark pressed in the dialog moves the film through both rows", () => {
 
 test("the sentence-shaped controls read as sentences", () => {
   // One template for one and for many, because the phrase does not inflect.
-  for (const [selection, words] of [
-    [NO_OPINION, "with no opinion"],
-    [WATCHING_UNSAID, "not said"],
-  ] as const) {
+  for (const [selection, words] of [[NO_OPINION, "with no opinion"]] as const) {
     assert.equal(sentence(selection, 4), `4 ${words}`);
     assert.equal(sentence(selection, 1), `1 ${words}`);
     assert.equal(sentence(selection, 0), `0 ${words}`);
   }
 
   // The answers are set the other way round and are not phrased at all.
-  for (const selection of [SEEN, NOT_SEEN, LIKED, LOVED, DISLIKED]) {
+  for (const selection of [SEEN, WANT_TO_SEE, DONT_WANT_TO_SEE, LIKED, LOVED, DISLIKED]) {
     assert.equal(selection.phrase, undefined, `${selection.key} has an inline phrase`);
   }
 });
@@ -347,24 +332,20 @@ test("only the one ambiguous word is given a second sentence to a listener", () 
   // The visible text is words then number, which is also how it is said — so for
   // most of these the control's own text is the accessible name and a label would
   // be reading the obvious out twice.
-  assert.equal(spoken(NOT_SEEN, 14), undefined);
+  assert.equal(spoken(WANT_TO_SEE, 14), undefined);
+  assert.equal(spoken(DONT_WANT_TO_SEE, 2), undefined);
   assert.equal(spoken(LOVED, 3), undefined);
   assert.equal(spoken(LIKED, 5), undefined);
   assert.equal(spoken(DISLIKED, 0), undefined);
   assert.equal(spoken(NO_OPINION, 4), "No opinion 4, nothing said about what they made of it");
 
-  // These two are true but not sufficient on their own. "Seen" counts films
-  // nobody ever marked, because a judgement puts them there; "Not said" is about
-  // watching and sits in a row beside an opinion control with a similar name.
+  // This one is true but not sufficient on its own: "Seen" counts films nobody
+  // ever marked, because a judgement puts them there.
   assert.equal(spoken(SEEN, 38), "Seen 38, watched, or judged — which means watched");
-  assert.equal(
-    spoken(WATCHING_UNSAID, 4),
-    "Not said 4, nobody has said whether they watched it",
-  );
 });
 
 test("a film in no vibe is filed under the words the page already uses", () => {
-  assert.deepEqual(filedUnder(film("Nosferatu", null)), [OTHER_MOVIES]);
+  assert.deepEqual(filedUnder(film("Nosferatu", "want-to-see")), [OTHER_MOVIES]);
   assert.deepEqual(filedUnder(film("Stalker", "seen", "loved", ["Quiet Dread", "Slow Cinema"])), [
     "Quiet Dread",
     "Slow Cinema",
@@ -386,7 +367,7 @@ const daysAgo = (days: number) =>
 const saved = (
   title: string,
   createdAt: string | null,
-  viewing: Viewing | null = null,
+  viewing: Viewing = "want-to-see",
 ): Written<Movie> => ({
   title,
   year: 2000,
@@ -471,23 +452,23 @@ test("every film from the week, however many, and however they arrive", () => {
 
 test("what was said about a film decides neither whether it is recent nor where", () => {
   // The states run against the dates on purpose: the newest film is disliked and
-  // the oldest is loved, with nothing-said, not-seen and liked in between. Any
+  // the oldest is loved, with on-the-list, not-wanted and liked in between. Any
   // comparator that looked at the state first — loved before liked before the
   // rest, as the vibe preview quite reasonably does — would answer in very nearly
   // the opposite order. And the input is scrambled, so input order cannot pass
   // for date order either.
   const movies = [
     saved("Loved", daysAgo(4.5), "seen"),
-    saved("Not seen", daysAgo(2.5), "unseen"),
+    saved("Not wanted", daysAgo(2.5), "dont-want-to-see"),
     saved("Disliked", daysAgo(0.5), "seen"),
     saved("Liked", daysAgo(3.5), "seen"),
-    saved("Nothing said", daysAgo(1.5), null),
+    saved("On the list", daysAgo(1.5), "want-to-see"),
   ];
 
   assert.deepEqual(titlesOf(recentlyAdded(movies, NOW)), [
     "Disliked",
-    "Nothing said",
-    "Not seen",
+    "On the list",
+    "Not wanted",
     "Liked",
     "Loved",
   ]);

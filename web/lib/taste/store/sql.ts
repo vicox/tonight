@@ -13,7 +13,8 @@ import {
   checkName,
   checkViewing,
   checkYear,
-  coreUnseen,
+  coreNotSeen,
+  DEFAULT_VIEWING,
   genreExists,
   genreInUse,
   genreNotFound,
@@ -467,11 +468,11 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           await holdVibes(tx, owner, filings, known);
         }
 
-        // A core is a film they have seen, so a core cannot become `unseen`. Asked
-        // while this film is held, for the reason the filing check gives. Only a
-        // change to `unseen` is refused: a film already saved that way is left as
-        // it is, and clearing a viewing to null is not saying "unseen".
-        if (entry.viewing === "unseen" && current.viewing !== "unseen") {
+        // A core is a film they have seen, so a core cannot be marked anything but
+        // `seen`. Asked while this film is held, for the reason the filing check
+        // gives. Only a change is refused: a core already saved some other way is
+        // left as it is until somebody says otherwise.
+        if (entry.viewing !== "seen" && entry.viewing !== current.viewing) {
           const anchored = await anchoredBy(tx, owner, current.id);
           if (anchored.length) {
             throw movieAnchorsVibe(current.title, current.year, filingNames(anchored), "unsee");
@@ -956,31 +957,32 @@ type Core = { id: string; handle: MovieHandle; saved: boolean };
  * finish before this or wait until it commits, and whichever runs second sees
  * the core the other left behind.
  *
- * A film that is not saved is saved here, with its title and year and nothing
- * else: no viewing and no IMDb id, because nobody said either. Anchoring a vibe
- * on a film somebody stands behind is often the first time that film is written
- * down at all — a verdict never saves one — and doing it in this transaction is
- * what means a vibe refused a moment later leaves no loose film behind.
+ * A film that is not saved is saved here, with its title and year, as `seen` —
+ * a core is a film they have seen — and no IMDb id, because nobody said one.
+ * Anchoring a vibe on a film somebody stands behind is often the first time that
+ * film is written down at all — a verdict never saves one — and doing it in this
+ * transaction is what means a vibe refused a moment later leaves no loose film
+ * behind.
  *
  * Two of these can race to save the same film. The insert gives way to the
  * other's row rather than failing, and the row is then held like any other.
  *
- * A saved film whose viewing is `unseen` is refused: they said they have not
- * watched it, and a core is a film they have seen. Read from the row just
- * locked, so a concurrent `update_movie` marking it unseen either finished first
- * and is seen here, or waits and then finds a core it may not mark.
+ * A saved film whose viewing is not `seen` is refused: a core is a film they
+ * have seen, and only they can say they have. Read from the row just locked, so
+ * a concurrent `update_movie` marking it otherwise either finished first and is
+ * seen here, or waits and then finds a core it may not mark.
  */
 async function holdCore(sql: Transaction, owner: string, wanted: MovieHandle): Promise<Core> {
   for (let attempt = 1; ; attempt += 1) {
     const { source: found } = await lockMovies(sql, owner, wanted);
     if (found) {
-      if (found.viewing === "unseen") throw coreUnseen(found.title, found.year);
+      if (found.viewing !== "seen") throw coreNotSeen(found.title, found.year, found.viewing);
       return { id: found.id, handle: orderHandle(found), saved: false };
     }
 
     const [inserted] = await sql.query<{ id: string }>(
-      `INSERT INTO tonight_movies (user_id, title, canonical_title, year)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing)
+       VALUES ($1, $2, $3, $4, 'seen')
        ON CONFLICT (user_id, canonical_title, year) DO NOTHING
        RETURNING id`,
       [owner, wanted.title, canonicalTitle(wanted.title), wanted.year],
@@ -1117,7 +1119,7 @@ type MovieRow = Stored<{
   title: string;
   year: number;
   imdbId: string | null;
-  viewing: Viewing | null;
+  viewing: Viewing;
 }>;
 
 /**
@@ -1159,7 +1161,7 @@ async function lockMovies(
       title: string;
       year: number;
       imdb_id: string | null;
-      viewing: Viewing | null;
+      viewing: Viewing;
     }>(
       `SELECT id, title, year, imdb_id, viewing FROM tonight_movies
         WHERE user_id = $1 AND canonical_title = $2 AND year = $3
@@ -1370,7 +1372,7 @@ async function readMovies(sql: Transaction, owner: string): Promise<Written<Movi
     title: string;
     year: number;
     imdb_id: string | null;
-    viewing: Viewing | null;
+    viewing: Viewing;
     created_at: string | null;
     updated_at: string;
   }>(
@@ -1410,7 +1412,8 @@ async function readMovies(sql: Transaction, owner: string): Promise<Written<Movi
  * Every field goes through the domain, including the two the caller may have
  * left out — because "left out" was decided by the method above, which passes
  * what the row already held. By the time a value reaches here it is a value
- * somebody chose, `null` included.
+ * somebody chose, `null` included — except a new film's viewing, which nobody
+ * chose and which is therefore `DEFAULT_VIEWING`.
  *
  * Uniqueness is not checked. The two unique indexes decide it, and asking first
  * would add a read that a concurrent write could invalidate before the insert.
@@ -1425,7 +1428,7 @@ function validateMovie(draft: {
     title: checkMovieTitle(draft.title),
     year: checkYear(draft.year),
     imdbId: draft.imdbId === undefined ? null : checkImdbId(draft.imdbId),
-    viewing: draft.viewing === undefined ? null : checkViewing(draft.viewing),
+    viewing: draft.viewing === undefined ? DEFAULT_VIEWING : checkViewing(draft.viewing),
   };
 }
 

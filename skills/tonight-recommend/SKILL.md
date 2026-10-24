@@ -50,9 +50,10 @@ three are one idea.
 the idea is theirs, so never let one widen it.
 
 A **Genre** is a reusable component of what they like; a **Vibe** is Genres plus what the
-*combination* means. A **Movie** is a film in their library: one they asked Tonight to keep, or
-one they told it they had watched. Title and year name it; it carries an optional IMDb id and
-**viewing** — whether they watched it. What they *thought* of it is a **Verdict**, never a Movie
+*combination* means. A **Movie** is a film on their list: one they asked Tonight to keep, one they
+told it they had watched, or one they do not want recommended. Title and year name it; it carries
+an optional IMDb id and **viewing** — always exactly one of `seen`, `want-to-see` and
+`dont-want-to-see`. What they *thought* of it is a **Verdict**, never a Movie
 field — and a Verdict stands on its own root: somebody can say *"I loved it"* about a film that
 was never saved, so saying something about a film neither needs a Movie nor writes one.
 `get_taste` describes all four in its own text, which is where an agent meets them.
@@ -103,15 +104,16 @@ What the model is evidence *of*:
   act from what stands**, and leaves no quieter opinion underneath it. It reaches exactly as far
   as the act reached: an evening's `not-tonight` taken back leaves a judgement about the film
   standing where it was. And it is not an unsaying — `get_memory` still remembers they said it.
-- **A Movie carries no opinion at all.** `viewing` says whether they watched it and that is a
-  fact, never a sign for or against: `unseen` is them saying they have not, `null` is nobody
-  having said, and neither is evidence about what they like. A saved film with no verdict is a
-  film they have given **no opinion** on — which is not the same as having said nothing about
-  it, since `seen` or `unseen` is something they said. **Being in a Vibe is no opinion either**:
+- **A Movie carries no opinion at all.** `viewing` says where the film stands on their list and
+  that is a fact, never a sign for or against: `seen` is them having watched it, `want-to-see`
+  is on their list to see, `dont-want-to-see` is them not wanting it recommended, and none of
+  it is evidence about what they like. A saved film with no verdict is a film they have given
+  **no opinion** on — which is not the same as having said nothing about it, since where it
+  stands on their list is something they said. **Being in a Vibe is no opinion either**:
   it says what kind of evening a film belongs to, not that they like it — only a standing liked
   or loved says that. **Never call a film liked or loved without its own verdict**, however many
   films beside it in the Vibe they did like. A film there that is new to them is a candidate for
-  that evening and may lead, as `unseen` always could; Tonight is still not the shortlist.
+  that evening and may lead, as `want-to-see` always could; Tonight is still not the shortlist.
 - **A refusal reaches exactly as far as they said.** `not-tonight` is about that evening and
   nothing else: outside it the film stands where it stood, and it never becomes a dislike or a
   rule about films like it. `not-ever` stops that film for good — that film, not its genre, its
@@ -169,20 +171,20 @@ something fails** decides that, and decides it first.
 
 **Lead with what they have not seen or judged.** `viewing` of `seen` rules a Movie out as new,
 and so does a standing judgement — **nobody likes a film they have not seen**, so `liked`,
-`loved` and `disliked` each mean they watched it whether or not a Movie says so. `unseen` does
-not rule it out: they have not seen it, so it stays on the table. A `loved` one is a **reason**,
-not a suggestion. Anchor a stretch in something they like — an absence shows where to look,
-never why — and say it is one.
+`loved` and `disliked` each mean they watched it whether or not a Movie says so. `want-to-see`
+does not rule it out: it is on their list, so it stays on the table. **`dont-want-to-see` is
+never recommended** — not as the lead, not as a direction — and is not brought up.
+A `loved` one is a **reason**, not a suggestion. Anchor a stretch in something they like — an
+absence shows where to look, never why — and say it is one.
 
 **A refusal is not evidence they saw it.** `not-ever` and `not-tonight` turn a film down; neither
 says they watched it. `not-ever` rules the film out everywhere; `not-tonight` rules it out in its
 own evening and nowhere else.
 
-**Being in the model is never evidence they have not seen it.** A film that is seen or judged is
-never called new, unseen or not yet watched, and never offered as one: *"it's on your list and
-you haven't seen it"* is a contradiction, not a recommendation. And `null` is not `unseen` —
-with no viewing and no verdict, **nobody has said either way**, so it may lead but must never be
-described as one they have not seen.
+**Being in the model is never evidence they have not seen it** — only `want-to-see` says that. A
+film that is seen or judged is never called new, unseen or not yet watched, and never offered as
+one: *"it's on your list and you haven't seen it"*, said of it, is a contradiction, not a
+recommendation.
 
 The model counts as evidence in the taste-aware mode because that is what they asked you to use;
 an empty model is normal for somebody new, and none of this is a reason to stop.
@@ -288,10 +290,11 @@ anything is that it says what they say it says.
 
 ## Films they tell you about
 
-Two requests about a film, and they differ:
+Three requests about a film, and they differ:
 
-- **Keeping a film goes into a Vibe** — *"save this one"*, *"add it to my list"*. **Never write a
-  Movie this way without at least one Vibe.**
+- **Keeping a film goes into a Vibe** — *"save this one"*, *"put it on my list"*. **Never write a
+  Movie this way without at least one Vibe.** It is saved as `want-to-see` unless they said
+  they have seen it.
 - **What they said about a film does not.** *"I loved it"*, *"not tonight"*, *"never again"*,
   *"stop suggesting it"* — that is a verdict, and it goes to `record_verdict`. A turn-down reaches
   as far as their words: *"not interested"* and *"stop suggesting it"* are `not-ever`, *"not
@@ -308,6 +311,12 @@ Two requests about a film, and they differ:
   removes that act from what stands and reaches no further than the act did: nothing weaker is
   left underneath it, an evening's `not-tonight` taken back leaves a judgement about the film
   standing, and none of it is an unsaying — they did say it, and `get_memory` remembers that.
+- **Where a film stands on their list is its viewing**, set by three sentences: *"I've seen
+  it"* is `seen`; *"put it on my list"* is `want-to-see`, and is keeping it, as above; *"don't
+  recommend it again"* is `dont-want-to-see` — not a verdict, and no Vibe is needed for it.
+  `update_movie` when the film is saved, `create_movie` when it is not. Then say in one sentence
+  what you stored — *"saved Arrival as want to see"* — so they can correct it; a correction is
+  another `update_movie`.
 
 What follows a verdict — whether the film belongs in one of their Vibes, anchors one, or reveals
 a new one — and the whole of proposing a Vibe are the **tonight-vibes** skill's.
@@ -334,9 +343,9 @@ then the film, then one short sentence — never ask twice. **A no
 settles it**, never saving the film loose. Propose while saving, not while recommending; a Vibe
 that fits needs none of this.
 
-**A film in no Vibe is legitimate**: a recorded watch makes one, so does deleting a Vibe. The site
-lists them under **Other movies**. Do not sort them, propose Vibes for them, or mention them
-unless they ask or speak of one.
+**A film in no Vibe is legitimate**: a recorded watch makes one, so does a film they do not want
+recommended, so does deleting a Vibe. The site lists them under **Other movies**. Do not sort
+them, propose Vibes for them, or mention them unless they ask or speak of one.
 
 **A recommendation is not a saved Movie.** What they say about a film is a verdict —
 `record_verdict`, never a Movie field; `create_movie` carries `viewing` and no opinion. Never ask
@@ -349,8 +358,8 @@ agent meets it.
 A Movie is theirs, the same way a Genre or a Vibe is, and never an entry from a catalogue.
 
 Naming three films writes nothing down, and neither does their liking one of your suggestions
-unless they said something about the film itself. Leaving `viewing` out records that Tonight was
-not told, and `create_movie` says what that means for the field.
+unless they said something about the film itself. Leaving `viewing` out saves the film as
+`want-to-see`, so give `seen` whenever they told you they watched it.
 
 The Vibe rule governs what you write when they ask you to **keep** a film; it says nothing about
 films that are already there.

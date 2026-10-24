@@ -149,17 +149,17 @@ test("every page says what a film record now holds", () => {
   assert.match(privacy, /the title and release year you gave/);
   assert.match(privacy, /an optional IMDb title id/);
 
-  // The whole distinction, on the axis the film actually carries: two explicit
-  // answers about watching, plus nothing at all, and the three are not the same
-  // thing. Anything vaguer and a reader cannot tell what a film nobody has
-  // spoken about is recorded as.
-  assert.match(privacy, /it has three answers/);
-  for (const viewing of ["seen", "not seen"]) {
+  // The whole distinction, on the axis the film actually carries: where it
+  // stands on their list, always one of three, and what a film saved without
+  // one is recorded as. Anything vaguer and a reader cannot tell what a film
+  // nobody said anything about is recorded as.
+  assert.match(privacy, /it always has one of three answers/);
+  for (const viewing of ["seen", "want to see", "don&rsquo;t want to see"]) {
     assert.match(privacy, new RegExp(`<em>${viewing}</em>`), `${viewing} is not named`);
   }
-  assert.match(privacy, /That last one is a fact and not an opinion/);
-  assert.match(privacy, /Nothing at all is what a film starts as/);
-  assert.match(privacy, /it is different from <em>not seen<\/em>, which is\s+something you said/);
+  assert.match(privacy, /That\s+last one is a fact and not an opinion/);
+  assert.match(privacy, /A film saved\s+without one is <em>want to see<\/em>/);
+  assert.match(privacy, /the assistant says what it saved so you can\s+correct it/);
 
   // And the opinion is disclosed as its own thing, because it is stored as one:
   // a policy that described only the film would under-describe what is kept.
@@ -250,7 +250,7 @@ test("what an assistant may fetch is disclosed as the whole model, films include
   assert.match(privacy, /may <strong>request<\/strong> your taste model/);
   assert.match(privacy, /returns <strong>all<\/strong> of it/);
   assert.match(privacy, /every film you have saved/);
-  assert.match(privacy, /whether you have said you watched it/);
+  assert.match(privacy, /where it stands on your list/);
   assert.match(privacy, /everything you have said about\s+particular films/);
 });
 
@@ -294,11 +294,11 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
   // and nothing else about a film, which a reader exercising a right of
   // rectification has to be told accurately in both directions: what they can
   // change here, and what only an assistant can.
-  assert.match(privacy, /lets you say whether you have seen a film and what you thought of it/);
+  assert.match(privacy, /lets you say where a film stands on your list and what you thought of it/);
   assert.match(privacy, /changing its title or year, and removing it are done through your assistant/);
-  assert.match(text("terms"), /say whether you have seen it and what you thought of it/);
+  assert.match(text("terms"), /say where it stands on your list and what you thought of it/);
   assert.match(text("terms"), /adding or removing one is done through your assistant/);
-  assert.match(text("readme"), /whether a film has been seen and what the user thought of it can be set there/);
+  assert.match(text("readme"), /where a film stands on the user's list and what they thought of it can be set\s+there/);
   assert.match(text("readme"), /everything else about a Movie is done through an assistant/);
 
   // The README has to agree with itself. It said the website "shows the whole
@@ -615,12 +615,12 @@ test("every public page describes the split rather than one multiplexed field", 
 
   // The README names both roots and what each holds.
   const readme = text("readme");
-  assert.match(readme, /a \*\*viewing\*\*: seen, not seen, or nothing said either way/);
+  assert.match(readme, /Its \*\*viewing\*\* says where it stands on your list/);
   assert.match(readme, /\*\*Verdicts\*\* are what you thought/);
   assert.match(readme, /Nothing else anywhere holds an opinion/);
 
   // And the terms name what is retained, on both axes.
-  assert.match(text("terms"), /whether you have said you watched each/);
+  assert.match(text("terms"), /including where each stands on your list/);
   assert.match(text("terms"), /what you have said about particular films/);
 });
 

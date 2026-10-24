@@ -116,7 +116,7 @@ export default function Terms() {
         <p>
           What is processed, and for how long, is described in the{" "}
           <a href="/privacy">Privacy Policy</a>. In short: Tonight stores your genres, your vibes,
-          the films you told it about — including whether you have said you watched each — and
+          the films you told it about — including where each stands on your list — and
           what you have said about particular films. It also records the
           evenings it took part in: what you asked for, what it offered, and whatever you said you
           did with it. Anything you do not say stays unknown, and that record is history rather
@@ -139,7 +139,7 @@ export default function Terms() {
           You can stop using Tonight whenever you like and ask for your data to be deleted. You can
           delete any vibe yourself, and any genre no vibe is built from — a genre a vibe refers to stays
           until you take it out of that vibe or delete the vibe. For a film, the website lets you
-          say whether you have seen it and what you thought of it; adding or removing one is done
+          say where it stands on your list and what you thought of it; adding or removing one is done
           through your assistant, which does it on request. The operator may withdraw access at any time, in
           particular if these terms are not respected or when the closed beta ends.
         </p>

@@ -912,8 +912,8 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     );
   });
 
-  test("a film being made a core cannot be marked unseen underneath it", async (t) => {
-    // Core change against `updateMovie(viewing: unseen)`. The core change holds
+  test("a film being made a core cannot be marked want-to-see underneath it", async (t) => {
+    // Core change against `updateMovie(viewing: want-to-see)`. The core change holds
     // the film and waits for the vibe; marking the film unseen reaches for the
     // same film and waits, and when it gets it the film is a core, so it is
     // refused with a sentence.
@@ -935,7 +935,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     await pause(SETTLE);
     assert.equal(change.state.settled, false, "the core change did not wait for the vibe");
 
-    const unsee = watch(sqlTasteStore(marking, owner).updateMovie(MOON.title, MOON.year, { viewing: "unseen" }));
+    const unsee = watch(sqlTasteStore(marking, owner).updateMovie(MOON.title, MOON.year, { viewing: "want-to-see" }));
     await pause(SETTLE);
     assert.equal(unsee.state.settled, false, "marking it unseen did not wait for the film being anchored");
 
@@ -948,7 +948,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     assert.ok(unsee.state.error instanceof TasteError, "marking a core unseen was not refused with a sentence");
     assert.match(
       (unsee.state.error as TasteError).message,
-      /^cannot mark "Moon" \(2009\) unseen: it is the core of the vibe "Space Tension"/,
+      /^cannot mark "Moon" \(2009\) anything but seen: it is the core of the vibe "Space Tension"/,
     );
 
     const afterwards = await sqlTasteStore(watcher, owner).taste();
@@ -956,7 +956,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     assert.equal(afterwards.movies.find((one) => one.title === "Moon")!.viewing, "seen");
   });
 
-  test("whichever of marking a film unseen and anchoring on it wins, no core is unseen", async (t) => {
+  test("whichever of marking a film want-to-see and anchoring on it wins, no core is unseen", async (t) => {
     // The same two writes queued on the film itself, so either may get it first.
     // Unseen first: the core change then finds an unseen film and is refused.
     // Core first: marking it unseen then finds a core and is refused. Exactly one
@@ -975,7 +975,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const hold = holdMovie(t, holder, owner, "moon");
     await hold.ready;
 
-    const unsee = watch(sqlTasteStore(marking, owner).updateMovie(MOON.title, MOON.year, { viewing: "unseen" }));
+    const unsee = watch(sqlTasteStore(marking, owner).updateMovie(MOON.title, MOON.year, { viewing: "want-to-see" }));
     await pause(SETTLE);
     const change = watch(store.updateVibe("Space Tension", { core: MOON }));
     await pause(SETTLE);
@@ -997,7 +997,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const core = afterwards.vibes[0]!.core;
     assert.ok(
       (JSON.stringify(core) === JSON.stringify(MOON) && moon.viewing === "seen") ||
-        (JSON.stringify(core) === JSON.stringify(ARRIVAL) && moon.viewing === "unseen"),
+        (JSON.stringify(core) === JSON.stringify(ARRIVAL) && moon.viewing === "want-to-see"),
       `an unseen core, or neither write landed: core ${JSON.stringify(core)}, viewing ${moon.viewing}`,
     );
   });

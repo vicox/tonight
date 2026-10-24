@@ -3,16 +3,16 @@ import test, { describe } from "node:test";
 
 import { effectivelySeen } from "../seen.ts";
 import { JUDGEMENTS, REACHES } from "../verdicts/model.ts";
-import { VIEWINGS, checkViewing, orderMovie } from "./model.ts";
+import { DEFAULT_VIEWING, VIEWINGS, checkViewing, orderMovie } from "./model.ts";
 
 /**
  * What a Movie says, and the one thing it may never be made to say.
  *
- * A Movie carries whether the user watched a film. It does not carry what they
- * thought of it — that is a Verdict, and the whole of this refactor was moving
- * the three words that expressed an opinion out of a field that also expressed a
- * fact. So these are mostly about what is *not* here: no opinion, and no way for
- * silence to become a statement.
+ * A Movie carries where a film stands on the user's list. It does not carry what
+ * they thought of it — that is a Verdict, and the whole of this refactor was
+ * moving the three words that expressed an opinion out of a field that also
+ * expressed a fact. So these are mostly about what is *not* here: no opinion,
+ * and no empty answer.
  *
  * The derivation that joins the two back together lives in `lib/seen.ts` and is
  * exercised at the bottom, because it is the one place where a verdict is
@@ -21,13 +21,9 @@ import { VIEWINGS, checkViewing, orderMovie } from "./model.ts";
  */
 
 describe("what a movie says about watching", () => {
-  test("there are two answers, and the third is not one of them", () => {
-    assert.deepEqual(VIEWINGS, ["seen", "unseen"]);
-
-    // `null` is deliberately outside the union. It is the absence of an answer,
-    // and a value in the list would make an exhaustive `switch` able to treat it
-    // as one more thing the user said.
-    assert.equal((VIEWINGS as readonly string[]).includes("null"), false);
+  test("there are three answers, and a new film is on the list to see", () => {
+    assert.deepEqual(VIEWINGS, ["seen", "want-to-see", "dont-want-to-see"]);
+    assert.equal(DEFAULT_VIEWING, "want-to-see");
   });
 
   test("an opinion is not one of them", () => {
@@ -36,13 +32,13 @@ describe("what a movie says about watching", () => {
     // truth for the same sentence.
     for (const judgement of JUDGEMENTS) {
       assert.equal((VIEWINGS as readonly string[]).includes(judgement), false, judgement);
-      assert.throws(() => checkViewing(judgement), /must be one of seen, unseen/u, judgement);
+      assert.throws(() => checkViewing(judgement), /must be one of seen, want-to-see, dont-want-to-see/u, judgement);
     }
 
     // And a refusal is not one either: turning a film down is neither watching
     // it nor an opinion of it.
     for (const reach of REACHES) {
-      assert.throws(() => checkViewing(reach), /must be one of seen, unseen/u, reach);
+      assert.throws(() => checkViewing(reach), /must be one of seen, want-to-see, dont-want-to-see/u, reach);
     }
   });
 
@@ -53,20 +49,13 @@ describe("what a movie says about watching", () => {
     assert.throws(() => checkViewing("liked"), /verdict/iu);
   });
 
-  test("silence is accepted, and never turned into a statement", () => {
-    // `null` is a value and not a refusal: it says Tonight has not been told.
-    assert.equal(checkViewing(null), null);
-
-    // The one thing this must never do. `unseen` is something the user said and
-    // nothing here may put that sentence in their mouth.
-    for (const nothing of [undefined, "", "unknown", "not_seen"]) {
-      assert.notEqual(checkViewing(null), "unseen");
-      if (nothing === undefined) continue;
+  test("there is no empty answer, and the old spellings are refused", () => {
+    for (const nothing of [null, undefined, "", "unknown", "unseen", "not_seen"]) {
       assert.throws(() => checkViewing(nothing), /must be one of/u, JSON.stringify(nothing));
     }
   });
 
-  test("both answers survive the boundary unchanged", () => {
+  test("all three answers survive the boundary unchanged", () => {
     for (const viewing of VIEWINGS) assert.equal(checkViewing(viewing), viewing);
   });
 
@@ -91,17 +80,17 @@ describe("what a movie says about watching", () => {
 describe("whether they have seen it, from both things that can say so", () => {
   test("the fact says it outright", () => {
     assert.equal(effectivelySeen("seen", null), true);
-    assert.equal(effectivelySeen("unseen", null), false);
-    assert.equal(effectivelySeen(null, null), false);
+    assert.equal(effectivelySeen("want-to-see", null), false);
+    assert.equal(effectivelySeen("dont-want-to-see", null), false);
   });
 
   test("a standing judgement says it too, with no movie at all", () => {
     // Nobody likes a film they have not seen. This is the half that keeps a
     // judgement from losing the viewing knowledge the old `liked` state carried
-    // — and it holds for a film that was never saved, because a verdict does not
-    // need a Movie row to exist.
+    // — and it holds whatever the list says, because a verdict does not need a
+    // Movie row to agree with it.
     for (const judgement of JUDGEMENTS) {
-      assert.equal(effectivelySeen(null, { judgement }), true, judgement);
+      assert.equal(effectivelySeen("want-to-see", { judgement }), true, judgement);
     }
   });
 
@@ -110,25 +99,25 @@ describe("whether they have seen it, from both things that can say so", () => {
     // does not intend to, and *"not tonight"* is about an evening. Reading
     // either as evidence of watching would invent a viewing out of a refusal.
     for (const rejected of REACHES) {
-      assert.equal(effectivelySeen(null, { rejected }), false, rejected);
-      assert.equal(effectivelySeen("unseen", { rejected }), false, rejected);
+      assert.equal(effectivelySeen("want-to-see", { rejected }), false, rejected);
+      assert.equal(effectivelySeen("dont-want-to-see", { rejected }), false, rejected);
       // And it does not take away a fact that was stated.
       assert.equal(effectivelySeen("seen", { rejected }), true, rejected);
     }
   });
 
-  test("explicitly unseen plus a judgement resolves to seen, and loses neither fact", () => {
+  test("not seen on the list plus a judgement resolves to seen, and loses neither fact", () => {
     // A contradiction the user can create, and the opinion is the stronger
     // evidence about whether they watched it. Deliberately the whole of the
     // handling: both raw facts stay exactly where they are stored, and the page
     // and the recommendation both read them from there.
-    assert.equal(effectivelySeen("unseen", { judgement: "loved" }), true);
+    assert.equal(effectivelySeen("want-to-see", { judgement: "loved" }), true);
+    assert.equal(effectivelySeen("dont-want-to-see", { judgement: "loved" }), true);
   });
 
   test("the rule is about what stands, so a taken-back opinion cannot reach it", () => {
     // Structural rather than checked: what arrives here is already resolved by
     // `current`, and `null` is what a withdrawn or superseded judgement leaves.
-    assert.equal(effectivelySeen(null, null), false);
-    assert.equal(effectivelySeen("unseen", null), false);
+    assert.equal(effectivelySeen("want-to-see", null), false);
   });
 });

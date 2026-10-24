@@ -55,7 +55,7 @@ export default function Privacy() {
           answer: an assistant you have authorized may <strong>request</strong> your taste model
           through the MCP endpoint, and Tonight returns <strong>all</strong> of it — every genre and
           vibe with its instruction, every film you have saved with its year, its IMDb id if it
-          has one, and whether you have said you watched it, and everything you have said about
+          has one, and where it stands on your list, and everything you have said about
           particular films. What that assistant then does with what it receives
           happens in that service, not here, and the operator has no control over it.
         </p>
@@ -145,12 +145,13 @@ export default function Privacy() {
         <p>
           <strong>Films you tell it about.</strong> A film is in Tonight only because you or an
           assistant acting for you put it there. For each one: the title and release year you gave,
-          an optional IMDb title id, which of your vibes it is in, and whether you have watched it.
-          That last one is a fact and not an opinion, and it has three answers: <em>seen</em>,{" "}
-          <em>not seen</em>, and nothing at all. Nothing at all is what a film starts as and means
-          you have not said either way — it is different from <em>not seen</em>, which is
-          something you said. Neither is guessed from anything: being recommended a film never
-          says you watched it, and neither does saving one.
+          an optional IMDb title id, which of your vibes it is in, and where it stands on your
+          list: whether you have watched it, want to see it, or do not want it recommended. That
+          last one is a fact and not an opinion, and it always has one of three answers:{" "}
+          <em>seen</em>, <em>want to see</em> and <em>don&rsquo;t want to see</em>. A film saved
+          without one is <em>want to see</em>, and the assistant says what it saved so you can
+          correct it; a film saved as the heart of one of your vibes is <em>seen</em>. Being
+          recommended a film never says you watched it.
         </p>
         <p>
           <strong>What you thought of a film.</strong> Kept separately from the film itself,
@@ -503,7 +504,7 @@ export default function Privacy() {
           You can delete any vibe yourself at any time, on this website or through your assistant, and
           any genre no vibe is built from. A genre a vibe does refer to stays until that vibe does not:
           take it out of the vibe, or delete the vibe, and the genre can go. For a film, the
-          signed-in page lets you say whether you have seen a film and what you thought of it; adding one,
+          signed-in page lets you say where a film stands on your list and what you thought of it; adding one,
           changing its title or year, and removing it are done through your assistant, which does
           each there and then. To have your account and everything belonging to it removed, write
           to{" "}

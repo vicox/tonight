@@ -180,7 +180,8 @@ test("each answer has its Lucide icon, and nothing-said has its own", () => {
   assert.match(marks, /from "lucide-react"/);
   for (const [value, icon] of [
     ["seen", "Eye"],
-    ["unseen", "EyeOff"],
+    ["want-to-see", "Bookmark"],
+    ["dont-want-to-see", "EyeOff"],
     ["liked", "ThumbsUp"],
     ["loved", "Heart"],
     ["disliked", "ThumbsDown"],
@@ -198,14 +199,13 @@ test("each answer has its Lucide icon, and nothing-said has its own", () => {
   assert.equal(/value: "nothing_said"|value: "circle"/.test(marks), false, "Circle became an answer");
 });
 
-test("the viewing mark offers two answers and no way back to silence", () => {
-  // A press is a statement. Unsaying one is a real operation and it stays with
-  // the assistant, where `update_movie` accepts a null.
+test("the viewing mark offers the three answers and no empty one", () => {
+  // A film on the list always stands somewhere, so there is nothing to unsay.
   const viewing = marks.slice(marks.indexOf("export const VIEWING"), marks.indexOf("export const JUDGEMENT"));
   assert.deepEqual(
-    [...viewing.matchAll(/value: "([a-z]+)"/g)].map((match) => match[1]),
-    ["unseen", "seen"],
-    "the viewing mark no longer offers not-seen then seen, the direction a film moves",
+    [...viewing.matchAll(/value: "([a-z-]+)"/g)].map((match) => match[1]),
+    ["want-to-see", "seen", "dont-want-to-see"],
+    "the viewing mark no longer offers want to see then seen, the direction a film moves",
   );
   assert.equal(/value: null/.test(viewing), false, "the viewing mark can write silence back");
   assert.match(viewing, /endpoint: "\/api\/movies"/);
