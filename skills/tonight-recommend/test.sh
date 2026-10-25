@@ -795,6 +795,13 @@ check "with no good fit the film waits, and a Vibe is devised rather than asked 
 check "the Vibe is proposed conversationally, named, explained and anchored, then asked about" \
     "$(order_check 'say what you noticed, name it, say what it means, name its core' \
         'Then ask')" "True"
+check "the proposal names its Genres, and what a new one would mean" \
+    "$(order_check 'name its core, name its Genres with what any new one would mean' \
+        'make it concrete')" "True"
+check "two Genres is the usual shape, a third is conditional, and padding is never allowed" \
+    "$(order_check 'None fits' 'usually two meaningful, distinct ones in all' \
+        'a third only when it holds a part the two do not' 'never filler to hit a number' \
+        'then propose a Vibe over them')" "True"
 check "a proposed Vibe is shown as an idea: other films in it, other names for it" \
     "$(order_check 'make
 it concrete' \
