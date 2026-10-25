@@ -76,8 +76,8 @@ describe("the verdict tools", () => {
     ((await said(tools, "get_verdicts", { film: f })) as unknown as { history: { said: string }[] })
       .history;
 
-  const standing = async (tools: Record<string, Tool>, f: object, occasion?: string) =>
-    (await said(tools, "get_verdicts", { film: f, ...(occasion ? { occasion } : {}) })) as unknown as {
+  const standing = async (tools: Record<string, Tool>, f: object) =>
+    (await said(tools, "get_verdicts", { film: f })) as unknown as {
       current: { assertion?: { about: string; judgement?: string; because?: string | null } } | null;
       history: { said: string }[];
       superseded: unknown[];
@@ -384,48 +384,19 @@ describe("the verdict tools", () => {
     assert.equal((await standing(ana, f)).current?.assertion?.because, null);
   });
 
-  test("3. a rejection is recorded as a rejection", async () => {
-    const f = film();
-    await said(ana, "record_verdict", {
-      film: f,
-      told: "volunteered",
-      said: { about: "rejection", reach: "not-ever", reason: "three hours of misery" },
-    });
-    const read = await standing(ana, f);
-    assert.equal(read.current?.assertion?.about, "rejection");
-    assert.equal(read.current?.assertion?.judgement, undefined, "a rejection came back as a judgement");
-  });
-
-  test("4. not-tonight without an evening is refused", async () => {
-    const f = film();
-    const refused = await call(ana, "record_verdict", {
-      film: f,
-      told: "volunteered",
-      said: { about: "rejection", reach: "not-tonight", reason: "too long" },
-    });
-    assert.equal(refused.isError, true, "a not-tonight refusal was accepted as a global claim");
-    assert.deepEqual((await standing(ana, f)).history, [], "a refused call was written anyway");
-  });
-
-  test("4b. not-tonight with an evening stands only there", async () => {
-    const f = film();
-    await said(ana, "record_verdict", {
-      film: f,
-      told: "confirmed",
-      said: { about: "rejection", reach: "not-tonight", reason: "too long", occasion: "evening-1" },
-    });
-    assert.equal((await standing(ana, f)).current, null, "an evening's refusal became global");
-    assert.equal((await standing(ana, f, "evening-1")).current?.assertion?.about, "rejection");
-  });
-
-  test("5. not-ever with an evening is refused; it is about the film", async () => {
-    const f = film();
-    const refused = await call(ana, "record_verdict", {
-      film: f,
-      told: "volunteered",
-      said: { about: "rejection", reach: "not-ever", occasion: "evening-1" },
-    });
-    assert.equal(refused.isError, true, "a not-ever refusal was scoped to one evening");
+  test("3. turning a film down is not recorded, in either reach", async () => {
+    // What the protocol makes of these is `tools.test.ts`'s; this is the handler
+    // behind it, which refuses them as well rather than writing the nearest shape.
+    for (const reach of ["not-ever", "not-tonight"]) {
+      const f = film();
+      const refused = await call(ana, "record_verdict", {
+        film: f,
+        told: "volunteered",
+        said: { about: "rejection", reach, reason: "too long" },
+      });
+      assert.equal(refused.isError, true, `a ${reach} was recorded`);
+      assert.deepEqual((await standing(ana, f)).history, [], "a refused call was written anyway");
+    }
   });
 
   test("6. volunteered and confirmed are kept apart", async () => {
@@ -463,19 +434,6 @@ describe("the verdict tools", () => {
       false,
       "a withdrawal was written as a dislike",
     );
-  });
-
-  test("8b. withdrawing an evening restores what applied before it", async () => {
-    const f = film();
-    await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
-    await said(ana, "record_verdict", {
-      film: f,
-      told: "confirmed",
-      said: { about: "rejection", reach: "not-tonight", occasion: "evening-2" },
-    });
-    await said(ana, "withdraw_verdict", { film: f, occasion: "evening-2" });
-    assert.equal((await standing(ana, f, "evening-2")).current?.assertion?.judgement, "loved");
-    assert.equal((await standing(ana, f)).current?.assertion?.judgement, "loved");
   });
 
   test("7b. a correction made in the same millisecond still takes", async () => {
@@ -592,9 +550,13 @@ describe("the verdict tools", () => {
     assert.match(text, /watching a film is not liking it/u);
     assert.match(text, /finishing one is not liking it/u);
     assert.match(text, /Silence is not a verdict/u);
-    // Scope.
-    assert.match(text, /`not-tonight` is about one evening/u);
-    assert.match(text, /`not-ever` is about the film and also applies\s+everywhere/u);
+    // A verdict is a judgement about the film, and a turn-down is routed rather
+    // than recorded: where the film stands, or nothing at all.
+    assert.match(text, /A verdict is a judgement — liked, loved or disliked — about the film/u);
+    assert.match(text, /\*\*Turning a film down is not a verdict\.\*\*/u);
+    assert.match(text, /say where the film stands on their list: dont-want-to-see/u);
+    assert.match(text, /offer something else and write nothing/u);
+    assert.doesNotMatch(text, /not-tonight|not-ever|occasion/u, "a verdict tool still describes a refusal or an evening");
     // Withdrawal.
     assert.match(text, /not a neutral one, and certainly not a dislike/u);
     // That Tonight never gets in touch on its own used to be stated in the

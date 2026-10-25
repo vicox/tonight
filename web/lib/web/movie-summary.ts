@@ -49,8 +49,8 @@ import type { Positioned } from "./judgements.ts";
  *
  * `No opinion` sits outside the three rather than as a fourth, because it is
  * the absence of a judgement rather than one — and it is *not* the same as
- * having said nothing: a standing `not-ever` is a great deal said, and lands
- * there too, because a refusal is not a judgement.
+ * having said nothing: a film they do not want recommended is a great deal
+ * said, and lands there too, because where a film stands is not an opinion.
  */
 
 /** A film as this module reads one: what is saved, and what stands about it. */
@@ -133,10 +133,10 @@ export const DISLIKED: Selection = { key: "disliked", holds: judged("disliked"),
  * would make an absence look like a verdict.
  *
  * "No opinion" rather than "nothing said", because the two are different and
- * the difference matters here. A film they turned down for good has a standing
- * verdict — they said a great deal about it — and it is in this bucket, because
- * a refusal is not a judgement. So is a film on their list to see. What they
- * have not done is say what they made of it.
+ * the difference matters here. A film they do not want recommended has a
+ * standing on their list — they said a great deal about it — and it is in this
+ * bucket unless they also judged it. So is a film on their list to see. What
+ * they have not done is say what they made of it.
  */
 export const NO_OPINION: Selection = {
   key: "no_opinion",

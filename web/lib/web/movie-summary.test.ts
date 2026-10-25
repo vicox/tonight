@@ -170,50 +170,27 @@ test("No opinion is exactly the films with no standing judgement, refusals inclu
   assert.equal(NO_OPINION.label, "No opinion");
 });
 
-test("a film turned down for good is in No opinion, and is not seen either", () => {
+test("a film they do not want recommended is in No opinion, and is not seen either", () => {
   // The reason the bucket is not called "nothing said", built the way the page
-  // builds it rather than asserted about a film with nothing on it. A standing
-  // `not-ever` is a great deal said — and it is still not a judgement, so the
-  // film belongs here.
-  const refused: Standing[] = [
-    { title: "Solaris", year: 1972, rejected: "not-ever", reason: "three hours of misery", told: "confirmed" },
-  ];
+  // builds it rather than asserted about a film with nothing on it. Not wanting
+  // a film recommended is a great deal said — and it is where the film stands on
+  // their list, not a judgement, so the film belongs here.
+  const nothingStands: Standing[] = [];
   const [shown] = withPositions(
-    [{ ...film("Solaris", "want-to-see"), title: "Solaris", year: 1972 }],
-    positions(refused),
+    [{ ...film("Solaris", "dont-want-to-see"), title: "Solaris", year: 1972 }],
+    positions(nothingStands),
   );
   assert.ok(shown);
+  assert.equal(shown.position?.judgement, undefined, "a viewing arrived as a judgement");
 
-  // The refusal reached the page as a refusal and not as an opinion: nothing
-  // about it became a judgement on the way through.
-  assert.equal(shown.position?.judgement, undefined, "a refusal arrived as a judgement");
-
-  assert.equal(count(NO_OPINION, [shown]), 1, "a refused film is not counted as unjudged");
+  assert.equal(count(NO_OPINION, [shown]), 1, "a film they do not want is not counted as unjudged");
   for (const opinion of [LIKED, LOVED, DISLIKED]) {
-    assert.equal(count(opinion, [shown]), 0, `a refusal was counted as ${opinion.label}`);
+    assert.equal(count(opinion, [shown]), 0, `not wanting a film was counted as ${opinion.label}`);
   }
 
-  // And it says nothing about watching, in either direction: `not ever` is most
-  // often said about a film somebody has never seen.
-  assert.equal(count(SEEN, [shown]), 0, "a refusal was read as having watched it");
-  assert.equal(count(WANT_TO_SEE, [shown]), 1, "the refusal decided the watching question");
-});
-
-test("an evening's refusal never reaches a page showing a collection", () => {
-  // `positions` takes global claims only. A `not-tonight` belongs to one evening
-  // and a collection is not an evening — carrying it here would turn a Tuesday's
-  // mood into a fact about the film.
-  const tonight: Standing[] = [
-    { title: "Heat", year: 1995, rejected: "not-tonight", occasion: "evening-tuesday", told: "confirmed" },
-  ];
-  assert.equal(positions(tonight).size, 0);
-
-  // And neither does an evening-scoped judgement, which is the same rule and
-  // the easier one to get wrong.
-  const loved: Standing[] = [
-    { title: "Heat", year: 1995, judgement: "loved", occasion: "evening-tuesday", told: "volunteered" },
-  ];
-  assert.equal(positions(loved).size, 0, "an evening's judgement became the standing one");
+  // And it says nothing about having watched it: it is its own answer.
+  assert.equal(count(SEEN, [shown]), 0, "not wanting a film was read as having watched it");
+  assert.equal(count(DONT_WANT_TO_SEE, [shown]), 1, "the film is not where its viewing puts it");
 });
 
 test("a film on the list to see and never judged is in No opinion", () => {

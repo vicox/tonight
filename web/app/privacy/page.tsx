@@ -65,10 +65,9 @@ export default function Privacy() {
           collection: it groups your films under the vibes they are in, lists the rest under
           &ldquo;Other movies&rdquo;, and keeps each instruction one click away rather than on the
           page. What you said about a film is shown <em>against the film it is about</em>, so
-          three things stored about you are not on it: a verdict about a film you never saved,
-          because there is no film there to show it against; a <em>not tonight</em>, because that
-          belongs to an evening rather than to the film; and a verdict you replaced or took back,
-          because the page shows what stands. The evenings Tonight recorded are not on it either.
+          two things stored about you are not on it: a verdict about a film you never saved,
+          because there is no film there to show it against; and a verdict you replaced or took
+          back, because the page shows what stands. The evenings Tonight recorded are not on it either.
           None of that is deleted, hidden from you, or outside this policy — it is stored, it is
           covered by the retention and deletion terms below, and an assistant you authorize can
           read all of it back to you.
@@ -156,19 +155,19 @@ export default function Privacy() {
         <p>
           <strong>What you thought of a film.</strong> Kept separately from the film itself,
           because it is a different kind of thing. A <em>verdict</em> is something you said about
-          one film: that you <em>liked</em>, <em>loved</em> or <em>disliked</em> it, or that you
-          turned it down — <em>not tonight</em> for one evening, or <em>not ever</em>. Each one
+          one film: that you <em>liked</em>, <em>loved</em> or <em>disliked</em> it. Each one
           records your own words for why if you gave them, whether you volunteered it or answered
           a question, and when you said it. Nothing else is stored as an opinion: a saved film
-          carries no rating, and being recommended something writes no verdict.
+          carries no rating, and being recommended something writes no verdict. Turning a film
+          down is not a verdict: <em>don&rsquo;t recommend it again</em> is kept as where the film
+          stands on your list, <em>don&rsquo;t want to see</em>, and <em>not tonight</em> is used
+          for that evening and not stored at all.
         </p>
         <p>
           <strong>Verdicts keep their history, and you can take one back.</strong> Changing your
           mind records the new verdict and keeps the old one as something you used to say.
           Withdrawing one takes <strong>that verdict</strong> out of what currently applies rather
-          than leaving a weaker one — and it reaches exactly as far as the verdict did: taking back
-          a <em>not tonight</em> given for one evening leaves anything you said about the film in
-          general still standing. It does not unsay it either: that you said it, and then took it
+          than leaving a weaker one. It does not unsay it either: that you said it, and then took it
           back, is still part of what Tonight remembers, and both are shown to you. Neither reaches the
           film itself: taking back an opinion does not change whether you said you watched it,
           and does not remove the film from your collection. <strong>Forgetting</strong> is the
@@ -506,7 +505,8 @@ export default function Privacy() {
           take it out of the vibe, or delete the vibe, and the genre can go. For a film, the
           signed-in page lets you say where a film stands on your list and what you thought of it; adding one,
           changing its title or year, and removing it are done through your assistant, which does
-          each there and then. To have your account and everything belonging to it removed, write
+          each there and then. Removing a film removes everything you said about it as well — every
+          verdict, including ones you replaced or took back. To have your account and everything belonging to it removed, write
           to{" "}
           <a href={`mailto:${op.email}`}>{op.email}</a>. During this beta, deleting an account is
           carried out by hand rather than by a button in the product. We act without undue delay and,

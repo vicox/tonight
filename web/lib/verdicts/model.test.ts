@@ -6,9 +6,9 @@ import {
   current,
   filmKey,
   JUDGEMENTS,
-  MAX_OCCASION_LENGTH,
   MAX_REASON_LENGTH,
   MAX_TITLE_LENGTH,
+  NOT_A_VERDICT,
   stateVerdict,
   supersession,
   VerdictError,
@@ -24,28 +24,21 @@ import {
  * As in M1, most of these contracts are about what the model refuses to express.
  * A verdict that can only come from a user statement is worth nothing if a
  * caller can reach the same belief by another route, so the tests try the
- * routes — an agent claimant, an observed provenance, a rejection quietly
- * becoming a dislike, an evening's refusal quietly becoming a permanent one,
- * a withdrawal quietly becoming a neutral value, and a malformed object walking
- * straight past the constructors into the history functions.
+ * routes — an agent claimant, an observed provenance, a refusal quietly
+ * becoming a dislike, an evening quietly narrowing a claim, a withdrawal quietly
+ * becoming a neutral value, and a malformed object walking straight past the
+ * constructors into the history functions.
  */
 
 const prisoners: Film = { title: "Prisoners", year: 2013 };
 const zodiac: Film = { title: "Zodiac", year: 2007 };
 const TUESDAY = { occasion: "evening-1" };
-const WEDNESDAY = { occasion: "evening-2" };
 
 const loved = (at = "2026-01-01T20:00:00.000Z", film = prisoners) =>
   stateVerdict(film, { about: "judgement", judgement: "loved" }, "volunteered", at);
 
 const judged = (judgement: string, at: string, because?: unknown) =>
   stateVerdict(prisoners, { about: "judgement", judgement, because }, "volunteered", at);
-
-const notTonight = (at: string, scope: unknown = TUESDAY, reason: string | null = null) =>
-  stateVerdict(prisoners, { about: "rejection", rejection: { reach: "not-tonight", reason } }, "volunteered", at, scope);
-
-const notEver = (at: string, reason: string | null = null) =>
-  stateVerdict(prisoners, { about: "rejection", rejection: { reach: "not-ever", reason } }, "volunteered", at);
 
 /* ----------------------------------------------------- the claim and its facets */
 
@@ -68,7 +61,7 @@ test("a verdict carries every facet a Claim is required to identify", () => {
 
 test("the scope is stated rather than left out", () => {
   assert.equal(loved().scope, "everywhere");
-  assert.deepEqual(notTonight("2026-01-01T20:00:00.000Z").scope, TUESDAY);
+  assert.equal(withdrawVerdict(prisoners, "2026-01-02T20:00:00.000Z").scope, "everywhere");
 });
 
 test("only the user claims a verdict, and there is no second claimant", () => {
@@ -112,132 +105,41 @@ test("only the three states that carry an opinion are judgements", () => {
   }
 });
 
-test("a rejection is never a judgement, in either direction", () => {
-  assert.throws(
-    () =>
-      stateVerdict(
-        prisoners,
-        { about: "judgement", judgement: "disliked", rejection: { reach: "not-ever", reason: null } },
-        "volunteered",
-        "2026-01-01T20:00:00.000Z",
-      ),
-    VerdictError,
-  );
-  assert.throws(
-    () =>
-      stateVerdict(
-        prisoners,
-        { about: "rejection", judgement: "disliked", rejection: { reach: "not-ever", reason: null } },
-        "volunteered",
-        "2026-01-01T20:00:00.000Z",
-      ),
-    VerdictError,
-  );
-  assert.throws(
-    () =>
-      stateVerdict(prisoners, { about: "rejection", rejection: { reason: "meh" } }, "volunteered", "2026-01-01T20:00:00.000Z"),
-    VerdictError,
-  );
+test("turning a film down is not a verdict, and the refusal says where it goes instead", () => {
+  // The shapes a caller who learned the old surface would send. Each is refused
+  // with the one sentence that routes it — never read as `disliked`, which says
+  // they watched it, and never dropped into the nearest valid shape.
+  for (const refusal of [
+    { about: "rejection", rejection: { reach: "not-ever", reason: null } },
+    { about: "rejection", rejection: { reach: "not-tonight", reason: "too long" } },
+    { about: "judgement", judgement: "disliked", rejection: { reach: "not-ever", reason: null } },
+  ]) {
+    assert.throws(
+      () => stateVerdict(prisoners, refusal, "volunteered", "2026-01-01T20:00:00.000Z"),
+      (error: unknown) => error instanceof VerdictError && error.message === NOT_A_VERDICT,
+      `${JSON.stringify(refusal)} was not refused as a refusal`,
+    );
+  }
+  assert.match(NOT_A_VERDICT, /dont-want-to-see/u, "the refusal does not say where a turn-down goes");
 });
 
-/* ------------------------------------ finding 1 — not tonight is about an evening */
+/* ------------------------------------------------- an evening is not a scope */
 
-test("a not-tonight refusal is never global", () => {
-  // The defect this replaces: every verdict was scope "everywhere", which turned
-  // "not tonight" into a standing claim about the film.
-  assert.throws(
-    () => notTonight("2026-01-01T20:00:00.000Z", "everywhere"),
-    VerdictError,
-    "a not-tonight refusal was accepted as a global claim",
-  );
-  // Called without a scope at all, so the constructor's own default is what is
-  // under test — a helper's default would answer a question nobody asked.
-  assert.throws(
-    () =>
-      stateVerdict(
-        prisoners,
-        { about: "rejection", rejection: { reach: "not-tonight", reason: null } },
-        "volunteered",
-        "2026-01-01T20:00:00.000Z",
-      ),
-    VerdictError,
-    "a not-tonight refusal defaulted to global",
-  );
-  assert.deepEqual(notTonight("2026-01-01T20:00:00.000Z").scope, TUESDAY);
-});
-
-test("a not-ever refusal and a judgement are never local", () => {
-  // The other direction, so the two forms cannot be written as each other.
-  assert.throws(
-    () =>
-      stateVerdict(
-        prisoners,
-        { about: "rejection", rejection: { reach: "not-ever", reason: null } },
-        "volunteered",
-        "2026-01-01T20:00:00.000Z",
-        TUESDAY,
-      ),
-    VerdictError,
-  );
+test("a claim naming an evening is refused rather than widened", () => {
+  // A claim that arrived scoped to one evening was meant to apply only there;
+  // quietly making it global would widen what somebody said. Both constructors,
+  // and both with a well-formed evening — the refusal is about there being no
+  // such scope, not about the evening being malformed.
   assert.throws(
     () => stateVerdict(prisoners, { about: "judgement", judgement: "loved" }, "volunteered", "2026-01-01T20:00:00.000Z", TUESDAY),
     VerdictError,
+    "a judgement was accepted for one evening",
   );
-});
-
-test("an evening's refusal is invisible from outside that evening", () => {
-  const acts = [loved("2026-01-01T20:00:00.000Z"), notTonight("2026-02-01T20:00:00.000Z")];
-  // Asked globally, the later refusal does not displace the judgement: it never
-  // reached it. This is the defect's user-visible half.
-  assert.deepEqual(current(acts), acts[0]);
-  assert.deepEqual(current(acts, "everywhere"), acts[0]);
-});
-
-test("an evening's refusal stands in its own evening, and nowhere else", () => {
-  const acts = [loved("2026-01-01T20:00:00.000Z"), notTonight("2026-02-01T20:00:00.000Z")];
-  assert.deepEqual(current(acts, TUESDAY), acts[1], "the refusal does not stand where it was made");
-  // Another evening inherits the global base untouched — a lens, not an edit.
-  assert.deepEqual(current(acts, WEDNESDAY), acts[0]);
-});
-
-test("a local refusal does not supersede the global claim it sits under", () => {
-  const judgement = loved("2026-01-01T20:00:00.000Z");
-  const refusal = notTonight("2026-02-01T20:00:00.000Z");
-  assert.deepEqual(supersession([judgement, refusal]), [], "a scoped claim displaced a global one");
-});
-
-test("withdrawal reaches only the scope it was made in", () => {
-  const judgement = loved("2026-01-01T20:00:00.000Z");
-  const refusal = notTonight("2026-02-01T20:00:00.000Z");
-  const takeBackTuesday = withdrawVerdict(prisoners, "2026-03-01T20:00:00.000Z", TUESDAY);
-  const acts = [judgement, refusal, takeBackTuesday];
-
-  // Tuesday's refusal is gone, and what showed through before it shows through
-  // again rather than Tuesday becoming silent.
-  assert.deepEqual(current(acts, TUESDAY), judgement);
-  assert.deepEqual(current(acts, "everywhere"), judgement, "a scoped withdrawal reached the global claim");
-  assert.deepEqual(supersession(acts), [{ verdict: refusal, by: takeBackTuesday }]);
-});
-
-test("withdrawing globally does not reach into an evening's own refusal", () => {
-  const judgement = loved("2026-01-01T20:00:00.000Z");
-  const refusal = notTonight("2026-02-01T20:00:00.000Z");
-  const takeBackGlobal = withdrawVerdict(prisoners, "2026-03-01T20:00:00.000Z");
-  const acts = [judgement, refusal, takeBackGlobal];
-
-  assert.equal(current(acts, "everywhere"), null);
-  assert.deepEqual(current(acts, TUESDAY), refusal, "Tuesday lost a refusal it never took back");
-  assert.deepEqual(supersession(acts), [{ verdict: judgement, by: takeBackGlobal }]);
-});
-
-test("two evenings keep their own refusals apart", () => {
-  const tuesday = notTonight("2026-01-01T20:00:00.000Z", TUESDAY, "too long");
-  const wednesday = notTonight("2026-02-01T20:00:00.000Z", WEDNESDAY, "not in the mood");
-  const acts = [tuesday, wednesday];
-  assert.deepEqual(current(acts, TUESDAY), tuesday);
-  assert.deepEqual(current(acts, WEDNESDAY), wednesday);
-  assert.equal(current(acts, "everywhere"), null, "an evening's refusal became a global claim");
-  assert.deepEqual(supersession(acts), [], "one evening superseded another");
+  assert.throws(
+    () => withdrawVerdict(prisoners, "2026-01-01T20:00:00.000Z", TUESDAY),
+    VerdictError,
+    "a taking-back was accepted for one evening",
+  );
 });
 
 /* ------------------------------ finding 2 — the user's explanation is theirs, kept */
@@ -288,32 +190,6 @@ test("an explanation Tonight worked out for itself cannot get in", () => {
   }
 });
 
-test("a rejection's reason and a judgement's explanation stay separate facets", () => {
-  const refusal = notTonight("2026-01-01T20:00:00.000Z", TUESDAY, "  too long  ");
-  assert.deepEqual(refusal.assertion, {
-    about: "rejection",
-    rejection: { reach: "not-tonight", reason: "too long" },
-  });
-  // A rejection gives its reason inside the rejection; `because` belongs to a
-  // judgement, and putting it on a rejection is a mistake rather than a synonym.
-  assert.throws(
-    () =>
-      stateVerdict(
-        prisoners,
-        { about: "rejection", rejection: { reach: "not-ever", reason: null }, because: "too long" },
-        "volunteered",
-        "2026-01-01T20:00:00.000Z",
-      ),
-    VerdictError,
-  );
-});
-
-test("a rejection with no reason records that none was given", () => {
-  assert.equal(notEver("2026-01-01T20:00:00.000Z").assertion.about, "rejection");
-  const rejection = (notEver("2026-01-01T20:00:00.000Z").assertion as { rejection: { reason: string | null } }).rejection;
-  assert.equal(rejection.reason, null);
-});
-
 /* ------------------------- finding 3 — the history functions check the whole claim */
 
 test("a malformed act is refused wherever it came from", () => {
@@ -333,7 +209,7 @@ test("a malformed act is refused wherever it came from", () => {
     { ...sound, scope: { occasion: "" } },
     { ...sound, scope: { occasion: 7 } },
     { ...sound, scope: "somewhere" },
-    { ...sound, scope: { occasion: "x".repeat(MAX_OCCASION_LENGTH + 1) } },
+    { ...sound, scope: TUESDAY },
     { ...sound, at: "whenever" },
     { ...sound, at: "2026-01-01" },
     { ...sound, at: "2026-01-01T20:00:00" },
@@ -344,6 +220,7 @@ test("a malformed act is refused wherever it came from", () => {
     { said: "withdrawal", claimant: "user", film: prisoners, scope: "everywhere", at: "2026-01-01T20:00:00.000Z", told: "volunteered" },
     { said: "withdrawal", claimant: "user", film: prisoners, scope: "everywhere", at: "2026-01-01T20:00:00.000Z", assertion: { about: "judgement", judgement: "loved", because: null } },
     { said: "withdrawal", claimant: "user", film: prisoners, scope: "nowhere", at: "2026-01-01T20:00:00.000Z" },
+    { said: "withdrawal", claimant: "user", film: prisoners, scope: TUESDAY, at: "2026-01-01T20:00:00.000Z" },
     { said: "withdrawal", claimant: "user", film: prisoners, scope: "everywhere", at: "nope" },
   ];
   for (const act of malformed) {
@@ -369,13 +246,6 @@ test("acts about different films are refused rather than quietly filtered", () =
   const acts = [loved("2026-01-01T20:00:00.000Z", prisoners), loved("2026-03-01T20:00:00.000Z", zodiac)];
   assert.throws(() => current(acts), VerdictError);
   assert.throws(() => supersession(acts), VerdictError);
-});
-
-test("the scope you ask about is checked too", () => {
-  const acts = [loved("2026-01-01T20:00:00.000Z")];
-  for (const nonsense of ["somewhere", { occasion: "" }, { occasion: 7 }, 42]) {
-    assert.throws(() => current(acts, nonsense as never), VerdictError);
-  }
 });
 
 /* --------------------------- finding 4 — instants, not strings; and a stable order */

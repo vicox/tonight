@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
+import { canonicalTitle } from "../films/identity.ts";
 import { ConfigurationError } from "../oauth/config.ts";
 import { orderGenre, orderVibe, orderMovie } from "../taste/model.ts";
 import { RECONCILE_VIBE_GENRES, TASTE_SCHEMA } from "../taste/store/schema.ts";
@@ -10,6 +11,7 @@ import { sqlVerdictStore } from "../verdicts/store/sql.ts";
 import type { SqlDriver } from "./driver.ts";
 import { migrate, prepareSchema, type SchemaModule } from "./migrate.ts";
 import { embeddedDriver } from "./pglite.ts";
+import { preflightM8 } from "./preflight-m8.ts";
 
 /**
  * Who is allowed to change the schema, and when.
@@ -273,6 +275,18 @@ const upTo = (version: number): SchemaModule => ({
  * earlier migration is checked in the last schema that could hold such a row.
  */
 const BEFORE_MY_LIST = upTo(13);
+
+/**
+ * The verdict store before refusals left it, v3.
+ *
+ * v3 needs taste v14, so migrating the whole verdict schema brings taste up to
+ * v14 first. A contract about an earlier taste step stands in the taste schema
+ * it names, with the verdict table beside it, and so migrates verdicts this far.
+ */
+const VERDICTS_WITH_REFUSALS: SchemaModule = {
+  module: VERDICTS_SCHEMA.module,
+  migrations: VERDICTS_SCHEMA.migrations.filter((one) => one.version <= 2),
+};
 
 /** Rows exactly as the v1 schema held them: names, and no ids anywhere. */
 async function seedV1(sql: SqlDriver): Promise<void> {
@@ -979,6 +993,15 @@ async function present(sql: SqlDriver, kind: "column" | "trigger" | "function", 
   return Number(row!.count) > 0;
 }
 
+/** The versions of one module this database has recorded, in order. */
+async function versions(sql: SqlDriver, module: string): Promise<number[]> {
+  const rows = await sql.query<{ version: number }>(
+    "SELECT version FROM schema_migrations WHERE module = $1 ORDER BY version",
+    [module],
+  );
+  return rows.map((row) => row.version);
+}
+
 test("v7 takes the bridge away, and only the bridge", async () => {
   // The other half of v5. Everything it removes existed so that two builds could
   // write the same film at once, and there has been one build for a long time.
@@ -1036,7 +1059,7 @@ test("what the user said survives the contract migration, on both axes", async (
   );
 
   await migrate(sql, BEFORE_MY_LIST);
-  await migrate(sql, VERDICTS_SCHEMA);
+  await migrate(sql, VERDICTS_WITH_REFUSALS);
 
   // Every state maps to the viewing it implied, and the three evaluative ones
   // each leave a verdict carrying what they said.
@@ -1217,7 +1240,7 @@ async function realVerdict(sql: SqlDriver, title: string, judgement: string, at:
 async function beforeTheSplit(): Promise<SqlDriver> {
   const sql = await fresh();
   await migrate(sql, upTo(9));
-  await migrate(sql, VERDICTS_SCHEMA);
+  await migrate(sql, VERDICTS_WITH_REFUSALS);
   return sql;
 }
 
@@ -1387,6 +1410,8 @@ test("an equal instant still leaves the real act standing", async () => {
 });
 
 test("a standing not-ever is not displaced by a migrated judgement", async () => {
+  // Refusals left the verdict store in verdicts v3, after this ran in production
+  // — so this is read off the rows v11 left, beside the refusal it found there.
   const sql = await beforeTheSplit();
   await legacyMovie(sql, "Heat", "loved", "2020-05-05T10:00:00.000Z");
   await sql.query(
@@ -1397,9 +1422,15 @@ test("a standing not-ever is not displaced by a migrated judgement", async () =>
 
   await migrate(sql, TASTE_SCHEMA);
 
-  const [standing] = await sqlVerdictStore(sql, { id: ALICE } as never).standing();
-  assert.equal(standing?.rejected, "not-ever");
-  assert.equal(standing?.judgement, undefined, "the refusal became a judgement");
+  const history = await acts(sql, "Heat");
+  assert.deepEqual(
+    history.map((one) => [one.judgement, one.said_at.toISOString()]),
+    [
+      ["loved", "2020-05-05T10:00:00.000Z"],
+      [null, "2026-01-01T20:00:00.000Z"],
+    ],
+    "the migrated judgement was not placed beneath the refusal",
+  );
 });
 
 test("a withdrawal still silences the migrated act it now sits above", async () => {
@@ -1436,11 +1467,16 @@ test("a not-tonight leaves the migrated judgement standing everywhere else", asy
 
   await migrate(sql, TASTE_SCHEMA);
 
-  const standing = await sqlVerdictStore(sql, { id: ALICE } as never).standing();
-  const global = standing.find((one) => one.occasion === undefined);
-  const evening = standing.find((one) => one.occasion === "tue");
-  assert.equal(global?.judgement, "loved", "an evening's refusal took the base with it");
-  assert.equal(evening?.rejected, "not-tonight");
+  // Read off the rows, as above. The evening's refusal is its own row on its own
+  // evening, and the migrated judgement is the global one, dated by the film.
+  const rows = await sql.query<{ occasion: string | null; judgement: string | null; reach: string | null }>(
+    `SELECT occasion, judgement, reach FROM tonight_verdict_acts WHERE user_id = $1 ORDER BY said_at`,
+    [ALICE],
+  );
+  assert.deepEqual(rows, [
+    { occasion: null, judgement: "loved", reach: null },
+    { occasion: "tue", judgement: null, reach: "not-tonight" },
+  ]);
 });
 
 test("two spellings of one film share a history; two years do not", async () => {
@@ -1515,7 +1551,7 @@ test("a failing conversion leaves nothing behind, and a retry writes exactly one
 
   // Put the store back, and the retry converts each film exactly once.
   await sql.query("DELETE FROM schema_migrations WHERE module = 'verdicts'");
-  await migrate(sql, VERDICTS_SCHEMA);
+  await migrate(sql, VERDICTS_WITH_REFUSALS);
   await migrate(sql, TASTE_SCHEMA);
   assert.equal((await acts(sql, "Heat")).length, 1, "Heat was converted more or less than once");
   assert.equal((await acts(sql, "Solaris")).length, 1);
@@ -1547,6 +1583,10 @@ test("a fresh database ends in the final schema, whatever order the modules run 
 
     assert.equal(await present(sql, "column", "state"), false);
     assert.equal(await present(sql, "column", "viewing"), true);
+    // Each module needs the other at a different version — taste v11 needs
+    // verdicts v2, verdicts v3 needs taste v14 — and both still arrive whole.
+    assert.deepEqual(await versions(sql, "verdicts"), [1, 2, 3]);
+    assert.deepEqual(await versions(sql, "taste"), TASTE_SCHEMA.migrations.map((one) => one.version));
 
     // And no legacy opinion was invented out of an empty table.
     const [count] = await sql.query<{ n: string }>("SELECT count(*) AS n FROM tonight_verdict_acts");
@@ -1701,7 +1741,7 @@ const keyRefused = (error: unknown) => (error as { code?: string } | null)?.code
 
 test("v13 stands beside every vibe, and a vibe from before it stays usable unanchored", async () => {
   const sql = await fresh();
-  await migrate(sql, VERDICTS_SCHEMA);
+  await migrate(sql, VERDICTS_WITH_REFUSALS);
   await migrate(sql, upTo(12));
   // Written the way every build before v13 wrote a vibe: no core anywhere.
   await oldCode.createVibe(sql, "Space Tension", "Sci-Fi");
@@ -1899,4 +1939,308 @@ test("after v14 a viewing is never NULL, and a film written without one is want-
     ),
     (error: unknown) => (error as { code?: string }).code === "23502",
   );
+});
+
+/* ---------------------------------- verdicts v3: refusals leave the verdicts */
+
+const BOB = "google:bob";
+const T1 = "2026-01-01T20:00:00.000Z";
+const T2 = "2026-02-01T20:00:00.000Z";
+const T3 = "2026-03-01T20:00:00.000Z";
+
+/** Taste at v14 and the verdict store at v2: what production holds before v3. */
+async function beforeRefusalsWent(): Promise<SqlDriver> {
+  const sql = await fresh();
+  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, VERDICTS_WITH_REFUSALS);
+  return sql;
+}
+
+/** A film saved the way the store saves one. */
+async function saved(sql: SqlDriver, title: string, year: number, viewing: string, user = ALICE) {
+  await sql.query(
+    `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing) VALUES ($1, $2, $3, $4, $5)`,
+    [user, title, canonicalTitle(title), year, viewing],
+  );
+}
+
+/** An act as the build before v3 wrote one — a refusal included. */
+async function before3(
+  sql: SqlDriver,
+  act: {
+    title: string;
+    year: number;
+    at: string;
+    judgement?: string;
+    reach?: "not-ever" | "not-tonight";
+    occasion?: string;
+    withdraw?: true;
+  },
+) {
+  if (act.withdraw) {
+    await sql.query(
+      `INSERT INTO tonight_verdict_acts (user_id, said, title, year, occasion, said_at)
+       VALUES ($1, 'withdrawal', $2, $3, $4, $5)`,
+      [ALICE, act.title, act.year, act.occasion ?? null, act.at],
+    );
+    return;
+  }
+  await sql.query(
+    `INSERT INTO tonight_verdict_acts
+       (user_id, said, title, year, occasion, said_at, told, about, judgement, reach)
+     VALUES ($1, 'verdict', $2, $3, $4, $5, 'confirmed', $6, $7, $8)`,
+    [
+      ALICE,
+      act.title,
+      act.year,
+      act.occasion ?? null,
+      act.at,
+      act.reach ? "rejection" : "judgement",
+      act.reach ? null : act.judgement,
+      act.reach ?? null,
+    ],
+  );
+}
+
+/** Where each of one account's films stands, keyed `title year`. */
+async function viewings(sql: SqlDriver, user = ALICE): Promise<Record<string, string>> {
+  const rows = await sql.query<{ title: string; year: number; viewing: string }>(
+    `SELECT title, year, viewing FROM tonight_movies WHERE user_id = $1 ORDER BY title, year`,
+    [user],
+  );
+  return Object.fromEntries(rows.map((row) => [`${row.title} ${String(row.year)}`, row.viewing]));
+}
+
+/** Every act in the table, whole, in the order it was accepted. */
+const everyAct = (sql: SqlDriver) => sql.query("SELECT * FROM tonight_verdict_acts ORDER BY seq");
+
+test("a need brings the other module through the version it names and no further", async () => {
+  // Taste v11 needs verdicts v2 and verdicts v3 needs taste v14. Met whole, each
+  // need would bring up the module that asked for it, and migrating either
+  // would never return.
+  const tasteFirst = await fresh();
+  await migrate(tasteFirst, TASTE_SCHEMA);
+  assert.deepEqual(await versions(tasteFirst, "verdicts"), [1, 2], "taste brought verdicts past v2");
+  await migrate(tasteFirst, VERDICTS_SCHEMA);
+  assert.deepEqual(await versions(tasteFirst, "verdicts"), [1, 2, 3]);
+
+  const verdictsFirst = await fresh();
+  await migrate(verdictsFirst, VERDICTS_SCHEMA);
+  assert.deepEqual(await versions(verdictsFirst, "verdicts"), [1, 2, 3]);
+  assert.deepEqual(
+    await versions(verdictsFirst, "taste"),
+    TASTE_SCHEMA.migrations.filter((one) => one.version <= 14).map((one) => one.version),
+  );
+});
+
+test("v3 marks each film a current not-ever stands on as dont-want-to-see, and moves nothing else", async () => {
+  const sql = await beforeRefusalsWent();
+  await saved(sql, "Heat", 1995, "seen");
+  await saved(sql, "Moon", 2009, "want-to-see");
+  await saved(sql, "Arrival", 2016, "want-to-see");
+  await saved(sql, "Heat", 1995, "seen", BOB);
+  // Named the way the domain names films: another spelling is the same film.
+  await before3(sql, { title: "  HEAT ", year: 1995, at: T1, reach: "not-ever" });
+  await before3(sql, { title: "Moon", year: 2009, at: T1, reach: "not-ever" });
+
+  // The stamps are on the read, and what is moving is where something they
+  // already said lives — not a change they made today.
+  const stamps = `SELECT user_id, title, created_at, updated_at FROM tonight_movies ORDER BY user_id, title`;
+  const stamped = await sql.query(stamps);
+
+  await migrate(sql, VERDICTS_SCHEMA);
+
+  assert.deepEqual(await viewings(sql), {
+    "Arrival 2016": "want-to-see",
+    "Heat 1995": "dont-want-to-see",
+    "Moon 2009": "dont-want-to-see",
+  });
+  assert.deepEqual(await viewings(sql, BOB), { "Heat 1995": "seen" }, "another account's film was marked");
+  assert.deepEqual(await sql.query(stamps), stamped, "the conversion moved a stamp");
+  assert.deepEqual(await everyAct(sql), [], "a refusal survived");
+});
+
+test("only the refusal that stands converts, and the judgement beneath it stands again", async () => {
+  const sql = await beforeRefusalsWent();
+  for (const title of ["Heat", "Zodiac", "Prisoners"]) await saved(sql, title, 2000, "want-to-see");
+
+  // A judgement, then a not-ever that stands: the film is marked, and the
+  // judgement — never displaced by an opinion — is the last opinion they gave.
+  await before3(sql, { title: "Heat", year: 2000, at: T1, judgement: "loved" });
+  await before3(sql, { title: "Heat", year: 2000, at: T2, reach: "not-ever" });
+  // A not-ever they replaced with a judgement: they had changed their mind.
+  await before3(sql, { title: "Zodiac", year: 2000, at: T1, reach: "not-ever" });
+  await before3(sql, { title: "Zodiac", year: 2000, at: T2, judgement: "liked" });
+  // A not-ever they took back: nothing converts, and nothing stands afterwards.
+  await before3(sql, { title: "Prisoners", year: 2000, at: T1, judgement: "loved" });
+  await before3(sql, { title: "Prisoners", year: 2000, at: T2, reach: "not-ever" });
+  await before3(sql, { title: "Prisoners", year: 2000, at: T3, withdraw: true });
+
+  await migrate(sql, VERDICTS_SCHEMA);
+
+  assert.deepEqual(await viewings(sql), {
+    "Heat 2000": "dont-want-to-see",
+    "Prisoners 2000": "want-to-see",
+    "Zodiac 2000": "want-to-see",
+  });
+  const standing = await sqlVerdictStore(sql, { id: ALICE } as never).standing();
+  assert.deepEqual(
+    standing.map((one) => [one.title, one.judgement]).sort(),
+    [
+      ["Heat", "loved"],
+      ["Zodiac", "liked"],
+    ],
+    "the withdrawn film has a judgement standing, or a judgement went missing",
+  );
+});
+
+test("every not-tonight goes, with the takings-back that named an evening, and nothing global moves", async () => {
+  const sql = await beforeRefusalsWent();
+  await saved(sql, "Heat", 2000, "want-to-see");
+  await before3(sql, { title: "Heat", year: 2000, at: T1, judgement: "loved" });
+  await before3(sql, { title: "Heat", year: 2000, at: T2, reach: "not-tonight", occasion: "2026-02-01" });
+  await before3(sql, { title: "Heat", year: 2000, at: T3, withdraw: true, occasion: "2026-02-01" });
+  await before3(sql, { title: "Heat", year: 2000, at: T3, reach: "not-tonight", occasion: "evening-tuesday" });
+
+  await migrate(sql, VERDICTS_SCHEMA);
+
+  assert.deepEqual(
+    await sql.query(`SELECT said, judgement, occasion, reach FROM tonight_verdict_acts`),
+    [{ said: "verdict", judgement: "loved", occasion: null, reach: null }],
+  );
+  assert.deepEqual(await viewings(sql), { "Heat 2000": "want-to-see" }, "an evening's refusal marked the film");
+});
+
+test("v3 will not invent a film for a refusal that has none, says whose, and changes nothing", async () => {
+  const sql = await beforeRefusalsWent();
+  await saved(sql, "Heat", 1995, "seen");
+  await before3(sql, { title: "Heat", year: 1995, at: T1, reach: "not-ever" });
+  await before3(sql, { title: "The Dry", year: 2020, at: T1, reach: "not-ever" });
+  const acts = await everyAct(sql);
+
+  // The pre-flight names the same blocker the migration refuses with.
+  const report = await preflightM8(sql);
+  assert.ok(!report.applied);
+  assert.equal(report.blocking.length, 1);
+  assert.match(report.blocking[0]!, /google:alice "The Dry" \(2020\)/u);
+
+  await assert.rejects(
+    () => migrate(sql, VERDICTS_SCHEMA),
+    (error: Error) => error.message.includes(report.blocking[0]!) && /will not invent/u.test(error.message),
+  );
+
+  // Rolled back whole: not recorded, no film marked, no act removed.
+  assert.deepEqual(await versions(sql, "verdicts"), [1, 2]);
+  assert.deepEqual(await viewings(sql), { "Heat 1995": "seen" });
+  assert.deepEqual(await sql.query("SELECT count(*)::int AS n FROM tonight_movies"), [{ n: 1 }], "a film was invented");
+  assert.deepEqual(await everyAct(sql), acts);
+});
+
+test("v3 will not mark a vibe's core, and changes nothing", async () => {
+  const sql = await beforeRefusalsWent();
+  const store = sqlTasteStore(sql, { id: ALICE });
+  await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+  await store.createVibe({
+    name: "Space Tension",
+    genres: ["Sci-Fi"],
+    instruction: "dread in orbit",
+    core: { title: "Arrival", year: 2016 },
+  });
+  await before3(sql, { title: "Arrival", year: 2016, at: T1, reach: "not-ever" });
+  const acts = await everyAct(sql);
+
+  await assert.rejects(
+    () => migrate(sql, VERDICTS_SCHEMA),
+    /google:alice "Arrival" \(2016\), the core of "Space Tension"/u,
+  );
+  assert.deepEqual(await versions(sql, "verdicts"), [1, 2]);
+  assert.deepEqual(await viewings(sql), { "Arrival 2016": "seen" });
+  assert.deepEqual(await everyAct(sql), acts);
+});
+
+test("two acts at one instant that nothing ordered are not guessed between", async () => {
+  // `seq` predates every way of writing a verdict, so this cannot be in
+  // production; if it is anywhere, which of the two stood is not recorded.
+  const sql = await beforeRefusalsWent();
+  await saved(sql, "Heat", 2000, "want-to-see");
+  for (const [about, judgement, reach] of [
+    ["judgement", "loved", null],
+    ["rejection", null, "not-ever"],
+  ] as const) {
+    await sql.query(
+      `INSERT INTO tonight_verdict_acts (user_id, said, title, year, said_at, told, about, judgement, reach, seq)
+       VALUES ($1, 'verdict', 'Heat', 2000, $2, 'confirmed', $3, $4, $5, NULL)`,
+      [ALICE, T1, about, judgement, reach],
+    );
+  }
+
+  await assert.rejects(() => migrate(sql, VERDICTS_SCHEMA), /google:alice "Heat" \(2000\)/u);
+  assert.deepEqual(await versions(sql, "verdicts"), [1, 2]);
+  assert.deepEqual(await viewings(sql), { "Heat 2000": "want-to-see" });
+});
+
+test("the pre-flight reports what v3 then does, by the same rules, and writes nothing", async () => {
+  const sql = await beforeRefusalsWent();
+  await saved(sql, "Black Bag", 2025, "want-to-see");
+  await saved(sql, "Heat", 1995, "seen");
+  // One film under two spellings: an older refusal, then a judgement. Folded
+  // with lower() alone these would be two histories, and the refusal would look
+  // current; named as the domain names films, it is not.
+  await before3(sql, { title: "Black   Bag", year: 2025, at: T1, reach: "not-ever" });
+  await before3(sql, { title: "black bag", year: 2025, at: T2, judgement: "liked" });
+  await before3(sql, { title: "Heat", year: 1995, at: T1, reach: "not-ever" });
+
+  const everything = async () => [
+    await everyAct(sql),
+    await sql.query("SELECT * FROM tonight_movies ORDER BY title"),
+    await sql.query("SELECT module, version FROM schema_migrations ORDER BY module, version"),
+  ];
+  const untouched = await everything();
+
+  // Read only, and asked as one snapshot.
+  const statements: string[] = [];
+  const recording: SqlDriver = {
+    ...sql,
+    transaction: (work) =>
+      sql.transaction((tx) =>
+        work({
+          query: (text, params) => (statements.push(text), tx.query(text, params)),
+          exec: (text) => (statements.push(text), tx.exec(text)),
+        }),
+      ),
+  };
+  const report = await preflightM8(recording);
+  assert.match(statements[0] ?? "", /READ ONLY/u, "the pre-flight is not in a read-only transaction");
+  assert.deepEqual(await everything(), untouched, "the pre-flight wrote something");
+
+  assert.ok(!report.applied);
+  assert.deepEqual(report.blocking, []);
+  assert.deepEqual(
+    report.found.convert.map((one) => [one.userId, one.title, one.year]),
+    [[ALICE, "Heat", 1995]],
+  );
+
+  // And the migration does exactly that.
+  await migrate(sql, VERDICTS_SCHEMA);
+  assert.deepEqual(await viewings(sql), { "Black Bag 2025": "want-to-see", "Heat 1995": "dont-want-to-see" });
+  assert.deepEqual(await preflightM8(sql), { applied: true });
+});
+
+test("after v3 the table holds judgements, everywhere", async () => {
+  const sql = await fresh();
+  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, VERDICTS_SCHEMA);
+  const refused = (error: unknown) => (error as { code?: string } | null)?.code === "23514";
+
+  await assert.rejects(before3(sql, { title: "Heat", year: 2000, at: T1, reach: "not-ever" }), refused);
+  await assert.rejects(
+    before3(sql, { title: "Heat", year: 2000, at: T1, reach: "not-tonight", occasion: "tue" }),
+    refused,
+  );
+  await assert.rejects(before3(sql, { title: "Heat", year: 2000, at: T1, withdraw: true, occasion: "tue" }), refused);
+
+  // A judgement, and a taking-back everywhere, are what it holds.
+  await before3(sql, { title: "Heat", year: 2000, at: T1, judgement: "loved" });
+  await before3(sql, { title: "Heat", year: 2000, at: T2, withdraw: true });
+  assert.equal((await everyAct(sql)).length, 2);
 });

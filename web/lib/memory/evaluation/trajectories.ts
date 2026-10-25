@@ -28,7 +28,7 @@
  * ## Why two of these are generated
  *
  * There used to be two generated matrices here — every Movie state against every
- * reach, and against every judgement — because a Movie carried an opinion and
+ * refusal, and against every judgement — because a Movie carried an opinion and
  * the view had to say which of two opinions governed. Nothing carries two, so
  * there is no matrix to enumerate: a film says whether it was watched, a verdict
  * says what they thought, and the histories below exercise each alone and
@@ -70,14 +70,11 @@ export type Step =
       act: "verdict";
       film: Film;
       told: Told;
-      judgement?: "liked" | "loved" | "disliked";
+      judgement: "liked" | "loved" | "disliked";
       because?: string;
-      reach?: "not-tonight" | "not-ever";
-      reason?: string;
-      occasion?: string;
     }
-  /** Taking one back, in the scope it was made in. */
-  | { act: "withdraw"; film: Film; occasion?: string }
+  /** Taking one back. */
+  | { act: "withdraw"; film: Film }
   /** An evening Tonight was part of. */
   | { act: "evening"; request: string; offered: Offer[] }
   /** What became of the most recent evening. Never a verdict. */
@@ -118,7 +115,6 @@ const heat86: Film = { title: "Heat", year: 1986 };
 const blackBag: Film = { title: "Black Bag", year: 2025 };
 
 export const FILMS = { prisoners, zodiac, heat95, heat86, blackBag };
-export const TUESDAY = "evening-tuesday";
 
 const offer = (film: Film, lead = false): Offer => ({ ...film, lead });
 
@@ -211,19 +207,8 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   },
   {
     name: "never-again",
-    proves: "a global refusal is a refusal and never becomes a dislike",
-    steps: [
-      { act: "movie", film: blackBag, viewing: "seen" },
-      { act: "verdict", film: blackBag, told: "confirmed", reach: "not-ever" },
-    ],
-  },
-  {
-    name: "not-on-a-tuesday",
-    proves: "an evening's refusal belongs to that evening and claims nothing beyond it",
-    steps: [
-      { act: "movie", film: blackBag, viewing: "seen" },
-      { act: "verdict", film: blackBag, told: "confirmed", reach: "not-tonight", occasion: "tue" },
-    ],
+    proves: "\"don't recommend it again\" is where the film stands on their list, never a verdict and never a dislike",
+    steps: [{ act: "movie", film: blackBag, viewing: "dont-want-to-see" }],
   },
   {
     name: "forget-the-first",
@@ -358,7 +343,6 @@ export const TRAJECTORIES: readonly Trajectory[] = [
       { act: "verdict", film: zodiac, told: "confirmed", judgement: "loved", because: "it grew on me" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
       { act: "withdraw", film: prisoners },
-      { act: "verdict", film: heat95, told: "confirmed", reach: "not-tonight", reason: "too long tonight", occasion: TUESDAY },
 
       // A vibe anchored on the film they came to love. Written after the films,
       // because a core already saved is filed by the vibe rather than saved again.

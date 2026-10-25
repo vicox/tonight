@@ -335,7 +335,7 @@ echo "--- the list stays eligible, and a stretch is anchored ---"
 
 # P4 and P10. `want-to-see` is deliberately absent from the list: it means the film
 # is on their list to see, which is a reason to offer it, not a reason not to.
-# A refusal is absent too, and for a different reason — it says nothing about
+# A turn-down is absent too, and for a different reason — it says nothing about
 # whether they watched the film.
 check "the target is what they have not seen or judged" \
     "$(order_check 'Lead with what they have not seen or judged' \
@@ -351,8 +351,8 @@ check "and never restated as whatever Tonight has not heard of" \
 check "want-to-see is named, and named as still eligible" \
     "$(order_check 'rules a Movie out as new' '`want-to-see`' \
         'does not rule it out' 'so it stays on the table')" "True"
-check "a refusal is not read as having watched it" \
-    "$(order_check 'A refusal is not evidence they saw it' \
+check "a turn-down is not read as having watched it" \
+    "$(order_check 'A turn-down is not evidence they saw it' \
         'neither says they watched it')" "True"
 check "dont-want-to-see is never recommended, nor raised" \
     "$(order_check 'so it stays on the table' '**`dont-want-to-see` is' \
@@ -967,25 +967,34 @@ check "and names the tool an opinion goes to instead" \
 echo
 echo "--- M6: refusals, a film in a Vibe, and a request with no mood ---"
 
-# docs/work/m6/PLAN.md §2. Three corrections to how recommending behaves: a turn-
-# down is a verdict that reaches exactly as far as their words, a film in a Vibe is
-# no evidence of liking, and a request with no mood is still answered.
-check "a turn-down is a verdict, and reaches as far as their words" \
-    "$(order_check '*"stop suggesting it"* — that is a verdict, and it goes to `record_verdict`' \
-        '*"not interested"* and *"stop suggesting it"* are `not-ever`' \
-        '*"not tonight"* is `not-tonight` on today' \
-        'one that does not say how far — *"nah, not' 'that one"* — is `not-tonight` on today' \
-        'recorded, never left unrecorded, and never' 'made permanent' \
+# docs/work/m6/PLAN.md §2, and M8's verdict simplification. Three corrections to how
+# recommending behaves: a turn-down reaches exactly as far as their words — and since
+# M8 that is a viewing or nothing, never a verdict — a film in a Vibe is no evidence
+# of liking, and a request with no mood is still answered.
+check "a turn-down is not a verdict, and goes where their words put it" \
+    "$(order_check '*"I loved it"*' 'that is a verdict, liked, loved or disliked, and it goes to `record_verdict`' \
+        '**Turning a film down is not a verdict.**' \
+        '*"Don'"'"'t recommend it again"*, *"stop suggesting it"*, *"not interested"*, *"never again"* say where that film stands on their list' \
+        '`dont-want-to-see`' \
+        '*"Not tonight"*, *"not in the mood for it"*, and one that does not say how far — *"nah, not that one"* — are about this evening' \
+        'offer something else and write nothing, and never make one into `dont-want-to-see`' \
         'Never `disliked`, which says they watched it' \
-        'never a question asking them' 'to make it reach further')" "True"
-check "within its reach a refused film is not offered again, nor the refusal raised" \
-    "$(order_check '**A refusal reaches exactly as far as they said.**' \
-        '**Within its reach a refused film is not offered again**' \
-        'not as the lead, not as a direction' 'the refusal is not brought up' \
-        'which for tonight is today' 'Any other occasion is another evening' 'binds nothing tonight')" "True"
-check "a recommended film comes back only outside a refusal's reach" \
+        'never a question asking them to make it reach further')" "True"
+check "a turned-down film is not offered again, nor the turn-down raised" \
+    "$(order_check '**A turn-down reaches exactly the film they turned down.**' \
+        'that film, not its genre, its director or anything resembling it' \
+        'it is written nowhere' \
+        '**A turned-down film is not offered again**' \
+        '`dont-want-to-see` on any evening, *"not tonight"* in this one' \
+        'not as the lead, not as a direction' 'the turn-down is not brought up')" "True"
+check "a recommended film comes back unless it was turned down" \
     "$(order_check 'a film you recommended can come back' \
-        'unless they turned it down, and then only outside the refusal' 'reach')" "True"
+        'unless it is `dont-want-to-see`, or they turned it down this evening')" "True"
+check "no verdict reach or evening survives in the skill" \
+    "$(grep -ciE 'not-ever|not-tonight|occasion' "$SKILL")" "0"
+check "deleting a film forgets what was said about it, so not wanting it is a viewing" \
+    "$(order_check '`delete_movie`' 'Deleting a film forgets everything they said about it as well' \
+        'so a film they only want kept from being recommended is' '`dont-want-to-see`, never deleted')" "True"
 check "being in a Vibe is no opinion; only a standing liked or loved is" \
     "$(order_check 'A Movie carries no opinion at all' \
         '**Being in a Vibe is no opinion either**' 'only a standing liked or loved says that' \

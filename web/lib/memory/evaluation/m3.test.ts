@@ -151,26 +151,15 @@ describe("M3 — explains itself, and can be corrected", () => {
           await call("record_verdict", {
             film: step.film,
             told: step.told,
-            said:
-              step.judgement === undefined
-                ? {
-                    about: "rejection",
-                    reach: step.reach,
-                    ...(step.reason === undefined ? {} : { reason: step.reason }),
-                    ...(step.occasion === undefined ? {} : { occasion: step.occasion }),
-                  }
-                : {
-                    about: "judgement",
-                    judgement: step.judgement,
-                    ...(step.because === undefined ? {} : { because: step.because }),
-                  },
+            said: {
+              about: "judgement",
+              judgement: step.judgement,
+              ...(step.because === undefined ? {} : { because: step.because }),
+            },
           });
           break;
         case "withdraw":
-          await call("withdraw_verdict", {
-            film: step.film,
-            ...(step.occasion === undefined ? {} : { occasion: step.occasion }),
-          });
+          await call("withdraw_verdict", { film: step.film });
           break;
         case "evening": {
           const written = await call("record_episode", { request: step.request, offered: step.offered });
@@ -458,7 +447,7 @@ describe("M3 — explains itself, and can be corrected", () => {
   /* --------------------------------------------------------------- the tests */
 
   test("every history says what it proves, and none repeats another", () => {
-    assert.equal(TRAJECTORIES.length, 23);
+    assert.equal(TRAJECTORIES.length, 22);
     for (const trajectory of TRAJECTORIES) {
       assert.ok(trajectory.proves.length > 20, `${trajectory.name} does not say what it proves`);
       assert.ok(trajectory.steps.length > 0);
@@ -474,9 +463,6 @@ describe("M3 — explains itself, and can be corrected", () => {
       assert.ok(steps.some((step) => step.act === act), `no history ever performs ${act}`);
     }
     const verdicts = steps.filter((step) => step.act === "verdict");
-    for (const reach of ["not-tonight", "not-ever"] as const) {
-      assert.ok(verdicts.some((s) => s.act === "verdict" && s.reach === reach), `no history records ${reach}`);
-    }
     for (const told of ["volunteered", "confirmed"] as const) {
       assert.ok(verdicts.some((s) => s.act === "verdict" && s.told === told), `no history records a ${told} claim`);
     }
@@ -504,11 +490,9 @@ describe("M3 — explains itself, and can be corrected", () => {
 
   test("the two roots are exercised apart and together", () => {
     // The matrix this replaces was a precedence matrix: every saved state
-    // against every reach and judgement, because something had to rank them.
+    // against every refusal and judgement, because something had to rank them.
     // Nothing ranks anything now, so what has to be covered instead is that a
-    // film and an opinion appear alone and side by side — and that a refusal is
-    // exercised in both of its scopes, which is the one thing about a verdict
-    // that is still scoped.
+    // film and an opinion appear alone and side by side.
     const steps = (name: string) => TRAJECTORIES.find((one) => one.name === name)!.steps;
 
     assert.ok(
@@ -520,22 +504,13 @@ describe("M3 — explains itself, and can be corrected", () => {
       "the side-by-side history does not save a film",
     );
 
-    // Seen, on the list, and a film filed with no viewing at all, so none of
-    // them is untested.
+    // Every viewing, and a film filed with no viewing at all, so none of them is
+    // untested — dont-want-to-see included, which is where a refusal goes now.
     const filed = TRAJECTORIES.flatMap((one) => one.steps).filter((step) => step.act === "movie");
-    for (const viewing of ["seen", "want-to-see", undefined]) {
+    for (const viewing of ["seen", "want-to-see", "dont-want-to-see", undefined]) {
       assert.ok(
         filed.some((step) => step.act === "movie" && step.viewing === viewing),
         `no history ever files a film as ${String(viewing)}`,
-      );
-    }
-
-    // And both reaches, because scope is the thing a refusal still carries.
-    const said = TRAJECTORIES.flatMap((one) => one.steps).filter((step) => step.act === "verdict");
-    for (const reach of ["not-ever", "not-tonight"]) {
-      assert.ok(
-        said.some((step) => step.act === "verdict" && step.reach === reach),
-        `no history ever says ${reach}`,
       );
     }
   });
@@ -844,28 +819,15 @@ describe("M3 — explains itself, and can be corrected", () => {
     });
   });
 
-  test("a refusal arriving as a dislike is caught", () => {
-    probe("a refusal came back as a dislike", "precedence", (copy) => {
-      const seen = copy.seen["never-again"]!;
-      for (const root of seen.memory.held) {
-        if (root.of !== "verdict") continue;
-        // Only the assertion is replaced: the act keeps the film it is about, so
-        // the mutation is a refusal reported as a dislike rather than an act
-        // with no film in it.
-        const act = root as unknown as { act: { assertion: unknown } };
-        act.act.assertion = { about: "judgement", judgement: "disliked", because: null };
-      }
-    });
-  });
-
-  test("an evening's refusal reaching beyond its evening is caught", () => {
-    probe("Prisoners", "fidelity", (copy) => {
-      const seen = copy.seen["not-on-a-tuesday"]!;
-      for (const root of seen.memory.held) {
-        if (root.of !== "verdict") continue;
-        const act = (root as unknown as { act: { scope?: unknown } }).act;
-        act.scope = "everywhere";
-      }
+  test("not wanting a film recommended arriving as a dislike is caught", () => {
+    probe("came back as a dislike", "precedence", (copy) => {
+      // A real dislike of the same film, from the history that has one: the
+      // mutation is "don't recommend it again" written down as an opinion, which
+      // is the old mistake a refusal invited.
+      const dislike = copy.seen["a-verdict-beside-a-saved-film"]!.memory.held.find(
+        (root) => root.of === "verdict",
+      )!;
+      copy.seen["never-again"]!.memory.held.push(structuredClone(dislike));
     });
   });
 
@@ -1007,7 +969,7 @@ describe("M3 — explains itself, and can be corrected", () => {
     // gate holds now is the inverse: the field must be absent. A payload that
     // explains one root to another is the machinery the split removed.
     probe("the disagreements a recommendation reads", "recommendation-isolation", (copy) => {
-      const seen = copy.seen["not-on-a-tuesday"]!;
+      const seen = copy.seen["never-again"]!;
       (seen.taste as { disagreements?: unknown[] }).disagreements = [
         { title: "Black Bag", year: 2025, saved: "seen", applies: "everywhere" },
       ];

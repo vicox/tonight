@@ -575,7 +575,7 @@ const judge = (cookie: string, body: unknown) =>
   setJudgement(request("/api/verdicts", "PATCH", body, { cookie }));
 
 /**
- * What currently stands globally about one film, read through the store.
+ * What currently stands about one film, read through the store.
  *
  * Matched by `filmKey`, because a verdict carries the title as the user spelled
  * it — so a helper comparing raw spellings would fail to find a film the domain
@@ -583,7 +583,7 @@ const judge = (cookie: string, body: unknown) =>
  */
 async function standing(id: string, film: { title: string; year: number } = { title: "Arrival", year: 2016 }) {
   const all = await (await verdictStore({ id })).standing();
-  return all.find((one) => one.occasion === undefined && filmKey(one) === filmKey(film));
+  return all.find((one) => filmKey(one) === filmKey(film));
 }
 
 /** Every act ever written about that user's films, oldest first. */
@@ -606,8 +606,6 @@ test("pressing a judgement records it as something they volunteered", async () =
   assert.equal(held?.told, "volunteered");
   // And no words were invented for why: a press has none in it.
   assert.equal("because" in (held ?? {}), false, "a reason appeared that nobody gave");
-  // Global, because a page showing a collection is not an evening.
-  assert.equal(held?.occasion, undefined);
 });
 
 test("each judgement replaces the last, and the one it replaced is kept", async () => {
@@ -729,12 +727,6 @@ test("the route takes the three judgements and taking one back, and nothing else
     assert.equal(refused.error, "refused");
     assert.match(refused.message ?? "", /"judgement" must be one of liked, loved, disliked/);
   }
-  // A refusal reaching turning a film down for one evening is worth its own
-  // sentence: it is a real operation, and it is not one this page can do.
-  assert.match(
-    (await answer(await judge(cookie, { title: "Arrival", year: 2016, judgement: "not-tonight" }))).message ?? "",
-    /one evening is a rejection rather than a judgement/,
-  );
 
   assert.deepEqual(await history(id), [], "a refused value reached the store");
 });

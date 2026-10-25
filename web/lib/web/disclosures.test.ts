@@ -167,32 +167,27 @@ test("every page says what a film record now holds", () => {
   for (const judgement of ["liked", "loved", "disliked"]) {
     assert.match(privacy, new RegExp(`<em>${judgement}</em>`), `${judgement} is not named`);
   }
-  for (const refusal of ["not tonight", "not ever"]) {
-    assert.match(privacy, new RegExp(`<em>${refusal}</em>`), `${refusal} is not named`);
-  }
+  // A turn-down is disclosed as what it is stored as now: the film's place on the
+  // list, or — for one evening — nothing at all.
+  assert.match(privacy, /Turning a film\s+down is not a verdict/);
+  assert.match(privacy, /<em>don&rsquo;t recommend it again<\/em> is kept as where the film\s+stands on your list/);
+  assert.match(privacy, /<em>not tonight<\/em> is used\s+for that evening and not stored at all/);
+  assert.doesNotMatch(privacy, /<em>not ever<\/em>/, "a permanent refusal is still disclosed as a verdict");
   assert.match(privacy, /records your own words for why if you gave them/);
   assert.match(privacy, /Verdicts keep their history, and you can take one back/);
-  // The promise the refactor makes true, said where somebody can rely on it,
-  // and precise about all three halves of it. A withdrawal takes out *that
-  // verdict*; it reaches as far as that verdict reached, so an evening's
-  // refusal taken back leaves a general opinion where it was; and "you said
+  // The promise the refactor makes true, said where somebody can rely on it. A
+  // withdrawal takes out *that verdict*, leaving no weaker one; and "you said
   // nothing" is false about somebody who spoke and then took it back.
   assert.match(privacy, /Withdrawing one takes <strong>that verdict<\/strong> out of what currently applies/);
-  assert.match(privacy, /reaches exactly as far as the verdict did/);
-  assert.match(privacy, /still standing/);
+  assert.match(privacy, /rather\s+than leaving a weaker one/);
   assert.match(privacy, /does not unsay it/);
+  // And removing a film takes what was said about it, said where deletion is.
+  assert.match(privacy, /Removing a film removes everything you said about it as well/);
   assert.match(privacy, /still part of what Tonight remembers/);
   assert.doesNotMatch(
     privacy,
     /withdrawing one leaves you having said nothing/i,
     "a withdrawal is disclosed as never having spoken",
-  );
-  // And not the scope-blind claim this replaced: a withdrawal that always left
-  // "no current opinion" on the film is false of a scoped one.
-  assert.doesNotMatch(
-    privacy,
-    /Withdrawing one leaves <strong>no current opinion<\/strong>/,
-    "a withdrawal is disclosed as reaching every scope",
   );
   assert.match(privacy, /Neither reaches the film itself/);
 
@@ -257,10 +252,10 @@ test("what an assistant may fetch is disclosed as the whole model, films include
 test("the website is disclosed as a narrower view than the MCP answer, not the same thing rearranged", () => {
   // The claim this replaces said the page showed the same model, arranged
   // differently. It does not, and `lib/web/judgements.ts` is where it stops
-  // being true: positions are joined onto saved Movies by `filmKey`, occasion
-  // scoped claims are dropped, and only what stands is read. So three stored
-  // things never reach the page, and a reader deciding whether to authorize a
-  // client — or believing they can audit their data here — has to be told which.
+  // being true: positions are joined onto saved Movies by `filmKey`, and only
+  // what stands is read. So stored things never reach the page, and a reader
+  // deciding whether to authorize a client — or believing they can audit their
+  // data here — has to be told which.
   const privacy = text("privacy");
   assert.match(privacy, /shows you less than that/);
   assert.match(privacy, /a view of your data rather than\s+the same answer rearranged/);
@@ -270,8 +265,7 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
   // Each omission named, because a general "less" tells a reader nothing about
   // whether the thing they are looking for should be here.
   assert.match(privacy, /a verdict about a film you never saved/, "the verdict-only film is not named");
-  assert.match(privacy, /belongs to an evening rather than to the film/, "the scoped refusal is not named");
-  assert.match(privacy, /a verdict you replaced or took back/, "the superseded and withdrawn are not named");
+  assert.match(privacy, /a verdict you replaced or took\s+back/, "the superseded and withdrawn are not named");
   assert.match(privacy, /evenings Tonight recorded are not on it/, "the evenings are not named");
 
   // And the other half, which is what makes the omission lawful rather than a
@@ -478,24 +472,26 @@ test("no page claims the website shows everything that is stored", () => {
   }
 });
 
-test("no page says a withdrawal leaves silence whatever its scope was", () => {
-  // The README said taking a Verdict back "leaves silence", which is true of a
-  // global judgement and false of an evening's refusal — withdrawing that leaves
-  // a global judgement applying exactly where it was. The unqualified claim is
-  // what must not come back; the qualified one is asserted beside it so the
+test("no page says a withdrawal leaves silence, and no page describes a refusal verdict", () => {
+  // The README once said taking a Verdict back "leaves silence". The claim it is
+  // replaced by is narrower and is asserted beside the prohibition, so the
   // prohibition cannot be satisfied by saying nothing at all.
   for (const page of ["privacy", "terms", "readme"] as const) {
     assert.doesNotMatch(
       plain(page),
       /(?:taking|withdrawing)[^.]{0,60}back[^.]{0,40}leaves silence/i,
-      `${page} describes a withdrawal as leaving silence whatever its scope`,
+      `${page} describes a withdrawal as leaving silence`,
     );
   }
 
   const readme = text("readme");
-  assert.match(readme, /reaches exactly\s+as far as the act did/);
-  assert.match(readme, /no weaker opinion is revealed underneath it in that scope/);
-  assert.match(readme, /a\s+withdrawn evening's `not-tonight` leaves a global judgement applying where it was/);
+  assert.match(readme, /Taking a Verdict back removes that act from what stands: no weaker opinion\s+is revealed underneath it/);
+  // Since M8 a verdict is a judgement and nothing else, and every page says so
+  // by not describing any other kind.
+  assert.match(readme, /\*\*A Verdict is a judgement and nothing else\*\*/);
+  for (const page of ["privacy", "terms"] as const) {
+    assert.doesNotMatch(plain(page), /not ever|not-ever|not-tonight/i, `${page} still describes a refusal verdict`);
+  }
 });
 
 test("the README no longer describes names as relational identity", () => {

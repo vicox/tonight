@@ -1,5 +1,5 @@
 import type { Viewing } from "./taste/model.ts";
-import type { Judgement, Reach } from "./verdicts/model.ts";
+import type { Judgement } from "./verdicts/model.ts";
 
 /**
  * Whether the user has watched a film, from both places that can say so.
@@ -27,7 +27,7 @@ import type { Judgement, Reach } from "./verdicts/model.ts";
  */
 
 /** What currently stands about a film, reduced to what this question needs. */
-export type Standing = { judgement: Judgement } | { rejected: Reach };
+export type Standing = { judgement: Judgement };
 
 /**
  * Whether the user has watched the film, as far as anything here can tell.
@@ -35,11 +35,6 @@ export type Standing = { judgement: Judgement } | { rejected: Reach };
  * `viewing` is where the film stands on their list and `standing` is what
  * currently stands about liking, which may be absent. True when the list says
  * `seen` outright, or when an opinion implies it.
- *
- * A refusal is not an opinion about the film's quality and implies nothing about
- * watching: *"not tonight"* is about an evening and *"not ever"* is most often
- * said about a film somebody has never seen and does not intend to. So a
- * rejection standing alone leaves this exactly where the viewing fact left it.
  *
  * `want-to-see` or `dont-want-to-see` plus a standing judgement is a
  * contradiction the user can create, and this answers `true` — the opinion is

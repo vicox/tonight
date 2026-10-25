@@ -396,17 +396,18 @@ describe("the memory composer", () => {
     assert.equal(of(after.held, "verdict").length, 0, "correcting an evening said something");
   });
 
-  test("deleting a saved film removes it and leaves what they said standing", async () => {
+  test("deleting a saved film removes it and everything said about it", async () => {
+    // Held and remembered alike: what stands, what it replaced and the
+    // taking-back all go, so nothing about a film they removed is left to show.
     const her = someone();
     await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
-    await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
+    await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
+    await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-02T20:00:00.000Z"));
     assert.equal(of((await her.memory()).held, "verdict").length, 1);
+    assert.equal(of((await her.memory()).remembered, "verdict").length, 1);
 
     await her.taste.deleteMovie(BLACK_BAG.title, BLACK_BAG.year);
-    const after = await her.memory();
-    assert.equal(of(after.held, "movie").length, 0);
-    assert.equal(of(after.held, "movie").length, 0, "a deleted film survived");
-    assert.equal(of(after.held, "verdict").length, 1, "deleting a film took the verdict with it");
+    assert.deepEqual(await her.memory(), { held: [], remembered: [] }, "something about the deleted film survived");
   });
 
   test("the picture is derived every time, never remembered from last time", async () => {
@@ -473,7 +474,7 @@ describe("the memory composer", () => {
     const v2 = await her.verdicts.say(
       stateVerdict(
         { title: " black   bag ", year: 2025 },
-        { about: "rejection", rejection: { reach: "not-ever", reason: null } },
+        { about: "judgement", judgement: "disliked" },
         "confirmed",
         "2026-01-02T20:00:00.000Z",
       ),
@@ -491,7 +492,7 @@ describe("the memory composer", () => {
     assert.equal(of(memory.held, "verdict").length, 0);
     assert.equal(of(memory.remembered, "verdict").length, 3);
 
-    // Forgetting the withdrawal revives the refusal — the one said second, not
+    // Forgetting the withdrawal revives the dislike — the one said second, not
     // the one said first, even though all three were spelled differently.
     await her.verdicts.forget(v3.ref);
     memory = await her.memory();

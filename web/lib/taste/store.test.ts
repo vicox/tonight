@@ -18,6 +18,8 @@ import {
 import { TASTE_SCHEMA } from "./store/schema.ts";
 import { sqlTasteStore } from "./store/sql.ts";
 import type { TasteStore } from "./store.ts";
+import { stateVerdict, withdrawVerdict } from "../verdicts/model.ts";
+import { sqlVerdictStore } from "../verdicts/store/sql.ts";
 
 /**
  * One user's taste model, driven the way the MCP tools and the website drive it.
@@ -123,8 +125,11 @@ for (const driver of drivers) {
       const sql = await driver.open();
       opened.push(sql);
       await migrate(sql, TASTE_SCHEMA);
+      // The verdict table too: deleting a film reaches it, and a server shared
+      // between tests would otherwise carry one test's verdicts into the next.
       await sql.exec(
-        `TRUNCATE tonight_mix_movies, tonight_mix_genres, tonight_movies, tonight_mixes, tonight_genres;`,
+        `TRUNCATE tonight_mix_movies, tonight_mix_genres, tonight_movies, tonight_mixes, tonight_genres,
+                  tonight_verdict_acts;`,
       );
       return { alice: sqlTasteStore(sql, ALICE), bob: sqlTasteStore(sql, BOB), sql };
     }
@@ -1521,6 +1526,124 @@ for (const driver of drivers) {
       ]);
 
       assert.match(await refusal(alice.deleteMovie("Under the Skin", 2013)), /no movie/);
+    });
+
+    // --- deleting a film forgets what was said about it ------------------
+
+    /** Every act an account has said, as `title year said judgement`, in order. */
+    const actsOf = async (sql: SqlDriver, who: { id: string }) =>
+      (await sqlVerdictStore(sql, who as never).acts()).map(
+        (act) =>
+          `${act.film.title} ${String(act.film.year)} ${act.said}` +
+          (act.said === "verdict" ? ` ${act.assertion.judgement}` : ""),
+      );
+
+    /** Something said about a film, through the verdict store, at a given minute. */
+    const say = (sql: SqlDriver, who: { id: string }, film: { title: string; year: number }, at: number, judgement?: "liked" | "loved" | "disliked") =>
+      sqlVerdictStore(sql, who as never).say(
+        judgement === undefined
+          ? withdrawVerdict(film, `2026-01-01T20:${String(at).padStart(2, "0")}:00.000Z`)
+          : stateVerdict(
+              film,
+              { about: "judgement", judgement },
+              "volunteered",
+              `2026-01-01T20:${String(at).padStart(2, "0")}:00.000Z`,
+            ),
+      );
+
+    test("deleting a film forgets everything said about it, and nothing said about another", async () => {
+      const { alice, sql } = await fresh();
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+
+      // What stands, what it replaced, the taking-back, and a later word under
+      // another spelling of the same film.
+      await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "loved");
+      await say(sql, ALICE, { title: "Heat", year: 1995 }, 2, "disliked");
+      await say(sql, ALICE, { title: "Heat", year: 1995 }, 3);
+      await say(sql, ALICE, { title: "  HEAT ", year: 1995 }, 4, "liked");
+      // Another year, another film, another account: none of them is this film.
+      await say(sql, ALICE, { title: "Heat", year: 1986 }, 5, "disliked");
+      await say(sql, ALICE, { title: "Moon", year: 2009 }, 6, "liked");
+      await say(sql, BOB, { title: "Heat", year: 1995 }, 7, "loved");
+
+      await alice.deleteMovie("Heat", 1995);
+
+      assert.deepEqual(await actsOf(sql, ALICE), ["Heat 1986 verdict disliked", "Moon 2009 verdict liked"]);
+      assert.deepEqual(await actsOf(sql, BOB), ["Heat 1995 verdict loved"], "another account's word went");
+    });
+
+    test("a deletion that is refused forgets nothing", async () => {
+      const { alice, sql } = await fresh();
+      await vibe(alice, "Space Tension");
+      await say(sql, ALICE, coreOf("Space Tension"), 1, "loved");
+
+      assert.match(
+        await refusal(alice.deleteMovie(coreOf("Space Tension").title, coreOf("Space Tension").year)),
+        /Space Tension/,
+      );
+      assert.deepEqual(await actsOf(sql, ALICE), ["Space Tension, the film 2000 verdict loved"]);
+    });
+
+    test("a deletion that fails after the film has gone takes nothing with it", async () => {
+      const { alice, sql } = await fresh();
+      await vibe(alice, "Space Tension");
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+      await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "loved");
+      const intact = content(await alice.taste());
+
+      // The film's own row is already deleted when the verdicts are reached; a
+      // failure there has to bring the film, its filing and its verdicts back.
+      const failing: SqlDriver = {
+        ...sql,
+        transaction: (work) =>
+          sql.transaction((tx) =>
+            work({
+              query: (text, params) =>
+                /DELETE FROM tonight_verdict_acts/u.test(text)
+                  ? Promise.reject(new Error("injected"))
+                  : tx.query(text, params),
+              exec: (text) => tx.exec(text),
+            }),
+          ),
+      };
+      await assert.rejects(sqlTasteStore(failing, ALICE).deleteMovie("Heat", 1995), /injected/);
+
+      assert.deepEqual(content(await alice.taste()), intact, "the film or its filing did not come back");
+      assert.deepEqual(await actsOf(sql, ALICE), ["Heat 1995 verdict loved"], "a verdict did not come back");
+    });
+
+    test("something said about the film while it is being deleted is not taken with it", async () => {
+      // Said after the deletion read the film's verdicts and before it removed
+      // them: that is the same as being said a moment after the film went — a
+      // verdict needs no saved film — so it stays, and everything read goes.
+      const { alice, sql } = await fresh();
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+      await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "loved");
+
+      const late: SqlDriver = {
+        ...sql,
+        transaction: (work) =>
+          sql.transaction((tx) =>
+            work({
+              query: async (text, params) => {
+                const rows = await tx.query(text, params);
+                if (/SELECT id, title, year FROM tonight_verdict_acts/u.test(text)) {
+                  await tx.query(
+                    `INSERT INTO tonight_verdict_acts (user_id, said, title, year, said_at, told, about, judgement)
+                     VALUES ($1, 'verdict', 'Heat', 1995, '2026-01-01T20:02:00.000Z', 'volunteered', 'judgement', 'liked')`,
+                    [ALICE.id],
+                  );
+                }
+                return rows as never;
+              },
+              exec: (text) => tx.exec(text),
+            }),
+          ),
+      };
+      await sqlTasteStore(late, ALICE).deleteMovie("Heat", 1995);
+
+      assert.equal(await movieOf(alice, "Heat", 1995), undefined);
+      assert.deepEqual(await actsOf(sql, ALICE), ["Heat 1995 verdict liked"]);
     });
 
     test("a movie title is trimmed and collapsed, and its casing stays the user's", async () => {

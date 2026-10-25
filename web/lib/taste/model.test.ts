@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
 import { effectivelySeen } from "../seen.ts";
-import { JUDGEMENTS, REACHES } from "../verdicts/model.ts";
+import { JUDGEMENTS } from "../verdicts/model.ts";
 import { DEFAULT_VIEWING, VIEWINGS, checkViewing, orderMovie } from "./model.ts";
 
 /**
@@ -35,9 +35,9 @@ describe("what a movie says about watching", () => {
       assert.throws(() => checkViewing(judgement), /must be one of seen, want-to-see, dont-want-to-see/u, judgement);
     }
 
-    // And a refusal is not one either: turning a film down is neither watching
-    // it nor an opinion of it.
-    for (const reach of REACHES) {
+    // And the words a refusal used to be written in are not one either: not
+    // wanting a film is `dont-want-to-see`, and an evening is not a viewing.
+    for (const reach of ["not-ever", "not-tonight"]) {
       assert.throws(() => checkViewing(reach), /must be one of seen, want-to-see, dont-want-to-see/u, reach);
     }
   });
@@ -91,18 +91,6 @@ describe("whether they have seen it, from both things that can say so", () => {
     // Movie row to agree with it.
     for (const judgement of JUDGEMENTS) {
       assert.equal(effectivelySeen("want-to-see", { judgement }), true, judgement);
-    }
-  });
-
-  test("a refusal says nothing about watching", () => {
-    // *"Not ever"* is most often said about a film somebody has never seen and
-    // does not intend to, and *"not tonight"* is about an evening. Reading
-    // either as evidence of watching would invent a viewing out of a refusal.
-    for (const rejected of REACHES) {
-      assert.equal(effectivelySeen("want-to-see", { rejected }), false, rejected);
-      assert.equal(effectivelySeen("dont-want-to-see", { rejected }), false, rejected);
-      // And it does not take away a fact that was stated.
-      assert.equal(effectivelySeen("seen", { rejected }), true, rejected);
     }
   });
 

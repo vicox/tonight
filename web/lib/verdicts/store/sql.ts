@@ -9,7 +9,6 @@ import {
   filmKey,
   type Film,
   type Identified,
-  type Scope,
   type Standing,
 } from "../model.ts";
 import type { VerdictStore } from "../store.ts";
@@ -64,7 +63,7 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
   const everything = async (): Promise<Identified<Act>[]> => {
     const rows = await driver.query<ActRow>(
       `SELECT id, said, title, year, occasion, said_at,
-              told, about, judgement, because, reach, reason, seq
+              told, about, judgement, because, seq
          FROM tonight_verdict_acts
         WHERE user_id = $1
         ORDER BY title, year, said_at, seq, id`,
@@ -79,36 +78,28 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
       // it from a request body as easily as from a constructor — and the model
       // is where "valid" is defined.
       const checked = check(act);
-      const judgement = checked.said === "verdict" && checked.assertion.about === "judgement"
-        ? checked.assertion
-        : null;
-      const rejection = checked.said === "verdict" && checked.assertion.about === "rejection"
-        ? checked.assertion.rejection
-        : null;
+      const judgement = checked.said === "verdict" ? checked.assertion : null;
 
       // `seq` is deliberately absent from the column list: it is allocated by
       // the sequence behind its default, so nothing a caller sends can choose or
-      // forge a place in the order.
+      // forge a place in the order. So are `occasion`, `reach` and `reason`,
+      // which only a refusal ever filled and which the schema now holds empty.
       const [row] = await driver.query<ActRow>(
         `INSERT INTO tonight_verdict_acts
-                (user_id, said, title, year, occasion, said_at,
-                 told, about, judgement, because, reach, reason)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                (user_id, said, title, year, said_at, told, about, judgement, because)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING id, said, title, year, occasion, said_at,
-                     told, about, judgement, because, reach, reason, seq`,
+                     told, about, judgement, because, seq`,
         [
           owner,
           checked.said,
           checked.film.title,
           checked.film.year,
-          occasionOf(checked.scope),
           checked.at,
           checked.said === "verdict" ? checked.told : null,
-          checked.said === "verdict" ? checked.assertion.about : null,
+          judgement?.about ?? null,
           judgement?.judgement ?? null,
           judgement?.because ?? null,
-          rejection?.reach ?? null,
-          rejection?.reason ?? null,
         ],
       );
       if (!row) throw new VerdictError("What they said was not written down.");
@@ -172,14 +163,13 @@ type ActRow = {
   said: string;
   title: string;
   year: number;
+  /** Always null since v3. Read so a row that is not is refused rather than widened. */
   occasion: string | null;
   said_at: Date | string;
   told: string | null;
   about: string | null;
   judgement: string | null;
   because: string | null;
-  reach: string | null;
-  reason: string | null;
   /** The order this table accepted the act in. Null on rows predating v2. */
   seq: number | null;
 };
@@ -194,6 +184,8 @@ type ActRow = {
  * for it comes from.
  */
 function assemble(row: ActRow): Identified<Act> {
+  // Handed to the model as it is stored, so an evening a row should no longer
+  // carry is refused there rather than read as everywhere.
   const scope = row.occasion === null ? "everywhere" : { occasion: row.occasion };
   const at = moment(row.said_at);
   // Two handles, and they are not the same kind of thing. `order` is how the
@@ -205,25 +197,17 @@ function assemble(row: ActRow): Identified<Act> {
   }
   if (row.said !== "verdict") throw new VerdictError(`No act is a ${row.said}.`);
 
-  // The discriminant is read from the column that holds it, and an unknown
-  // value is refused rather than treated as the other kind. The table's own
-  // constraints keep `about` and the fields beside it agreeing, so this cannot
-  // disagree with them in practice — it is here so that a row written by
-  // something that skipped those constraints fails loudly instead of being
-  // guessed into the nearest valid shape.
-  if (row.about !== "judgement" && row.about !== "rejection") {
+  // The discriminant is read from the column that holds it, and anything but a
+  // judgement is refused rather than read as one. The table's own constraints
+  // keep it so, so this cannot disagree with them in practice — it is here so
+  // that a row written by something that skipped those constraints fails
+  // loudly instead of being guessed into the nearest valid shape.
+  if (row.about !== "judgement") {
     throw new VerdictError(`No verdict is about a ${String(row.about)}.`);
   }
-  const assertion =
-    row.about === "judgement"
-      ? { about: "judgement", judgement: row.judgement, because: row.because }
-      : { about: "rejection", rejection: { reach: row.reach, reason: row.reason } };
+  const assertion = { about: "judgement", judgement: row.judgement, because: row.because };
   return { ...stateVerdict({ title: row.title, year: row.year }, assertion, row.told, at, scope), ...handles };
 }
-
-/** The scope, as the column holds it: null is everywhere. */
-const occasionOf = (scope: Scope): string | null =>
-  scope === "everywhere" ? null : scope.occasion;
 
 /**
  * The film, trimmed and checked the way the model checks one.
@@ -282,7 +266,8 @@ function check(act: Act): Act {
  *
  * `assertion` and `told` are the two the model's own act check names; the rest
  * are the fields an assertion is made of, which a hand-built object is as likely
- * to carry loose. On a withdrawal any of them is a mistake worth reporting.
+ * to carry loose — and `reach` and `reason`, which a refusal was made of before
+ * there were none. On a withdrawal any of them is a mistake worth reporting.
  */
 const VERDICT_ONLY = ["assertion", "told", "judgement", "because", "reach", "reason"] as const;
 

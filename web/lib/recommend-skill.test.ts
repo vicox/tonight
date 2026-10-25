@@ -66,7 +66,7 @@ test("the boundary says what Tonight does return, not only what it refuses", () 
   assert.match(flat, /arrive with `create_genre` and `create_vibe`/);
   // The verdict routing is stated where the two requests about a film are told
   // apart, and the `viewing` pointer where a recommendation is told from a save.
-  assert.match(flat, /that is a verdict, and it goes to `record_verdict`/);
+  assert.match(flat, /that is a verdict, liked, loved or disliked, and it goes to `record_verdict`/);
   assert.match(flat, /`create_movie` carries `viewing` and no opinion/);
 
   // And the ratings wording was too broad twice over: liked and disliked are
@@ -257,7 +257,6 @@ test("a Vibe is evidence, and the verdicts under it calibrate rather than gate",
     // Not "leaves nothing", which was false of a scoped one: taking back an
     // evening's refusal leaves a judgement about the film exactly where it was.
     ["what a withdrawal removes", /taking a verdict back removes that\s*act from what stands/],
-    ["that it reaches only as far as the act did", /It reaches exactly\s*as far as the act reached/],
     ["that it leaves no weaker opinion", /leaves no quieter opinion underneath it/],
     ["that a withdrawal is not an unsaying", /it is not an unsaying/],
     ["that viewing is a fact and not taste",
@@ -452,7 +451,7 @@ test("a film they have seen or judged is not offered as a new one", () => {
     ["that want-to-see does not", "`want-to-see`\ndoes not rule it out"],
     ["that a film on the list stays eligible", "so it stays on the table"],
     ["that dont-want-to-see is never recommended", "**`dont-want-to-see` is\nnever recommended**"],
-    ["that a refusal proves nothing about watching", "A refusal is not evidence they saw it"],
+    ["that a turn-down proves nothing about watching", "A turn-down is not evidence they saw it"],
     ["that being ruled out covers being called new", "never called new, unseen or not yet watched"],
     ["what a loved film is for", "`loved` one is a **reason**, not a suggestion"],
     ["that a stretch needs a positive anchor", "Anchor a stretch in something they like"],
@@ -1394,7 +1393,7 @@ test("every rule the agent cannot work out for itself is in the skill", () => {
     "Do not sort them, propose Vibes for them, or mention them unless they ask or speak of one",
     "A recommendation is not a saved Movie",
     "ever ask for what their sentence gave you",
-    "that is a verdict, and it goes to `record_verdict`",
+    "that is a verdict, liked, loved or disliked, and it goes to `record_verdict`",
     // M5 — the floor. However a film's working is put, it is a verdict in their
     // words (S3); a proposed Vibe names its core and is written with it (S2); an
     // empty model's one question is the films they love (S6).
@@ -1430,39 +1429,47 @@ test("every rule the agent cannot work out for itself is in the skill", () => {
 });
 
 /**
- * M6 — the deltas, and where they sit.
+ * M6 — the deltas, and where they sit — as M8 left them.
  *
- * `docs/work/m6/PLAN.md` §2–§3. Four skill-owned rules: a turn-down is a verdict
- * (D1), a recommended film comes back only outside a refusal's reach (D2), being
- * in a Vibe is no opinion (D3), and a request with taste read and no mood is still
- * answered, led as a surprise (D4). Where D4 sits is pinned too: after the
- * sentence that already says *never instead*, so it cannot become R1's licence to
- * interview.
+ * `docs/work/m6/PLAN.md` §2–§3. Four skill-owned rules: a turn-down reaches as
+ * far as their words (D1), a recommended film comes back unless it was turned
+ * down (D2), being in a Vibe is no opinion (D3), and a request with taste read and
+ * no mood is still answered, led as a surprise (D4). Where D4 sits is pinned too:
+ * after the sentence that already says *never instead*, so it cannot become R1's
+ * licence to interview.
+ *
+ * M8 (`docs/work/m8/PLAN.md`) took refusals out of verdicts: a turn-down for good
+ * is the film's viewing, `dont-want-to-see`, and one for tonight is written nowhere.
  */
-test("M6: a turn-down is a verdict, and a refused film comes back only outside its reach", () => {
+test("M6/M8: a turn-down is a viewing or nothing, and a turned-down film is not offered again", () => {
   const flat = flatSkill();
-  // D1, after the verdict routing it extends — which stays whole.
+  // D1, right after the verdict routing — which stays whole.
   assert.match(
     flat,
-    /that is a verdict, and it goes to `record_verdict`\. A turn-down reaches as far as their words/,
+    /that is a verdict, liked, loved or disliked, and it goes to `record_verdict`\./,
   );
-  assert.match(flat, /\*"not interested"\* and \*"stop suggesting it"\* are `not-ever`/);
-  // G3 (M6 smoke, 0 of 3): an unclear turn-down was not recorded at all. It is a
-  // verdict, dated today, and never made permanent.
+  assert.match(flat, /\*\*Turning a film down is not a verdict\.\*\*/);
   assert.match(
     flat,
-    /one that does not say how far — \*"nah, not that one"\* — is `not-tonight` on today's date too: recorded, never left unrecorded, and never made permanent/,
+    /\*"stop suggesting it"\*, \*"not interested"\*, \*"never again"\* say where that film stands on their list: `dont-want-to-see`/,
+  );
+  // G3 (M6 smoke, 0 of 3): an unclear turn-down was not recorded at all. Since M8
+  // that is exactly right — it is about tonight — and it is never made permanent.
+  assert.match(
+    flat,
+    /one that does not say how far — \*"nah, not that one"\* — are about this evening: offer something else and write nothing, and never make one into `dont-want-to-see`/,
   );
   assert.match(flat, /Never `disliked`, which says they watched it/);
   assert.match(flat, /never a question asking them to make it reach further/);
-  // D2, inside the sentence it narrows, before the exception it already named.
+  // D2, inside the sentence it narrows.
   assert.match(
     flat,
-    /a film you recommended can come back — unless they turned it down, and then only outside the refusal's reach/,
+    /a film you recommended can come back — unless it is `dont-want-to-see`, or they turned it down this evening/,
   );
-  assert.match(flat, /\*\*Within its reach a refused film is not offered again\*\*/);
-  assert.match(flat, /a `not-tonight` reaches the evening its occasion names, which for tonight is today's date/);
-  assert.match(flat, /Any other occasion is another evening's, and binds nothing tonight/);
+  assert.match(flat, /\*\*A turned-down film is not offered again\*\*/);
+  assert.match(flat, /`dont-want-to-see` on any evening, \*"not tonight"\* in this one/);
+  // No verdict reach and no evening scope survive anywhere in the skill.
+  assert.doesNotMatch(flat, /not-ever|not-tonight|occasion/u);
 });
 
 test("M6: being in a Vibe is no opinion, and a film new to them there is a candidate", () => {

@@ -16,32 +16,20 @@ import type { Judgement, Standing } from "../verdicts/model.ts";
  * are one film. A verdict names a film by title and year as the user spelled it
  * and a Movie stores its own canonical name; comparing the raw spellings would
  * split a film in two the moment somebody typed it differently.
- *
- * Global claims only. A `not-tonight` is about an evening, and a page showing a
- * collection is not an evening — carrying one here would turn a Tuesday's mood
- * into a fact about the film, which is the thing the scope exists to prevent.
  */
 
 /** What stands about one film, reduced to what a page shows. */
 export type Position = {
-  /** Their judgement, where one stands. A refusal is not one. */
+  /** Their judgement, where one stands. */
   judgement?: Judgement;
   /** Their words for why, where they gave them. */
   because?: string;
 };
 
-/**
- * The standing global position of every film that has one.
- *
- * Rejections are read but produce no `judgement`: they say the film is turned
- * down, not that it is disliked, and the page has no control that means "turned
- * down". They still matter for `seen` below, where they correctly imply nothing.
- */
+/** The standing position of every film that has one. */
 export function positions(standing: readonly Standing[]): Map<string, Position> {
   const found = new Map<string, Position>();
   for (const one of standing) {
-    if (one.occasion !== undefined) continue;
-    if (one.judgement === undefined) continue;
     found.set(filmKey(one), {
       judgement: one.judgement,
       ...(one.because === undefined ? {} : { because: one.because }),
