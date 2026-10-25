@@ -718,6 +718,22 @@ test("a judgement can be given about a film that was never saved", async () => {
   assert.deepEqual((await taste(id)).movies, [], "judging a film saved it");
 });
 
+test("the website is not held to the vibe rule: deleting a loved film's last vibe still goes", async () => {
+  // A liked or loved film stays in at least one vibe only where the MCP tools
+  // write. The website's routes call the same stores without that rule, and
+  // behave exactly as they did — so this pins the scope, and changing it is the
+  // website's own decision rather than a side effect of the assistant's.
+  const { cookie, id } = await withFilm({ viewing: "seen" });
+  await judge(cookie, { title: "Arrival", year: 2016, judgement: "loved" });
+
+  const out = await answer(
+    await vibe.DELETE(request("/api/vibes/Space Tension", "DELETE", {}, { cookie }), at("Space Tension")),
+  );
+  assert.equal(out.status, 200, `the website's deletion was refused: ${JSON.stringify(out)}`);
+  assert.deepEqual((await film(id))?.vibes, []);
+  assert.equal((await standing(id))?.judgement, "loved");
+});
+
 test("the route takes the three judgements and taking one back, and nothing else", async () => {
   const { cookie, id } = await withFilm();
 

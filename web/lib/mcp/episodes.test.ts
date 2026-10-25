@@ -717,6 +717,17 @@ describe("an evening beside the rest of the model", () => {
   const snapshot = async (tools: Record<string, Tool>) =>
     JSON.stringify((await ok(tools, "get_episodes")).episodes);
 
+  /** Files Arrival in a vibe, since a liked or loved is kept only for a filed film. */
+  const fileArrival = async (tools: Record<string, Tool>) => {
+    await ok(tools, "create_genre", { name: "Clever sci-fi", instruction: "I like science fiction that makes me think." });
+    await ok(tools, "create_vibe", {
+      name: "Quiet Contact",
+      genres: ["Clever sci-fi"],
+      instruction: "Patient first-contact stories where the talking is the action.",
+      core: ARRIVAL,
+    });
+  };
+
   test("an evening forgotten by a correction is gone from get_episodes and get_memory", async () => {
     const tools = someone();
     const own = (await ok(tools, "record_episode", { offers: [{ ...ARRIVAL, started: true }] })).episode as Evening;
@@ -744,7 +755,7 @@ describe("an evening beside the rest of the model", () => {
   for (const [name, setup, act] of [
     [
       "record_verdict",
-      async () => {},
+      async (tools: Record<string, Tool>) => fileArrival(tools),
       async (tools: Record<string, Tool>) =>
         ok(tools, "record_verdict", {
           film: ARRIVAL,
@@ -754,8 +765,10 @@ describe("an evening beside the rest of the model", () => {
     ],
     [
       "withdraw_verdict",
-      async (tools: Record<string, Tool>) =>
-        ok(tools, "record_verdict", { film: ARRIVAL, told: "volunteered", said: { about: "judgement", judgement: "liked" } }),
+      async (tools: Record<string, Tool>) => {
+        await fileArrival(tools);
+        return ok(tools, "record_verdict", { film: ARRIVAL, told: "volunteered", said: { about: "judgement", judgement: "liked" } });
+      },
       async (tools: Record<string, Tool>) => ok(tools, "withdraw_verdict", { film: ARRIVAL }),
     ],
     [

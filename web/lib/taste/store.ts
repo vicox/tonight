@@ -2,6 +2,7 @@ import { database } from "../db.ts";
 import type { SqlDriver } from "../db/driver.ts";
 import { prepareSchema } from "../db/migrate.ts";
 import type { AuthenticatedUser } from "../identity.ts";
+import type { Act, Identified, Verdict } from "../verdicts/model.ts";
 import type { Genre, Vibe, Movie, MovieHandle, Viewing, Taste } from "./model.ts";
 
 /**
@@ -104,6 +105,17 @@ export type MovieChanges = {
   vibes?: unknown;
 };
 
+/**
+ * How a caller asks a write to keep every film they like or love in a vibe.
+ *
+ * With `positiveNeedsVibe`, `updateMovie` refuses to take a film with a standing
+ * liked or loved out of its last vibe, and `deleteVibe` refuses to delete the
+ * last vibe of one. Decided inside the write's transaction, while the films are
+ * held. Only the MCP server passes it; the website's routes do not, and behave
+ * exactly as they did.
+ */
+export type KeepFiled = { positiveNeedsVibe?: boolean };
+
 export type TasteStore = {
   /**
    * The whole model — genres, vibes and movies — from one database snapshot.
@@ -122,8 +134,12 @@ export type TasteStore = {
 
   createVibe(draft: VibeDraft): Promise<Vibe>;
   updateVibe(name: string, changes: VibeChanges): Promise<Vibe>;
-  /** Removes a vibe. Always allowed: nothing is built from a vibe. */
-  deleteVibe(name: string): Promise<Vibe>;
+  /**
+   * Removes a vibe. Allowed whenever nothing is built from it — which is always —
+   * unless `positiveNeedsVibe` is passed and it is the last vibe of a film they
+   * like or love.
+   */
+  deleteVibe(name: string, options?: KeepFiled): Promise<Vibe>;
 
   createMovie(draft: MovieDraft): Promise<Movie>;
   /**
@@ -131,9 +147,11 @@ export type TasteStore = {
    *
    * Changing either leaves the object it is: the filings point at an id, so a
    * retitled movie is still in the same vibes and no relation row is written.
-   * A new filing that leaves out a vibe this movie is the core of is refused.
+   * A new filing that leaves out a vibe this movie is the core of is refused, and
+   * so — with `positiveNeedsVibe` — is an empty filing for a film that is filed
+   * now and has a standing liked or loved.
    */
-  updateMovie(title: string, year: number, changes: MovieChanges): Promise<Movie>;
+  updateMovie(title: string, year: number, changes: MovieChanges, options?: KeepFiled): Promise<Movie>;
   /**
    * Removes a movie: its filings go with it, the vibes stay. Refused while it is a
    * vibe's core, and the refusal names the vibes.
@@ -143,6 +161,20 @@ export type TasteStore = {
    * removed outlives it.
    */
   deleteMovie(title: string, year: number): Promise<Movie>;
+
+  /**
+   * Writes a liked or loved verdict, only while its film is filed in at least
+   * one vibe; otherwise refuses with `VibeRequired` and writes nothing.
+   *
+   * Here rather than on the verdict store because the question is the taste
+   * model's: whether a film is filed. The film is held `FOR SHARE` and the act
+   * written in the same transaction, so a write taking the film out of its last
+   * vibe either committed first and is seen, or waits and then sees the verdict.
+   * The act itself is written by the verdict module, exactly as `say` writes
+   * one. Anything but a liked or loved is refused: those need no vibe and go to
+   * the verdict store. Only the MCP server calls this.
+   */
+  sayFiled(verdict: Verdict): Promise<Identified<Act>>;
 };
 
 /** Re-exported so a caller needs one import to work with what these return. */

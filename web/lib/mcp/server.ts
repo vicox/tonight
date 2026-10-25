@@ -8,6 +8,7 @@ import {
   MAX_YEAR,
   MIN_YEAR,
   TasteError,
+  VibeRequired,
   VIEWINGS,
 } from "../taste/model.ts";
 import {
@@ -23,6 +24,7 @@ import {
 } from "../episodes/model.ts";
 import type { EpisodeStore } from "../episodes/store.ts";
 import {
+  isPositive,
   JUDGEMENTS,
   MAX_REASON_LENGTH,
   NOT_A_VERDICT,
@@ -33,6 +35,7 @@ import {
   type Act,
   type Film,
   type Identified,
+  type Verdict,
 } from "../verdicts/model.ts";
 import { current, spoken, supersession } from "../verdicts/model.ts";
 import { compose } from "../memory/model.ts";
@@ -589,8 +592,11 @@ export function tonightMcpServer(session: McpSession): McpServer {
       description:
         "Change a vibe's name, its meaning, or which genres it is built from. Passing genres " +
         "replaces the stored list rather than adding to it, and the list may never be empty. " +
-        "Never reword their instruction: the sentence is theirs, and what it means is not " +
-        "yours to adjust.\n\n" +
+        "Never reword their instruction on your own: the sentence is theirs, and what it means " +
+        "is not yours to adjust. The one change you may propose is a minimal one — the exact new " +
+        "words, shown to them — when a film they like belongs to that same evening and the " +
+        "sentence does not yet cover it; write it only on their yes to those words. A change " +
+        "that would make it a different evening is a new vibe, not a reworded one.\n\n" +
         "**Every one of these changes the whole vibe, so settle the whole vibe before you " +
         "call.** Work out what the result would be — the name it would then have, the sentence " +
         "it would then have, the genres it would then be built from, and what those genres' " +
@@ -629,12 +635,15 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Delete a vibe",
       description:
-        "Remove a vibe. Always allowed — nothing is built from a vibe — and the genres it " +
-        "combined are left alone, as are its films, its core included.",
+        "Remove a vibe. Nothing is built from a vibe, so the one refusal is for a film they like " +
+        "or love that is in no other vibe: a liked or loved film stays in at least one, and the " +
+        "refusal names those films — move each into another vibe with `update_movie` first. " +
+        "Otherwise the genres it combined are left alone, as are its films, its core included.",
       inputSchema: z.object({ name: vibeName }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
-    async ({ name }) => attempt(async () => ({ deleted: await store.deleteVibe(name) })),
+    async ({ name }) =>
+      attempt(async () => ({ deleted: await store.deleteVibe(name, { positiveNeedsVibe: true }) })),
   );
 
   server.registerTool(
@@ -689,7 +698,11 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "it is not permission to write more than that.\n\n" +
         "A film cannot be taken out of a vibe it is the core of, nor marked anything but seen " +
         "while it is a core. The refusal names the vibes: make another film the core with " +
-        "`update_vibe` first, or delete the vibe.",
+        "`update_vibe` first, or delete the vibe.\n\n" +
+        "Nor can a film they like or love be taken out of its last vibe: an empty `vibes` list " +
+        "is refused for a filed film with a standing liked or loved, and the refusal names the " +
+        "verdict — keep one of its vibes or add another. A film already in no vibe may be given " +
+        "an empty list.",
       inputSchema: z.object({
         title: movieTitle.describe("The film to change, by its current title."),
         year: movieYear.describe("The film to change, by its current year."),
@@ -711,13 +724,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
       vibes,
     }) =>
       attempt(async () => ({
-        movie: await store.updateMovie(title, year, {
-          title: retitled,
-          year: reyeared,
-          imdbId,
-          viewing,
-          vibes,
-        }),
+        movie: await store.updateMovie(
+          title,
+          year,
+          { title: retitled, year: reyeared, imdbId, viewing, vibes },
+          { positiveNeedsVibe: true },
+        ),
       })),
   );
 
@@ -974,6 +986,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "recommendation is not liking it either. Silence is not a verdict at all.\n\n" +
         "A verdict is a judgement — liked, loved or disliked — about the film, and it applies " +
         "everywhere. Keep their own words for why, where they gave them.\n\n" +
+        "**A liked or loved needs a vibe.** It is kept only for a film filed in at least one of " +
+        "their vibes, because the vibe is what says why it worked for them. If the film is in " +
+        "none — or not saved at all — nothing is written and the answer is `reason: " +
+        "\"vibe_required\"`, with `retry` and `next`: find the vibe it belongs in with them, file " +
+        "the film, then call this again with `retry.arguments`, in this conversation. Until then " +
+        "it is not saved, so never say it is. `disliked` needs no vibe and no saved film.\n\n" +
         "**Turning a film down is not a verdict.** *\"Not interested\"*, *\"stop suggesting it\"*, " +
         "*\"don't recommend it again\"* say where the film stands on their list: dont-want-to-see, " +
         "with `create_movie` or `update_movie`. *\"Not tonight\"* and *\"not in the mood for " +
@@ -1001,8 +1019,19 @@ export function tonightMcpServer(session: McpSession): McpServer {
       attempt(async () => {
         // Handed over as it arrived, `about` included, so the model refuses a
         // refusal itself rather than relying on the schema in front of it.
-        const verdict = await verdicts.say(stateVerdict(film, said, told, now()));
-        return { verdict: written(verdict) };
+        const verdict = stateVerdict(film, said, told, now());
+        try {
+          // A liked or loved is held to the vibe rule, and whether a film is
+          // filed is the taste store's question, so that store writes it — in
+          // the same transaction as it checks. Anything else needs no vibe.
+          const kept = isPositive(verdict.assertion.judgement)
+            ? await store.sayFiled(verdict)
+            : await verdicts.say(verdict);
+          return { verdict: written(kept) };
+        } catch (error) {
+          if (error instanceof VibeRequired) throw new Refused(vibeRequired(error, verdict));
+          throw error;
+        }
       }),
   );
 
@@ -1255,6 +1284,69 @@ const VERDICT_COVERAGE = {
 } as const;
 
 /**
+ * What to do after a liked or loved was refused for want of a vibe.
+ *
+ * A constant, carried in the answer so it is read at the moment it applies, and
+ * the same sentence the vibes skill gives. Nothing about the refusal is
+ * remembered anywhere: `retry` is the only thing that carries it forward, and it
+ * lives in this conversation.
+ */
+const VIBE_REQUIRED_NEXT =
+  "Nothing was written. A liked or loved verdict is kept only for a film in at least one of " +
+  "their vibes. Read get_taste, then in this conversation: (1) if one of their vibes fits — " +
+  "judge by its instruction and genres, not its name — propose filing the film there; if it " +
+  "fits except that its sentence does not yet cover this film, show them the exact minimal new " +
+  "wording and change it with update_vibe only on their yes to those words. (2) If none fits, " +
+  "offer one recommended new vibe and two meaningfully different alternatives — each a " +
+  "different reason the film may have worked for them, with a name, a sentence, their genres " +
+  "and this film as core — and let their choice say why. (3) On their yes, file it — " +
+  "update_movie with its vibes, create_movie with viewing seen and vibes for an unsaved film, " +
+  "or create_vibe with it as core — then call record_verdict again with retry.arguments. If " +
+  "they decline, it stays unsaved: say so once, and write nothing in its place.";
+
+/**
+ * The answer to a liked or loved refused for want of a vibe.
+ *
+ * `retry.arguments` is the call to make again once the film is filed, built from
+ * what was checked — their judgement, their words and how they came to say it —
+ * so the retry records exactly what they said and nothing the agent re-typed.
+ */
+function vibeRequired(refusal: VibeRequired, verdict: Verdict): Record<string, unknown> {
+  const { judgement, because } = verdict.assertion;
+  return {
+    saved: false,
+    reason: "vibe_required",
+    film: refusal.film,
+    movie: refusal.movie,
+    retry: {
+      tool: "record_verdict",
+      arguments: {
+        film: refusal.film,
+        told: verdict.told,
+        said: { about: "judgement", judgement, ...(because === null ? {} : { because }) },
+      },
+    },
+    next: VIBE_REQUIRED_NEXT,
+  };
+}
+
+/**
+ * A refusal that carries a structured answer, rather than a sentence alone.
+ *
+ * Still a refusal — `isError`, nothing written — so no client mistakes it for a
+ * save. The value travels in `structuredContent` and, as JSON, in `content`, for
+ * a host that shows the model only the text of an error.
+ */
+class Refused extends Error {
+  readonly value: Record<string, unknown>;
+
+  constructor(value: Record<string, unknown>) {
+    super(String(value.reason));
+    this.value = value;
+  }
+}
+
+/**
  * An act just written, as the caller may have it back.
  *
  * Persistence hangs two handles on an act and only one of them is theirs. The
@@ -1295,6 +1387,10 @@ function answer(value: unknown) {
  * genre called Action already exists" is guidance a model can correct for, not a
  * transport problem.
  *
+ * A `Refused` is the same kind of answer with a structured value in it, shaped
+ * like a success's so a client reads it the same way, and marked `isError` so it
+ * is never read as one.
+ *
  * Anything that is not a `TasteError` is ours rather than the caller's — a
  * database failure, a misconfigured deployment — and is left to the SDK, which
  * answers it without describing our internals or leaking what is missing.
@@ -1303,6 +1399,7 @@ async function attempt(work: () => Promise<unknown>) {
   try {
     return answer(await work());
   } catch (error) {
+    if (error instanceof Refused) return { isError: true as const, ...answer(error.value) };
     if (
       !(error instanceof TasteError) &&
       !(error instanceof EpisodeError) &&

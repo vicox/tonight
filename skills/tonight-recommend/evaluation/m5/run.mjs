@@ -47,11 +47,13 @@
  *
  * **A legacy fixture is never reseeded here.** Vibes from before cores cannot be
  * written by a build that requires one, and they are never written by SQL; the
- * operator seeds them through a v12 build and migrates (README). Such a fixture runs
- * only with `--legacy-seeded`, one run per seeding.
+ * operator seeds them through a v12 build and migrates (README). A liked or loved
+ * film in no vibe cannot be written by a build with the vibe rule either, so a
+ * `pre-vibe-rule` fixture is seeded through a build from before it, with nothing
+ * to migrate. Either runs only with `--legacy-seeded`, one run per seeding.
  *
- * Every other fixture is reseeded before every run — vibes, then films, then genres
- * torn down, then everything written again through the tools — and snapshotted before
+ * Every other fixture is reseeded before every run — verdicts forgotten, then vibes,
+ * films and genres torn down, then everything written again through the tools — and snapshotted before
  * and after, through the M3 seeder. What it does not do, ever: call a tool on the
  * agent's behalf, reason for it, or write its transcript.
  *
@@ -336,8 +338,9 @@ async function run(scenario, said, then, index) {
   TODAY = localDate();
   const today = TODAY;
 
-  // Fresh, every run — except a legacy fixture, which only its operator can seed.
-  if (spec.seed !== "v12-then-migrate") seed(scenario.fixture);
+  // Fresh, every run — except a fixture its operator seeds, through an older build:
+  // the pre-core one (`v12-then-migrate`) or the pre-vibe-rule one (`pre-vibe-rule`).
+  if (spec.seed === undefined) seed(scenario.fixture);
   const digest = seed(scenario.fixture, "--snapshot", join(OUT, snapshotFile));
   const bearer = seed(scenario.fixture, "--token");
 
@@ -443,7 +446,8 @@ ${result.second === null ? "" : `\n## Second answer\n\n${result.second.answer}\n
 refuseIfPromptsMoved();
 const said = prompts();
 const key = (one) => `${one.fixture}__${one.prompt}${one.then ? `__then-${one.then}` : ""}`;
-const isLegacy = (one) => fixture(one.fixture).seed === "v12-then-migrate";
+/** Seeded by its operator through an older build — any `seed` a fixture names. */
+const isLegacy = (one) => fixture(one.fixture).seed !== undefined;
 let chosen = select(scenarios, { source: SOURCE, only: ONLY, smoke: SMOKE });
 if (chosen.length === 0) throw new Error(`nothing on ${SOURCE} matches ${ONLY ?? ""}${SMOKE ? " among the smoke scenarios" : ""}`);
 
@@ -454,8 +458,8 @@ if (LEGACY_SEEDED) {
   if (chosen.length !== 1 || !isLegacy(chosen[0]) || RUNS !== 1) {
     throw new Error(
       "--legacy-seeded runs exactly one legacy scenario, once: name it with " +
-        "--only <fixture>__<prompt> and pass --runs 1. Each run needs its own fresh v12 seed and " +
-        "migration (README, 'The legacy fixture').",
+        "--only <fixture>__<prompt> and pass --runs 1. Each run needs its own fresh seed through " +
+        "the older build (README, 'The legacy fixture' and 'Fixtures from before the vibe rule').",
     );
   }
 } else {
@@ -463,7 +467,8 @@ if (LEGACY_SEEDED) {
   if (legacy.length) {
     console.error(
       `Skipping ${legacy.map(key).join(", ")}: a legacy fixture runs one scenario at a time, after ` +
-        "its own v12 seed and migration, with --legacy-seeded (README, 'The legacy fixture').",
+        "its own seed through the older build, with --legacy-seeded (README, 'The legacy fixture' " +
+        "and 'Fixtures from before the vibe rule').",
     );
   }
   chosen = chosen.filter((one) => !isLegacy(one));

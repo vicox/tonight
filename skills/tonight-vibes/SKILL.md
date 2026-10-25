@@ -1,6 +1,6 @@
 ---
 name: tonight-vibes
-description: Write and grow the user's Vibes in Tonight — each anchored on a film they stand behind, proposed in the conversation and written only on their yes. Use when somebody tells you how a film worked for them, when a film they want kept needs a Vibe, when a new user names films they love, or when they want to go through, anchor or tidy their Vibes. Choosing a film to watch is not this skill's.
+description: Write and grow the user's Vibes in Tonight — each anchored on a film they stand behind, proposed in the conversation and written only on their yes. Use when somebody tells you how a film worked for them, when a liked or loved is answered vibe_required, when a film they want kept needs a Vibe, when a new user names films they love, or when they want to go through, anchor or tidy their Vibes. Choosing a film to watch is not this skill's.
 ---
 
 # Tonight — Vibes
@@ -120,7 +120,9 @@ like horror. Name the thing they said. Never name a bigger thing.
 *"I loved Paterson."* *"Logan Lucky was great for a lazy Sunday afternoon when I don't need to
 pay full attention."* *"That was exactly my thing because of the dialogue."* However it is
 phrased, a statement about how a film worked for them is **a verdict first**, and only then a
-question about their Vibes.
+question about their Vibes. **A liked or loved is kept only for a film in at least one of their
+Vibes** — the Vibe is what says why it worked — so for a film in none, the Vibe comes before the
+verdict is saved.
 
     statement
        │
@@ -131,7 +133,8 @@ question about their Vibes.
      record_verdict — their words, as volunteered or confirmed      ◀ needs no yes: they said it
        │
      which way it points
-       ├── liked / loved ───────────────────────────────▶ consider their Vibes
+       ├── liked / loved, kept ─────────────────────────▶ consider their Vibes
+       ├── liked / loved, answered vibe_required ───────▶ find its Vibe, then record it again
        ├── liked, but they want no more of the kind ────▶ stop
        └── disliked / taking back a positive ───────────▶ tension, at most once
      consider — get_taste: Vibes with their cores and films, Genre instructions, verdicts
@@ -166,9 +169,42 @@ question about their Vibes.
   — is part of their reason and stays in `because`. It is never an occasion, a daypart or an
   attention level stored anywhere else, and never a claim like *"you like low-attention films"*.
 
+### When a liked or loved needs a Vibe
+
+`record_verdict` keeps a liked or loved only for a film filed in at least one of their Vibes. For
+a film in none — not saved at all, or saved and filed nowhere — **nothing is written**, and the
+answer is `reason: "vibe_required"`, with `retry` (the same call, with their words and how they
+said it) and `next`. **Until the film is filed, the verdict is not saved, so never say it is.**
+Then, in this conversation, one offer:
+
+1. **An existing Vibe first.** Read `get_taste` — each Vibe's instruction and its Genres'
+   instructions, not the names. If one fits, propose filing the film there.
+2. **A minimal change, only when needed, and only on their yes.** If the film belongs to that
+   same evening and the Vibe's sentence just does not yet say what makes it fit, show them the
+   exact new wording — the smallest change that covers it — and write it with `update_vibe` only
+   on their yes to those words. If fitting it would make the Vibe a different evening, it is not
+   that Vibe: go on to 3. A minimal change is never a way to stretch a Vibe.
+3. **Otherwise one recommended new Vibe and two meaningfully different alternatives**, in one
+   breath: three different reasons the film may have worked for them, not three names for one
+   idea. Each is a name, a sentence and its Genres — any new Genre's meaning shown — with this
+   film as its core. Their pick says why they liked it; an idea of their own is
+   considered again with their meaning.
+
+On their yes, write exactly what they agreed, as *Writing what they agreed* says, then call
+`record_verdict` again with `retry.arguments`, then say in one short sentence what was saved. A
+film not saved yet is filed by `create_vibe` with it as core, or by `create_movie` with `viewing:
+seen` and its Vibes — liking it says they watched it; a saved one by `update_movie` with its
+Vibes. On a no, or a change of subject, the liked or loved stays unsaved: say so once, and write
+nothing in its place — no `disliked`, no viewing they did not state, and no record that you asked.
+
+This is the one place a bare *"loved it"* may lead to new Vibes: the alternatives are how you
+learn the why they did not give. And when they said they want no more of the kind, offer nothing:
+say once that a liked is kept only with a Vibe, and leave it there.
+
 ### What to consider, and what to offer
 
-After a positive verdict, read the model and decide what, if anything, is worth offering:
+After a positive verdict that was kept — the film is already in a Vibe — read the model and
+decide what, if anything, is worth offering:
 
 - **A further film in a Vibe whose instruction it fits** — one Vibe, or several. A partial yes
   writes exactly the part that was agreed.
@@ -181,9 +217,10 @@ After a positive verdict, read the model and decide what, if anything, is worth 
 
 When nothing fits, stop and say nothing more about it. Most verdicts end there, and that is fine.
 
-**Asking has a budget.** At most one offer per statement, and at most one new Vibe in it. An idea
-they declined is not offered again in this conversation. Never nag: an offer is a sentence they
-can ignore, not a question they have to answer.
+**Asking has a budget.** At most one offer per statement, and at most one new Vibe in it — a
+`vibe_required` offer is still one offer: its recommended Vibe and two alternatives, of which they
+pick one. An idea they declined is not offered again in this conversation. Never nag: an offer is
+a sentence they can ignore, not a question they have to answer.
 
 **When a film answer is owed** — *"Loved Knives Out — what should I watch tonight?"* — the answer
 comes first and whole, in tonight-recommend's shape, and the verdict is recorded alongside it.
@@ -217,7 +254,9 @@ not happen.
      the Vibe.
 3. Further films — `update_movie` with the Vibes it is in now plus the agreed ones, or
    `create_movie` for a film that is not saved yet.
-4. One short sentence saying what was written.
+4. Every liked or loved that was answered `vibe_required` — `record_verdict` again with its
+   `retry.arguments`, now that its film is filed.
+5. One short sentence saying what was written.
 
 **Never written:** a film you named only as an illustration; a paraphrase of their reason; a
 stronger judgement than theirs; an occasion, daypart or attention field anywhere; a Vibe, a
@@ -227,10 +266,10 @@ membership or a core without their yes; any record that a Vibe offer was made or
 
 | They say | Written | Then |
 | --- | --- | --- |
-| *"I loved Paterson."* | `loved`, no `because` | existing Vibes only — no reason was given |
-| *"Logan Lucky was great for a lazy Sunday afternoon when I don't need to pay full attention."* | `liked`, `because` = that clause, verbatim | a Vibe whose instruction covers it, or one new-Vibe offer anchored on Logan Lucky |
-| *"It was exactly my thing because of the dialogue."* | `liked`, `because` verbatim | strengthen a Vibe about dialogue; maybe one new one |
-| *"Good, but I don't need another movie like this."* | `liked`, `because` verbatim | **stop** — they declined more of the kind |
+| *"I loved Paterson."* | `loved`, no `because` — kept if Paterson is in a Vibe | kept: existing Vibes only — no reason was given. In no Vibe: not saved yet — its Vibe (an existing one, or one recommendation and two alternatives), then `record_verdict` again |
+| *"Logan Lucky was great for a lazy Sunday afternoon when I don't need to pay full attention."* | `liked`, `because` = that clause, verbatim — kept if it is in a Vibe | a Vibe whose instruction covers it, or one new-Vibe offer anchored on Logan Lucky — in no Vibe, that offer comes first and the verdict after it |
+| *"It was exactly my thing because of the dialogue."* | `liked`, `because` verbatim — kept if it is in a Vibe | strengthen a Vibe about dialogue; maybe one new one — in no Vibe, its Vibe first |
+| *"Good, but I don't need another movie like this."* | `liked`, `because` verbatim — kept if it is in a Vibe | **stop** — they declined more of the kind; in no Vibe, say once it is not kept without one, and offer nothing |
 | *"It was fine, I guess."* | nothing, unless one light question settles it | nothing |
 | *"I hated it."* | `disliked` | tension once, if the film is in a Vibe |
 | *"Stop suggesting it."* | `dont-want-to-see` on the film — never `disliked`, which says they watched it | nothing about Vibes |
@@ -289,16 +328,20 @@ There is still no setup. Somebody new is asked, in one sentence — inside an an
 for a film, on its own if they did not — what two or three films they love. When they answer:
 
 - **Each film they name is a verdict**: `loved`, `confirmed`, with `because` only where they gave
-  a reason. A user who stops here keeps their verdicts and nothing else, and that is complete.
+  a reason. A loved is kept only for a film in a Vibe, so for somebody new every one is answered
+  `vibe_required` and nothing is saved yet — the offer below is how they are kept. A user who
+  stops here keeps nothing positive, and that is complete.
 - **Then consider them together.** Two films that express one idea can become one Vibe, one of
   them its core and the other a further film. A film that fits no group can be a Vibe of its own.
   Here the idea may come from the films themselves, because they were asked for exactly this.
 - **This is the one offer that may hold several Vibes**: every Vibe it proposes is drawn only from
-  the films they just named, each with a primary name and two or three alternatives, an
-  instruction, its Genres, its core, and three or four illustration films. The Genres are new, so
-  each one's instruction is shown, because a yes covers only the meaning they were shown.
-- **One yes covers the offer**; a partial yes writes exactly the agreed part; a no leaves their
-  verdicts and nothing else. Writing follows *Writing what they agreed*.
+  the films they just named, each with two meaningfully different alternatives beside it — other
+  reasons those films may have worked, not other names for one — an instruction, its Genres, its
+  core, and three or four illustration films. The Genres are new, so each one's instruction is
+  shown, because a yes covers only the meaning they were shown.
+- **One yes covers the offer**; a partial yes writes exactly the agreed part; a no saves nothing
+  positive. Writing follows *Writing what they agreed*, and each loved is recorded again once its
+  film is filed.
 
 Nothing about this is remembered as a stage they are in. A user who leaves halfway has said what
 they said, and that is all.
@@ -323,8 +366,9 @@ Then, Vibe by Vibe, each item an offer and nothing written without a yes:
 3. **Overlap** — two Vibes whose instructions, Genres and cores describe one evening. A merge is an
    agreed sequence of ordinary writes: agree which Vibe stays; move the films with `update_movie`;
    change the surviving sentence only to words they give you; delete the other with
-   `delete_vibe`. There is no merge tool, and the sequence is not atomic — if a step fails, say
-   exactly where it stopped.
+   `delete_vibe` — films first, because it refuses to leave a liked or loved film in no Vibe.
+   There is no merge tool, and the sequence is not atomic — if a step fails, say exactly where it
+   stopped.
 4. **Films in no Vibe.** One with a standing positive verdict is considered like new positive
    evidence. One without is left alone and not mentioned.
 

@@ -797,6 +797,65 @@ export function movieAnchorsVibe(
 }
 
 /**
+ * A liked or loved refused because its film is in none of their vibes.
+ *
+ * Nothing was written. It carries what a caller needs to put that right — the
+ * film as it was named, and the saved film when there is one (filed nowhere),
+ * or `null` when no such film is saved at all — so the answer can say what to
+ * file and how, rather than only that something is missing.
+ */
+export class VibeRequired extends TasteError {
+  readonly film: MovieHandle;
+  readonly movie: (MovieHandle & { viewing: Viewing }) | null;
+
+  constructor(film: MovieHandle, movie: (MovieHandle & { viewing: Viewing }) | null) {
+    super(
+      `${handleOf(film.title, film.year)} is in none of their vibes, and a liked or loved verdict ` +
+        "is kept only for a film in at least one. Nothing was written.",
+    );
+    this.film = film;
+    this.movie = movie;
+  }
+}
+
+/**
+ * A film they like or love, which would be left in no vibe by taking it out of
+ * its last one.
+ *
+ * Named with the judgement, because that is what is in the way: a liked or
+ * loved film belongs to at least one vibe. The way through is another vibe in
+ * the same call. Withdrawing the verdict is named too, but only for when they
+ * no longer stand by it — never as a way past this refusal.
+ */
+export function positiveNeedsVibe(title: string, year: number, judgement: string): TasteError {
+  return new TasteError(
+    `${handleOf(title, year)} is ${judgement}, and a film they like or love stays in at least one ` +
+      "vibe — keep one of its vibes in the list, or add another. Withdraw the verdict first only if " +
+      "they said they no longer stand by it, never to get past this.",
+  );
+}
+
+/**
+ * A vibe whose deletion would leave films they like or love in no vibe at all.
+ *
+ * Names every such film and its judgement, so the way through is concrete: move
+ * each into another vibe with `update_movie`, then delete.
+ */
+export function vibeHoldsPositive(
+  name: string,
+  films: readonly { title: string; year: number; judgement: string }[],
+): TasteError {
+  const stranded = films
+    .map((film) => `"${normalise(film.title)}" (${film.year}, ${film.judgement})`)
+    .join(", ");
+  return new TasteError(
+    `deleting "${normalise(name)}" would leave ${stranded} in no vibe, and a film they like or love ` +
+      "stays in at least one — move it into another vibe with update_movie first. Withdraw a verdict " +
+      "only if they said they no longer stand by it, never to get past this.",
+  );
+}
+
+/**
  * A saved film whose viewing is not `seen`, named as a core.
  *
  * The raw `viewing` only, and on purpose: a standing liked or loved implies they

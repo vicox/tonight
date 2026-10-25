@@ -53,6 +53,26 @@ Two fixtures went with it. `m3-03-pending` was a person with a question waiting 
 `m3-08-nothing-pending` was its control, and the distinction they existed to test no longer
 exists — the two histories are now the same history.
 
+## Fixtures from before the vibe rule
+
+`record_verdict` now keeps a liked or loved only for a film in at least one Vibe, and four
+fixtures hold one about a film in none, on purpose: `m3-01-long-history` (a verdict about a film
+never saved is one of the classes it holds once), `m3-04-recommend-rich` and
+`m3-05-recommend-plain` (a stability pair whose evidence must stay identical), and
+`m3-06-withdraw-or-forget` (one thing said about one film). Filing those films would change what
+each measures, so they are kept and marked `"seed": "pre-vibe-rule"`. Today's tools cannot write
+them; they are still seeded through public tools — a build's from before the rule:
+
+1. Start `tonight` main `f3912b0`, its own checkout, against an empty database on another port,
+   with the same `web/.env.local`.
+2. From **this** checkout: `TONIGHT_ORIGIN=http://localhost:3001 node
+   skills/tonight-recommend/evaluation/m3/seed.mjs <fixture>`.
+3. Stop it, and start this build against the same database on the usual port. Nothing migrates.
+4. Run exactly one scenario, once: `node evaluation/m3/run.mjs --legacy-seeded --runs 1 --only
+   <fixture>__<prompt>`. A normal sweep skips these scenarios and says so, and the runner never
+   reseeds them.
+5. For the next run, empty the database and start again at step 1.
+
 ## Which sets are live, and which are records
 
 `scenarios.json` with `prompts.md` is **the live matrix** — what `run.mjs` runs when nobody names

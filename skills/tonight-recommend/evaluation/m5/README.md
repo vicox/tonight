@@ -47,7 +47,8 @@ It needs `web/.env.local` (the seeder mints its tokens from it) and refuses to r
 otherwise. Results go to `results/`, which is ignored, in a directory named by the set, the
 source, a digest of exactly the skills that source supplies, and the commit.
 
-Every run reseeds its fixture first, through the M3 seeder and the public tools: **vibes, then
+Every run reseeds its fixture first, through the M3 seeder and the public tools: what was said is
+forgotten first — `delete_vibe` refuses to leave a liked or loved film in no vibe — then **vibes, then
 films, then genres** are deleted — a film that anchors a vibe cannot be deleted until the vibe is
 — and the fixture is written again, each vibe with its core before any other film. The state
 before and after is snapshotted and named in the artifact by digest.
@@ -56,7 +57,8 @@ before and after is snapshotted and named in the artifact by digest.
 came back in a different session is marked failed: it did not resume, and is not scored as though
 it had.
 
-A normal sweep **skips the legacy fixture** and says so; it runs one scenario at a time, below.
+A normal sweep **skips the legacy fixture** and says so — and the fixture from before the vibe
+rule too; each runs one scenario at a time, below.
 
 ## The baseline (S1)
 
@@ -98,6 +100,24 @@ tools and then migrated, once **per run**:
    it.
 5. For the next run, empty the database and start again at step 1 — a going-through run may
    anchor, merge or delete, and the next one has to start from the pre-core shape.
+
+## Fixtures from before the vibe rule
+
+`m5-01-anchored` holds Hit Man, a film they love that is in no Vibe. Since the vibe rule,
+`record_verdict` keeps a liked or loved only for a film in a Vibe, so today's tools cannot write
+that state: it exists only as data from before the rule, or as something pressed on the website.
+The fixture says `"seed": "pre-vibe-rule"`, and is seeded the way the legacy fixture is, with no
+migration:
+
+1. Start a build from before the rule — `tonight` main `f3912b0`, its own checkout — against an
+   empty database, on another port, with the same `web/.env.local`.
+2. From **this** checkout, seed through that server:
+   `TONIGHT_ORIGIN=http://localhost:3001 node skills/tonight-recommend/evaluation/m3/seed.mjs
+   m5-01-anchored --fixtures skills/tonight-recommend/evaluation/m5/fixtures`
+3. Stop it, and start this build against the same database on the usual port. Nothing migrates:
+   Hit Man stays loved and in no Vibe.
+4. Run exactly one scenario, once: `--legacy-seeded --runs 1 --only m5-01-anchored__<prompt>`.
+5. For the next run, empty the database and start again at step 1.
 
 ## The input to S4
 

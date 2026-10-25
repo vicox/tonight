@@ -244,6 +244,46 @@ check "at most one new Vibe, only when their words carry a how, when or why" \
         'A bare *"loved it"* considers existing Vibes only')" "True"
 check "when nothing fits, nothing more is said" \
     "$(order_check 'When nothing fits, stop and say nothing more about it')" "True"
+# A liked or loved is kept only for a film in a Vibe. Those two rules above are
+# for a verdict that was kept; one answered vibe_required has a flow of its own.
+check "considering what to offer is for a positive verdict that was kept" \
+    "$(order_check '### What to consider, and what to offer' \
+        'After a positive verdict that was kept — the film is already in a Vibe')" "True"
+check "a liked or loved in no Vibe is not saved, and is never said to be" \
+    "$(order_check '### When a liked or loved needs a Vibe' \
+        '**nothing is written**' '`reason: "vibe_required"`' \
+        '**Until the film is filed, the verdict is not saved, so never say it is.**')" "True"
+check "an existing Vibe first, read by its instructions" \
+    "$(order_check '1. **An existing Vibe first.**' \
+        "each Vibe's instruction and its Genres'" 'instructions, not the names')" "True"
+check "a minimal change to a Vibe's sentence only when needed, and only on a yes to the exact words" \
+    "$(order_check '2. **A minimal change, only when needed, and only on their yes.**' \
+        'exact new wording — the smallest change that covers it' \
+        'only on their yes to those words' \
+        'A minimal change is never a way to stretch a Vibe')" "True"
+check "otherwise one recommended Vibe and two meaningfully different alternatives, each a reason" \
+    "$(order_check '3. **Otherwise one recommended new Vibe and two meaningfully different alternatives**' \
+        'three different reasons the film may have worked for them, not three names for one' \
+        'with this film as its core' 'Their pick says why they liked it')" "True"
+check "on a yes the film is filed, then the same verdict is recorded again" \
+    "$(order_check 'On their yes, write exactly what they agreed' \
+        'then call' '`record_verdict` again with `retry.arguments`' \
+        'then say in one short sentence what was saved')" "True"
+check "on a no it stays unsaved, and nothing is written in its place" \
+    "$(order_check 'On a no, or a change of subject, the liked or loved stays unsaved' \
+        'say so once, and write' 'nothing in its place' \
+        'no `disliked`, no viewing they did not state, and no record that you asked')" "True"
+check "the flow branches on whether a liked or loved was kept" \
+    "$(order_check 'liked / loved, kept' 'consider their Vibes' \
+        'liked / loved, answered vibe_required' 'find its Vibe, then record it again')" "True"
+check "writing what they agreed ends by recording each refused verdict again" \
+    "$(order_check '### Writing what they agreed' \
+        'Every liked or loved that was answered `vibe_required`' \
+        '`retry.arguments`, now that its film is filed' \
+        'One short sentence saying what was written')" "True"
+check "a merge moves its films before it deletes" \
+    "$(order_check '**Overlap**' 'move the films with `update_movie`' \
+        'films first, because it refuses to leave a liked or loved film in no Vibe')" "True"
 check "asking has a budget: one offer, one new Vibe, no re-offer, no nagging" \
     "$(order_check '**Asking has a budget.**' 'At most one offer per statement' \
         'at most one new Vibe in it' 'is not offered again in this conversation' 'Never nag')" "True"
@@ -346,9 +386,17 @@ check "there is still no setup, and the question is asked in one sentence" \
     "$(order_check 'There is still no setup' 'in one sentence' \
         'inside an answer if they asked' 'on its own if they did not' \
         'what two or three films they love')" "True"
-check "each film they name is a loved, confirmed verdict" \
+check "each film they name is a loved, confirmed verdict, kept once its film has a Vibe" \
     "$(order_check '**Each film they name is a verdict**' '`loved`, `confirmed`' \
-        'A user who stops here keeps their verdicts and nothing else')" "True"
+        'for somebody new every one is answered' '`vibe_required` and nothing is saved yet' \
+        'A user who stops here keeps nothing positive')" "True"
+check "each first-films Vibe comes with two meaningfully different alternatives" \
+    "$(order_check '**This is the one offer that may hold several Vibes**' \
+        'two meaningfully different alternatives beside it' \
+        'not other names for one')" "True"
+check "a no to the first-films offer saves nothing positive, and a yes is followed by the verdicts" \
+    "$(order_check 'a no saves nothing positive' \
+        'each loved is recorded again once its film is filed')" "True"
 check "seeds may be grouped, and the idea may come from the films themselves" \
     "$(order_check '**Then consider them together.**' \
         'one of' 'them its core and the other a further film' \

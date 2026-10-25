@@ -26,6 +26,12 @@
  * recorded beside the mutations the proxy actually saw, so the two disagreeing
  * shows up as a finding instead of as a missing file.
  *
+ * **A fixture from before the vibe rule is never reseeded here.** A liked or loved
+ * film in no vibe cannot be written by a build with that rule, so a fixture marked
+ * `"seed": "pre-vibe-rule"` is seeded by its operator through a build from before
+ * it (README). A normal sweep skips it and says so; `--legacy-seeded` runs exactly
+ * one such scenario, once, against the database the operator seeded.
+ *
  * What it does not do, ever, is the same list: it does not call a tool on the
  * agent's behalf, reason for it, or write its transcript. The transcript is the
  * proxy's, written as the calls happen.
@@ -53,6 +59,8 @@ const ONLY = option("only", null);
 const PORT = Number(option("port", "3998"));
 const DRY = args.includes("--dry-run");
 const FORCE = args.includes("--force");
+/** The database holds an operator-seeded fixture: run that one scenario, once, without reseeding. */
+const LEGACY_SEEDED = args.includes("--legacy-seeded");
 /** `--host bare` (the default) or `--host login`: see `../host.mjs`. */
 const HOST = agentHost(option("host", "bare"));
 
@@ -231,8 +239,9 @@ async function run(scenario, said, index) {
   }
   for (const part of [...already, join(OUT, afterFile)]) rmSync(part, { force: true });
 
-  // The history, fresh, and the proof of what it was.
-  seed(scenario.fixture);
+  // The history, fresh, and the proof of what it was — except a fixture its
+  // operator seeded through an older build, which is used as it was seeded.
+  if (spec.seed === undefined) seed(scenario.fixture);
   const digest = seed(scenario.fixture, "--snapshot", join(OUT, snapshotFile));
   const bearer = seed(scenario.fixture, "--token");
 
@@ -357,10 +366,36 @@ ${result.failure ? `FAILED: ${result.failure}\n\n` : ""}${result.answer}
 
 refuseIfPromptsMoved();
 const said = prompts();
-const chosen = scenarios.filter(
+let chosen = scenarios.filter(
   (one) => ONLY === null || `${one.fixture}__${one.prompt}` === ONLY || one.fixture === ONLY || one.family === ONLY,
 );
 if (chosen.length === 0) throw new Error(`nothing matches ${ONLY}`);
+
+// A fixture seeded by its operator is one scenario, one run, per seeding: a run
+// may write, and the next one has to start from the seeded state again — which
+// only the operator's cycle can restore. The same rule as the M5 runner's.
+const key = (one) => `${one.fixture}__${one.prompt}`;
+const isLegacy = (one) => fixture(one.fixture).seed !== undefined;
+if (LEGACY_SEEDED) {
+  if (chosen.length !== 1 || !isLegacy(chosen[0]) || RUNS !== 1) {
+    throw new Error(
+      "--legacy-seeded runs exactly one operator-seeded scenario, once: name it with " +
+        "--only <fixture>__<prompt> and pass --runs 1. Each run needs its own fresh seed through " +
+        "a build from before the vibe rule (README, 'Fixtures from before the vibe rule').",
+    );
+  }
+} else {
+  const legacy = chosen.filter(isLegacy);
+  if (legacy.length) {
+    console.error(
+      `Skipping ${legacy.map(key).join(", ")}: an operator-seeded fixture runs one scenario at a ` +
+        "time, after its own seed through a build from before the vibe rule, with --legacy-seeded " +
+        "(README, 'Fixtures from before the vibe rule').",
+    );
+  }
+  chosen = chosen.filter((one) => !isLegacy(one));
+  if (chosen.length === 0) throw new Error("nothing left to run once operator-seeded scenarios are set aside");
+}
 
 const planned = chosen.length * RUNS;
 console.error(

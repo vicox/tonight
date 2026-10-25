@@ -54,8 +54,10 @@ A **Genre** is a reusable component of what they like; a **Vibe** is Genres plus
 told it they had watched, or one they do not want recommended. Title and year name it; it carries
 an optional IMDb id and **viewing** — always exactly one of `seen`, `want-to-see` and
 `dont-want-to-see`. What they *thought* of it is a **Verdict**, never a Movie
-field — and a Verdict stands on its own root: somebody can say *"I loved it"* about a film that
-was never saved, so saying something about a film neither needs a Movie nor writes one.
+field — and a Verdict stands on its own root: a `disliked` about a film that was never saved
+needs no Movie, and recording one never writes a Movie. A liked or loved, though, is kept only
+for a film in at least one of their Vibes — the Vibe is what says why it worked — and filing the
+film is what saves it.
 `get_taste` describes all four in its own text, which is where an agent meets them.
 
 A Vibe is the shape of a recommendation idea: `Sci-Fi` and `Thriller` are its ingredients, and
@@ -298,10 +300,13 @@ Three requests about a film, and they differ:
   it"* — that is a verdict, liked, loved or disliked, and it goes to `record_verdict`. So is how a
   film worked for them, however
   they put it — *"great for a lazy Sunday when I'm half watching"* — recorded in their words and
-  never made stronger than they made it. No Vibe is needed for one and none may be
-  invented to hold it — and no Movie either: a Verdict stands on its own root, so a film nobody
-  has saved may still carry one, and saying something about a film never writes a Movie to hold
-  it; a later request to keep the film takes a Vibe. Changed their mind? Record
+  never made stronger than they made it. A `disliked` needs no Vibe and no Movie. **A liked or
+  loved is kept only for a film in one of their Vibes**: when `record_verdict` answers
+  `vibe_required`, nothing was saved — **tonight-vibes** says how to find its Vibe with them (an
+  existing one, a minimal change to one on their yes to the exact words, or one recommendation and
+  two meaningfully different alternatives); filing the film saves it, and then the verdict is
+  recorded again. Never invent a Vibe to hold it without their yes, and never say it is saved
+  before it is. Changed their mind? Record
   the new verdict, which supersedes the old one. Taking it back is `withdraw_verdict`, which
   removes that act from what stands: nothing weaker is left underneath it, and none of it is an
   unsaying — they did say it, and `get_memory` remembers that.

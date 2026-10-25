@@ -190,10 +190,18 @@ async function anchorsVibes(bearer) {
  * from the tools: vibes, films and genres are deleted, evenings forgotten, and
  * each verdict act forgotten by the reference `get_memory` gives it.
  *
- * Vibes first: deleting one releases its core, which cannot be deleted while it
- * anchors a vibe, and the genres it holds; then the films; then the genres.
+ * Verdicts first: `delete_vibe` refuses to leave a liked or loved film in no
+ * vibe, so what was said goes before the vibes do. Then vibes: deleting one
+ * releases its core, which cannot be deleted while it anchors a vibe, and the
+ * genres it holds; then the films; then the genres. The order suits a build
+ * from before that rule as well, which is the one a legacy fixture is seeded on.
  */
 async function clear(bearer, user) {
+  const memory = await call(bearer, "get_memory");
+  for (const root of [...memory.held, ...memory.remembered]) {
+    if (root.of === "verdict") await call(bearer, "forget_verdict", { ref: root.handle.ref });
+  }
+
   const taste = await call(bearer, "get_taste");
   for (const vibe of taste.vibes) await call(bearer, "delete_vibe", { name: vibe.name });
   for (const movie of taste.movies) await call(bearer, "delete_movie", { title: movie.title, year: movie.year });
@@ -201,11 +209,6 @@ async function clear(bearer, user) {
 
   const { episodes } = await call(bearer, "get_episodes");
   for (const episode of episodes) await call(bearer, "forget_episode", { episode: episode.id });
-
-  const memory = await call(bearer, "get_memory");
-  for (const root of [...memory.held, ...memory.remembered]) {
-    if (root.of === "verdict") await call(bearer, "forget_verdict", { ref: root.handle.ref });
-  }
 }
 
 async function seed(id) {

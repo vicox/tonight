@@ -10,6 +10,7 @@ import { filmKey } from "../../films/identity.ts";
 import type { AuthenticatedUser } from "../../identity.ts";
 import { tonightMcpServer } from "../../mcp/server.ts";
 import { sqlTasteStore, TASTE_SCHEMA } from "../../taste/store/sql.ts";
+import { stateVerdict } from "../../verdicts/model.ts";
 import { sqlVerdictStore, VERDICTS_SCHEMA } from "../../verdicts/store/sql.ts";
 import {
   expected,
@@ -147,17 +148,24 @@ describe("M3 — explains itself, and can be corrected", () => {
             ...(step.vibes === undefined ? {} : { vibes: step.vibes }),
           });
           break;
-        case "verdict":
-          await call("record_verdict", {
-            film: step.film,
-            told: step.told,
-            said: {
-              about: "judgement",
-              judgement: step.judgement,
-              ...(step.because === undefined ? {} : { because: step.because }),
-            },
-          });
+        case "verdict": {
+          const said = {
+            about: "judgement",
+            judgement: step.judgement,
+            ...(step.because === undefined ? {} : { because: step.because }),
+          };
+          const answer = await tools.record_verdict!.handler({ film: step.film, told: step.told, said });
+          if (answer.structuredContent?.reason === "vibe_required") {
+            // A liked or loved about a film in no vibe can no longer be said
+            // through the tools, and it still exists — said before the rule, or
+            // on the website. Some of these histories hold one on purpose, so it
+            // is written the way those were: through the verdict store itself.
+            await stores.verdicts.say(stateVerdict(step.film, said, step.told, new Date().toISOString()));
+          } else {
+            assert.equal(answer.isError, undefined, `${trajectory.name}: record_verdict refused — ${JSON.stringify(answer)}`);
+          }
           break;
+        }
         case "withdraw":
           await call("withdraw_verdict", { film: step.film });
           break;
@@ -372,7 +380,13 @@ describe("M3 — explains itself, and can be corrected", () => {
     // viewing moves, zodiac's must not. `state: "liked"` stood here before the
     // split and was silently dropped by the schema, which left both films
     // carrying nothing and the neighbour check comparing null against null.
-    await call("create_movie", { ...FILMS.heat95, viewing: "seen" });
+    //
+    // A liked or loved is kept only for a film in a vibe, so the two films judged
+    // that way are filed first: the vibe is anchored on Prisoners, which saves it
+    // as seen, and Heat is saved into it. Zodiac, the spared neighbour, is not.
+    await call("create_genre", { name: "Kept", instruction: "films I stand behind" });
+    await call("create_vibe", { name: "Kept Close", genres: ["Kept"], instruction: "the ones I keep", core: FILMS.prisoners });
+    await call("create_movie", { ...FILMS.heat95, viewing: "seen", vibes: ["Kept Close"] });
     await call("create_movie", { ...FILMS.zodiac, viewing: "seen" });
     await call("record_verdict", {
       film: FILMS.prisoners,

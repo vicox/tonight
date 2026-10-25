@@ -9,6 +9,7 @@ import {
   orderVibe,
   orderMovie,
   TasteError,
+  VibeRequired,
   type Genre,
   type Vibe,
   type Movie,
@@ -1644,6 +1645,165 @@ for (const driver of drivers) {
 
       assert.equal(await movieOf(alice, "Heat", 1995), undefined);
       assert.deepEqual(await actsOf(sql, ALICE), ["Heat 1995 verdict liked"]);
+    });
+
+    // --- a liked or loved belongs to a vibe -------------------------------
+
+    /** A liked or loved, built the way the MCP tool builds one. */
+    const positive = (film: { title: string; year: number }, judgement: "liked" | "loved" = "loved") =>
+      stateVerdict(film, { about: "judgement", judgement }, "volunteered", "2026-01-01T21:00:00.000Z");
+
+    /** Why `sayFiled` refused, with what it carried, or "accepted". */
+    const vibeRequired = async (work: Promise<unknown>) => {
+      try {
+        await work;
+        return "accepted";
+      } catch (error) {
+        if (error instanceof VibeRequired) return { film: error.film, movie: error.movie };
+        throw error;
+      }
+    };
+
+    test("a liked or loved about a film in no vibe is refused, with nothing written", async () => {
+      const { alice, sql } = await fresh();
+
+      // Not saved at all.
+      assert.deepEqual(await vibeRequired(alice.sayFiled(positive({ title: "Heat", year: 1995 }))), {
+        film: { title: "Heat", year: 1995 },
+        movie: null,
+      });
+      // Saved, and filed nowhere: the saved film comes back, viewing included.
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "want-to-see" });
+      assert.deepEqual(await vibeRequired(alice.sayFiled(positive({ title: "heat", year: 1995 }, "liked"))), {
+        film: { title: "heat", year: 1995 },
+        movie: { title: "Heat", year: 1995, viewing: "want-to-see" },
+      });
+      assert.deepEqual(await actsOf(sql, ALICE), [], "a refused verdict was written");
+    });
+
+    test("filed as a member, as a core, or under another spelling, a liked or loved is written", async () => {
+      const { alice, sql } = await fresh();
+      await vibe(alice, "Space Tension");
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+
+      await alice.sayFiled(positive({ title: "Heat", year: 1995 }));
+      await alice.sayFiled(positive(coreOf("Space Tension"), "liked"));
+      await alice.sayFiled(positive({ title: "  HEAT ", year: 1995 }, "liked"));
+      // Sorted here, because the store's read order follows the database's
+      // collation and these two spellings differ only in case.
+      assert.deepEqual((await actsOf(sql, ALICE)).sort(), [
+        "HEAT 1995 verdict liked",
+        "Heat 1995 verdict loved",
+        "Space Tension, the film 2000 verdict liked",
+      ]);
+    });
+
+    test("only a liked or loved goes through sayFiled, and another account's filing does not count", async () => {
+      const { alice, bob, sql } = await fresh();
+      for (const act of [
+        stateVerdict({ title: "Heat", year: 1995 }, { about: "judgement", judgement: "disliked" }, "volunteered", "2026-01-01T21:00:00.000Z"),
+        withdrawVerdict({ title: "Heat", year: 1995 }, "2026-01-01T21:00:00.000Z"),
+      ]) {
+        assert.match(await refusal(alice.sayFiled(act as never)), /only a liked or loved verdict is held to a vibe/);
+      }
+
+      await vibe(bob, "Space Tension");
+      await bob.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+      assert.deepEqual(await vibeRequired(alice.sayFiled(positive({ title: "Heat", year: 1995 }))), {
+        film: { title: "Heat", year: 1995 },
+        movie: null,
+      });
+      assert.deepEqual(await actsOf(sql, ALICE), []);
+    });
+
+    test("with the rule, a film they like or love cannot leave its last vibe — and without it, it can", async () => {
+      const { alice, sql } = await fresh();
+      await vibe(alice, "Space Tension");
+      await vibe(alice, "Quiet Dread");
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+      await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "loved");
+      const before = content(await alice.taste());
+      const rule = { positiveNeedsVibe: true };
+
+      assert.equal(
+        await refusal(alice.updateMovie("Heat", 1995, { vibes: [] }, rule)),
+        '"Heat" (1995) is loved, and a film they like or love stays in at least one vibe — keep one of ' +
+          "its vibes in the list, or add another. Withdraw the verdict first only if they said they no " +
+          "longer stand by it, never to get past this.",
+      );
+      assert.deepEqual(content(await alice.taste()), before, "a refused unfiling changed something");
+
+      // Moving it is never refused.
+      await alice.updateMovie("Heat", 1995, { vibes: ["Quiet Dread"] }, rule);
+      assert.deepEqual((await movieOf(alice, "Heat", 1995))?.vibes, ["Quiet Dread"]);
+
+      // Without the rule — the website's call — it leaves as it always did.
+      await alice.updateMovie("Heat", 1995, { vibes: [] });
+      assert.deepEqual((await movieOf(alice, "Heat", 1995))?.vibes, []);
+
+      // Already in no vibe: nothing is taken away, so nothing is refused.
+      await alice.updateMovie("Heat", 1995, { vibes: [] }, rule);
+    });
+
+    test("with the rule, only a standing liked or loved keeps a film in its last vibe", async () => {
+      const { alice, sql } = await fresh();
+      await vibe(alice, "Space Tension");
+      const rule = { positiveNeedsVibe: true };
+      const cases: [string, (film: { title: string; year: number }) => Promise<unknown>][] = [
+        ["nothing said", async () => {}],
+        ["disliked", (film) => say(sql, ALICE, film, 1, "disliked")],
+        ["loved, then withdrawn", async (film) => {
+          await say(sql, ALICE, film, 1, "loved");
+          await say(sql, ALICE, film, 2);
+        }],
+        ["loved, then disliked", async (film) => {
+          await say(sql, ALICE, film, 1, "loved");
+          await say(sql, ALICE, film, 2, "disliked");
+        }],
+      ];
+      for (const [index, [what, said]] of cases.entries()) {
+        const film = { title: `Case ${String(index)}`, year: 2001 };
+        await alice.createMovie({ ...film, viewing: "seen", vibes: ["Space Tension"] });
+        await said(film);
+        await alice.updateMovie(film.title, film.year, { vibes: [] }, rule);
+        assert.deepEqual((await movieOf(alice, film.title, film.year))?.vibes, [], `${what}: refused`);
+      }
+
+      // And a liked said under another spelling is the same film's.
+      await alice.createMovie({ title: "Moon", year: 2009, viewing: "seen", vibes: ["Space Tension"] });
+      await say(sql, ALICE, { title: " MOON ", year: 2009 }, 1, "liked");
+      assert.match(await refusal(alice.updateMovie("Moon", 2009, { vibes: [] }, rule)), /"Moon" \(2009\) is liked/);
+    });
+
+    test("with the rule, the last vibe of a film they like or love cannot be deleted", async () => {
+      const { alice, sql } = await fresh();
+      await vibe(alice, "Space Tension");
+      await vibe(alice, "Quiet Dread");
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+      await alice.createMovie({ title: "Moon", year: 2009, viewing: "seen", vibes: ["Space Tension", "Quiet Dread"] });
+      await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "loved");
+      await say(sql, ALICE, { title: "Moon", year: 2009 }, 2, "liked");
+      const before = content(await alice.taste());
+      const rule = { positiveNeedsVibe: true };
+
+      // Moon is in another vibe too, so only Heat is in the way — and the
+      // refusal is the rule's, never the "being changed" a retry gives up with.
+      assert.equal(
+        await refusal(alice.deleteVibe("Space Tension", rule)),
+        'deleting "Space Tension" would leave "Heat" (1995, loved) in no vibe, and a film they like or ' +
+          "love stays in at least one — move it into another vibe with update_movie first. Withdraw a " +
+          "verdict only if they said they no longer stand by it, never to get past this.",
+      );
+      assert.deepEqual(content(await alice.taste()), before, "a refused deletion changed something");
+
+      // Once Heat is elsewhere, it goes.
+      await alice.updateMovie("Heat", 1995, { vibes: ["Quiet Dread"] }, rule);
+      await alice.deleteVibe("Space Tension", rule);
+      assert.equal(await vibeOf(alice, "Space Tension"), undefined);
+
+      // Without the rule — the website's call — a vibe goes as it always did.
+      assert.equal((await alice.deleteVibe("Quiet Dread")).name, "Quiet Dread");
+      assert.deepEqual((await movieOf(alice, "Heat", 1995))?.vibes, []);
     });
 
     test("a movie title is trimmed and collapsed, and its casing stays the user's", async () => {

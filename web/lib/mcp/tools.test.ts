@@ -549,7 +549,12 @@ test("a vibe is asked for as one idea, read from the genres' instructions", asyn
   // provenance rules are untouched and must stay in the same description.
   assert.match(create, /only when the user stated the idea as lasting\s+taste, or confirmed a meaning you put to them/iu,
     "create_vibe lost the rule about when a vibe may be written at all");
-  assert.match(update, /Never reword their instruction/iu, "update_vibe lost the rewording prohibition");
+  assert.match(update, /Never reword their instruction on your own/iu, "update_vibe lost the rewording prohibition");
+  // The one exception, and only on their yes to the exact words: a minimal change
+  // so a film they like is covered by the same evening — never a different one.
+  assert.match(update, /a minimal one — the exact new\s+words, shown to them/u, "update_vibe: no minimal-change rule");
+  assert.match(update, /write it only on their yes to those words/u, "update_vibe: a minimal change without their yes");
+  assert.match(update, /a different evening is a new vibe, not a reworded one/u, "update_vibe: a stretch is allowed");
   assert.match(update, /Changing the rest to fit is rewording their sentence by another route/iu,
     "update: fixing incoherence by editing their words is not ruled out");
 });
@@ -1106,6 +1111,15 @@ test("a film not saved as seen is never a core, and a standing liked does not ma
   const COLLATERAL = { title: "Collateral", year: 2004 };
   await ok(token, "create_genre", { name: "Crime", instruction: "Clever, never cruel." });
   await ok(token, "create_movie", { ...COLLATERAL, viewing: "want-to-see" });
+  // A liked is kept only for a film in a vibe, and a film not seen may still sit
+  // in one as a member — it only never anchors one.
+  await ok(token, "create_vibe", {
+    name: "Errands",
+    genres: ["Crime"],
+    instruction: "Small jobs that go wrong.",
+    core: { title: "Heat", year: 1995 },
+  });
+  await ok(token, "update_movie", { ...COLLATERAL, vibes: ["Errands"] });
   await ok(token, "record_verdict", {
     film: COLLATERAL,
     told: "volunteered",
@@ -1122,7 +1136,7 @@ test("a film not saved as seen is never a core, and a standing liked does not ma
   );
   assert.deepEqual(await ok(token, "get_taste"), before, "a refused core wrote something");
   // Both raw facts stay where they are, each still saying what it said.
-  assert.equal(before.movies[0].viewing, "want-to-see");
+  assert.equal(before.movies.find((one: { title: string }) => one.title === "Collateral").viewing, "want-to-see");
   assert.equal(before.verdicts[0].judgement, "liked");
 
   // On update the same; and a core cannot be marked anything but seen either.
@@ -1172,6 +1186,9 @@ test("an old client's evening or refusal is refused at the protocol, and writes 
   // said about the film everywhere.
   const token = await tokenFor(someone());
   const HEAT = { title: "Heat", year: 1995 };
+  // Filed first, since a loved is kept only for a film in a vibe.
+  await ok(token, "create_genre", { name: "Crime", instruction: "Clever, never cruel." });
+  await ok(token, "create_vibe", { name: "Night Shift", genres: ["Crime"], instruction: "Long nights, one job.", core: HEAT });
   await ok(token, "record_verdict", {
     film: HEAT,
     told: "volunteered",
@@ -1246,7 +1263,11 @@ test("delete_movie forgets every verdict about that film, and nothing about anot
   const token = await tokenFor(someone());
   const HEAT = { title: "Heat", year: 1995 };
   const MOON = { title: "Moon", year: 2009 };
-  await ok(token, "create_movie", { ...HEAT, viewing: "seen" });
+  // Both filed, since a liked or loved is kept only for a film in a vibe. Moon is
+  // the core, so Heat is an ordinary member and can be deleted.
+  await ok(token, "create_genre", { name: "Night", instruction: "Films that happen after dark." });
+  await ok(token, "create_vibe", { name: "After Hours", genres: ["Night"], instruction: "Lonely and lit.", core: MOON });
+  await ok(token, "create_movie", { ...HEAT, viewing: "seen", vibes: ["After Hours"] });
   for (const judgement of ["loved", "disliked"]) {
     await ok(token, "record_verdict", { film: HEAT, told: "volunteered", said: { about: "judgement", judgement } });
   }
@@ -1358,6 +1379,9 @@ test("a well-formed reference is answered the same way whoever it belongs to", a
   const theirs = await tokenFor(someone());
 
   const film = { title: "Solaris", year: 1972 };
+  // Filed first, since a loved is kept only for a film in a vibe.
+  await ok(theirs, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
+  await ok(theirs, "create_vibe", { name: "Space Tension", genres: ["Sci-Fi"], instruction: "Alone, far out.", core: film });
   const written = await ok(theirs, "record_verdict", {
     film,
     told: "volunteered",
