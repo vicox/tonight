@@ -1,6 +1,19 @@
 # `check_candidates`: plan
 
-Status: **implemented (see *Implementation* at the end); Codex implementation review pending.**
+Status: **implemented in `763ce37` (see *Implementation* at the end).**
+
+**Codex implementation review: READY, with no blockers.** It ran the shell suites this session
+could not: `skills/tonight-recommend/test.sh` 223/223, `skills/tonight-vibes/test.sh` 126/126,
+`chatgpt-plugin/test.sh` 37/37. It also ran the affected Node suites (157/157), and
+`git diff --check` was clean.
+
+Its two non-blocking notes are left for a follow-up:
+
+- `lib/mcp/candidates.test.ts` counts both stores with one counter. Two reads in total does not
+  prove each store was read once; separate counters would.
+- The `otherYears` fixture in `lib/candidates/model.test.ts` is already in ascending order, so
+  removing `.sort()` would not fail the test. A reversed fixture would.
+
 **Codex plan review: READY (round 2), with no blockers.**
 
 Its two non-blocking notes were folded in after the verdict and were not re-reviewed:
