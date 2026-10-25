@@ -1355,6 +1355,9 @@ test("every rule the agent cannot work out for itself is in the skill", () => {
     "`want-to-see` does not rule it out",
     "**`dont-want-to-see` is never recommended**",
     "Anchor a stretch in something they like",
+    "Call `check_candidates` **immediately before presenting**, with every film you put forward",
+    "is not put forward: it is not checked and not replaced",
+    "Check each replacement the same way before it is presented",
     // ownership and semantic confirmation
     // Two rules, and they live in two sections: persistence under "What may be
     // persisted", the cross-root boundary beside the operation it qualifies.
@@ -1592,4 +1595,51 @@ test("M9: a statement touches an evening only on an unambiguous reference, and n
   // (iii) an ambiguous reference updates none, and no question is asked to file it.
   assert.match(which, /Anything else writes to \*\*no\*\* evening, and no question is asked in order to file it: a statement that might be about a recorded evening but does not say so/);
   assert.match(which, /Nothing in an evening is ever inferred from a verdict or a viewing/);
+});
+
+test("the films put forward are checked immediately before they are presented, and replacements too", () => {
+  // docs/work/check-candidates/PLAN.md. When the check runs and what follows from
+  // its answer is method, so it is here and in `## Recommending`; what each field
+  // means is the tool description's, read where the answer is read.
+  const flat = flatSkill();
+  const recommending = flat.slice(flat.indexOf("## Recommending"), flat.indexOf("## What may be persisted"));
+  const paragraph = recommending.slice(
+    recommending.indexOf("**Check the films before you present them.**"),
+    recommending.indexOf("The model counts as evidence in the taste-aware mode"),
+  );
+  assert.ok(paragraph.length > 200, "the check is not described in ## Recommending");
+
+  let at = 0;
+  for (const [what, rule] of [
+    ["when", /Call `check_candidates` \*\*immediately before presenting\*\*/],
+    ["which films", /with every film you put forward — the lead and each direction, by title and year, with an IMDb id where you have one/],
+    ["not a film named as a reason", /A film you name only as the reason for one — \*"you loved Sleuth"\* — is not put forward: it is not checked and not replaced/],
+    ["it supplies none", /The tool checks films you chose; it never supplies one/],
+    ["what is replaced", /Replace a film it marks `neverRecommend`, one whose own standing verdict is `disliked`, and one that is `seen` unless they asked for a rewatch — then say it is one/],
+    ["replacements are checked", /Check each replacement the same way before it is presented/],
+    ["another year or name", /Where `otherYears` or `imdbHeldBy` says Tonight may hold the film under another year or name, settle which film you mean before naming it/],
+    ["the list, not the text", /the films you put forward are the ones you checked/],
+  ] as [string, RegExp][]) {
+    const found = paragraph.slice(at).search(rule);
+    assert.ok(found >= 0, `the check lost, or reordered: ${what}`);
+    at += found;
+  }
+
+  // It sits after what being in the model is evidence of, which it applies.
+  assert.ok(
+    flat.indexOf("Being in the model is never evidence they have not seen it") < flat.indexOf("**Check the films before you present them.**"),
+    "the check comes before the rule it applies",
+  );
+  // And it does not restate what an answer means: that lives on the tool.
+  assert.doesNotMatch(paragraph, /`nothing`|`null`|unseen/u, "the skill restates the tool's reading of an answer");
+
+  // A failed check changes nothing about whether an answer is owed, and sits
+  // after the write branch so neither `get_taste` branch moves.
+  const failing = flat.slice(flat.indexOf("## When something fails"));
+  const write = failing.indexOf("**A write fails**");
+  const checked = failing.indexOf("**`check_candidates` fails**");
+  assert.ok(write >= 0 && checked > write, "the failed check is not after the failed write");
+  const bullet = failing.slice(checked, failing.indexOf("A failure should cost"));
+  assert.match(bullet, /nothing about the answer changes: it is owed or not as the branches above decide, and where it is owed, present the films you chose and never say they were checked/);
+  assert.doesNotMatch(bullet, /retry/iu, "the failed check carries a retry of its own");
 });

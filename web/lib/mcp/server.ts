@@ -39,6 +39,7 @@ import {
 } from "../verdicts/model.ts";
 import { current, spoken, supersession } from "../verdicts/model.ts";
 import { compose } from "../memory/model.ts";
+import { askedCandidates, checkCandidates, MAX_CANDIDATES } from "../candidates/model.ts";
 import type { VerdictStore } from "../verdicts/store.ts";
 import type { TasteStore } from "../taste/store.ts";
 import { SERVER_NAME, SERVER_VERSION } from "./identity.ts";
@@ -301,7 +302,8 @@ const movieYear = z
       "than guessing — if you do not know it, ask.",
   );
 
-const imdbId = z
+// The syntax alone, said once: a write takes it nullable, a check does not.
+const imdbIdText = z
   .string()
   // Trimmed before the syntax is judged, so this and the store agree about
   // `" tt0111161 "`. Neither of them accepts a blank one: there is exactly one
@@ -311,7 +313,9 @@ const imdbId = z
   .regex(
     IMDB_ID_PATTERN,
     "an IMDb title id looks like tt0111161 — tt followed by at least seven digits",
-  )
+  );
+
+const imdbId = imdbIdText
   .nullable()
   .describe(
     'An IMDb title id — "tt0111161". Stored as a pointer and never looked up: Tonight does not ' +
@@ -1235,6 +1239,79 @@ export function tonightMcpServer(session: McpSession): McpServer {
         // constants describing the operation rather than anything it found.
         await verdicts.forget(ref);
         return { forgotten: ref, writeScope: "verdict-act-only", otherRoots: "unchanged" };
+      }),
+  );
+
+  // --- candidates ----------------------------------------------------------
+  //
+  // Films the agent chose, checked against what Tonight holds. The same two
+  // reads `get_taste` makes and no others, joined by `lib/candidates/model.ts`:
+  // nothing here supplies a film, and nothing here writes.
+
+  server.registerTool(
+    "check_candidates",
+    {
+      title: "Check films you mean to recommend",
+      description:
+        "What Tonight holds about films you have chosen to recommend, one entry per film, in the " +
+        `order you sent them — at most ${MAX_CANDIDATES}. It checks the films you name and never ` +
+        "offers one: nothing here suggests, ranks or filters a film, and it knows no film it was " +
+        "not told about.\n\n" +
+        "Each film is matched by title and year together, the way Tonight names a film: case and " +
+        "spacing aside, exactly. *Amélie* and *Amelie* are two films here, and so are *Dune* 1984 " +
+        "and *Dune* 2021.\n\n" +
+        "`status` is what was found. `saved`: a film on their list, which `movie` shows as stored " +
+        "— its `viewing`, and the `vibes` it is filed in. `said-only`: no saved film, but a verdict " +
+        "about it stands. `nothing`: neither. **`nothing` means Tonight holds nothing about the " +
+        "film, never that they have not seen it.**\n\n" +
+        "`seen` is `true` when they have watched it — their list says seen, or a judgement stands, " +
+        "since nobody likes a film they have not seen; `false` only when their list says " +
+        "want-to-see and no judgement stands; `null` when Tonight does not know, and `null` is not " +
+        "`false`. `neverRecommend` is `true` for a film saved as dont-want-to-see: it is **never " +
+        "recommended** — not as the lead, not as a direction — whatever else is true of it. " +
+        "`verdict` is the judgement that stands now, with `because` only where they gave their " +
+        "words; one they took back or replaced is not here. Being in a vibe is no opinion about a " +
+        "film.\n\n" +
+        "`otherYears` lists other years in which Tonight holds a film of exactly this title, and " +
+        "`imdbHeldBy` names the saved film that carries the IMDb id you sent, when that is a " +
+        "different title or year. Neither is merged into the entry: if one of them is the film you " +
+        "meant, check that film by its own title and year.\n\n" +
+        "Episodes are not read: an evening is history, not taste, and a film they turned down for " +
+        "one evening is not here — that is in your conversation. Reading this writes nothing.",
+      inputSchema: z.object({
+        candidates: z
+          .array(
+            z.object({
+              title: movieTitle.describe(
+                "The film's title, as you would name it to them. Matched together with the year, " +
+                  "case and spacing aside.",
+              ),
+              year: movieYear.describe(
+                "Its release year — the other half of how Tonight names a film: Dune 1984 and " +
+                  "Dune 2021 are two films.",
+              ),
+              imdb_id: imdbIdText
+                .optional()
+                .describe(
+                  'Its IMDb title id, if you have one — "tt0111161". Compared exactly with the ids ' +
+                    "on their saved films and never looked up. Leave it out if you have none.",
+                ),
+            }),
+          )
+          .min(1)
+          .max(MAX_CANDIDATES)
+          .describe("The films you are about to put forward, each named once."),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ candidates }) =>
+      attempt(async () => {
+        // Checked before either store is read, so a refusal reads nothing.
+        const asked = askedCandidates(
+          candidates.map(({ title, year, imdb_id: imdbId }) => ({ title, year, imdbId })),
+        );
+        const [taste, standing] = await Promise.all([store.taste(), verdicts.standing()]);
+        return { candidates: checkCandidates(asked, { movies: taste.movies, standing }) };
       }),
   );
 

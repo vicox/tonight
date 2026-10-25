@@ -318,14 +318,16 @@ test("two users may hold the same genre name without meaning the same thing", as
 
 // --- movies ---------------------------------------------------------------
 
-test("the endpoint offers twenty tools, and a movie is addressed by title and year", async () => {
+test("the endpoint offers twenty-one tools, and a movie is addressed by title and year", async () => {
   const tools = await listTools(await tokenFor(someone()));
 
   // The eleven taste tools, in registration order, then M1's four episode tools,
   // then M2's three verdict tools, then M3's two. Four sets, read as four because
   // none reaches another: episodes write what happened, verdicts write what they
   // thought of it, the taste tools write what somebody says they like, and M3's
-  // pair explain all of that back and take one piece of it away again.
+  // pair explain all of that back and take one piece of it away again. Last is
+  // `check_candidates`, a read of the saved films and standing verdicts for films
+  // the agent already chose.
   //
   // Every one of them writes or reads one of the five things Tonight persists —
   // Movies, Genres, Vibes, Episodes, Verdicts. There is no tool for anything
@@ -353,6 +355,7 @@ test("the endpoint offers twenty tools, and a movie is addressed by title and ye
       "get_verdicts",
       "get_memory",
       "forget_verdict",
+      "check_candidates",
     ],
   );
 
@@ -688,6 +691,9 @@ test("no cross-tool rule has been copied into a tool description", async () => {
     ["how many films to recommend", /three to six films/i],
     ["what the remainder is called", /Other movies/i],
     ["whether to ask before calling", /never ask for a state/i],
+    // When the films are checked is the recommend skill's method; the tool says
+    // only what it reads and how to read the answer.
+    ["when to check the films", /immediately before present/i],
   ] as [string, RegExp][]) {
     assert.equal(leaked.test(everything), false, `${what} has leaked into a tool description`);
   }
@@ -992,7 +998,10 @@ const SOLARIS = { title: "Solaris", year: 1972 };
 test("create_vibe requires a core, and a call without one writes nothing", async () => {
   const token = await tokenFor(someone());
   const tools = await listTools(token);
-  assert.equal(tools.length, 20, "the core arrived as a tool of its own rather than as an argument");
+  // Twenty-one, and the twenty-first is `check_candidates` — pinned by name in the
+  // registration order above — so a core tool would still be one too many.
+  assert.equal(tools.length, 21, "the core arrived as a tool of its own rather than as an argument");
+  assert.equal(tools.some((tool) => /core/iu.test(tool.name)), false, "a tool is named for the core");
 
   // Required in the schema, which is how a client learns it before calling, and
   // asked for as a film by its whole handle.
@@ -1526,4 +1535,55 @@ test("the episode tools advertise the offer shape, and which of them can remove"
     ]);
     assert.equal(offers.items.additionalProperties, false, "an offer statement is not strict");
   }
+});
+
+// --- candidates -----------------------------------------------------------
+
+test("check_candidates reads the films it is given, and says how to read the answer", async () => {
+  // What a client discovers before it ever calls: a read, at most ten films, each
+  // by title and year, and an IMDb id that is text or left out. And the sentences
+  // a model reads the answer by, at the moment it reads it — above all that
+  // `nothing` is not "unseen".
+  const token = await tokenFor(someone());
+  const tools = await listTools(token);
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const tool = tools.find((one) => one.name === "check_candidates") as any;
+  assert.ok(tool, "check_candidates is not offered");
+
+  assert.equal(tool.annotations?.readOnlyHint, true);
+  assert.equal(tool.annotations?.openWorldHint, false);
+
+  assert.deepEqual(tool.inputSchema.required, ["candidates"]);
+  const list = tool.inputSchema.properties.candidates;
+  assert.equal(list.minItems, 1);
+  assert.equal(list.maxItems, 10);
+  assert.deepEqual(list.items.required, ["title", "year"]);
+  assert.doesNotMatch(JSON.stringify(list.items.properties.imdb_id), /null/u, "a check's IMDb id is nullable");
+
+  const said = tool.description as string;
+  assert.match(said, /never that they have not seen it/u, "nothing is not read as unseen");
+  assert.match(said, /never\s+offers one: nothing here suggests, ranks or filters a film/u, "it supplies films");
+  assert.match(said, /`null` when Tonight does not know, and `null` is not\s+`false`/u, "null is read as false");
+  assert.match(said, /`neverRecommend` is `true` for a film saved as dont-want-to-see/u);
+  assert.match(said, /Episodes are not read/u, "it claims to see evenings");
+  assert.match(said, /Neither is merged into the entry/u, "another year or id is merged");
+
+  // Refused at the boundary, each one before anything is read.
+  for (const [what, candidates] of [
+    ["an empty list", []],
+    ["eleven films", Array.from({ length: 11 }, (_, n) => ({ title: `Film ${String(n)}`, year: 2000 }))],
+    ["a malformed id", [{ title: "Heat", year: 1995, imdb_id: "0113277" }]],
+    ["a null id", [{ title: "Heat", year: 1995, imdb_id: null }]],
+    ["one film twice", [{ title: "Heat", year: 1995 }, { title: "heat", year: 1995 }]],
+  ] as const) {
+    const { status, result } = await callTool(token, "check_candidates", { candidates } as Record<string, unknown>);
+    assert.equal(status, 200, `${what}: a refused tool still answers`);
+    assert.equal(result?.isError, true, `${what} was not refused`);
+  }
+
+  // Left out, the id is simply not there.
+  const answer = await ok(token, "check_candidates", { candidates: [{ title: "Heat", year: 1995 }] });
+  assert.deepEqual(answer.candidates[0].asked, { title: "Heat", year: 1995 });
+  assert.equal(answer.candidates[0].status, "nothing");
+  assert.equal(answer.candidates[0].seen, null);
 });

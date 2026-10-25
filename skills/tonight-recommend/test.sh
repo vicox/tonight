@@ -1065,5 +1065,42 @@ check "and the old claim that it is written nowhere is gone" \
     "$(grep -ciE 'written nowhere|may note the evening' "$SKILL")" "0"
 
 echo
+echo "--- the films are checked before they are presented ---"
+
+# docs/work/check-candidates/PLAN.md. When the check runs, which films it covers
+# and what follows from each answer is method, so it is here; what each field of
+# the answer means is the tool's own description, and is not restated here.
+check_paragraph="$(slice_of '**Check the films before you present them.**' \
+    'The model counts as evidence in the taste-aware mode')"
+check "the films put forward are checked immediately before presenting, and replacements too" \
+    "$(order_check '**Check the films before you present them.**' \
+        '**immediately before presenting**' \
+        'every film you put forward — the lead and each direction' \
+        'A film you name only as the reason for one' \
+        'it is not checked and not replaced' \
+        'it never supplies one' \
+        '`neverRecommend`' '`disliked`' \
+        'unless they asked for a rewatch' \
+        'Check each replacement the same way' \
+        '`otherYears` or' '`imdbHeldBy`' \
+        'the films you put forward are the ones you checked')" "True"
+check "and it is method for recommending, after what being in the model is evidence of" \
+    "$(order_check '## Recommending' \
+        'Being in the model is never evidence they have not seen it' \
+        '**Check the films before you present them.**' \
+        'The model counts as evidence in the taste-aware mode' \
+        '## What may be persisted')" "True"
+# What `nothing` and `null` mean lives on the tool, read where the answer is read.
+check "the paragraph does not restate what an answer means" \
+    "$(in_slice "$check_paragraph" '`nothing`|`null`|unseen')" "0"
+check "a failed check changes nothing about the answer, after a failed write" \
+    "$(order_check '## When something fails' '**A write fails**' \
+        '**`check_candidates` fails** — nothing about the answer changes' \
+        'it is owed or not as the' 'branches above decide' \
+        'never say they' 'were checked')" "True"
+check "and it offers no retry of its own" \
+    "$(in_slice "$(slice_of '**`check_candidates` fails**' 'A failure should cost')" 'retry')" "0"
+
+echo
 printf '%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

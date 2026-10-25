@@ -136,6 +136,7 @@ test("every tool is discoverable, and only the intended ones", async () => {
   const tools = json.result?.tools;
   assert.ok(tools);
   assert.deepEqual(tools.map((tool) => tool.name).sort(), [
+    "check_candidates",
     "correct_episode",
     "create_genre",
     "create_movie",
@@ -158,7 +159,7 @@ test("every tool is discoverable, and only the intended ones", async () => {
     "withdraw_verdict",
   ]);
 
-  // Twenty, and every one of them a state operation on one of the five things
+  // Twenty-one, and every one of them a state operation on one of the five things
   // Tonight persists: Movies, Genres, Vibes, Episodes, Verdicts. Product
   // guidance ships in skills/ beside the server rather than as a runtime tool,
   // and an exhaustive list is what keeps one from creeping back.
@@ -172,11 +173,15 @@ test("every tool is discoverable, and only the intended ones", async () => {
   // user. M3's pair read across all of them and write nothing but a deletion the
   // user asked for.
   //
+  // The last, `check_candidates`, is a read: the saved films and the standing
+  // verdicts, for films the agent already chose. It writes nothing and supplies
+  // no film of its own.
+  //
   // There is no sixth set. Tools once existed here for the questions Tonight was
   // carrying and for what it had noticed and wanted to suggest — state Tonight
   // wrote about itself rather than anything a person told it. They are gone, and
   // this list is where their return would show up first.
-  assert.equal(tools.length, 20);
+  assert.equal(tools.length, 21);
 
   const info = tools.find((tool) => tool.name === "get_server_info");
   assert.equal(info?.title, "Server information");
@@ -352,9 +357,10 @@ test("an authenticated client can call the tool", async () => {
   const info = await getServerInfo(await accessToken());
 
   assert.equal(info.name, "Tonight");
-  // 0.2.0 since M9 reshaped the episode tools: a host comparing versions sees
-  // that its cached definitions are stale.
-  assert.equal(info.version, "0.2.0");
+  // 0.3.0 since `check_candidates` joined the surface (0.2.0 was M9 reshaping the
+  // episode tools): a host comparing versions sees that its cached definitions
+  // are stale.
+  assert.equal(info.version, "0.3.0");
   assert.equal(info.authenticated, true);
   assert.ok(info.user, "a reference to the caller is returned");
 });
