@@ -6,8 +6,14 @@ blocker, and both are fixed here:
 - Round 1: the privacy page's "Deleting your data" paragraph.
 - Round 2: the curl smoke check asserted marks, which only render inside dialogs.
 
-**Implemented** (see *Implementation* at the end) and committed on this branch. Awaiting the
-Codex implementation review. Nothing is pushed, merged or deployed.
+**Implemented** in `49dee93` (see *Implementation* at the end).
+
+**Codex implementation review: READY, with no blockers.** Its one non-blocking note:
+`readonly.test.ts` matches today's syntax, so an aliased or re-exported route handler, or an
+inline `"use server"` inside a function body, could get past its regexes. No such case exists
+in this commit.
+
+Nothing is pushed, merged or deployed.
 
 - Ticket / branch / worktree: `tonight-web-readonly`, based on `main` at `f3912b0`.
 - Baseline at the base: 1347 tests, 1343 pass. The 4 failures are the known
