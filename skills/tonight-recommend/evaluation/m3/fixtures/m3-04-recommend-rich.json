@@ -2,6 +2,7 @@
   "id": "m3-04-recommend-rich",
   "title": "The recommendation evidence, with a remembered history pointing elsewhere",
   "user": "google:eval-m3-04-recommend-rich",
+  "seed": "pre-vibe-rule",
   "families": [
     "J"
   ],

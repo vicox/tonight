@@ -33,7 +33,10 @@ import {
   orderHandle,
   orderVibe,
   orderMovie,
+  positiveNeedsVibe,
   TasteError,
+  VibeRequired,
+  vibeHoldsPositive,
   type Genre,
   type Vibe,
   type Movie,
@@ -42,6 +45,8 @@ import {
   type Written,
 } from "../model.ts";
 import type { VibeDraft, GenreDraft, TasteStore } from "../store.ts";
+import { isPositive, type Positive } from "../../verdicts/model.ts";
+import { standingWithin, writeAct } from "../../verdicts/store/sql.ts";
 import { TASTE_SCHEMA } from "./schema.ts";
 
 export { TASTE_SCHEMA };
@@ -394,7 +399,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
       });
     },
 
-    async updateMovie(title, year, changes) {
+    async updateMovie(title, year, changes, options) {
       if (Object.values(changes).every((value) => value === undefined)) {
         throw nothingToUpdate("movie");
       }
@@ -463,6 +468,20 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           );
           if (leaving.length) {
             throw movieAnchorsVibe(current.title, current.year, filingNames(leaving), "unfile");
+          }
+
+          // A film they like or love stays in at least one vibe — when the caller
+          // asked for that rule. Asked while this film is held, so a verdict
+          // being written about it either committed before this read, or waits
+          // for this write and then finds the film in no vibe. Only a filing that
+          // goes from some vibes to none is refused: a film already in none
+          // (a verdict older than the rule) may be given `[]` again.
+          if (options?.positiveNeedsVibe && filings.length === 0) {
+            if ((await filedUnder(tx, owner, current.id)).length > 0) {
+              const handle = { title: current.title, year: current.year };
+              const judgement = (await positiveAbout(tx, owner, [handle])).get(filmKey(handle));
+              if (judgement) throw positiveNeedsVibe(current.title, current.year, judgement);
+            }
           }
 
           await holdVibes(tx, owner, filings, known);
@@ -568,7 +587,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
      * turns out to have changed the answer is to let go of everything and start
      * again — never to take one more lock from here.
      */
-    async deleteVibe(name) {
+    async deleteVibe(name, options) {
       for (let attempt = 1; ; attempt += 1) {
         const outcome = await driver.transaction<Vibe | typeof AGAIN>(async (tx) => {
           // Unlocked, and nothing is decided from it: it says which movies to
@@ -601,9 +620,22 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           // avoid.
           if (!same(filed, await filedMovies(tx, owner, found.id))) return AGAIN;
 
+          // Every film filed here is held, and so is the vibe, so neither the
+          // filing nor a verdict being written about one of these films can
+          // change under this question. A refusal is thrown, not retried.
+          if (options?.positiveNeedsVibe) {
+            const stranded = await onlyHere(tx, owner, filed);
+            const positive = await positiveAbout(tx, owner, stranded);
+            const kept = stranded.flatMap((film) => {
+              const judgement = positive.get(filmKey(film));
+              return judgement ? [{ ...film, judgement }] : [];
+            });
+            if (kept.length) throw vibeHoldsPositive(entry.name, kept);
+          }
+
           // The genre list goes with it — the reference rows cascade on delete —
-          // and the genres themselves are untouched. Deleting a vibe is never
-          // blocked: nothing in this model is built from a vibe.
+          // and the genres themselves are untouched. Nothing in this model is
+          // built from a vibe, so nothing structural ever blocks the deletion.
           const removed = await tx.query(
             `DELETE FROM tonight_mixes WHERE user_id = $1 AND id = $2 RETURNING name`,
             [owner, found.id],
@@ -619,7 +651,83 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         if (attempt === DELETION_ATTEMPTS) throw vibeBusy(name);
       }
     },
+
+    /**
+     * A liked or loved, written only while its film is filed somewhere.
+     *
+     * The second place this store writes outside the taste model, after
+     * `forgetVerdicts`, and for the same reason: what it decides is the taste
+     * model's — whether the film is filed — and it has to be decided in the same
+     * transaction as the write. The act is still written by the verdict module.
+     */
+    async sayFiled(verdict) {
+      if (verdict.said !== "verdict" || !isPositive(verdict.assertion.judgement)) {
+        throw new TasteError("only a liked or loved verdict is held to a vibe — anything else needs none");
+      }
+      return driver.transaction(async (tx) => {
+        await requireFiled(tx, owner, verdict.film);
+        return writeAct(tx, owner, verdict);
+      });
+    },
   };
+}
+
+/**
+ * Refuses unless the film is saved and filed in at least one vibe.
+ *
+ * The saved film is matched by the identity a verdict is grouped by — the
+ * canonical title and the year, which is exactly what the column stores — and
+ * held `FOR SHARE` for the rest of the transaction. Every write that can take a
+ * film out of its last vibe holds that row `FOR UPDATE` first, so the two
+ * cannot interleave: one commits before the other decides.
+ *
+ * The filing is read by a **second** statement, on purpose. Under READ
+ * COMMITTED a statement keeps the snapshot it started with even after waiting
+ * for a lock, so a membership subquery inside the locking statement could still
+ * see a filing another transaction removed while this one waited. A new
+ * statement, run once the lock is granted, sees whatever committed before it.
+ *
+ * A core is always one of its vibe's members, so membership alone answers.
+ */
+async function requireFiled(sql: Transaction, owner: string, film: MovieHandle): Promise<void> {
+  const [movie] = await sql.query<{ id: string; title: string; year: number; viewing: Viewing }>(
+    `SELECT id, title, year, viewing FROM tonight_movies
+      WHERE user_id = $1 AND canonical_title = $2 AND year = $3
+      FOR SHARE`,
+    [owner, canonicalTitle(film.title), film.year],
+  );
+  if (!movie) throw new VibeRequired({ title: film.title, year: film.year }, null);
+
+  const [filing] = await sql.query<{ filed: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM tonight_mix_movies WHERE user_id = $1 AND movie_id = $2
+     ) AS filed`,
+    [owner, movie.id],
+  );
+  if (!filing?.filed) {
+    throw new VibeRequired(
+      { title: film.title, year: film.year },
+      { title: movie.title, year: movie.year, viewing: movie.viewing },
+    );
+  }
+}
+
+/**
+ * Which of these films a liked or loved currently stands about, by `filmKey`.
+ *
+ * Which verdict stands is the verdict module's answer, read here through
+ * `standingWithin` on this transaction; this only keeps the positive ones.
+ */
+async function positiveAbout(
+  sql: Transaction,
+  owner: string,
+  films: readonly MovieHandle[],
+): Promise<Map<string, Positive>> {
+  const positive = new Map<string, Positive>();
+  for (const held of await standingWithin(sql, owner, films)) {
+    if (isPositive(held.judgement)) positive.set(filmKey(held), held.judgement);
+  }
+  return positive;
 }
 
 /**
@@ -703,6 +811,26 @@ async function filedMovies(sql: Transaction, owner: string, vibeId: string): Pro
        JOIN tonight_movies AS v ON v.user_id = r.user_id AND v.id = r.movie_id
       WHERE r.user_id = $1 AND r.mix_id = $2`,
     [owner, vibeId],
+  );
+}
+
+/**
+ * Of the films filed under one vibe, the ones it is the only vibe of.
+ *
+ * By their stored title and year, which is what a verdict is matched against.
+ * Only meaningful while every one of them is held, as `deleteVibe` holds them:
+ * filing a held film anywhere else waits for this transaction.
+ */
+async function onlyHere(sql: Transaction, owner: string, filed: readonly Filed[]): Promise<MovieHandle[]> {
+  if (!filed.length) return [];
+  return sql.query<MovieHandle>(
+    `SELECT v.title, v.year
+       FROM tonight_movies AS v
+      WHERE v.user_id = $1 AND v.id = ANY($2::uuid[])
+        AND (SELECT count(*) FROM tonight_mix_movies AS r
+              WHERE r.user_id = v.user_id AND r.movie_id = v.id) = 1
+      ORDER BY lower(v.title), v.year`,
+    [owner, filed.map((film) => film.id)],
   );
 }
 
@@ -1037,8 +1165,9 @@ async function fileCore(
  * Removes every verdict act about one film: what stands, what was replaced, and
  * every taking-back.
  *
- * The one place this store writes outside the taste model, and it only ever
- * deletes. Deleting a film is the user removing it from Tonight, and an opinion
+ * One of the two places this store writes outside the taste model — the other is
+ * `sayFiled` — and this one only ever deletes. Deleting a film is the user
+ * removing it from Tonight, and an opinion
  * about a film they removed is something Tonight would otherwise go on holding
  * about it — so it goes in the same transaction as the film, never left for a
  * second call that could fail between the two.

@@ -109,16 +109,27 @@ describe("the memory tools", () => {
     said: { about: "judgement", judgement },
   });
 
+  /**
+   * Files a film in a vibe, so a liked or loved about it is kept — the vibe is
+   * anchored on it, which saves it as seen if it is not saved yet. A liked or
+   * loved needs its film in a vibe; these contracts are about memory, not that.
+   */
+  const shelve = async (tools: Record<string, Tool>, film: { title: string; year: number }) => {
+    await said(tools, "create_genre", { name: "Shelf", instruction: "kept" });
+    await said(tools, "create_vibe", { name: "Kept Close", genres: ["Shelf"], instruction: "kept", core: film });
+  };
+
   /* ----------------------------------------------------------- composition */
 
   test("one of everything arrives once, in the right part", async () => {
     // The expected picture is written out here, not read back from the tool. The
-    // vibe is anchored on the film already saved, so it is still one film.
+    // vibe is anchored on the film already saved, so it is still one film — and
+    // the loved is about that film, since a loved is kept only for a filed one.
     const her = someone();
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
     await said(her, "create_movie", { ...HEAT, viewing: "seen" });
     await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room", core: HEAT });
-    await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
+    await said(her, "record_verdict", judged(HEAT, "loved"));
     await said(her, "record_episode", { request: "something tense", offered: [{ ...HEAT, lead: true }] });
 
     const { held, remembered } = await memory(her);
@@ -142,6 +153,7 @@ describe("the memory tools", () => {
     await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen" });
     await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
     await said(her, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
+    await shelve(her, HEAT);
     await said(her, "record_verdict", judged(HEAT, "loved"));
     await said(her, "withdraw_verdict", { film: HEAT });
 
@@ -194,6 +206,7 @@ describe("the memory tools", () => {
 
   test("a superseded verdict is remembered and the later one is held", async () => {
     const her = someone();
+    await shelve(her, BLACK_BAG);
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
     await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
 
@@ -258,6 +271,7 @@ describe("the memory tools", () => {
   test("each kind of root says only what its own store knows", async () => {
     const her = someone();
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
+    await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room", core: BLACK_BAG });
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
     await said(her, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
 
@@ -292,7 +306,7 @@ describe("the memory tools", () => {
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
     await said(her, "create_movie", { ...HEAT, viewing: "seen" });
     await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room", core: HEAT });
-    await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
+    await said(her, "record_verdict", judged(HEAT, "loved"));
     await said(her, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
 
     const { held, remembered } = await memory(her);
@@ -331,6 +345,7 @@ describe("the memory tools", () => {
 
   test("nothing Tonight is waiting to ask reaches the memory view", async () => {
     const her = someone();
+    await shelve(her, BLACK_BAG);
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
     const payload = JSON.stringify(await memory(her)).toLowerCase();
     for (const absent of ["question", "opportunit", "pending", "observation", "proposal", "relevance"]) {
@@ -374,6 +389,7 @@ describe("the memory tools", () => {
    */
   test("forgetting the taking-back lets the verdict it silenced stand again", async () => {
     const her = someone();
+    await shelve(her, BLACK_BAG);
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
     await said(her, "record_verdict", judged(BLACK_BAG, "liked"));
     await said(her, "withdraw_verdict", { film: BLACK_BAG });
@@ -402,6 +418,7 @@ describe("the memory tools", () => {
   test("forgetting everything leaves the saved film to speak for itself", async () => {
     const her = someone();
     await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await shelve(her, BLACK_BAG);
     await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
 
@@ -418,6 +435,7 @@ describe("the memory tools", () => {
 
   test("a reference that names nothing is accepted and changes nothing", async () => {
     const her = someone();
+    await shelve(her, BLACK_BAG);
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
     const before = await memory(her);
 
@@ -429,6 +447,7 @@ describe("the memory tools", () => {
   test("a reference belonging to somebody else answers the same way and does nothing", async () => {
     const hers = someone("owner-of-the-act");
     const his = someone("stranger-with-a-ref");
+    await shelve(hers, BLACK_BAG);
     await said(hers, "record_verdict", judged(BLACK_BAG, "loved"));
     const ref = (of((await memory(hers)).held, "verdict")[0]!.handle as { ref: string }).ref;
 
@@ -611,6 +630,7 @@ describe("the memory tools", () => {
     const empty = someone("coverage-empty");
     const full = someone("coverage-full");
     await said(full, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await shelve(full, BLACK_BAG);
     await said(full, "record_verdict", judged(BLACK_BAG, "loved"));
     await said(full, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
 

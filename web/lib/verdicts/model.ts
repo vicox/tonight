@@ -79,6 +79,21 @@ export const JUDGEMENTS = ["liked", "loved", "disliked"] as const;
 export type Judgement = (typeof JUDGEMENTS)[number];
 
 /**
+ * The two judgements that say a film worked for them.
+ *
+ * Named because a rule outside this module reads them and only them: the taste
+ * store keeps a film they like or love in at least one of their vibes. This
+ * module knows nothing of that rule and does not need to — it only says which
+ * judgements are the positive ones. `disliked` is not, and a withdrawal asserts
+ * nothing at all.
+ */
+export const POSITIVE = ["liked", "loved"] as const satisfies readonly Judgement[];
+export type Positive = (typeof POSITIVE)[number];
+
+export const isPositive = (judgement: Judgement): judgement is Positive =>
+  (POSITIVE as readonly Judgement[]).includes(judgement);
+
+/**
  * Where a claim applies: everywhere, and nowhere narrower.
  *
  * §6: *"A Claim with no stated scope applies globally"*, and a Claim without the

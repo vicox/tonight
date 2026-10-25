@@ -250,7 +250,10 @@ test("a recording is named by the skills it was given, the source and the commit
 });
 
 test("the runner reseeds every run, snapshots after every run, and never reseeds a legacy fixture", () => {
-  assert.match(runner, /if \(spec\.seed !== "v12-then-migrate"\) seed\(scenario\.fixture\)/);
+  // Any fixture its operator seeds — before cores, or before the vibe rule — is
+  // never reseeded here.
+  assert.match(runner, /if \(spec\.seed === undefined\) seed\(scenario\.fixture\)/);
+  assert.match(runner, /const isLegacy = \(one\) => fixture\(one\.fixture\)\.seed !== undefined/);
   assert.match(runner, /const afterDigest = seed\(scenario\.fixture, "--snapshot"/);
   assert.match(readme, /\*\*vibes, then\s+films, then genres\*\*/);
   // A second turn that did not resume is a failure, not a fresh conversation scored

@@ -141,6 +141,21 @@ describe("M2 — only what they said", () => {
     for (const step of trajectory.steps) {
       if (step.act === "viewing") await call("create_movie", { ...step.film, viewing: step.viewing });
     }
+    // A liked or loved is kept only for a film in a vibe. So every film a
+    // trajectory names is filed in the baseline vibe as setup — in every
+    // trajectory and the same way, so the pairs the gates compare still differ
+    // only by their own steps, and the baseline is read with it already filed.
+    // A film no viewing step saved is saved as seen, as the agent saves one it
+    // files for a positive verdict.
+    const shelf = BASELINE.vibes[0]!.name;
+    const filed = (await call("get_taste")) as unknown as { movies: { title: string; year: number; vibes: string[] }[] };
+    const held = new Map(filed.movies.map((movie) => [filmKey(movie), movie]));
+    for (const film of filmsIn(trajectory)) {
+      const saved = held.get(filmKey(film));
+      if (saved?.vibes.length) continue;
+      if (saved) await call("update_movie", { ...film, vibes: [shelf] });
+      else await call("create_movie", { ...film, viewing: "seen", vibes: [shelf] });
+    }
     const before = await taste();
     const checkpoints: Taste[] = [before];
 
@@ -207,6 +222,9 @@ describe("M2 — only what they said", () => {
     const call = async (tools: Record<string, Tool>, name: string, args: Record<string, unknown> = {}) =>
       (await tools[name]!.handler(args)).structuredContent as Record<string, unknown>;
 
+    // Filed first, since a loved is kept only for a film in a vibe.
+    await call(mine, "create_genre", { ...BASELINE.genres[0]! });
+    await call(mine, "create_vibe", { ...BASELINE.vibes[0]!, core: FILMS.prisoners });
     await call(mine, "record_verdict", {
       film: FILMS.prisoners,
       told: "volunteered",

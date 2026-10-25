@@ -722,18 +722,25 @@ check "a Movie is the saved, filed, viewing root, and theirs" \
         'A Movie is theirs, the same way a Genre or a Vibe is' \
         'never an entry from a catalogue')" "True"
 # The independence the split introduced, in the direction that is easy to get
-# wrong: a Verdict is its own root, so an opinion does not need a Movie under it
-# and never writes one. The old contract enforced the opposite.
-check "a Verdict stands on its own root, with no Movie under it" \
+# wrong: a Verdict is its own root, so a dislike does not need a Movie under it
+# and never writes one. The old contract enforced the opposite. A liked or loved
+# is the one exception: it is kept only for a film in a Vibe.
+check "a Verdict stands on its own root, with no Movie under a dislike" \
     "$(order_check 'a Verdict stands on its own root' \
-        'about a film that was never saved')" "True"
-check "saying something about a film neither needs a Movie nor writes one" \
-    "$(order_check 'saying something about a film neither needs a Movie nor writes one')" "True"
+        'a `disliked` about a film that was never saved' \
+        'needs no Movie, and recording one never writes a Movie')" "True"
+check "a liked or loved is kept only for a film in a Vibe, and filing the film saves it" \
+    "$(order_check 'A liked or loved, though, is kept only' \
+        'for a film in at least one of their Vibes' \
+        'filing the' 'film is what saves it')" "True"
 check "and the write flow says it where a verdict is recorded" \
-    "$(order_check 'No Vibe is needed for one and none may be invented to hold it' \
-        'no Movie either' \
-        'a film nobody' \
-        'has saved may still carry one')" "True"
+    "$(order_check 'A `disliked` needs no Vibe and no Movie' \
+        'A liked or loved is kept only for a film in one of their Vibes' \
+        'answers `vibe_required`, nothing was saved' \
+        'one recommendation and two meaningfully different alternatives' \
+        'the verdict is recorded again' \
+        'Never invent a Vibe to hold it without their yes' \
+        'never say it is saved before it is')" "True"
 # And the false rule is gone rather than reworded.
 check "a Movie no longer comes into being because somebody said something" \
     "$(grep -ciE 'asked for it to be kept, or said something about it' "$SKILL")" "0"
@@ -775,8 +782,8 @@ check "a film the user asks to keep goes into a Vibe, and they need not know tha
 check "a verdict is recorded through its own tool, without inventing a Vibe for it" \
     "$(order_check 'What they said about a film does not' \
         'it goes to `record_verdict`' \
-        'none may be invented to hold it' \
-        'a later request to keep the film takes a Vibe')" "True"
+        '**tonight-vibes** says how to find its Vibe with them' \
+        'Never invent a Vibe to hold it without their yes')" "True"
 check "a Vibe that genuinely fits is used, and nothing further is asked" \
     "$(order_check 'One genuinely fits' \
         'ask nothing further')" "True"

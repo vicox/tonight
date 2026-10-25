@@ -80,6 +80,29 @@ describe("what recommendation work is handed", () => {
   let next = 0;
   const film = () => ({ title: `Subject ${String(++next)}`, year: 2013 });
 
+  /**
+   * A fresh film, saved as seen and filed in a vibe, so a liked or loved about it
+   * is kept — which needs the film in at least one vibe. These contracts are
+   * about what a verdict hands to recommendation work, not about that rule.
+   */
+  const shelved = new Set<Record<string, Tool>>();
+  const filed = async (tools: Record<string, Tool>) => {
+    const f = film();
+    if (shelved.has(tools)) {
+      await said(tools, "create_movie", { ...f, viewing: "seen", vibes: ["Kept Close"] });
+    } else {
+      await said(tools, "create_genre", { name: "Kept", instruction: "Films I stand behind." });
+      await said(tools, "create_vibe", {
+        name: "Kept Close",
+        genres: ["Kept"],
+        instruction: "The ones I keep coming back to.",
+        core: f,
+      });
+      shelved.add(tools);
+    }
+    return f;
+  };
+
   const taste = async (tools = ana) => (await said(tools, "get_taste")) as {
     movies?: { title: string; viewing: string | null }[];
     verdicts?: Standing[];
@@ -117,14 +140,14 @@ describe("what recommendation work is handed", () => {
 
   for (const judgement of ["loved", "liked", "disliked"] as const) {
     test(`${judgement} reaches recommendation work as what they said`, async () => {
-      const f = film();
+      const f = await filed(ana);
       await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement } });
       assert.deepEqual(await about(f), [{ title: f.title, year: f.year, judgement, told: "volunteered" }]);
     });
   }
 
   test("their own words for why come with it, unchanged", async () => {
-    const f = film();
+    const f = await filed(ana);
     const words = "the tension never lets up";
     await said(ana, "record_verdict", {
       film: f,
@@ -135,7 +158,7 @@ describe("what recommendation work is handed", () => {
   });
 
   test("where they said nothing, there is no reason to offer", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", { film: f, told: "confirmed", said: { about: "judgement", judgement: "liked" } });
     const [one] = await about(f);
     assert.equal("because" in (one ?? {}), false, "an explanation appeared that nobody gave");
@@ -153,8 +176,8 @@ describe("what recommendation work is handed", () => {
   });
 
   test("volunteered and confirmed arrive as they happened, and as words", async () => {
-    const one = film();
-    const two = film();
+    const one = await filed(ana);
+    const two = await filed(ana);
     await said(ana, "record_verdict", { film: one, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     await said(ana, "record_verdict", { film: two, told: "confirmed", said: { about: "judgement", judgement: "loved" } });
     assert.equal((await about(one))[0]?.told, "volunteered");
@@ -198,7 +221,7 @@ describe("what recommendation work is handed", () => {
   });
 
   test("a correction replaces what it corrected, and leaves no trace of it", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     await said(ana, "record_verdict", { film: f, told: "confirmed", said: { about: "judgement", judgement: "disliked" } });
     const standing = await about(f);
@@ -308,8 +331,15 @@ describe("what recommendation work is handed", () => {
     const f = film();
     const other = film();
     for (const tools of [offered, never]) {
-      await said(tools, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
-      await said(tools, "create_movie", { title: other.title, year: other.year, viewing: "seen" });
+      // Both films saved as seen and filed in one vibe, since a loved needs one.
+      await said(tools, "create_genre", { name: "Kept", instruction: "Films I stand behind." });
+      await said(tools, "create_vibe", {
+        name: "Kept Close",
+        genres: ["Kept"],
+        instruction: "The ones I keep coming back to.",
+        core: f,
+      });
+      await said(tools, "create_movie", { title: other.title, year: other.year, viewing: "seen", vibes: ["Kept Close"] });
       await said(tools, "record_verdict", {
         film: f,
         told: "volunteered",
@@ -384,7 +414,7 @@ describe("what recommendation work is handed", () => {
   /* ------------------------------------------------------------------ isolation */
 
   test("one user's verdicts never reach another's answer", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     assert.deepEqual(await about(f, ben), [], "another user's verdict was handed over");
   });
@@ -392,7 +422,7 @@ describe("what recommendation work is handed", () => {
   /* -------------------------------------------------------------- the payload */
 
   test("the payload carries what they said and none of Tonight's bookkeeping", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     const [one] = await about(f);
     for (const internal of ["said", "claimant", "at", "order", "scope", "assertion", "id"]) {

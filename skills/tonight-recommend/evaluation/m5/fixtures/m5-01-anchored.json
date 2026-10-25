@@ -1,9 +1,10 @@
 {
   "id": "m5-01-anchored",
   "user": "google:eval-m5-01-anchored",
+  "seed": "pre-vibe-rule",
   "title": "Three anchored Vibes, one film in no Vibe that they love, one they never spoke about",
   "exists_for": ["routing", "consideration", "opt-out", "tension", "not-tonight", "owed-answer", "several-vibes", "unfiled"],
-  "construction_note": "Every Vibe is written with its core (S2), and every core is a film they loved or liked. Hit Man is unfiled with a standing loved verdict; Wingwomen is unfiled with no verdict and must never be raised. Logan Lucky, Groundhog Day, The Social Network, The Nice Guys, Paterson, Knives Out and Tenet are absent on purpose: the prompts introduce them.",
+  "construction_note": "Every Vibe is written with its core (S2), and every core is a film they loved or liked. Hit Man is unfiled with a standing loved verdict — a state today's tools cannot write, so the fixture is seeded through a build from before the vibe rule (seed: pre-vibe-rule; README); Wingwomen is unfiled with no verdict and must never be raised. Logan Lucky, Groundhog Day, The Social Network, The Nice Guys, Paterson, Knives Out and Tenet are absent on purpose: the prompts introduce them.",
   "writes": true,
   "model": {
     "genres": [

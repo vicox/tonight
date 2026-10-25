@@ -1136,9 +1136,14 @@ test("the write flow is stated whole: what may be written, where, and on whose y
     ["and the viewing and the evening may still be written",
       /`viewing` may hold it, and an evening may record what they said they did/],
     ["keeping a film needs a Vibe", /Never write a Movie this way without at least one Vibe/],
-    ["a verdict never invents a Vibe", /No Vibe is needed for one and none may be invented to hold it/],
-    ["a verdict never invents a Movie either", /a Verdict stands on its own root/],
-    ["a later keep still takes a Vibe", /a later request to keep the film takes a Vibe/],
+    // A dislike needs neither; a liked or loved is kept only for a film in a Vibe,
+    // and the Vibe it gets is found with them, never invented without their yes.
+    ["a dislike needs no Vibe and no Movie", /A `disliked` needs no Vibe and no Movie/],
+    ["a verdict still stands on its own root", /a Verdict stands on its own root/],
+    ["a liked or loved is kept only in a Vibe", /\*\*A liked or\s+loved is kept only for a film in one of their Vibes\*\*/],
+    ["a refused one is not saved, and is recorded again once filed",
+      /answers\s+`vibe_required`, nothing was saved[\s\S]*?the verdict is\s+recorded again/],
+    ["a verdict never invents a Vibe", /Never invent a Vibe to hold it without their yes, and never say it is saved\s+before it is/],
     // M5 (S3): however a film's working for them is put, it is a verdict, in their
     // words and no stronger.
     ["however it is put, it is a verdict", /how a film worked for them, however\s+they put it/],
@@ -1381,7 +1386,9 @@ test("every rule the agent cannot work out for itself is in the skill", () => {
     "Never stretch a Vibe to avoid making one",
     // movies
     "Never write a Movie this way without at least one Vibe",
-    "No Vibe is needed for one and none may be invented to hold it — and no Movie either",
+    "A `disliked` needs no Vibe and no Movie",
+    "A liked or loved is kept only for a film in one of their Vibes",
+    "Never invent a Vibe to hold it without their yes, and never say it is saved before it is",
     "not a bucket",
     "do not save the film yet",
     "Never ask which they want",

@@ -71,6 +71,33 @@ describe("the verdict tools", () => {
   let next = 0;
   const film = () => ({ title: `Subject ${String(++next)}`, year: 2013 });
 
+  /**
+   * A fresh film, saved as seen and filed in a vibe, so a liked or loved about it
+   * is kept.
+   *
+   * A liked or loved is written only for a film in at least one vibe. These
+   * contracts are about what a verdict is, not about that rule — which has its
+   * own below — so a film they judge positively is filed first. The first one
+   * anchors a vibe for that user; the rest are filed in it.
+   */
+  const shelved = new Set<Record<string, Tool>>();
+  const filed = async (tools: Record<string, Tool>) => {
+    const f = film();
+    if (shelved.has(tools)) {
+      await said(tools, "create_movie", { ...f, viewing: "seen", vibes: ["Kept Close"] });
+    } else {
+      await said(tools, "create_genre", { name: "Kept", instruction: "Films I stand behind." });
+      await said(tools, "create_vibe", {
+        name: "Kept Close",
+        genres: ["Kept"],
+        instruction: "The ones I keep coming back to.",
+        core: f,
+      });
+      shelved.add(tools);
+    }
+    return f;
+  };
+
   /** Every act about one film, oldest first, as `get_verdicts` gives them. */
   const history = async (tools: Record<string, Tool>, f: object) =>
     ((await said(tools, "get_verdicts", { film: f })) as unknown as { history: { said: string }[] })
@@ -198,7 +225,7 @@ describe("the verdict tools", () => {
     // about other people. The reference is what somebody points at to take that
     // one act back. The writes were handing back both, which is how a model came
     // to see `"order": 222` in the answer to a withdrawal.
-    const f = film();
+    const f = await filed(ana);
 
     const stated = (await said(ana, "record_verdict", {
       film: f,
@@ -250,7 +277,7 @@ describe("the verdict tools", () => {
     // words, same user — and nothing but the reference tells them apart. If a
     // write handed back no reference, a caller could not name either of them;
     // if it handed back the order instead, naming one would mean counting.
-    const f = film();
+    const f = await filed(ana);
     const same = {
       film: f,
       told: "volunteered" as const,
@@ -288,7 +315,7 @@ describe("the verdict tools", () => {
   });
 
   test("the reference a withdrawal hands back forgets the taking-back and leaves the claim", async () => {
-    const f = film();
+    const f = await filed(ana);
     const stated = (await said(ana, "record_verdict", {
       film: f,
       told: "volunteered",
@@ -328,7 +355,7 @@ describe("the verdict tools", () => {
     // Taking the order off must not take the reference with it anywhere a tool
     // needs one. `get_memory` is where a caller is given a reference, and
     // `forget_verdict` is what takes it — so the round trip has to still work.
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", {
       film: f,
       told: "volunteered",
@@ -352,7 +379,7 @@ describe("the verdict tools", () => {
   /* ------------------------------------------------------- stating a verdict */
 
   test("1. a judgement they gave is recorded as theirs", async () => {
-    const f = film();
+    const f = await filed(ana);
     const out = (await said(ana, "record_verdict", {
       film: f,
       told: "volunteered",
@@ -365,7 +392,7 @@ describe("the verdict tools", () => {
   });
 
   test("2. their own words for why survive the tool", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", {
       film: f,
       told: "volunteered",
@@ -375,7 +402,7 @@ describe("the verdict tools", () => {
   });
 
   test("2b. no explanation stays explicitly absent", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", {
       film: f,
       told: "confirmed",
@@ -400,12 +427,12 @@ describe("the verdict tools", () => {
   });
 
   test("6. volunteered and confirmed are kept apart", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     const read = await standing(ana, f);
     assert.equal((read.current as unknown as { told: string }).told, "volunteered");
 
-    const g = film();
+    const g = await filed(ana);
     await said(ana, "record_verdict", { film: g, told: "confirmed", said: { about: "judgement", judgement: "loved" } });
     assert.equal((((await standing(ana, g)).current) as unknown as { told: string }).told, "confirmed");
   });
@@ -413,7 +440,7 @@ describe("the verdict tools", () => {
   /* ---------------------------------------------- correcting and withdrawing */
 
   test("7. a correction appends; the old claim stays in the history", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     await said(ana, "record_verdict", { film: f, told: "confirmed", said: { about: "judgement", judgement: "liked" } });
     const read = await standing(ana, f);
@@ -423,7 +450,7 @@ describe("the verdict tools", () => {
   });
 
   test("8. a withdrawal leaves no claim, and is not a dislike", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     await said(ana, "withdraw_verdict", { film: f });
     const read = await standing(ana, f);
@@ -444,7 +471,7 @@ describe("the verdict tools", () => {
     // Forced rather than raced: the two rows are pushed onto one instant after
     // the fact, so this asserts the rule every time rather than whenever the
     // clock happens to collide.
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     await said(ana, "record_verdict", { film: f, told: "confirmed", said: { about: "judgement", judgement: "liked" } });
     await driver.query("UPDATE tonight_verdict_acts SET said_at = $2 WHERE title = $1", [
@@ -457,7 +484,7 @@ describe("the verdict tools", () => {
   });
 
   test("7c. a withdrawal made in the same millisecond still takes", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     await said(ana, "withdraw_verdict", { film: f });
     await driver.query("UPDATE tonight_verdict_acts SET said_at = $2 WHERE title = $1", [
@@ -479,7 +506,7 @@ describe("the verdict tools", () => {
   });
 
   test("17. one user's verdicts are invisible and untouchable to another", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     assert.deepEqual((await standing(ben, f)).history, [], "another user's claims were readable");
 
@@ -507,7 +534,7 @@ describe("the verdict tools", () => {
   });
 
   test("19. recording a verdict changes nothing in the taste model", async () => {
-    const f = film();
+    const f = await filed(ana);
     const before = (await said(ana, "get_taste")) as unknown;
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "loved" } });
     await said(ana, "withdraw_verdict", { film: f });
@@ -591,7 +618,7 @@ describe("the verdict tools", () => {
    * reading one person's verdicts.
    */
   test("no persistence handle reaches the get_verdicts payload", async () => {
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", {
       film: f,
       told: "volunteered",
@@ -661,14 +688,15 @@ describe("the verdict tools", () => {
     const read = async (f: object) =>
       ((await said(ana, "get_verdicts", { film: f })) as unknown as { coverage: unknown }).coverage;
 
-    // (A) A film with no saved Movie at all.
+    // (A) A film with no saved Movie at all. A dislike, because a liked or loved
+    // is kept only for a film filed in a vibe — and a verdict about a film
+    // nobody saved is still the case this read cannot tell apart.
     const bare = film();
-    await said(ana, "record_verdict", { film: bare, ...told });
+    await said(ana, "record_verdict", { film: bare, told: "volunteered", said: { about: "judgement", judgement: "disliked" } });
 
-    // (B) The same, with a saved Movie that agrees with the verdict.
-    const agreeing = film();
+    // (B) A saved Movie that agrees with the verdict: saved seen, and filed.
+    const agreeing = await filed(ana);
     await said(ana, "record_verdict", { film: agreeing, ...told });
-    await said(ana, "create_movie", { ...agreeing, viewing: "seen" });
 
     // (C) And the case the false claims were made about: a saved Movie beside a
     // standing verdict. Two roots about one film, which is the ordinary shape
@@ -695,13 +723,12 @@ describe("the verdict tools", () => {
     // pins the whole payload: the four sections that were always there, and one
     // constant. A fifth field — a count of saved films, a "conflicts" flag, a
     // hint — fails here rather than being discovered in a sweep.
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", {
       film: f,
       told: "volunteered",
       said: { about: "judgement", judgement: "liked" },
     });
-    await said(ana, "create_movie", { ...f, viewing: "seen" });
 
     const answer = await said(ana, "get_verdicts", { film: f });
     assert.deepEqual(
@@ -759,7 +786,7 @@ describe("the verdict tools", () => {
   test("stripping the handles did not change what the answer means", async () => {
     // The ordering they exist for still works: two acts inside one millisecond
     // resolve by the order the store accepted them, and the answer says so.
-    const f = film();
+    const f = await filed(ana);
     await said(ana, "record_verdict", {
       film: f,
       told: "volunteered",
@@ -776,5 +803,176 @@ describe("the verdict tools", () => {
     };
     assert.equal(answer.current.assertion.judgement, "disliked", "call order stopped deciding");
     assert.equal(answer.history.length, 2);
+  });
+
+  /* ------------------------------------------- a liked or loved needs a vibe */
+
+  describe("a liked or loved is kept only for a film in a vibe", () => {
+    let cleo: Record<string, Tool>;
+    let n = 0;
+    const named = () => ({ title: `Unfiled ${String(++n)}`, year: 2016 });
+    const loved = (f: object, because?: string) => ({
+      film: f,
+      told: "volunteered",
+      said: { about: "judgement", judgement: "loved", ...(because === undefined ? {} : { because }) },
+    });
+
+    before(async () => {
+      cleo = toolsFor("google:cleo");
+      await said(cleo, "create_genre", { name: "Slow burn", instruction: "Patient films that earn their ending." });
+    });
+
+    test("an unsaved film: nothing is written, and the answer says what to do", async () => {
+      const f = named();
+      const before = JSON.stringify(await said(cleo, "get_taste"));
+      const result = (await call(cleo, "record_verdict", loved(f, "the ending earns it"))) as {
+        isError?: boolean;
+        content?: { type: string; text: string }[];
+        structuredContent?: Record<string, unknown>;
+      };
+
+      assert.equal(result.isError, true, "a liked or loved on an unfiled film was not refused");
+      const next = result.structuredContent?.next;
+      assert.equal(typeof next, "string");
+      assert.deepEqual(result.structuredContent, {
+        saved: false,
+        reason: "vibe_required",
+        film: f,
+        movie: null,
+        retry: { tool: "record_verdict", arguments: loved(f, "the ending earns it") },
+        next,
+      });
+      // The same answer in the text, for a host that shows the model only that.
+      assert.deepEqual(JSON.parse(result.content?.[0]?.text ?? "null"), result.structuredContent);
+
+      // What it tells the agent to do: an existing vibe first, a minimal sentence
+      // change only on their yes, otherwise one recommendation and two
+      // alternatives, then the same call again.
+      assert.match(next as string, /Nothing was written/u);
+      assert.match(next as string, /if one of their vibes fits/u);
+      assert.match(next as string, /exact minimal new wording[^.]*only on their yes to those words/u);
+      assert.match(next as string, /one recommended new vibe and two meaningfully different alternatives/u);
+      assert.match(next as string, /call record_verdict again with retry\.arguments/u);
+      assert.match(next as string, /If they decline, it stays unsaved/u);
+
+      assert.deepEqual((await standing(cleo, f)).history, [], "a refused verdict was written anyway");
+      assert.equal(JSON.stringify(await said(cleo, "get_taste")), before, "the refusal moved the taste model");
+    });
+
+    test("a saved film in no vibe: the answer carries the saved film and its viewing", async () => {
+      const f = named();
+      await said(cleo, "create_movie", { ...f, viewing: "want-to-see" });
+      const result = await call(cleo, "record_verdict", {
+        film: f,
+        told: "confirmed",
+        said: { about: "judgement", judgement: "liked" },
+      });
+      assert.equal(result.isError, true);
+      assert.deepEqual(result.structuredContent?.movie, { ...f, viewing: "want-to-see" });
+      assert.deepEqual((result.structuredContent?.retry as { arguments: unknown }).arguments, {
+        film: f,
+        told: "confirmed",
+        said: { about: "judgement", judgement: "liked" },
+      });
+      assert.deepEqual((await standing(cleo, f)).history, []);
+    });
+
+    test("filed, the same call is kept — as a core, or as a member — with their words and how they said it", async () => {
+      const f = named();
+      const refused = await call(cleo, "record_verdict", loved(f, "every shot is patient"));
+      const retry = (refused.structuredContent?.retry as { arguments: Record<string, unknown> }).arguments;
+
+      await said(cleo, "create_vibe", {
+        name: "Patient Light",
+        genres: ["Slow burn"],
+        instruction: "Films that take their time and pay it back.",
+        core: f,
+      });
+      const kept = (await said(cleo, "record_verdict", retry)) as unknown as {
+        verdict: { told: string; assertion: { judgement: string; because: string } };
+      };
+      assert.equal(kept.verdict.told, "volunteered");
+      assert.deepEqual(
+        { judgement: kept.verdict.assertion.judgement, because: kept.verdict.assertion.because },
+        { judgement: "loved", because: "every shot is patient" },
+      );
+
+      // And a further film, filed by update_movie, spelled differently.
+      const g = named();
+      await said(cleo, "create_movie", { ...g, viewing: "seen" });
+      assert.equal((await call(cleo, "record_verdict", loved(g))).isError, true);
+      await said(cleo, "update_movie", { ...g, vibes: ["Patient Light"] });
+      await said(cleo, "record_verdict", loved({ title: `  ${g.title.toUpperCase()}  `, year: g.year }));
+      assert.equal((await standing(cleo, g)).current?.assertion?.judgement, "loved");
+    });
+
+    test("a dislike needs no vibe and no saved film", async () => {
+      const f = named();
+      await said(cleo, "record_verdict", {
+        film: f,
+        told: "volunteered",
+        said: { about: "judgement", judgement: "disliked" },
+      });
+      assert.equal((await standing(cleo, f)).current?.assertion?.judgement, "disliked");
+    });
+
+    test("a liked or loved film cannot be taken out of its last vibe, nor its last vibe deleted", async () => {
+      const f = named();
+      await said(cleo, "create_vibe", {
+        name: "Last Shelf",
+        genres: ["Slow burn"],
+        instruction: "The one place this film lives.",
+        core: named(),
+      });
+      await said(cleo, "create_movie", { ...f, viewing: "seen", vibes: ["Last Shelf"] });
+      await said(cleo, "record_verdict", loved(f));
+      const before = JSON.stringify(await said(cleo, "get_taste"));
+
+      const unfiled = await call(cleo, "update_movie", { ...f, vibes: [] });
+      assert.equal(unfiled.isError, true, "a loved film was taken out of its last vibe");
+      assert.match(JSON.stringify(unfiled), /is loved, and a film they like or love stays in at least one vibe/u);
+
+      const deleted = await call(cleo, "delete_vibe", { name: "Last Shelf" });
+      assert.equal(deleted.isError, true, "the last vibe of a loved film was deleted");
+      assert.match(JSON.stringify(deleted), new RegExp(`would leave \\\\"${f.title}\\\\" \\(2016, loved\\) in no vibe`, "u"));
+      assert.equal(JSON.stringify(await said(cleo, "get_taste")), before, "a refused write changed something");
+
+      // Moving it is never refused, and once it is elsewhere the vibe can go.
+      await said(cleo, "update_movie", { ...f, vibes: ["Patient Light"] });
+      await said(cleo, "delete_vibe", { name: "Last Shelf" });
+
+      // Nor is anything refused once it no longer stands as liked or loved.
+      await said(cleo, "record_verdict", { film: f, told: "confirmed", said: { about: "judgement", judgement: "disliked" } });
+      await said(cleo, "update_movie", { ...f, vibes: [] });
+    });
+
+    test("forgetting is never refused, even when it lets a loved stand for a film in no vibe", async () => {
+      // A known limit of the rule, pinned: forgetting must always work, and its
+      // answer is a constant, so it cannot refuse or report on what it reinstates.
+      const f = named();
+      await said(cleo, "create_vibe", {
+        name: "Brief Stay",
+        genres: ["Slow burn"],
+        instruction: "Somewhere to keep it for a moment.",
+        core: named(),
+      });
+      await said(cleo, "create_movie", { ...f, viewing: "seen", vibes: ["Brief Stay"] });
+      await said(cleo, "record_verdict", loved(f));
+      const taken = (await said(cleo, "withdraw_verdict", { film: f })) as unknown as { withdrawal: { ref: string } };
+      await said(cleo, "update_movie", { ...f, vibes: [] });
+
+      const gone = await said(cleo, "forget_verdict", { ref: taken.withdrawal.ref });
+      assert.deepEqual(gone, { forgotten: taken.withdrawal.ref, writeScope: "verdict-act-only", otherRoots: "unchanged" });
+      assert.equal((await standing(cleo, f)).current?.assertion?.judgement, "loved");
+    });
+
+    test("the descriptions say the rule where it is acted on", () => {
+      assert.match(cleo.record_verdict!.description ?? "", /\*\*A liked or loved needs a vibe\.\*\*/u);
+      assert.match(cleo.record_verdict!.description ?? "", /`reason: "vibe_required"`/u);
+      assert.match(cleo.record_verdict!.description ?? "", /`disliked` needs no vibe and no saved film/u);
+      assert.match(cleo.update_movie!.description ?? "", /Nor can a film they like or love be taken out of its last vibe/u);
+      assert.match(cleo.delete_vibe!.description ?? "", /the one refusal is for a film they like or love that is in no other vibe/u);
+      assert.doesNotMatch(cleo.delete_vibe!.description ?? "", /Always allowed/u);
+    });
   });
 });

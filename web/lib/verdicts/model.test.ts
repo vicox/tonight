@@ -5,7 +5,9 @@ import { readFileSync } from "node:fs";
 import {
   current,
   filmKey,
+  isPositive,
   JUDGEMENTS,
+  POSITIVE,
   MAX_REASON_LENGTH,
   MAX_TITLE_LENGTH,
   NOT_A_VERDICT,
@@ -397,6 +399,12 @@ test("a verdict is about a film named by title and year", () => {
     () => loved("2026-01-01T20:00:00.000Z", { title: "x".repeat(MAX_TITLE_LENGTH + 1), year: 2013 }),
     VerdictError,
   );
+});
+
+test("liked and loved are the positive judgements, and disliked is not", () => {
+  assert.deepEqual([...POSITIVE], ["liked", "loved"]);
+  assert.deepEqual(JUDGEMENTS.filter(isPositive), ["liked", "loved"]);
+  assert.equal(isPositive("disliked"), false);
 });
 
 /* ------------------------------------------------------------------ the boundary */

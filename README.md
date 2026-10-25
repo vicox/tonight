@@ -164,12 +164,12 @@ method ships in the skill beside the server rather than as a runtime tool.
 | `update_genre` | reword or rename. A rename rewrites every Vibe built from it |
 | `delete_genre` | refused while a Vibe is built from it, and the refusal names the Vibes |
 | `create_vibe` | a Vibe over one or more existing Genres, anchored on the one film that best embodies it |
-| `update_vibe` | reword, rename, replace the Genres it is built from, or anchor it on a new core |
-| `delete_vibe` | always allowed; the Genres it combined are untouched |
+| `update_vibe` | reword (a minimal change only on their yes to the exact words), rename, replace the Genres it is built from, or anchor it on a new core |
+| `delete_vibe` | refused only when it would leave a film they like or love in no Vibe; the Genres it combined are untouched |
 | `create_movie` | a film the user named, and whether they said they watched it |
-| `update_movie` | retitle, correct the year, change its viewing, or change which Vibes it is in — never out of one it anchors |
+| `update_movie` | retitle, correct the year, change its viewing, or change which Vibes it is in — never out of one it anchors, and never a liked or loved film out of its last one |
 | `delete_movie` | removes the film they asked to remove, and every verdict about it; refused while it anchors a Vibe; the Vibes it was in are untouched |
-| `record_verdict` | what they said about one film: liked, loved or disliked. A turn-down is refused and routed to the film's viewing |
+| `record_verdict` | what they said about one film: liked, loved or disliked. A liked or loved is kept only for a film in at least one Vibe — otherwise nothing is written and the answer is `vibe_required`, with the call to retry once the film is filed. A turn-down is refused and routed to the film's viewing |
 | `withdraw_verdict` | they no longer stand by it. The claim stops applying; that they said it stays |
 | `forget_verdict` | one act removed outright, by the reference `get_memory` gave it |
 | `get_verdicts` | everything said about one film, and which of it stands now |

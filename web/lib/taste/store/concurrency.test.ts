@@ -3,7 +3,9 @@ import test, { after, before, describe, type TestContext } from "node:test";
 
 import type { SqlDriver } from "../../db/driver.ts";
 import { migrate, type SchemaModule } from "../../db/migrate.ts";
-import { TasteError } from "../model.ts";
+import { stateVerdict } from "../../verdicts/model.ts";
+import { sqlVerdictStore, VERDICTS_SCHEMA } from "../../verdicts/store/sql.ts";
+import { TasteError, VibeRequired } from "../model.ts";
 import { TASTE_SCHEMA } from "./schema.ts";
 import { sqlTasteStore } from "./sql.ts";
 
@@ -1046,5 +1048,161 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const [vibe] = (await sqlTasteStore(retitling, owner).taste()).vibes;
     assert.deepEqual(vibe!.core, { title: "Arrival (Director's Cut)", year: 2016 });
     assert.deepEqual(vibe!.movies, [{ title: "Arrival (Director's Cut)", year: 2016 }]);
+  });
+
+  /* ------------------------------------------- a liked or loved and its last vibe */
+
+  /**
+   * The same connection, stopped just after its first statement matching `at`,
+   * until it is let go — `pausingAfterFilings`, for any statement.
+   */
+  function pausingAfter(t: TestContext, driver: SqlDriver, at: RegExp) {
+    let release!: () => void;
+    let reached!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const arrived = new Promise<void>((resolve) => (reached = resolve));
+    t.after(() => release());
+    let paused = false;
+    const stopped: SqlDriver = {
+      ...driver,
+      transaction: (work) =>
+        driver.transaction((tx) =>
+          work({
+            exec: (sql) => tx.exec(sql),
+            async query<Row>(sql: string, params?: readonly unknown[]) {
+              const rows = await tx.query<Row>(sql, params);
+              if (!paused && at.test(sql)) {
+                paused = true;
+                reached();
+                await gate;
+              }
+              return rows;
+            },
+          }),
+        ),
+    };
+    return { driver: stopped, arrived, release: () => release() };
+  }
+
+  /**
+   * One film, filed in exactly one vibe (as a member), and a second vibe it is
+   * not in — the shape every race below starts from. Verdicts are cleared for
+   * the owner too, since `fresh` reaches only the taste tables.
+   */
+  async function lastVibe(driver: SqlDriver, mark: string) {
+    await migrate(driver, VERDICTS_SCHEMA);
+    const owner = await fresh(driver, mark);
+    await driver.query(`DELETE FROM tonight_verdict_acts WHERE user_id = $1`, [owner.id]);
+    const store = sqlTasteStore(driver, owner);
+    await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
+    await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: { title: "Moon", year: 2009 } });
+    await store.createMovie({ ...ARRIVAL, viewing: "seen", vibes: ["Space Tension"] });
+    return owner;
+  }
+
+  const loved = () =>
+    stateVerdict(ARRIVAL, { about: "judgement", judgement: "loved" }, "volunteered", new Date().toISOString());
+  const rule = { positiveNeedsVibe: true };
+
+  /** What the race left: Arrival's vibes, and what stands about it. */
+  async function outcome(driver: SqlDriver, owner: { id: string }) {
+    const taste = await sqlTasteStore(driver, owner).taste();
+    const film = taste.movies.find((one) => one.title === ARRIVAL.title);
+    const standing = (await sqlVerdictStore(driver, owner as never).standing()).filter(
+      (one) => one.title === ARRIVAL.title,
+    );
+    return { vibes: film?.vibes ?? [], standing: standing.map((one) => one.judgement) };
+  }
+
+  test("a loved said first, then its film taken out of its last vibe: the unfiling is refused", async (t) => {
+    const saying = await connection();
+    const unfiling = await connection();
+    const owner = await lastVibe(saying, "loved-then-unfiled");
+
+    // Stopped after it has held the film and found it filed, before it writes.
+    const paused = pausingAfter(t, saying, /\btonight_mix_movies\b/);
+    const save = watch(sqlTasteStore(paused.driver, owner).sayFiled(loved()));
+    await paused.arrived;
+
+    const unfile = watch(sqlTasteStore(unfiling, owner).updateMovie(ARRIVAL.title, ARRIVAL.year, { vibes: [] }, rule));
+    await pause(SETTLE);
+    assert.equal(unfile.state.settled, false, "the unfiling did not wait for the save; this proves nothing");
+
+    paused.release();
+    await save.done;
+    await unfile.done;
+    assert.equal(save.state.error, undefined);
+    assert.ok(unfile.state.error instanceof TasteError, "the unfiling was not refused");
+    assert.match((unfile.state.error as Error).message, /is loved, and a film they like or love stays in at least one vibe/);
+    assert.deepEqual(await outcome(unfiling, owner), { vibes: ["Space Tension"], standing: ["loved"] });
+  });
+
+  test("a film taken out of its last vibe first, then a loved said: the loved is refused", async (t) => {
+    const unfiling = await connection();
+    const saying = await connection();
+    const owner = await lastVibe(unfiling, "unfiled-then-loved");
+
+    // Stopped after it has held the film and found no liked or loved, before it unfiles.
+    const paused = pausingAfter(t, unfiling, /\btonight_verdict_acts\b/);
+    const unfile = watch(
+      sqlTasteStore(paused.driver, owner).updateMovie(ARRIVAL.title, ARRIVAL.year, { vibes: [] }, rule),
+    );
+    await paused.arrived;
+
+    const save = watch(sqlTasteStore(saying, owner).sayFiled(loved()));
+    await pause(SETTLE);
+    assert.equal(save.state.settled, false, "the save did not wait for the unfiling; this proves nothing");
+
+    paused.release();
+    await unfile.done;
+    await save.done;
+    assert.equal(unfile.state.error, undefined);
+    assert.ok(save.state.error instanceof VibeRequired, "the loved was written for a film in no vibe");
+    assert.deepEqual(await outcome(saying, owner), { vibes: [], standing: [] });
+  });
+
+  test("a loved said first, then its last vibe deleted: the deletion is refused", async (t) => {
+    const saying = await connection();
+    const deleting = await connection();
+    const owner = await lastVibe(saying, "loved-then-deleted");
+
+    const paused = pausingAfter(t, saying, /\btonight_mix_movies\b/);
+    const save = watch(sqlTasteStore(paused.driver, owner).sayFiled(loved()));
+    await paused.arrived;
+
+    const deletion = watch(sqlTasteStore(deleting, owner).deleteVibe("Space Tension", rule));
+    await pause(SETTLE);
+    assert.equal(deletion.state.settled, false, "the deletion did not wait for the save; this proves nothing");
+
+    paused.release();
+    await save.done;
+    await deletion.done;
+    assert.equal(save.state.error, undefined);
+    assert.ok(deletion.state.error instanceof TasteError, "the deletion was not refused");
+    assert.match((deletion.state.error as Error).message, /would leave "Arrival" \(2016, loved\) in no vibe/);
+    assert.deepEqual(await outcome(deleting, owner), { vibes: ["Space Tension"], standing: ["loved"] });
+  });
+
+  test("a film's last vibe deleted first, then a loved said: the loved is refused", async (t) => {
+    const deleting = await connection();
+    const saying = await connection();
+    const owner = await lastVibe(deleting, "deleted-then-loved");
+
+    // Stopped after it holds every filed film and the vibe and found no liked or
+    // loved among them, before it deletes.
+    const paused = pausingAfter(t, deleting, /\btonight_verdict_acts\b/);
+    const deletion = watch(sqlTasteStore(paused.driver, owner).deleteVibe("Space Tension", rule));
+    await paused.arrived;
+
+    const save = watch(sqlTasteStore(saying, owner).sayFiled(loved()));
+    await pause(SETTLE);
+    assert.equal(save.state.settled, false, "the save did not wait for the deletion; this proves nothing");
+
+    paused.release();
+    await deletion.done;
+    await save.done;
+    assert.equal(deletion.state.error, undefined);
+    assert.ok(save.state.error instanceof VibeRequired, "the loved was written for a film in no vibe");
+    assert.deepEqual(await outcome(saying, owner), { vibes: [], standing: [] });
   });
 });

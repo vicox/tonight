@@ -122,24 +122,26 @@ async function call(bearer, name, args = {}) {
 /**
  * Empties a fixture user, so seeding is idempotent, and does it on every run.
  *
- * Vibes, then movies, then genres — the order the dependencies come apart in.
- * Deleting a vibe releases its core (a film that anchors a vibe cannot be
- * deleted), its memberships, and the genres it holds `RESTRICT`ed; the movies are
- * then ordinary films; the genres are then referenced by nothing.
+ * Verdicts, then vibes, then movies, then genres — the order the dependencies
+ * come apart in. What was said goes first because `delete_vibe` refuses to leave
+ * a liked or loved film in no vibe. Deleting a vibe releases its core (a film
+ * that anchors a vibe cannot be deleted), its memberships, and the genres it
+ * holds `RESTRICT`ed; the movies are then ordinary films; the genres are then
+ * referenced by nothing.
  */
 async function clear(bearer) {
-  const taste = (await call(bearer, "get_taste")).structuredContent;
-  for (const vibe of taste.vibes) await call(bearer, "delete_vibe", { name: vibe.name });
-  for (const movie of taste.movies) await call(bearer, "delete_movie", { title: movie.title, year: movie.year });
-  for (const genre of taste.genres) await call(bearer, "delete_genre", { name: genre.name });
-
-  // Verdicts too, and they are a second store: a run that began with the last
-  // fixture's opinions still standing would not be a run of this fixture. They
-  // are reached by reference, which is what `get_memory` hands out.
+  // Verdicts are a second store: a run that began with the last fixture's
+  // opinions still standing would not be a run of this fixture. They are reached
+  // by reference, which is what `get_memory` hands out.
   const memory = (await call(bearer, "get_memory")).structuredContent;
   for (const root of [...memory.held, ...memory.remembered]) {
     if (root.of === "verdict") await call(bearer, "forget_verdict", { ref: root.handle.ref });
   }
+
+  const taste = (await call(bearer, "get_taste")).structuredContent;
+  for (const vibe of taste.vibes) await call(bearer, "delete_vibe", { name: vibe.name });
+  for (const movie of taste.movies) await call(bearer, "delete_movie", { title: movie.title, year: movie.year });
+  for (const genre of taste.genres) await call(bearer, "delete_genre", { name: genre.name });
 }
 
 /** What `get_taste` answers for a fixture's user, right now. */

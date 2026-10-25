@@ -1,4 +1,4 @@
-import type { SqlDriver } from "../../db/driver.ts";
+import type { SqlDriver, Transaction } from "../../db/driver.ts";
 import type { AuthenticatedUser } from "../../identity.ts";
 import {
   standing,
@@ -74,36 +74,7 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
 
   return {
     async say(act: Act): Promise<Identified<Act>> {
-      // Revalidated rather than trusted. `say` is a boundary — an act can reach
-      // it from a request body as easily as from a constructor — and the model
-      // is where "valid" is defined.
-      const checked = check(act);
-      const judgement = checked.said === "verdict" ? checked.assertion : null;
-
-      // `seq` is deliberately absent from the column list: it is allocated by
-      // the sequence behind its default, so nothing a caller sends can choose or
-      // forge a place in the order. So are `occasion`, `reach` and `reason`,
-      // which only a refusal ever filled and which the schema now holds empty.
-      const [row] = await driver.query<ActRow>(
-        `INSERT INTO tonight_verdict_acts
-                (user_id, said, title, year, said_at, told, about, judgement, because)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           RETURNING id, said, title, year, occasion, said_at,
-                     told, about, judgement, because, seq`,
-        [
-          owner,
-          checked.said,
-          checked.film.title,
-          checked.film.year,
-          checked.at,
-          checked.said === "verdict" ? checked.told : null,
-          judgement?.about ?? null,
-          judgement?.judgement ?? null,
-          judgement?.because ?? null,
-        ],
-      );
-      if (!row) throw new VerdictError("What they said was not written down.");
-      return assemble(row);
+      return writeAct(driver, owner, act);
     },
 
     async history(film: Film): Promise<Identified<Act>[]> {
@@ -155,6 +126,86 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
       );
     },
   };
+}
+
+/**
+ * Appends one act for one user, on whatever connection it is handed.
+ *
+ * What `say` does, and exported for the one caller that has to do it inside a
+ * transaction of its own: the taste store, which writes a liked or loved in the
+ * same transaction as it confirms the film is filed. Everything about the act
+ * is still decided here — it is rebuilt through the model's constructors, and
+ * inserted the one way this module inserts — so a second writer adds no second
+ * definition of what may be written.
+ *
+ * `seq` is deliberately absent from the column list: it is allocated by the
+ * sequence behind its default, so nothing a caller sends can choose or forge a
+ * place in the order. So are `occasion`, `reach` and `reason`, which only a
+ * refusal ever filled and which the schema now holds empty.
+ */
+export async function writeAct(sql: Transaction, owner: string, act: Act): Promise<Identified<Act>> {
+  // Revalidated rather than trusted. This is a boundary — an act can reach it
+  // from a request body as easily as from a constructor — and the model is
+  // where "valid" is defined.
+  const checked = check(act);
+  const judgement = checked.said === "verdict" ? checked.assertion : null;
+  const [row] = await sql.query<ActRow>(
+    `INSERT INTO tonight_verdict_acts
+            (user_id, said, title, year, said_at, told, about, judgement, because)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, said, title, year, occasion, said_at,
+                 told, about, judgement, because, seq`,
+    [
+      owner,
+      checked.said,
+      checked.film.title,
+      checked.film.year,
+      checked.at,
+      checked.said === "verdict" ? checked.told : null,
+      judgement?.about ?? null,
+      judgement?.judgement ?? null,
+      judgement?.because ?? null,
+    ],
+  );
+  if (!row) throw new VerdictError("What they said was not written down.");
+  return assemble(row);
+}
+
+/**
+ * What stands about these films, on whatever connection it is handed.
+ *
+ * `standing`, narrowed to a few films and run inside a caller's transaction:
+ * the taste store asks it while it holds those films, before taking one out of
+ * its last vibe. Exported from here rather than written there because which
+ * verdict stands is this module's rule — the rows are rebuilt by `assemble`
+ * and resolved by the model's `standing`, exactly as `standing` above resolves
+ * them — and a second implementation in the taste store would be free to
+ * disagree.
+ *
+ * The year narrows the read; `filmKey` decides which acts are one film's.
+ */
+export async function standingWithin(
+  sql: Transaction,
+  owner: string,
+  films: readonly Film[],
+): Promise<Standing[]> {
+  const wanted = new Set(films.map(filmKey));
+  if (!wanted.size) return [];
+
+  const rows = await sql.query<ActRow>(
+    `SELECT id, said, title, year, occasion, said_at,
+            told, about, judgement, because, seq
+       FROM tonight_verdict_acts
+      WHERE user_id = $1 AND year = ANY($2::int[])`,
+    [owner, [...new Set(films.map((film) => film.year))]],
+  );
+
+  const byFilm = new Map<string, Act[]>();
+  for (const act of rows.map(assemble)) {
+    const key = filmKey(act.film);
+    if (wanted.has(key)) byFilm.set(key, [...(byFilm.get(key) ?? []), act]);
+  }
+  return [...byFilm.values()].flatMap((acts) => standing(acts));
 }
 
 type ActRow = {

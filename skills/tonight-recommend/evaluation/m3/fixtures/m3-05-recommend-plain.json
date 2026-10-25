@@ -2,6 +2,7 @@
   "id": "m3-05-recommend-plain",
   "title": "The same recommendation evidence, with nothing remembered beside it",
   "user": "google:eval-m3-05-recommend-plain",
+  "seed": "pre-vibe-rule",
   "families": [
     "J"
   ],

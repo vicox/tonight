@@ -16,7 +16,7 @@ import {
   type Film,
 } from "./model.ts";
 import type { VerdictStore } from "./store.ts";
-import { sqlVerdictStore, VERDICTS_SCHEMA } from "./store/sql.ts";
+import { sqlVerdictStore, standingWithin, VERDICTS_SCHEMA, writeAct } from "./store/sql.ts";
 
 /**
  * The verdict store, held to one question: does a claim mean the same thing
@@ -59,6 +59,57 @@ describe("the verdict store", () => {
   let next = 0;
   const film = (): Film => ({ title: `Subject ${String(++next)}`, year: 2013 });
   const about = (f: Film, act: Act): Act => ({ ...act, film: f }) as Act;
+
+  /* ------------------------------------- read and written inside a caller's transaction */
+
+  test("what stands about a few films, asked inside a transaction, is what standing says", async () => {
+    // `standingWithin` is how the taste store asks, while it holds the films,
+    // whether a liked or loved stands. It must answer exactly as `standing` does,
+    // and only for the films it was asked about and only for this account.
+    const [loved, corrected, withdrawn, other] = [film(), film(), film(), film()];
+    await ana.say(about(loved, judged("loved", "2026-01-01T20:00:00.000Z")));
+    await ana.say(about(corrected, judged("loved", "2026-01-01T20:00:00.000Z")));
+    await ana.say(about(corrected, judged("disliked", "2026-01-01T20:01:00.000Z")));
+    await ana.say(about(withdrawn, judged("liked", "2026-01-01T20:00:00.000Z")));
+    await ana.say(withdrawVerdict(withdrawn, "2026-01-01T20:01:00.000Z"));
+    await ana.say(about(other, judged("loved", "2026-01-01T20:00:00.000Z")));
+    await ben.say(about(withdrawn, judged("loved", "2026-01-01T20:02:00.000Z")));
+
+    const asked = [{ ...loved, title: ` ${loved.title.toUpperCase()} ` }, corrected, withdrawn];
+    const within = await driver.transaction((tx) => standingWithin(tx, "google:ana", asked));
+    const everything = await ana.standing();
+    assert.deepEqual(
+      within.map((one) => `${one.title} ${one.judgement}`).sort(),
+      [`${corrected.title} disliked`, `${loved.title} loved`].sort(),
+    );
+    for (const one of within) {
+      assert.deepEqual(one, everything.find((held) => held.title === one.title), "answered differently from standing");
+    }
+    assert.deepEqual(await driver.transaction((tx) => standingWithin(tx, "google:ana", [])), []);
+  });
+
+  test("writing an act inside a transaction is the same write as say, and goes with a rollback", async () => {
+    const f = film();
+    const given = await driver.transaction((tx) =>
+      writeAct(tx, "google:ana", about(f, judged("liked", "2026-01-01T20:00:00.000Z", "the same words"))),
+    );
+    assert.deepEqual(await ana.history(f), [given]);
+
+    const g = film();
+    await assert.rejects(
+      driver.transaction(async (tx) => {
+        await writeAct(tx, "google:ana", about(g, judged("liked", "2026-01-01T20:00:00.000Z")));
+        throw new Error("rolled back");
+      }),
+      /rolled back/,
+    );
+    assert.deepEqual(await ana.history(g), [], "a rolled-back act was kept");
+    // And it is checked exactly as say checks one.
+    await assert.rejects(
+      driver.transaction((tx) => writeAct(tx, "google:ana", { ...judged("liked", "2026-01-01T20:00:00.000Z"), claimant: "agent" } as unknown as Act)),
+      VerdictError,
+    );
+  });
 
   /* ------------------------------------------------------------- round trip */
 
