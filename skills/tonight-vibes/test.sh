@@ -468,23 +468,39 @@ echo
 echo "--- M6: a film they have not seen never anchors a Vibe ---"
 
 # docs/work/m6/PLAN.md §2.2, and M7's My List. The store refuses a core whose
-# saved viewing is anything but seen; it reads that raw fact alone, so the skill
-# says what follows when a standing judgement disagrees with it, and that a
-# viewing is never written to get past the refusal.
+# saved viewing is anything but seen — now or before; it reads that raw fact
+# alone, so the skill says what follows when a standing judgement disagrees with
+# it, and that a viewing is never written to get past the refusal.
 check "the one check Tonight makes is named, and the rest is still a judgement" \
     "$(order_check 'nothing in Tonight checks it — with the one exception below' \
-        '**A film whose saved viewing is not `seen` is refused as a core.**' \
+        '**A film whose saved viewing is neither `seen-now` nor `seen-before` is refused as a core.**' \
         'it checks that saved fact alone')" "True"
 check "a film they have not seen may sit in a Vibe, and never anchors it" \
     "$(order_check 'A film they have not seen may still sit in a Vibe' \
         'a candidate for that kind of evening' 'never anchors it')" "True"
-check "a core the anchoring saves is saved as seen" \
-    "$(order_check '**A core that is not saved yet is saved as `seen`**')" "True"
+# Seen now and seen before: a core the anchoring saves is saved as the value read
+# from what they said, by the one rule the recommend skill states — with any
+# question about when folded into the Vibe's own — and seen-before left out.
+check "a core the anchoring saves is saved as its core.viewing, by the rule, seen-before without" \
+    "$(order_check '**A core that is not saved yet is saved as its `core.viewing`**' \
+        '`seen-now` or `seen-before`, read from what they said by the viewing rule in' \
+        '**tonight-recommend**' \
+        'a question about when folded into the one you are putting about the Vibe' \
+        'Left out, it is `seen-before`' \
+        'A saved film keeps its own viewing')" "True"
 check "a liked or loved does not override the list: ask once, and write only on a yes" \
     "$(order_check '**A standing `liked` or `loved` does not override `want-to-see` or `dont-want-to-see`.**' \
         'only they can settle two things they said that' 'disagree' \
-        'ask once whether they have seen it' 'On a yes, record' '`seen` with `update_movie`, then anchor' \
+        'ask once whether they have seen it and, if so, recently or a while ago — one question' \
+        'On a yes, record `seen-now` or `seen-before` with `update_movie`' 'then anchor' \
         'On a no, or no answer, write nothing')" "True"
+check "filing a liked film not saved yet: when is asked inside the Vibe's question" \
+    "$(order_check 'filed by `create_vibe` with it as core and its `core.viewing`' \
+        '`create_movie` with `viewing` `seen-now` or `seen-before` and its Vibes' \
+        'liking it says they watched it, not when' \
+        'that question goes into the one you put about the Vibe')" "True"
+check "no bare seen is written anywhere in the skill" \
+    "$(grep -cE '`seen`|viewing: seen\b' "$SKILL")" "0"
 check "a viewing is never changed to get past the refusal" \
     "$(order_check '**Never change a viewing to get past the refusal**' \
         'not on the strength of a verdict' 'A viewing is written only when they said it')" "True"
@@ -519,7 +535,9 @@ check "the table row carries all three routes" \
 check "the old route to a viewing or an evening is gone" \
     "$(grep -ciE 'a viewing or an evening|written nowhere' "$SKILL")" "0"
 check "going through Vibes re-anchors a core not seen like a missing one" \
-    "$(order_check '**Anchor.**' 'A Vibe whose core reads anything' 'but `seen` is anchored again in the same way, as one with no core')" "True"
+    "$(order_check '**Anchor.**' 'A Vibe whose core reads anything' 'but `seen-now` or `seen-before` is anchored again in the same way, as one with no core')" "True"
+check "a watch last night is seen-now in the table" \
+    "$(order_check '*"I watched it last night."*' 'a viewing, `seen-now`')" "True"
 check "don't recommend it again is a viewing, not a verdict" \
     "$(order_check '*"Stop suggesting it."*' '*"Don'"'"'t recommend it again."*' \
         '`dont-want-to-see` on the film — a viewing, not a verdict')" "True"

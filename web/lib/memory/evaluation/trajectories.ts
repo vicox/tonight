@@ -36,7 +36,7 @@
  */
 
 export type Film = { title: string; year: number };
-export type Viewing = "seen" | "want-to-see" | "dont-want-to-see";
+export type Viewing = "seen-now" | "seen-before" | "want-to-see" | "dont-want-to-see";
 export type Told = "volunteered" | "confirmed";
 /** A film as Tonight put it forward: an element of `offered`. */
 export type Offer = { title: string; year: number; lead: boolean };
@@ -157,8 +157,8 @@ export const TRAJECTORIES: readonly Trajectory[] = [
       // One film with everything a film can carry, and one with none of it, so
       // that empty membership and empty identifiers are proved to be empty
       // rather than assumed.
-      { act: "movie", film: heat95, viewing: "seen", imdbId: "tt0113277", vibes: ["Long Nights"] },
-      { act: "movie", film: zodiac, viewing: "seen" },
+      { act: "movie", film: heat95, viewing: "seen-before", imdbId: "tt0113277", vibes: ["Long Nights"] },
+      { act: "movie", film: zodiac, viewing: "seen-before" },
       { act: "evening", request: "something tense", offered: [offer(heat95, true), offer(zodiac)] },
       { act: "outcome", offers: [{ ...heat95, chosen: true, started: true }] },
     ],
@@ -192,7 +192,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "a-verdict-beside-a-saved-film",
     proves: "a film and what they said about it are two roots, both held, neither overriding the other",
     steps: [
-      { act: "movie", film: blackBag, viewing: "seen" },
+      { act: "movie", film: blackBag, viewing: "seen-before" },
       { act: "verdict", film: blackBag, told: "volunteered", judgement: "disliked" },
     ],
   },
@@ -224,7 +224,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "forget-the-first",
     proves: "removing the earliest thing they said leaves the rest, and silence still stands",
     steps: [
-      { act: "movie", film: prisoners, viewing: "seen" },
+      { act: "movie", film: prisoners, viewing: "seen-before" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
       { act: "verdict", film: prisoners, told: "confirmed", judgement: "liked" },
       { act: "withdraw", film: prisoners },
@@ -235,7 +235,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "forget-the-second",
     proves: "removing the later verdict leaves the rest, and silence still stands",
     steps: [
-      { act: "movie", film: prisoners, viewing: "seen" },
+      { act: "movie", film: prisoners, viewing: "seen-before" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
       { act: "verdict", film: prisoners, told: "confirmed", judgement: "liked" },
       { act: "withdraw", film: prisoners },
@@ -246,7 +246,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "forget-the-taking-back",
     proves: "removing the taking-back lets the verdict it silenced stand again",
     steps: [
-      { act: "movie", film: prisoners, viewing: "seen" },
+      { act: "movie", film: prisoners, viewing: "seen-before" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
       { act: "verdict", film: prisoners, told: "confirmed", judgement: "liked" },
       { act: "withdraw", film: prisoners },
@@ -257,7 +257,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "forget-all-of-it",
     proves: "removing everything they said leaves the film as though they never spoke, untouched",
     steps: [
-      { act: "movie", film: prisoners, viewing: "seen" },
+      { act: "movie", film: prisoners, viewing: "seen-before" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
       { act: "verdict", film: prisoners, told: "confirmed", judgement: "liked" },
       { act: "withdraw", film: prisoners },
@@ -297,9 +297,9 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "nothing-was-concluded",
     proves: "a history that invites a pattern produces no root nobody wrote",
     steps: [
-      { act: "movie", film: heat95, viewing: "seen" },
-      { act: "movie", film: zodiac, viewing: "seen" },
-      { act: "movie", film: prisoners, viewing: "seen" },
+      { act: "movie", film: heat95, viewing: "seen-before" },
+      { act: "movie", film: zodiac, viewing: "seen-before" },
+      { act: "movie", film: prisoners, viewing: "seen-before" },
       { act: "evening", request: "something tense", offered: [offer(heat95, true)] },
       { act: "outcome", offers: [{ ...heat95, chosen: true, started: true, finished: true }] },
       { act: "evening", request: "something tense again", offered: [offer(zodiac, true)] },
@@ -312,9 +312,9 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "nothing-was-concluded-control",
     proves: "the same taste with none of those evenings — what the history above must still look like",
     steps: [
-      { act: "movie", film: heat95, viewing: "seen" },
-      { act: "movie", film: zodiac, viewing: "seen" },
-      { act: "movie", film: prisoners, viewing: "seen" },
+      { act: "movie", film: heat95, viewing: "seen-before" },
+      { act: "movie", film: zodiac, viewing: "seen-before" },
+      { act: "movie", film: prisoners, viewing: "seen-before" },
     ],
   },
 
@@ -324,7 +324,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "one-film-many-spellings",
     proves: "case and spacing are how a title was typed, not which film it is — one history, one governor",
     steps: [
-      { act: "movie", film: blackBag, viewing: "seen" },
+      { act: "movie", film: blackBag, viewing: "seen-before" },
       { act: "verdict", film: blackBag, told: "volunteered", judgement: "loved" },
       { act: "verdict", film: { title: " black   bag ", year: 2025 }, told: "confirmed", judgement: "disliked" },
     ],
@@ -333,8 +333,8 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "a-remake-is-another-film",
     proves: "the same title in another year is another film, and a verdict about one says nothing about the other",
     steps: [
-      { act: "movie", film: heat86, viewing: "seen" },
-      { act: "movie", film: heat95, viewing: "seen" },
+      { act: "movie", film: heat86, viewing: "seen-before" },
+      { act: "movie", film: heat95, viewing: "seen-before" },
       { act: "verdict", film: heat86, told: "volunteered", judgement: "disliked" },
     ],
   },
@@ -347,10 +347,10 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     steps: [
       { act: "genre", name: "Slow Burn", instruction: "takes its time" },
       { act: "genre", name: "Bleak Procedural", instruction: "hard work, at a cost" },
-      { act: "movie", film: heat95, viewing: "seen" },
-      { act: "movie", film: zodiac, viewing: "seen" },
-      { act: "movie", film: blackBag, viewing: "seen" },
-      { act: "movie", film: prisoners, viewing: "seen" },
+      { act: "movie", film: heat95, viewing: "seen-before" },
+      { act: "movie", film: zodiac, viewing: "seen-before" },
+      { act: "movie", film: blackBag, viewing: "seen-before" },
+      { act: "movie", film: prisoners, viewing: "seen-before" },
 
       // Something they still say, something they replaced, something they took back.
       { act: "verdict", film: blackBag, told: "volunteered", judgement: "disliked", because: "not what I hoped" },
@@ -413,9 +413,9 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "unicode-is-not-a-collation",
     proves: "İ and i are two films and Ⱟ and ⱟ are one, in every layer at once, because one rule decides and no database does",
     steps: [
-      { act: "movie", film: ISTANBUL_DOTTED, viewing: "seen" },
-      { act: "movie", film: ISTANBUL_PLAIN, viewing: "seen" },
-      { act: "movie", film: GLAGOLITIC_UPPER, viewing: "seen" },
+      { act: "movie", film: ISTANBUL_DOTTED, viewing: "seen-before" },
+      { act: "movie", film: ISTANBUL_PLAIN, viewing: "seen-before" },
+      { act: "movie", film: GLAGOLITIC_UPPER, viewing: "seen-before" },
       // Spoken about in the other case each time: the dotted film must take its
       // verdict alone, and the Glagolitic pair must share one history.
       { act: "verdict", film: ISTANBUL_DOTTED, told: "volunteered", judgement: "disliked", because: "not the one I meant" },
@@ -434,12 +434,12 @@ export const TRAJECTORIES: readonly Trajectory[] = [
  * searching the payload for words that are hers alone would ever notice.
  */
 export const OWNER_HISTORY: readonly Step[] = [
-  { act: "movie", film: blackBag, viewing: "seen" },
+  { act: "movie", film: blackBag, viewing: "seen-before" },
   { act: "verdict", film: blackBag, told: "volunteered", judgement: "disliked", because: "hers alone" },
   { act: "evening", request: "an evening that is hers", offered: [offer(heat95, true)] },
 ];
 
-export const STRANGER_HISTORY: readonly Step[] = [{ act: "movie", film: blackBag, viewing: "seen" }];
+export const STRANGER_HISTORY: readonly Step[] = [{ act: "movie", film: blackBag, viewing: "seen-before" }];
 
 export const UNICODE_FILMS = {
   dotted: ISTANBUL_DOTTED,

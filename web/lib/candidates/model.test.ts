@@ -50,7 +50,7 @@ test("a film Tonight knows nothing about is nothing, and not known to be unseen"
 
 test("every viewing against every judgement gives one status, one seen and one turn-down", () => {
   // `null` for the viewing is a film not on their list at all.
-  const viewings: (Viewing | null)[] = ["seen", "want-to-see", "dont-want-to-see", null];
+  const viewings: (Viewing | null)[] = ["seen-now", "seen-before", "want-to-see", "dont-want-to-see", null];
   const judgements: (Judgement | null)[] = [null, "liked", "loved", "disliked"];
 
   for (const viewing of viewings) {
@@ -67,9 +67,11 @@ test("every viewing against every judgement gives one status, one seen and one t
         viewing !== null ? "saved" : judgement !== null ? "said-only" : "nothing",
         `${what}: status`,
       );
-      // A judgement means they watched it, whatever the list says; only
-      // want-to-see says it is still to see; everything else is not known.
-      const seen = viewing === "seen" || judgement !== null ? true : viewing === "want-to-see" ? false : null;
+      // A judgement means they watched it, whatever the list says, and so does
+      // either seen value; only want-to-see says it is still to see; everything
+      // else is not known. `seen` stays a yes or no: when is not part of it.
+      const watched = viewing === "seen-now" || viewing === "seen-before";
+      const seen = watched || judgement !== null ? true : viewing === "want-to-see" ? false : null;
       assert.equal(found.seen, seen, `${what}: seen`);
       assert.equal(found.neverRecommend, viewing === "dont-want-to-see", `${what}: neverRecommend`);
       assert.equal(found.verdict?.judgement ?? null, judgement, `${what}: verdict`);
@@ -87,21 +89,26 @@ test("every viewing against every judgement gives one status, one seen and one t
   assert.deepEqual([both.seen, both.neverRecommend], [true, true]);
   const disliked = one(heat, { movies: [], standing: [said("Heat", 1995, "disliked")] });
   assert.deepEqual([disliked.status, disliked.seen], ["said-only", true]);
+  // Both seen values are the same `true`, and the movie says which it was.
+  for (const viewing of ["seen-now", "seen-before"] as const) {
+    const saved = one(heat, { movies: [movie("Heat", 1995, viewing)], standing: [] });
+    assert.deepEqual([saved.seen, saved.movie?.viewing], [true, viewing]);
+  }
 });
 
 test("a film is matched by filmKey, and comes back spelled as it was stored", () => {
-  const held = { movies: [movie("The Thing", 1982, "seen", { vibes: ["Cold Dread"] })], standing: [] };
+  const held = { movies: [movie("The Thing", 1982, "seen-before", { vibes: ["Cold Dread"] })], standing: [] };
   const [asked] = askedCandidates([{ title: "  the  THING ", year: 1982 }]);
   const found = checkCandidates([asked!], held)[0]!;
 
   assert.equal(found.status, "saved");
   assert.deepEqual(found.asked, { title: "the THING", year: 1982 }, "asked is the checked spelling");
-  assert.deepEqual(found.movie, { title: "The Thing", year: 1982, imdbId: null, viewing: "seen", vibes: ["Cold Dread"] });
+  assert.deepEqual(found.movie, { title: "The Thing", year: 1982, imdbId: null, viewing: "seen-before", vibes: ["Cold Dread"] });
 });
 
 test("matching is exact: no accent folding and no near titles", () => {
   const held = {
-    movies: [movie("Amélie", 2001, "seen"), movie("Se7en", 1995, "dont-want-to-see")],
+    movies: [movie("Amélie", 2001, "seen-before"), movie("Se7en", 1995, "dont-want-to-see")],
     standing: [],
   };
   assert.equal(one({ title: "Amelie", year: 2001 }, held).status, "nothing");
@@ -109,13 +116,13 @@ test("matching is exact: no accent folding and no near titles", () => {
 });
 
 test("other years of the same title are named, and never merged", () => {
-  const held = { movies: [movie("Dune", 1984, "seen")], standing: [said("dune", 2000, "disliked")] };
+  const held = { movies: [movie("Dune", 1984, "seen-before")], standing: [said("dune", 2000, "disliked")] };
   const found = one({ title: "Dune", year: 2021 }, held);
 
   assert.equal(found.status, "nothing");
   assert.deepEqual(found.otherYears, [1984, 2000]);
   // The asked year is never listed, and a year held twice is listed once.
-  const twice = { movies: [movie("Dune", 1984, "seen")], standing: [said("Dune", 1984, "loved"), said("Dune", 2021, "liked")] };
+  const twice = { movies: [movie("Dune", 1984, "seen-before")], standing: [said("Dune", 1984, "loved"), said("Dune", 2021, "liked")] };
   assert.deepEqual(one({ title: "Dune", year: 2021 }, twice).otherYears, [1984]);
   assert.deepEqual(one({ title: "Dune", year: 1984 }, twice).otherYears, [2021]);
 });
@@ -134,7 +141,7 @@ test("an IMDb id held by a different saved film is named, and never merged", () 
 });
 
 test("one entry per candidate, in the order asked", () => {
-  const held = { movies: [movie("Heat", 1995, "seen")], standing: [] };
+  const held = { movies: [movie("Heat", 1995, "seen-before")], standing: [] };
   const asked = [
     { title: "Moon", year: 2009 },
     { title: "Heat", year: 1995 },
@@ -177,7 +184,7 @@ test("a check that cannot be answered is refused before anything is read", () =>
 
 test("the check is pure: nothing it is given changes, and it answers the same way twice", () => {
   const held = {
-    movies: [movie("Heat", 1995, "seen", { vibes: ["Night Shift"], imdbId: "tt0113277" })],
+    movies: [movie("Heat", 1995, "seen-before", { vibes: ["Night Shift"], imdbId: "tt0113277" })],
     standing: [said("Heat", 1995, "loved", "the diner scene")],
   };
   const asked: Asked[] = [{ title: "Heat", year: 1995, imdbId: "tt0113277" }, { title: "Heat", year: 1986 }];

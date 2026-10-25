@@ -18,7 +18,7 @@ import { contextOf, findMovie, single } from "@/lib/web/screens";
  * which of its vibes it was reached through. A film they have not saved — a
  * verdict about one included — is "not here".
  *
- * It reads and shows. Its five choices post to `/movie/choose`, the website's one
+ * It reads and shows. Its answers post to `/movie/choose`, the website's one
  * write, which answers by sending the browser back here — with `&refused=…`, one
  * of a fixed set of codes, when a press was not kept. See
  * `components/movie-view.tsx` and `lib/web/choose.ts`.

@@ -19,7 +19,7 @@
       }
     ],
     "movies": [
-      { "title": "The Vanishing", "year": 1988, "vibes": ["Quiet Dread"], "viewing": "seen" }
+      { "title": "The Vanishing", "year": 1988, "vibes": ["Quiet Dread"], "viewing": "seen-before" }
     ]
   },
   "acts": [

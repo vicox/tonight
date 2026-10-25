@@ -71,7 +71,7 @@ export function MovieCards({
  */
 function MovieCard({ movie, from }: { movie: Shown; from?: string }) {
   return (
-    <li className="relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 rounded-xl border border-rule bg-screen px-5 py-4 transition-colors hover:border-ink-faint">
+    <li className="relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 rounded-xl border border-rule bg-screen px-5 py-4 transition-colors hover:border-ink-faint" data-viewing={movie.viewing}>
       <span aria-hidden="true" className="col-start-1 row-start-1 self-center text-[12px] text-ink-faint tabular-nums">
         {movie.year}
       </span>

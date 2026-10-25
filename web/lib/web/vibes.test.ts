@@ -34,7 +34,7 @@ const MOVIES: Shown[] = [
   film("Solaris", "loved"),
   film("Stalker", "loved"),
   film("Dune", null, "dont-want-to-see"),
-  film("Heat", null, "seen"),
+  film("Heat", null, "seen-before"),
   film("Nosferatu", null),
   { ...film("Arrival", "loved"), vibes: ["Space Tension"] },
 ];

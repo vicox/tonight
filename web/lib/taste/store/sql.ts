@@ -42,11 +42,13 @@ import {
   type Movie,
   type Viewing,
   type MovieHandle,
+  type NamedCore,
   type Written,
 } from "../model.ts";
-import type { VibeDraft, GenreDraft, TasteStore } from "../store.ts";
-import { isPositive, type Positive } from "../../verdicts/model.ts";
-import { standingWithin, writeAct } from "../../verdicts/store/sql.ts";
+import type { VibeDraft, GenreDraft, HeldFilm, TasteStore } from "../store.ts";
+import { isSeen } from "../../seen.ts";
+import { isPositive, stateVerdict, withdrawVerdict, type Positive } from "../../verdicts/model.ts";
+import { lastSaidWithin, standingWithin, writeAct } from "../../verdicts/store/sql.ts";
 import { TASTE_SCHEMA } from "./schema.ts";
 
 export { TASTE_SCHEMA };
@@ -488,10 +490,11 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         }
 
         // A core is a film they have seen, so a core cannot be marked anything but
-        // `seen`. Asked while this film is held, for the reason the filing check
-        // gives. Only a change is refused: a core already saved some other way is
-        // left as it is until somebody says otherwise.
-        if (entry.viewing !== "seen" && entry.viewing !== current.viewing) {
+        // `seen-now` or `seen-before` — between those two it moves freely. Asked
+        // while this film is held, for the reason the filing check gives. Only a
+        // change is refused: a core already saved some other way is left as it is
+        // until somebody says otherwise.
+        if (!isSeen(entry.viewing) && entry.viewing !== current.viewing) {
           const anchored = await anchoredBy(tx, owner, current.id);
           if (anchored.length) {
             throw movieAnchorsVibe(current.title, current.year, filingNames(anchored), "unsee");
@@ -687,7 +690,82 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         return writeAct(tx, owner, act);
       });
     },
+
+    /**
+     * One press on a film's screen, decided and written under the film's lock.
+     *
+     * `FOR UPDATE` — the lock every write that changes a film takes — before
+     * anything is read, so a refiling, a retitle, a deletion or another press
+     * either committed first and is what `decide` sees, or waits for this one.
+     * Everything is checked before anything is written; the act goes first and
+     * the viewing after it, and a failure in either undoes both.
+     */
+    async choose(film, decide) {
+      await driver.transaction(async (tx) => {
+        const { source: movie } = await lockMovies(tx, owner, {
+          title: checkMovieTitle(film.title),
+          year: checkYear(film.year),
+        });
+        if (!movie) throw movieNotFound(film.title, film.year);
+        const handle = { title: movie.title, year: movie.year };
+
+        const [stands] = await standingWithin(tx, owner, [handle]);
+        const anchored = await anchoredBy(tx, owner, movie.id);
+        const held: HeldFilm = {
+          viewing: movie.viewing,
+          judgement: stands?.judgement ?? null,
+          filed: (await filedUnder(tx, owner, movie.id)).length > 0,
+          core: anchored.length > 0,
+        };
+
+        const write = decide(held);
+        if (write.judgement !== undefined && write.withdraw) {
+          throw new TasteError("one press says an opinion or takes one back, not both");
+        }
+        const viewing = write.viewing === undefined ? undefined : checkViewing(write.viewing);
+        const changing = viewing !== undefined && viewing !== held.viewing;
+        const withdrawing = write.withdraw === true && held.judgement !== null;
+        const saying = write.judgement !== undefined;
+
+        // Checked before anything is written.
+        if (changing && !isSeen(viewing) && held.core) {
+          throw movieAnchorsVibe(movie.title, movie.year, filingNames(anchored), "unsee");
+        }
+        if (saying && isPositive(write.judgement!) && !held.filed) {
+          throw new VibeRequired(handle, { ...handle, viewing: movie.viewing });
+        }
+
+        if (saying || withdrawing) {
+          // Stamped now that the film is held. An act already dated later would
+          // sort after this one and keep standing, so this press could not do
+          // what it says: refused whole, rather than half done.
+          const at = new Date().toISOString();
+          const last = await lastSaidWithin(tx, owner, handle);
+          if (last !== null && last > at) {
+            throw new TasteError(
+              `something about ${handle.title} (${handle.year}) was said after this — reload the film and try again`,
+            );
+          }
+          await writeAct(
+            tx,
+            owner,
+            saying
+              ? stateVerdict(handle, { about: "judgement", judgement: write.judgement }, "confirmed", at)
+              : withdrawVerdict(handle, at),
+          );
+        }
+        if (changing) await setViewing(tx, owner, movie.id, viewing);
+      });
+    },
   };
+}
+
+/**
+ * The one column a choice on a film's screen changes besides a verdict. The
+ * row's own trigger dates it (`tonight_written_at`), as any other update.
+ */
+async function setViewing(sql: Transaction, owner: string, id: string, viewing: Viewing): Promise<void> {
+  await sql.query(`UPDATE tonight_movies SET viewing = $3 WHERE user_id = $1 AND id = $2`, [owner, id, viewing]);
 }
 
 /**
@@ -1123,8 +1201,10 @@ type Core = { id: string; handle: MovieHandle; saved: boolean };
  * finish before this or wait until it commits, and whichever runs second sees
  * the core the other left behind.
  *
- * A film that is not saved is saved here, with its title and year, as `seen` —
- * a core is a film they have seen — and no IMDb id, because nobody said one.
+ * A film that is not saved is saved here, with its title and year, as the seen
+ * value the caller gave — a core is a film they have seen — or as `seen-before`
+ * when it gave none, the one that claims nothing about when; and no IMDb id,
+ * because nobody said one.
  * Anchoring a vibe on a film somebody stands behind is often the first time that
  * film is written down at all — a verdict never saves one — and doing it in this
  * transaction is what means a vibe refused a moment later leaves no loose film
@@ -1133,25 +1213,26 @@ type Core = { id: string; handle: MovieHandle; saved: boolean };
  * Two of these can race to save the same film. The insert gives way to the
  * other's row rather than failing, and the row is then held like any other.
  *
- * A saved film whose viewing is not `seen` is refused: a core is a film they
- * have seen, and only they can say they have. Read from the row just locked, so
- * a concurrent `update_movie` marking it otherwise either finished first and is
- * seen here, or waits and then finds a core it may not mark.
+ * A saved film whose viewing is neither seen value is refused: a core is a film
+ * they have seen, and only they can say they have. Read from the row just
+ * locked, so a concurrent `update_movie` marking it otherwise either finished
+ * first and is seen here, or waits and then finds a core it may not mark. A
+ * saved film keeps its own viewing: `wanted.viewing` is only for saving one.
  */
-async function holdCore(sql: Transaction, owner: string, wanted: MovieHandle): Promise<Core> {
+async function holdCore(sql: Transaction, owner: string, wanted: NamedCore): Promise<Core> {
   for (let attempt = 1; ; attempt += 1) {
     const { source: found } = await lockMovies(sql, owner, wanted);
     if (found) {
-      if (found.viewing !== "seen") throw coreNotSeen(found.title, found.year, found.viewing);
+      if (!isSeen(found.viewing)) throw coreNotSeen(found.title, found.year, found.viewing);
       return { id: found.id, handle: orderHandle(found), saved: false };
     }
 
     const [inserted] = await sql.query<{ id: string }>(
       `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing)
-       VALUES ($1, $2, $3, $4, 'seen')
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (user_id, canonical_title, year) DO NOTHING
        RETURNING id`,
-      [owner, wanted.title, canonicalTitle(wanted.title), wanted.year],
+      [owner, wanted.title, canonicalTitle(wanted.title), wanted.year, wanted.viewing ?? "seen-before"],
     );
     if (inserted) return { id: inserted.id, handle: orderHandle(wanted), saved: true };
 

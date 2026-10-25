@@ -15,7 +15,7 @@ import { currentVisitor, type SignedInVisitor } from "./visitor.ts";
  * has read them, and never *whose*.
  *
  * And it reads. Both calls below are reads. The website's one write is a film's
- * five choices, posted to `/movie/choose` and kept in `lib/web/choose.ts` — see
+ * answers, posted to `/movie/choose` and kept in `lib/web/choose.ts` — see
  * `readonly.test.ts` for how that is held to.
  */
 

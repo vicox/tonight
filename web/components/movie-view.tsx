@@ -15,6 +15,9 @@ import { alsoIn } from "@/lib/web/screens";
  *     What do you think?
  *     ( Love it ) ( Like it ) ( Want to see ) ( Not interested ) ( Dislike )
  *
+ *     When did you see it?            while the film is seen
+ *     ( ✓ Seen now ) ( Seen before )
+ *
  * Everything here is what the user told Tonight. A title and a year, the vibes
  * it is in, where it stands and what they made of it — and below, quietly, an
  * IMDb id if they gave one (a link out, never looked up) and their own words for
@@ -28,10 +31,11 @@ import { alsoIn } from "@/lib/web/screens";
  * the screen was reached through one of them, that one is named first: it is the
  * context, and none of them is a property of the film.
  *
- * ## The five choices
+ * ## The two questions
  *
- * The one thing on the website that writes, and only what each choice already
- * means: a verdict, or the film's viewing. See `movie-choices.tsx` and
+ * The one thing on the website that writes, and only what each answer already
+ * means: a verdict and the seen value that goes with it, a listing with the
+ * verdict taken back, or when they saw it. See `movie-choices.tsx` and
  * `lib/web/choices.ts`. Its title, its year, its vibes and whether it is kept at
  * all are said to an assistant.
  */

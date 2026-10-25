@@ -120,7 +120,7 @@ describe("check_candidates over real stores", () => {
     assert.deepEqual(heat, {
       asked: { title: "Heat", year: 1995 },
       status: "saved",
-      movie: { title: "Heat", year: 1995, imdbId: null, viewing: "seen", vibes: ["Night Shift"] },
+      movie: { title: "Heat", year: 1995, imdbId: null, viewing: "seen-before", vibes: ["Night Shift"] },
       verdict: { judgement: "loved", because: "the diner scene", told: "volunteered" },
       seen: true,
       neverRecommend: false,
@@ -154,7 +154,7 @@ describe("check_candidates over real stores", () => {
 
     // Replaced, the correction is what stands.
     const collateral = { title: "Collateral", year: 2004 };
-    await ok(ana, "create_movie", { ...collateral, viewing: "seen", vibes: ["Night Shift"] });
+    await ok(ana, "create_movie", { ...collateral, viewing: "seen-before", vibes: ["Night Shift"] });
     await ok(ana, "record_verdict", { film: collateral, told: "volunteered", said: { about: "judgement", judgement: "liked" } });
     await ok(ana, "record_verdict", { film: collateral, told: "volunteered", said: { about: "judgement", judgement: "disliked" } });
     const [changed] = await check(ana, [collateral]);

@@ -928,7 +928,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const store = sqlTasteStore(anchoring, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
     await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: ARRIVAL });
-    await store.createMovie({ ...MOON, viewing: "seen" });
+    await store.createMovie({ ...MOON, viewing: "seen-before" });
 
     const vibe = holdVibe(t, holder, owner, "space tension");
     await vibe.ready;
@@ -950,12 +950,12 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     assert.ok(unsee.state.error instanceof TasteError, "marking a core unseen was not refused with a sentence");
     assert.match(
       (unsee.state.error as TasteError).message,
-      /^cannot mark "Moon" \(2009\) anything but seen: it is the core of the vibe "Space Tension"/,
+      /^cannot mark "Moon" \(2009\) anything but seen-now or seen-before: it is the core of the vibe "Space Tension"/,
     );
 
     const afterwards = await sqlTasteStore(watcher, owner).taste();
     assert.deepEqual(afterwards.vibes[0]!.core, MOON);
-    assert.equal(afterwards.movies.find((one) => one.title === "Moon")!.viewing, "seen");
+    assert.equal(afterwards.movies.find((one) => one.title === "Moon")!.viewing, "seen-before");
   });
 
   test("whichever of marking a film want-to-see and anchoring on it wins, no core is unseen", async (t) => {
@@ -972,7 +972,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const store = sqlTasteStore(anchoring, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
     await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: ARRIVAL });
-    await store.createMovie({ ...MOON, viewing: "seen", vibes: ["Space Tension"] });
+    await store.createMovie({ ...MOON, viewing: "seen-before", vibes: ["Space Tension"] });
 
     const hold = holdMovie(t, holder, owner, "moon");
     await hold.ready;
@@ -998,7 +998,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const moon = afterwards.movies.find((one) => one.title === "Moon")!;
     const core = afterwards.vibes[0]!.core;
     assert.ok(
-      (JSON.stringify(core) === JSON.stringify(MOON) && moon.viewing === "seen") ||
+      (JSON.stringify(core) === JSON.stringify(MOON) && moon.viewing === "seen-before") ||
         (JSON.stringify(core) === JSON.stringify(ARRIVAL) && moon.viewing === "want-to-see"),
       `an unseen core, or neither write landed: core ${JSON.stringify(core)}, viewing ${moon.viewing}`,
     );
@@ -1096,7 +1096,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     const store = sqlTasteStore(driver, owner);
     await store.createGenre({ name: "Sci-Fi", instruction: "Ideas." });
     await store.createVibe({ name: "Space Tension", genres: ["Sci-Fi"], instruction: "Tense.", core: { title: "Moon", year: 2009 } });
-    await store.createMovie({ ...ARRIVAL, viewing: "seen", vibes: ["Space Tension"] });
+    await store.createMovie({ ...ARRIVAL, viewing: "seen-before", vibes: ["Space Tension"] });
     return owner;
   }
 

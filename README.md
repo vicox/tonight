@@ -30,10 +30,12 @@ produced `Space Tension`.
 
 **Movies** are the films you have told Tonight about. A Movie has a title and a release year —
 together they are its name, so `Dune / 1984` and `Dune / 2021` are two of them — and it may carry
-an IMDb id. Its **viewing** says where it stands on your list — always one of `seen`
-(*"I've seen it"*), `want-to-see` (*"Put it on my list"*) and `dont-want-to-see` (*"Don't recommend
-it again"*) — and a film saved without one is `want-to-see`. The assistant says what it stored, so
-you can correct it. That is the whole of what a Movie says about you, and it is a fact rather than
+an IMDb id. Its **viewing** says where it stands on your list — always one of `seen-now`
+(*"I just watched it"*), `seen-before` (*"I saw it years ago"*), `want-to-see` (*"Put it on my
+list"*) and `dont-want-to-see` (*"Don't recommend it again"*) — and a film saved without one is
+`want-to-see`. Neither seen value is a date: Tonight keeps no record of when you watched a film.
+When you say you have seen one without saying when, the assistant asks once, and keeps it as
+`seen-before` if you do not say. The assistant says what it stored, so you can correct it. That is the whole of what a Movie says about you, and it is a fact rather than
 an opinion: a `want-to-see` film may be recommended, a `dont-want-to-see` one never is. A Movie
 may be in no Vibe, one, or several, and it is yours in its own right either way: nothing is
 looked up, and no film is here unless you put it there.
@@ -210,10 +212,11 @@ addressed from outside, and there is no id in any tool schema or any answer.
   refused — the instruction is written from what that person actually said.
 - **A Movie is named by its title and year together**, unique per user ignoring case, so one
   person's list can hold both `Dune`s.
-- **A Movie's `viewing` is always one of three** — `seen`, `want-to-see`, `dont-want-to-see` —
-  `NOT NULL`, with `want-to-see` as the default for a film saved without one. Taste v14 turned
-  the old `unseen` into `want-to-see`; it backfills no `NULL`, and fails rather than guess if
-  one is there.
+- **A Movie's `viewing` is always one of four** — `seen-now`, `seen-before`, `want-to-see`,
+  `dont-want-to-see` — `NOT NULL`, with `want-to-see` as the default for a film saved without
+  one. Taste v14 turned the old `unseen` into `want-to-see`; it backfills no `NULL`, and fails
+  rather than guess if one is there. Taste v15 turned every `seen` into `seen-now` and made
+  nothing `seen-before`; a film is moved to `seen-before` only when somebody says so.
 - **A Movie carries no opinion.** What somebody thought of a film is a Verdict, with a
   provenance, an instant and a history no column here could hold — so there is nowhere on a
   Movie to put one. Taking a Verdict back removes that act from what stands: no weaker opinion
@@ -225,9 +228,10 @@ addressed from outside, and there is no id in any tool schema or any answer.
   one of its own films: a column on the Vibe with a deferred foreign key into its memberships. A
   core is required to create a Vibe, can be replaced — the old one stays a member — and is never
   cleared. A Vibe from before cores existed reads `core: null` and works as it is until somebody
-  chooses its core; nothing anchors one automatically. **A core is a film saved as `seen`**: the
-  store saves a new core that way, refuses a saved film that is anything else as a core, and
-  refuses to mark a core anything else. It reads that saved fact alone — whether a verdict says
+  chooses its core; nothing anchors one automatically. **A core is a film saved as `seen-now` or
+  `seen-before`**: the store saves a new core as the `core.viewing` it is given, or `seen-before`
+  without one, refuses a saved film that is anything else as a core, and refuses to mark a core
+  anything but one of the two — between them it moves freely. It reads that saved fact alone — whether a verdict says
   otherwise is the user's to settle, never a viewing written to get past the refusal.
 - **Deleting a Movie is allowed unless it anchors a Vibe**, and takes its Vibe memberships and
   every verdict about the film with it, in one transaction. A Vibe is *defined by* its Genres and
@@ -244,10 +248,14 @@ second copy of the rules.
 
 The website shows a film-centred view of the model, with a page for each Vibe, and changes almost
 none of it. Its one write endpoint is a film's page asking *What do you think?*: *Love it*, *Like
-it* and *Dislike* say a verdict, *Want to see* and *Not interested* set where the film stands on
-the user's list, and pressing an opinion that stands takes it back — the same verdicts and the same
-viewing the MCP tools write, under the same rules, and nothing else. A film they like or love stays
-in at least one Vibe, and a Vibe's core stays a film they watched. Every other change — a film
+it* and *Dislike* say a verdict and, with it, that they saw the film — *Seen now*, unless it was
+already seen — and then ask *When did you see it?*, whose *Seen now* and *Seen before* change only
+that; *Want to see* and *Not interested* set where the film stands on the user's list and take back
+the verdict; and pressing an opinion that stands takes it back. Each press is one write, decided on
+the film as it is when it is written — the same verdicts and the same viewing the MCP tools write,
+under the same rules, and nothing else. A film they like or love stays in at least one Vibe, and a
+Vibe's core stays a film they watched, moving only between *Seen now* and *Seen before*. Every
+other change — a film
 added, retitled, refiled or removed, a Genre or Vibe created, renamed or deleted — is made through
 an assistant, which uses the MCP tools and does it there and then. It does not recommend, and it has no model inside it to
 recommend with: the panel at the foot of the page names the sentence to take to your assistant.
@@ -255,7 +263,7 @@ recommend with: the panel at the foot of the page names the sentence to take to 
 Every Movie is listed, newest first, with the Vibes it is in — a Movie in no Vibe is listed too,
 and recording that somebody watched a film makes one, as does deleting the last Vibe it was in. A
 Vibe's screen shows what it means, the Genres it is built from and its films; a film's screen
-shows its Vibes and its five choices. `get_taste` returns the same model in one piece: the website
+shows its Vibes and its choices. `get_taste` returns the same model in one piece: the website
 is a view of it, not the definition of it.
 
 ## Running it
@@ -298,6 +306,15 @@ evening. Find those first with `npm run db:preflight-m9`, resolve each with the 
 then follow the four steps below; rollback is the backup. After deploying, reconnect the Tonight
 connector in each host — clients may keep the old tool definitions — and check with `tools/list`
 that `correct_episode` and `record_episode` take `offers`.
+
+So is **taste v15** (seen now and seen before). It turns every `seen` into `seen-now` and makes
+nothing `seen-before` — nothing records when a film was watched, so nothing is guessed from a
+date — and then holds the column to the four viewings, so the build before it, which writes
+`seen`, cannot serve. It needs no preflight: every row is one of three values, and all three are mapped.
+Follow the four steps below; rollback is the backup. After deploying, reconnect the Tonight
+connector in each host, check that `get_server_info` answers 0.4.0 and that `tools/list` offers
+the four viewings, and rebuild and upload the ChatGPT plugin. Until a host reconnects, a
+`viewing` of `seen` is refused with the rule for choosing between the two — nothing is written.
 
 So the contract for any release carrying one is four steps and their order is the whole of it:
 

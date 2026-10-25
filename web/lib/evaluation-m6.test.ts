@@ -44,6 +44,9 @@ type Fixture = {
   acts?: Act[];
 };
 
+/** The two viewings that say they watched it. */
+const SEEN: readonly string[] = ["seen-now", "seen-before"];
+
 const scenarios = JSON.parse(read("scenarios.json")) as Scenario[];
 const prompts = read("prompts.md");
 const rubric = read("rubric.md");
@@ -198,7 +201,7 @@ test("every fixture is a shape the product can hold, written by an M6 evaluation
       assert.ok(vibe.core, `${id}: ${vibe.name} has no core, and create_vibe would refuse it`);
       const film = spec.model.movies.find((movie) => same(movie, vibe.core!));
       assert.ok(film?.vibes?.includes(vibe.name), `${id}: ${vibe.name}'s core is not filed in it`);
-      assert.equal(film?.viewing, "seen", `${id}: ${vibe.name}'s core is not saved as seen`);
+      assert.equal(film?.viewing, "seen-before", `${id}: ${vibe.name}'s core is not saved as seen-before`);
       const verdict = spec.acts?.find((act) => act.do === "verdict" && same(act.film, vibe.core!));
       assert.ok(
         verdict?.said?.judgement === "liked" || verdict?.said?.judgement === "loved",
@@ -206,11 +209,11 @@ test("every fixture is a shape the product can hold, written by an M6 evaluation
       );
     }
 
-    // A film not saved as seen with a standing judgement is a contradiction, and
-    // only where the fixture lists it as one — never a core.
+    // A film saved as neither seen value with a standing judgement is a
+    // contradiction, and only where the fixture lists it as one — never a core.
     const unseenJudged = spec.model.movies.filter(
       (movie) =>
-        movie.viewing !== "seen" &&
+        !SEEN.includes(movie.viewing ?? "") &&
         spec.acts?.some((act) => act.do === "verdict" && same(act.film, movie) && act.said?.about === "judgement"),
     );
     assert.deepEqual(
@@ -267,9 +270,12 @@ test("no evaluation fixture in any set anchors a Vibe on a film it does not save
         if (!vibe.core) continue;
         cores += 1;
         const film = spec.model.movies.find((movie) => same(movie, vibe.core!));
-        // Not listed, or listed with no viewing, is the core `create_vibe` saved as seen.
+        // Not listed, or listed with no viewing, is the core `create_vibe` saved
+        // as seen-before. A fixture seeded through an older build (`seed`) says
+        // `seen`, the only word that build has, and taste v15 relabels it.
+        const seen = spec.seed === undefined ? SEEN : [...SEEN, "seen"];
         assert.ok(
-          film?.viewing == null || film.viewing === "seen",
+          film?.viewing == null || seen.includes(film.viewing),
           `${dir}${id}: ${vibe.name} is anchored on a film saved as ${String(film?.viewing)}`,
         );
       }

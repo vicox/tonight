@@ -288,14 +288,15 @@ export function expected(steps: readonly Step[]): Expected {
       case "vibe": {
         // The core is filed by the vibe that names it. A film already saved
         // keeps everything it had and gains this vibe; one nobody saved is saved
-        // here with its title and year, as seen — a core is a film they have
-        // seen — and no IMDb entry, because nobody said which it is.
+        // here with its title and year, as seen-before — a core is a film they
+        // have seen, and the script names no `core.viewing` — and no IMDb entry,
+        // because nobody said which it is.
         const saved = movies.get(filmKey(step.core));
         if (saved) {
           // A new list rather than a push: the one there may be the script's own.
           if (!saved.vibes.includes(step.name)) saved.vibes = [...saved.vibes, step.name];
         } else {
-          movies.set(filmKey(step.core), { film: step.core, viewing: "seen", imdbId: null, vibes: [step.name] });
+          movies.set(filmKey(step.core), { film: step.core, viewing: "seen-before", imdbId: null, vibes: [step.name] });
         }
         const core = saved?.film ?? step.core;
         vibes.set(step.name, {
@@ -1392,7 +1393,7 @@ export function forgetting(world: World): Failure[] {
       if ((seen.taste.verdicts ?? []).length !== 0) {
         fail("a recommendation still reads a verdict after all of them were forgotten");
       }
-      if (of(seen.memory.held, "movie")[0]?.viewing !== "seen") {
+      if (of(seen.memory.held, "movie")[0]?.viewing !== "seen-before") {
         fail("forgetting everything they said changed the film they saved");
       }
     }
@@ -1649,7 +1650,7 @@ export function identity(world: World): Failure[] {
   // İ and i: the undotted film was never spoken about and must be untouched.
   const plain = films.find((root) => filmKey(root.film as Film) === filmKey(UNICODE_FILMS.plain));
   if (!plain) hard("the undotted film is not held at all");
-  else if (plain.viewing !== "seen") {
+  else if (plain.viewing !== "seen-before") {
     hard(`the undotted film reads ${String(plain.viewing)}; a verdict about the dotted one reached it`);
   }
 

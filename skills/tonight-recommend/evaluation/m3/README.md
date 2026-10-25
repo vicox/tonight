@@ -67,7 +67,9 @@ them; they are still seeded through public tools — a build's from before the r
    with the same `web/.env.local`.
 2. From **this** checkout: `TONIGHT_ORIGIN=http://localhost:3001 node
    skills/tonight-recommend/evaluation/m3/seed.mjs <fixture>`.
-3. Stop it, and start this build against the same database on the usual port. Nothing migrates.
+3. Stop it, and start this build against the same database on the usual port. It migrates taste
+   v15 and nothing else: every `seen` the fixture saved becomes `seen-now`. That is why these
+   fixtures still say `seen` — the build that seeds them knows no other word.
 4. Run exactly one scenario, once: `node evaluation/m3/run.mjs --legacy-seeded --runs 1 --only
    <fixture>__<prompt>`. A normal sweep skips these scenarios and says so, and the runner never
    reseeds them.

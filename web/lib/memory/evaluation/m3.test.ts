@@ -386,8 +386,8 @@ describe("M3 — explains itself, and can be corrected", () => {
     // as seen, and Heat is saved into it. Zodiac, the spared neighbour, is not.
     await call("create_genre", { name: "Kept", instruction: "films I stand behind" });
     await call("create_vibe", { name: "Kept Close", genres: ["Kept"], instruction: "the ones I keep", core: FILMS.prisoners });
-    await call("create_movie", { ...FILMS.heat95, viewing: "seen", vibes: ["Kept Close"] });
-    await call("create_movie", { ...FILMS.zodiac, viewing: "seen" });
+    await call("create_movie", { ...FILMS.heat95, viewing: "seen-before", vibes: ["Kept Close"] });
+    await call("create_movie", { ...FILMS.zodiac, viewing: "seen-before" });
     await call("record_verdict", {
       film: FILMS.prisoners,
       told: "volunteered",
@@ -519,7 +519,7 @@ describe("M3 — explains itself, and can be corrected", () => {
     // Every viewing, and a film filed with no viewing at all, so none of them is
     // untested — dont-want-to-see included, which is where a refusal goes now.
     const filed = TRAJECTORIES.flatMap((one) => one.steps).filter((step) => step.act === "movie");
-    for (const viewing of ["seen", "want-to-see", "dont-want-to-see", undefined]) {
+    for (const viewing of ["seen-before", "want-to-see", "dont-want-to-see", undefined]) {
       assert.ok(
         filed.some((step) => step.act === "movie" && step.viewing === viewing),
         `no history ever files a film as ${String(viewing)}`,
@@ -847,7 +847,7 @@ describe("M3 — explains itself, and can be corrected", () => {
     probe("moved Black Bag", "precedence", (copy) => {
       const seen = copy.seen["withdrawal-leaves-the-film-alone"]!;
       for (const root of seen.memory.held) {
-        if (root.of === "movie") (root as { viewing?: unknown }).viewing = "seen";
+        if (root.of === "movie") (root as { viewing?: unknown }).viewing = "seen-before";
       }
     });
   });
@@ -982,7 +982,7 @@ describe("M3 — explains itself, and can be corrected", () => {
     // whole defect with nothing else to explain it.
     probe("an evening files a film nobody saved", "recommendation-isolation", (copy) => {
       const seen = copy.seen["many-evenings"]!;
-      seen.taste.movies = [...seen.taste.movies, { title: "Heat", year: 1995, viewing: "seen", vibes: [] }];
+      seen.taste.movies = [...seen.taste.movies, { title: "Heat", year: 1995, viewing: "seen-before", vibes: [] }];
     });
   });
 
@@ -994,7 +994,7 @@ describe("M3 — explains itself, and can be corrected", () => {
     probe("the disagreements a recommendation reads", "recommendation-isolation", (copy) => {
       const seen = copy.seen["never-again"]!;
       (seen.taste as { disagreements?: unknown[] }).disagreements = [
-        { title: "Black Bag", year: 2025, saved: "seen", applies: "everywhere" },
+        { title: "Black Bag", year: 2025, saved: "seen-before", applies: "everywhere" },
       ];
     });
   });

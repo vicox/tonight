@@ -203,9 +203,10 @@ test("a prohibition is only counted once a fixture could have broken it", () => 
       `${fixture.id} claims AC4 without saying how the model could break it`,
     );
     // The opportunity AC4 needs is a film the snapshot says was watched, by
-    // either route: the film says `seen`, or a judgement stands about it.
+    // either route: the film says it was seen — now or before — or a judgement
+    // stands about it.
     const watched =
-      (fixture.model?.movies ?? []).some((movie) => movie.viewing === "seen") ||
+      (fixture.model?.movies ?? []).some((movie) => movie.viewing === "seen-now" || movie.viewing === "seen-before") ||
       (fixture.acts ?? []).some((act) => act.said?.about === "judgement");
     assert.ok(watched, `${fixture.id} claims AC4 with no film the user has watched`);
   }
@@ -955,7 +956,10 @@ test("AC4 matches a stored title whole, never inside a longer one", () => {
 test("watchedTitles joins the viewing fact and a standing judgement, and nothing else", () => {
   const titles = scorer.watchedTitles({
     movies: [
+      // A snapshot recorded before taste v15 says `seen`; one since, either value.
       { title: "The Vanishing", year: 1988, viewing: "seen" },
+      { title: "Arrival", year: 2016, viewing: "seen-now" },
+      { title: "Thief", year: 1981, viewing: "seen-before" },
       { title: "Past Lives", year: 2023, viewing: null },
       { title: "Anticipated", year: 2026, viewing: "unseen" },
       // No viewing, but they said they loved it — nobody loves a film they have
@@ -976,11 +980,17 @@ test("watchedTitles joins the viewing fact and a standing judgement, and nothing
 
   assert.deepEqual(
     titles.map((t: { title: string }) => t.title).sort(),
-    ["Moon", "The Vanishing", "Zodiac"],
+    ["Arrival", "Moon", "The Vanishing", "Thief", "Zodiac"],
   );
   assert.deepEqual(
     titles.map((t: { title: string; why: string }) => `${t.title}: ${t.why}`).sort(),
-    ["Moon: verdict: liked", "The Vanishing: viewing: seen", "Zodiac: verdict: loved"],
+    [
+      "Arrival: viewing: seen-now",
+      "Moon: verdict: liked",
+      "The Vanishing: viewing: seen",
+      "Thief: viewing: seen-before",
+      "Zodiac: verdict: loved",
+    ],
   );
 });
 

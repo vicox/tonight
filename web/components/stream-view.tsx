@@ -39,9 +39,17 @@ import { emptyVibes, stream } from "@/lib/web/stream";
  *
  * Nothing on the Stream writes: no form, no request, no control that changes a
  * film, a verdict, a genre or a vibe. A film's own screen is the one place on the
- * website that does — its five choices — and everything else is said to an
+ * website that does — its answers — and everything else is said to an
  * assistant, which changes the model through the MCP tools. The only client code
  * here is the copy button.
+ *
+ * ## The one filter: *Include previously seen*
+ *
+ * A checkbox, ticked on every load, that changes only what is drawn. Unticked,
+ * the films saved as seen before are not shown (`app/globals.css`, by each card's
+ * `data-viewing`); the others stay exactly where `stream` put them. No form, no
+ * name, no handler, no request and no saved preference — so nothing is written
+ * and nothing is fetched, and a reload shows every film again.
  */
 export function StreamView({ taste, standing }: { taste: Taste; standing: readonly Standing[] }) {
   /**
@@ -63,7 +71,21 @@ export function StreamView({ taste, standing }: { taste: Taste; standing: readon
             saved here.
           </Empty>
         ) : (
-          <MovieCards movies={stream(movies)} label="Your movies, most recently saved first" />
+          <div className="stream-films">
+            {/* Directly under the heading, right-aligned, just above the first card. */}
+            <div className="-mt-4 mb-1 flex justify-end">
+              <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 px-1 text-[12px] text-ink-soft">
+                <input
+                  id="include-previously-seen"
+                  type="checkbox"
+                  defaultChecked
+                  className="size-3.5 cursor-pointer accent-ink-soft"
+                />
+                Include previously seen
+              </label>
+            </div>
+            <MovieCards movies={stream(movies)} label="Your movies, most recently saved first" />
+          </div>
         )}
       </Section>
 

@@ -14,7 +14,7 @@ import type { Judgement } from "@/lib/verdicts/model";
  * answers: a film can be seen and loved at once.
  *
  * Drawn in two places, and from here in both: a card's status
- * (`movie-status.tsx`) and a film's five choices (`movie-choices.tsx`). So a
+ * (`movie-status.tsx`) and a film's choices (`movie-choices.tsx`). So a
  * heart on a card is the heart a film's screen shows for the same verdict, and
  * the two cannot drift.
  *
@@ -36,13 +36,17 @@ type Mark<T> = {
 /**
  * Where it stands on their list.
  *
- * Three answers, in the direction a film moves — on the list, then seen — and
- * then the one that takes it off the table. A film always has one.
+ * Four answers, in the direction a film moves — on the list, seen now, seen
+ * before — and then the one that takes it off the table. A film always has one.
+ * The two seen ones are drawn alike, as the eye and *Seen*: at a glance a film is
+ * seen or it is not, and when they saw it is said on the film's own screen
+ * (*When did you see it?*), not on a card.
  */
 export const VIEWING: Mark<Viewing> = {
   choices: [
     { value: "want-to-see", label: "Want to see", icon: Bookmark },
-    { value: "seen", label: "Seen", icon: Eye },
+    { value: "seen-now", label: "Seen", icon: Eye },
+    { value: "seen-before", label: "Seen", icon: Eye },
     { value: "dont-want-to-see", label: "Don't want to see", icon: EyeOff },
   ],
 };

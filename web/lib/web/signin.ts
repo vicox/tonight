@@ -310,7 +310,7 @@ export async function handleSignOut(
  * an absent `Origin` is not something a legitimate press produces.
  *
  * This is the CSRF defence for the website's state-changing endpoints: sign-in
- * and sign-out, here, and a film's five choices (`lib/web/choose.ts`), which is
+ * and sign-out, here, and a film's answers (`lib/web/choose.ts`), which is
  * the only other thing the website writes. It stands alone. The session
  * cookie's `SameSite=Lax` means a cross-site post carries no session anyway, but
  * that is a property of the browser honouring an attribute, and this is a property

@@ -46,7 +46,7 @@ export type Step =
   /** The user says what became of the evening. Never a verdict. */
   | { act: "outcome"; chose?: boolean; watched?: boolean; finished?: boolean }
   /** A film saved, with whether the user said they watched it. */
-  | { act: "viewing"; film: Film; viewing: "seen" | "want-to-see" | "dont-want-to-see" }
+  | { act: "viewing"; film: Film; viewing: "seen-now" | "seen-before" | "want-to-see" | "dont-want-to-see" }
   /** The user says what they think. The only thing that creates taste evidence. */
   | { act: "verdict"; film: Film; told: Told; judgement: Judgement; because?: string }
   /** The user takes back what they said. */
@@ -108,7 +108,7 @@ export const BASELINE = {
       core: heat,
     },
   ],
-  movies: [{ ...heat, viewing: "seen" as const }],
+  movies: [{ ...heat, viewing: "seen-before" as const }],
   /**
    * What they said about the baseline film.
    *
@@ -131,7 +131,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "self-recommended-and-watched",
     proves: "Tonight recommending a film and the user watching it creates no taste evidence",
     steps: [
-      { act: "viewing", film: prisoners, viewing: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen-before" },
       { act: "recommend", film: prisoners },
       { act: "outcome", chose: true, watched: true, finished: true },
     ],
@@ -139,13 +139,13 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   {
     name: "self-nothing-happened",
     proves: "the same taste with no evening behind it — the control the pair is read against",
-    steps: [{ act: "viewing", film: prisoners, viewing: "seen" }],
+    steps: [{ act: "viewing", film: prisoners, viewing: "seen-before" }],
   },
   {
     name: "self-and-they-said-so",
     proves: "only the user saying something introduces evidence the other two do not have",
     steps: [
-      { act: "viewing", film: prisoners, viewing: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen-before" },
       { act: "recommend", film: prisoners },
       { act: "outcome", chose: true, watched: true, finished: true },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
@@ -156,7 +156,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "withdrawal-leaves-silence",
     proves: "a withdrawn verdict stops counting and leaves nothing in its place",
     steps: [
-      { act: "viewing", film: prisoners, viewing: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen-before" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "disliked" },
       { act: "withdraw", film: prisoners },
     ],
@@ -164,7 +164,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   {
     name: "withdrawal-control",
     proves: "the same film saved the same way, with nothing ever said about it",
-    steps: [{ act: "viewing", film: prisoners, viewing: "seen" }],
+    steps: [{ act: "viewing", film: prisoners, viewing: "seen-before" }],
   },
 
   {
@@ -180,7 +180,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "disliked-one-film",
     proves: "a dislike, with their reason, holds for that one film and generalises to no category or neighbour",
     steps: [
-      { act: "viewing", film: zodiac, viewing: "seen" },
+      { act: "viewing", film: zodiac, viewing: "seen-before" },
       { act: "verdict", film: prisoners, told: "volunteered", judgement: "disliked", because: "three hours of misery" },
     ],
   },
@@ -199,13 +199,13 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   {
     name: "influence-baseline",
     proves: "the taste every influence trajectory must still look like — nothing happened at all",
-    steps: [{ act: "viewing", film: prisoners, viewing: "seen" }],
+    steps: [{ act: "viewing", film: prisoners, viewing: "seen-before" }],
   },
   {
     name: "influence-recommended-once",
     proves: "offering a film changes nothing, before anything becomes of the offer",
     steps: [
-      { act: "viewing", film: prisoners, viewing: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen-before" },
       { act: "recommend", film: prisoners },
     ],
   },
@@ -213,7 +213,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "influence-recommended-again",
     proves: "offering the same film over and over is still not evidence about the user",
     steps: [
-      { act: "viewing", film: prisoners, viewing: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen-before" },
       { act: "recommend", film: prisoners },
       { act: "recommend", film: prisoners },
       { act: "recommend", film: prisoners },
@@ -223,7 +223,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "influence-chosen",
     proves: "taking the recommendation is not liking the film",
     steps: [
-      { act: "viewing", film: prisoners, viewing: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen-before" },
       { act: "recommend", film: prisoners },
       { act: "outcome", chose: true },
     ],
@@ -232,7 +232,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "influence-watched",
     proves: "watching it is not liking it either",
     steps: [
-      { act: "viewing", film: prisoners, viewing: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen-before" },
       { act: "recommend", film: prisoners },
       { act: "outcome", chose: true },
       { act: "outcome", watched: true },
@@ -242,7 +242,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "influence-finished",
     proves: "sitting through all of it is still not something they said",
     steps: [
-      { act: "viewing", film: prisoners, viewing: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen-before" },
       { act: "recommend", film: prisoners },
       { act: "outcome", chose: true },
       { act: "outcome", watched: true },
@@ -253,7 +253,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     name: "asked-and-never-answered",
     proves: "a film Tonight asked about and never heard back on is still a film nobody judged",
     steps: [
-      { act: "viewing", film: prisoners, viewing: "seen" },
+      { act: "viewing", film: prisoners, viewing: "seen-before" },
       { act: "recommend", film: prisoners },
       { act: "outcome", watched: true, finished: true },
     ],

@@ -20,10 +20,10 @@
       }
     ],
     "movies": [
-      { "title": "Thief", "year": 1981, "vibes": ["Night Shift"], "viewing": "seen" },
+      { "title": "Thief", "year": 1981, "vibes": ["Night Shift"], "viewing": "seen-before" },
       { "title": "Heat", "year": 1995, "vibes": ["Night Shift"], "viewing": "want-to-see" },
       { "title": "Collateral", "year": 2004, "vibes": ["Night Shift"], "viewing": "want-to-see" },
-      { "title": "Drive", "year": 2011, "vibes": ["Night Shift"], "viewing": "seen" }
+      { "title": "Drive", "year": 2011, "vibes": ["Night Shift"], "viewing": "seen-before" }
     ]
   },
   "acts": [

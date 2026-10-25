@@ -31,6 +31,11 @@
   --color-loved: #f472b6;
   --color-liked: #60a5fa;
 
+  /* When they saw a film, as it stands on its screen: the chosen answer to
+     *When did you see it?*, in green with a check. Nowhere else — not on a card,
+     and not for any other answer. Above 4.5:1 against `screen` (about 10:1). */
+  --color-seen: #4ade80;
+
   /* The one warning colour, brick rather than a signal red. Nothing on the
      website uses it: nothing there deletes, so there is nothing to confirm, and
      a refused choice on a film's screen is said in words rather than in red.
@@ -42,6 +47,13 @@
 html {
   background-color: var(--color-night);
   color-scheme: dark;
+}
+
+/* The Stream's one filter (`components/stream-view.tsx`): with *Include
+   previously seen* unticked, a film saved as seen before is not drawn. Only
+   hidden — nothing is fetched or written, and the other cards keep their order. */
+.stream-films:has(#include-previously-seen:not(:checked)) [data-viewing="seen-before"] {
+  display: none;
 }
 
 body {

@@ -141,7 +141,7 @@ export default function Terms() {
           your assistant you can delete any vibe, and any genre no vibe is built from — a genre a vibe
           refers to stays until you take it out of that vibe or delete the vibe. For a film, adding
           one and removing one are done through your assistant, which does it on request; where it
-          stands on your list and what you thought of it can be said there too, or with the five
+          stands on your list and what you thought of it can be said there too, or with the
           choices on the film&rsquo;s page on the website. Removing a film removes what you said
           about it too. The operator may withdraw access at any time, in
           particular if these terms are not respected or when the closed beta ends.

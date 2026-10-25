@@ -150,16 +150,26 @@ test("every page says what a film record now holds", () => {
   assert.match(privacy, /an optional IMDb title id/);
 
   // The whole distinction, on the axis the film actually carries: where it
-  // stands on their list, always one of three, and what a film saved without
+  // stands on their list, always one of four, and what a film saved without
   // one is recorded as. Anything vaguer and a reader cannot tell what a film
   // nobody said anything about is recorded as.
-  assert.match(privacy, /it always has one of three answers/);
-  for (const viewing of ["seen", "want to see", "don&rsquo;t want to see"]) {
+  assert.match(privacy, /it always has\s+one of four answers/);
+  for (const viewing of ["seen now", "seen before", "want to see", "don&rsquo;t want to see"]) {
     assert.match(privacy, new RegExp(`<em>${viewing}</em>`), `${viewing} is not named`);
   }
   assert.match(privacy, /That\s+last one is a fact and not an opinion/);
   assert.match(privacy, /A film saved\s+without one is <em>want to see<\/em>/);
-  assert.match(privacy, /the assistant says what it saved so you can\s+correct it/);
+  assert.match(privacy, /the assistant says what it\s+saved so you can correct it/);
+  // Seen now and seen before: neither is a date, and no capture time stands in
+  // for one; a watch with no when and a vibe's heart named without one are seen
+  // before, and every film saved as seen before the two existed is seen now.
+  assert.match(privacy, /Neither seen answer is a date: Tonight keeps no record\s+of when you watched a film/);
+  assert.match(privacy, /when a film was saved is never shown as when you watched\s+it/);
+  assert.match(privacy, /A film you say you have seen, without saying when, is\{" "\}\s+<em>seen before<\/em>/);
+  assert.match(
+    privacy,
+    /Every film that\s+was saved as <em>seen<\/em> before the two answers existed is <em>seen now<\/em>, until you\s+change it/,
+  );
 
   // And the opinion is disclosed as its own thing, because it is stored as one:
   // a policy that described only the film would under-describe what is kept.
@@ -302,19 +312,30 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
   // And the page edits one thing it shows, and nothing else. A reader exercising
   // a right of rectification has to be told accurately where a correction is
   // made: a film's place on the list and what they thought of it either through
-  // an assistant or with the five choices on the film's page, and everything
+  // an assistant or with the choices on the film's page, and everything
   // else through an assistant.
   assert.match(privacy, /For a film, adding one, changing its title or year, and removing it are done through your assistant/);
   assert.match(
     privacy,
-    /Where it stands on your list and what you thought of it can be said through your assistant too, or with the five choices on the film&rsquo;s own page/,
+    /Where it stands on your list and what you thought of it can be said through your assistant too, or with the choices on the film&rsquo;s own page/,
   );
+  for (const choice of ["Love it", "Like it", "Dislike", "Want to see", "Seen now", "Seen before", "Not interested"]) {
+    assert.match(privacy, new RegExp(`<em>${choice.replace(" it", "\\s+it")}</em>`), `the choice ${choice} is not named`);
+  }
+  // What a press records besides itself: an opinion says the film was seen, and
+  // listing it takes the opinion back — both disclosed where the choices are.
+  assert.match(privacy, /and, for a\s+film you have seen, <em>Seen now<\/em> and <em>Seen before<\/em>/);
+  assert.match(
+    privacy,
+    /Choosing an opinion there also records that you have seen the film\s+\(<em>seen now<\/em>, unless it was already recorded as seen\)/,
+  );
+  assert.match(privacy, /choosing <em>Want to\s+see<\/em> or <em>Not interested<\/em> also takes back your opinion of it/);
   assert.match(privacy, /pressing an opinion again takes it back/);
   assert.match(privacy, /<code>\/movie\/choose<\/code>/, "the write endpoint is not in the policy's scope");
   assert.match(privacy, /what a genre means is not on it at all/, "the genre meaning the page no longer shows is not disclosed");
   assert.match(privacy, /delete any vibe at any time through your assistant/);
   assert.match(text("terms"), /For a film, adding one and removing one are done through your assistant/);
-  assert.match(text("terms"), /or with the five choices on the film&rsquo;s page on the website/);
+  assert.match(text("terms"), /or with the choices on the film&rsquo;s page on the website/);
   assert.match(text("readme"), /Its one write endpoint is a film's page asking \*What do you think\?\*/);
   assert.match(text("readme"), /is made through an assistant/);
 
