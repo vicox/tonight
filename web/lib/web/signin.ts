@@ -309,9 +309,9 @@ export async function handleSignOut(
  * is refused rather than waved through: the two callers are both forms on this
  * site, so an absent `Origin` is not something a legitimate press produces.
  *
- * This is the CSRF defence for every state-changing endpoint on the site — the
- * two here, and the taste model's own write routes, which reach it through
- * `lib/web/api.ts`. It stands alone. The session
+ * This is the CSRF defence for the website's two state-changing endpoints,
+ * sign-in and sign-out, which are both here — the website writes nothing else.
+ * It stands alone. The session
  * cookie's `SameSite=Lax` means a cross-site post carries no session anyway, but
  * that is a property of the browser honouring an attribute, and this is a property
  * of the server.

@@ -3,10 +3,10 @@ import { X } from "lucide-react";
 /**
  * How a control in a dialog's header is set.
  *
- * Two of them can share that corner — the `…` that manages what the dialog is
- * about, and the `×` that leaves it — so this is one rule rather than two class
- * lists free to drift apart. A pair of controls sitting together that disagreed
- * about their size or their hover would read as two different kinds of thing.
+ * One rule rather than a class list on each control, so that anything that comes
+ * to share the `×`'s corner cannot disagree with it about size or hover — a pair
+ * of controls sitting together that did would read as two different kinds of
+ * thing.
  *
  * A square with a wash on hover rather than a bordered button: at the top of a
  * card, beside a name set in the display face, a second outlined box would
@@ -27,10 +27,9 @@ export const HEADER_CONTROL = [
  * further a dialog had been read the further away it was. The header is the one
  * part that is in view the moment a dialog opens and stays in view after that.
  *
- * Rightmost, and last in the header's DOM as well as on screen, so that the `…`
- * keeps the place it had where there is one. Escape and a press outside the card
- * are unchanged and still the dialog's own; this is a third way out rather than
- * a replacement for either.
+ * Rightmost, and last in the header's DOM as well as on screen. Escape and a
+ * press outside the card are unchanged and still the dialog's own; this is a
+ * third way out rather than a replacement for either.
  *
  * Named for what it closes. "Close" alone is enough while somebody is reading
  * the dialog around it, and it is not enough when a screen reader reaches the
@@ -39,23 +38,13 @@ export const HEADER_CONTROL = [
 export function WayOut({
   name,
   onClose,
-  ref,
 }: {
   /** What is being left, which is what the control is called to a listener. */
   name: string;
   onClose: () => void;
-  /**
-   * For the one dialog that has to put focus here itself.
-   *
-   * A mark pressed inside the summary's list can take the row it is on out of
-   * that list, and the way out is the thing that is always there to catch focus
-   * when it does. See `Chosen` and `lib/web/refocus.ts`.
-   */
-  ref?: React.Ref<HTMLButtonElement>;
 }) {
   return (
     <button
-      ref={ref}
       type="button"
       onClick={onClose}
       aria-label={`Close ${name}`}
