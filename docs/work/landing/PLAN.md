@@ -4,8 +4,9 @@ This file holds two plans for the signed-out home page, in order:
 
 - **Part 1 — simplification** (below, down to *Implementation*): implemented, uncommitted. Codex
   implementation review is NOT READY on manual checks only.
-- **[Part 2 — AI-native landing](#part-2-ai-native-landing)** (at the end): **the current plan,
-  revision 3, Codex plan review READY (round 3); implemented, committed and rebased onto
+- **[Part 2 — AI-native landing](#part-2-ai-native-landing)** (at the end): **the current plan.
+  Revision 4 (the user's final copy) is for focused Codex plan review. Revision 3: Codex plan
+  review READY (round 3); implemented, committed and rebased onto
   `origin/main` `5f53947` (not pushed).** Codex implementation review is NOT READY with no code
   blocker; the manual checks on the rebased tree are still owed. A local preview is described at
   the end.
@@ -495,7 +496,114 @@ request; see Part 2, *Integration*.)
 
 # Part 2: AI-native landing
 
-Status: **plan, revision 3, Codex READY (round 3, a targeted review of the hero change).**
+**Current: revision 4, final copy. Codex focused plan review: READY (round 4); its three
+non-blocking notes are adopted. Implemented, uncommitted (see *Implementation (revision 4)* at
+the end). Codex implementation review: NOT READY with no code blocker; only the manual checks
+are open. See [Revision 4](#revision-4-final-copy-from-the-user)
+directly below; where it differs from revisions 1–3, revision 4 wins.** Revision 3 is
+implemented and committed as `f6276e2`, rebased onto `origin/main` at `5f53947`.
+
+## Revision 4: final copy (from the user)
+
+The user stopped the previous turn and gave the final copy, approved by them and to be executed
+now. It is a material change to the page's words and to one section's structure. The visual
+design, the layout, the typography, sign-in, the legal links, the footer, the scope (`Landing` in
+`page.tsx` plus `landing.test.ts`) and the committed rebase stay as they are.
+
+### The words, exactly
+
+| Part | Revision 3 (committed) | Revision 4 (final) |
+| --- | --- | --- |
+| Hero, `h2#landing-promise` | *Your next movie is already on my mind.* | **unchanged**, exactly |
+| Subheadline | *An AI that gets to know you, remembers what moves you, and helps make your movie nights better.* | *Your personal movie AI. It remembers what you love, understands why, and helps you find what to watch next.* |
+| Example: the reply | *A surprise, from your Space Tension. You loved Arrival — "it trusts you to keep up," you said — so I'd start with Moon: …* | a heading, ***A little surprise for tonight.***, then *You loved Arrival for its quiet tension and the way its mystery slowly unfolds. I think Moon might be right up your alley. It has that same feeling of something bigger hiding beneath the surface.* |
+| Example: the close | *Or give me a mood and I'll aim closer.* | **unchanged**, exactly: *Or give me a mood and I’ll aim closer.* |
+| Example: caption, *You* line | *Example, shortened: a reply in ChatGPT or Claude, with Tonight connected* / *Anything for tonight?* | **unchanged**: the user replaced the response only. The caption keeps the reply marked as an example and says where it happens; the *You* line keeps it a reply |
+| Lower section | two items: *Today, in closed beta* … / *Where it's going* … *Not available yet.* | **one section**: heading ***Your taste. Your movie nights. Your AI.***, body *Tonight remembers the movies you love and what makes them special to you. So every recommendation feels a little more like you.*, and a discreet line, *Your personal movie AI, inside ChatGPT and Claude.* |
+| Header, footer | tagline, *Sign in with Google*, *Closed beta.*, legal links | **unchanged** |
+
+Two rules from the user hold for the example: it **names no Vibe**, and it **attributes no
+verbatim quote to the user**. The reason for loving *Arrival* is paraphrased, not quoted, and has
+no "you said".
+
+### What is true about the new words
+
+Checked against the same evidence as *What Tonight can and cannot say* below:
+
+- *Your personal movie AI* (subheadline and discreet line): "AI" describes the experience. The
+  discreet line, *inside ChatGPT and Claude*, says where it runs, and so does the caption under
+  the hero, which stays visible together with the hero at 375 × 667 (P-A4.2). Both are accurate:
+  README, *The architecture*; the privacy page's "Claude, ChatGPT or another".
+- *remembers what you love, understands why* and *remembers the movies you love and what makes them
+  special to you*: loved verdicts carry the user's reasons, and Vibes carry what a kind of night
+  means to them (README). "Understands why" was already on the page before this ticket.
+- *helps you find what to watch next*: recommendation through the assistant (the recommend
+  skill). "Helps", not "picks".
+- *So every recommendation feels a little more like you*: **user-approved positioning**, not a
+  verified improvement with each recommendation. It is soft by construction ("a little more"),
+  promises nothing proactive, and is not the guarded *every movie night*.
+- The example follows the recommend skill for a request with no mood. It is called a surprise
+  (148–153: the heading). The loved film is the reason, not the pick (177). It names one lead
+  (*Moon*) with a line about the film itself (203–210). It closes by asking for a mood (151). It
+  mentions no turned-down film (122–124). Leaving the Vibe unnamed is allowed: the skill permits
+  naming one as a reason but does not require it. *Moon* (2009) does turn on a hidden truth under
+  its surface, so the line about it is accurate.
+- **No vision copy is left.** Revisions 1–3 needed *Not available yet* because the page made a
+  claim about the future. Revision 4 makes none: every line but the headline describes what
+  Tonight does today. The headline is the user's accepted evocative line (revision 3). *Closed
+  beta.* stays in the footer, so access is still stated.
+
+### Structure and styling (unchanged design language)
+
+- **The example (`figure`).** Card, caption and the *You* row stay as they are. In the *Tonight*
+  row, the reply becomes:
+  - an `h3`, *A little surprise for tonight.*, in the display font at the reply's current size
+    (`font-display text-[21px] sm:text-[24px] leading-snug text-ink`);
+  - the body as a `p` in `text-[15px] leading-relaxed text-ink`;
+  - the close as today (`text-[14px] text-ink-soft`).
+
+  An `h3` because it heads the reply: the outline becomes h1 *Tonight* → h2 hero → h3 the
+  example → h2 the lower section.
+- **The lower section** replaces the two-item `dl` with `<section aria-labelledby="landing-taste">`:
+  - `h2#landing-taste` in the display font at the size Part 1 used for its secondary heading
+    (`font-display text-[24px] leading-tight sm:text-[28px]`);
+  - the body as a `p` in `mt-3 text-[15px] leading-relaxed text-ink-soft`;
+  - the discreet line as a `p` in `mt-4 text-[12.5px] text-ink-soft`. Discreet by size, and not
+    by `ink-faint`, because the contrast guard (3.37:1) stays.
+- Nothing else moves: the same container, spacing (`mt-10 sm:mt-14`), card and colours. No new
+  component, token, dependency or file.
+
+### Test changes (`landing.test.ts`)
+
+- **Approved words** (P-A3.1): the hero (unchanged, inside its `h2`), the new subheadline, the
+  caption, *Anything for tonight?*, the `h3`, the body, the close, the lower heading, its body and
+  the discreet line, each exact with whitespace collapsed.
+- **Only the headline reaches past today** (P-A3.2): the same pattern, applied after removing the
+  headline once.
+- **The example as the user ruled:** in the `figure`'s **text, with the JSX tags stripped** (so
+  attribute quotes cannot trip it): no Vibe name (none of the README's example Vibe names:
+  *Space Tension*, *Popcorn Chaos*, *Small Town Secrets*, *Quiet Dread*), no "you said", and no
+  quotation marks (`“ ” "`). The figure-content check that expected *I’d start with Moon*
+  expects *I think Moon might be right up your alley.* instead.
+- **Structure:** no `h1`, two `h2`s (hero, lower section), one `h3` (the example); labels
+  `landing-promise`, `landing-example`, `landing-taste`, each resolving to an id; still no
+  `form`, `input`, `textarea` or `button`; `ink-faint` still only on *Closed beta.*
+- The tests that the revision-3 copy needed for *Today* / *Where it's going* / *Not available yet*
+  are replaced by the above. The sign-in, legal-links and slideshow-gone tests are unchanged.
+
+### Acceptance
+
+As P-A1–P-A4, with P-A4.1's strings taken from the table above. P-A4.5's VoiceOver outline is h1
+*Tonight*, h2 hero, h3 *A little surprise for tonight.*, h2 *Your taste. Your movie nights. Your
+AI.* P-A4.2 adds one thing: the lower section is a single column at every width, with no
+side-by-side layout left. P-A2 compares against `f6276e2`: only `web/app/page.tsx`,
+`web/lib/web/landing.test.ts` and this plan change.
+
+Nothing is committed by this revision unless the user asks. No push, merge or deploy.
+
+---
+
+Revision 3 status: **plan, revision 3, Codex READY (round 3, a targeted review of the hero change).**
 Revision 2 was Codex READY (round 2). Revision 3 changes one decision, at the user's explicit instruction: the hero is
 the user's exact line, *Your next movie is already on my mind.*, not a substitute. The changes that
 follow from it are listed under *Revisions (Part 2)*. Implementation READY will still need P-A4's
@@ -843,6 +951,11 @@ Part 1's did.
 - **Codex plan review round 3 (targeted): READY.** The headline decision is carried out
   consistently. Its one non-blocking note is adopted: P-A4.1's HTML check applies the same
   one-time hero exemption as P-A3.2.
+- **Revision 4 (the user's final copy, after revision 3 was committed).** It changes the
+  subheadline and the example's reply (heading, paraphrased reason, no Vibe and no quote), and
+  replaces *Today* / *Where it's going* with one section and a discreet *inside ChatGPT and
+  Claude* line. The hero, the close and the design are unchanged. The details, claims and test
+  changes are in [Revision 4](#revision-4-final-copy-from-the-user) at the top of Part 2.
 
 ## Implementation (Part 2)
 
@@ -957,3 +1070,247 @@ authorised redirect URI, and the user's address in `ALLOWED_EMAILS`.
 
 **Still open for implementation READY:** P-A4.2–P-A4.7 and the screenshots, on this tree, then
 Codex's implementation review.
+
+## Implementation (revision 4, the final copy)
+
+Implemented after the round-4 READY, on top of `f6276e2`, which is `origin/main` `5f53947` plus
+revision 3. **Uncommitted**: `git diff --stat HEAD` lists only `web/app/page.tsx`,
+`web/lib/web/landing.test.ts` and this plan. No commit, push, merge or deploy.
+
+**Changes:**
+
+- `page.tsx`, `Landing` only:
+  - the subheadline;
+  - in the example: an `h3`, *A little surprise for tonight.* (display font, at the reply's old
+    size), then the body (`text-[15px] leading-relaxed text-ink`), then the close, unchanged;
+  - the two-item `dl` replaced by `<section aria-labelledby="landing-taste">`: an `h2` (display
+    font, 24 / 28 px), the body in `ink-soft`, and the discreet line at 12.5 px in `ink-soft`;
+  - the comments updated to match.
+
+  The hero, caption, *You* row, card, spacing, header, footer and the rest of the file are
+  unchanged.
+- `landing.test.ts`, still 6 tests:
+  - the approved words are revision 4's;
+  - the example check now expects *I think Moon might be right up your alley.* It also fails on a
+    README Vibe name, on "you said", or on any quotation mark in the example's text (JSX tags
+    stripped first);
+  - the structure check expects two `h2`s, one `h3` and the labels `landing-promise`,
+    `landing-example`, `landing-taste`;
+  - the headline exemption, the controls, `ink-faint`, sign-in and slideshow checks are
+    unchanged.
+
+**Results:**
+
+| Check | Result |
+| --- | --- |
+| `landing.test.ts` | 6 / 6 |
+| `npm run test` | 1301 tests, 1297 pass, the same 4 known `evaluation.test.ts` failures (the count is unchanged from `f6276e2`: no test added or removed) |
+| `typecheck` / `lint` / `build` | clean / 0 errors, the same 2 existing warnings / succeeds, with `/`, `/movie`, `/movie/choose`, `/vibe` dynamic |
+| Preview HTML (`http://localhost:3081`, scripts removed) | 200. All 16 strings present: the revision-4 copy, *Sign in with Google*, *Movies That Get You.*, *Closed beta.* and the three legal hrefs. The headline appears once. With the headline removed, none of the guarded phrases appear, nor *Space Tension*, "you said", *Today, in closed beta* or *Not available yet*. No quotation marks in the example's text. One `h1`, two `h2`s, one `h3`, one form |
+| Routes | `POST /auth/signin` returns 302 to `accounts.google.com`; the legal pages are 200; signed out, `/vibe` and `/movie` return 307 to `/` |
+
+**Preview running** for the user's visual check: a dev server at `http://localhost:3081`, bound
+to `127.0.0.1`. It uses the throwaway, gitignored `web/.env.local` and the in-memory database.
+Sign-in cannot complete there: the Google client is a placeholder.
+
+**Codex implementation review (revision 4): NOT READY, with no code blocker.** The one blocker
+is the manual acceptance, P-A4.2–P-A4.7 and the screenshots, on this revision. Non-blocking: the
+implementation and tests match the approved plan. Codex independently ran the related tests
+(51 / 51), typecheck, changed-file lint and a whitespace check on the diff. On the preview it
+confirmed the headline appears once and the heading order is h1 → h2 → h3 → h2.
+
+**Still open for implementation READY:** P-A4.2–P-A4.7 and the screenshots (browser, zoom,
+keyboard, VoiceOver, a real Google sign-in). This session has neither a browser nor the real
+OAuth client.
+
+## Revision 4a: the example card in the app's own style (from the user) — SUPERSEDED by 4b
+
+> **Wrong, and corrected in revision 4b below.** 4a took the pink of a pressed *Love it* button.
+> The user wanted the example card to look exactly like the signed-in Stream's movie card.
+
+The user asked for the example card to take the visual style of the app's Stream movie tiles:
+the pink background and tone, the border, the radius and the related tokens, taken from the real
+components rather than invented. Copy, hero, surrounding layout, auth and footer are unchanged.
+
+**What the code holds.** Checked on `origin/main` `5f53947` and in the `tonight-ui-plan` worktree,
+read-only. That worktree is clean and equal to `origin/main`.
+
+- A Stream tile (`components/movie-card.tsx`) is `rounded-xl border border-rule bg-screen px-5
+  py-4`: dark, with a `rule` border. **No Stream tile has a pink background.** Pink appears there
+  only as the *Loved* status text (`text-loved`, `movie-status.tsx`).
+- The app's one pink is the `loved` token (`--color-loved: #f472b6`, `globals.css`). Its one pink
+  **surface** is a pressed *Love it* choice on a film's screen: `border-loved bg-loved/10
+  text-loved` (`movie-choices.tsx`).
+
+**Change.** The example `figure` goes from `rounded-2xl border-rule bg-screen` to
+`rounded-xl border-loved bg-loved/10`: a Stream tile's radius, and the app's existing pink surface
+exactly as a pressed *Love it* uses it. No new token, no new colour, no arbitrary value. The
+padding (`p-6 sm:p-8`) and everything inside the card stay. The tile's `px-5 py-4` is not taken,
+because the card holds a caption and two turns, not three short lines, and the surrounding layout
+is to stay.
+
+**Contrast** on the card (`loved` at 10% over `night`, about `#221521`): `ink` 14.9:1, `ink-soft`
+6.45:1, `beam` 8.1:1. Every text colour used in the card stays above 4.5:1. `ink-faint` would be
+3.2:1, and the existing guard keeps it out of `Landing`.
+
+**Test.** One new test in `landing.test.ts`. The `figure` must carry `rounded-xl`,
+`border-loved` and `bg-loved/10`. The test also confirms those tokens still exist where it says
+they come from (`rounded-xl` in `movie-card.tsx`, `border-loved bg-loved/10` in
+`movie-choices.tsx`). And it fails on any arbitrary colour in `Landing` (a hex value, `rgb(a)`,
+`hsl(a)`, `oklch`), so no other pink can come in.
+
+**Results:**
+
+- `landing.test.ts`: 7 / 7.
+- `npm run test`: 1302 tests, 1298 pass, the same 4 known failures (+1 test).
+- `typecheck` clean; `lint` 0 errors, the same 2 warnings; `build` succeeds.
+- Preview (`http://localhost:3081`): the `figure` renders with
+  `rounded-xl border border-loved bg-loved/10`. The stylesheet resolves them to
+  `background-color: #f472b61a` (`loved` at 10%), `border-color: var(--color-loved)` and
+  `border-radius: var(--radius-xl)`. The headline appears once, and all copy is unchanged.
+
+Uncommitted. **Still open:** the manual acceptance P-A4.2–P-A4.7 and the screenshots, now on this
+styling too. The Codex implementation review stays NOT READY until they are done.
+
+**Codex review of the styling diff: NOT READY, with no code blocker.** The one blocker is the
+manual acceptance, explicitly still open and not waived. Non-blocking: the radius matches the
+Stream tiles, and the border and background reuse the pressed *Love it* tokens. Padding and
+content are unchanged. Codex recalculated the contrast independently (14.89 / 6.45 / 8.12:1),
+verified the 7 landing tests, typecheck, changed-file lint and whitespace, and confirmed the
+figure's classes on the preview.
+
+## Revision 4b: the example card is a Stream movie card (user correction)
+
+The user corrected 4a. The example card is to look **exactly like the movie card on the
+signed-in Stream**, not like the pressed *Love it* button: the dark card and neutral border, the
+same radius, and the movie card's own text colours throughout. No violet or lilac, no amber or
+yellow *Tonight*. Copy and page layout are unchanged.
+
+**The movie card as it is** (`components/movie-card.tsx`, `movie-status.tsx`; tokens in
+`app/globals.css`):
+
+| Part | Classes | Token values |
+| --- | --- | --- |
+| Surface (`li`, line 74) | `rounded-xl border border-rule bg-screen px-5 py-4`, plus `transition-colors hover:border-ink-faint` because the card is a link | `--color-screen #14141b`, `--color-rule #262630`, `--radius-xl` |
+| Title (link, line 84) | `font-display text-[22px] leading-tight break-words text-ink` | `--color-ink #f2ece2` |
+| Status (`movie-status.tsx:40`) | `text-[12px] leading-none text-ink-soft`; only *Loved* (`text-loved`) and *Liked* (`text-liked`) are coloured | `--color-ink-soft #a49c90` |
+| Year (line 75) | `text-[12px] text-ink-faint` | `--color-ink-faint #6e6961` (3.37:1 on `screen`) |
+| Vibe names (`vibe-links.tsx`) | `text-vibe` (violet) | — |
+
+**What differed on the landing card (4a)** (`app/page.tsx`):
+
+- surface `rounded-xl border border-loved bg-loved/10 p-6 sm:p-8`, i.e. pink;
+- heading `text-[21px] leading-snug sm:text-[24px]`;
+- caption `text-[12.5px]` and *You* `text-[13px]`;
+- *Tonight* `text-[13px] text-beam` (amber).
+
+**Change (4b):**
+
+| Element | Now |
+| --- | --- |
+| `figure` | `mt-10 rounded-xl border border-rule bg-screen px-5 py-4 sm:mt-14`: the card surface exactly, without the hover, because this card opens nothing. The spacing around it is unchanged |
+| `h3` *A little surprise for tonight.* | `font-display text-[22px] leading-tight break-words text-ink`: the card title exactly |
+| caption, *You*, *Tonight* | `text-[12px] text-ink-soft`: the card's status text. *Tonight* is no longer amber |
+| body / close | `text-[15px] leading-relaxed text-ink` / `text-[14px] text-ink-soft`, unchanged; both are card colours |
+
+The card uses no `ink-faint` (the year's colour), because of contrast: 3.37:1 on `screen`. On
+`screen`, `ink` is 15.6:1 and `ink-soft` 6.75:1. `app/globals.css` changes in one comment only:
+amber is no longer "the landing page's accent". It is still the focus ring.
+
+**Test:** 4a's pink test is removed. In its place, *the example card is a Stream movie card*:
+
+- it reads the surface classes from `movie-card.tsx`'s `li` (`rounded-xl border border-rule
+  bg-screen px-5 py-4`) and requires each on the `figure`;
+- it requires the `h3` to carry exactly the card title's classes, and checks that the card still
+  sets its title that way;
+- it allows only `text-ink`, `text-ink-soft`, `bg-screen` and `border-rule` as colour classes in
+  the card, so no `beam`, `vibe`, `loved`, `liked` or `ink-faint`;
+- it keeps the guard against arbitrary colour values.
+
+**Results:**
+
+- `landing.test.ts`: 7 / 7.
+- `npm run test`: 1302 tests, 1298 pass, the same 4 known failures.
+- `typecheck` clean; `lint` 0 errors, the same 2 warnings; `build` succeeds.
+- Preview `http://localhost:3081`, refreshed:
+  - the `figure` renders as `rounded-xl border border-rule bg-screen px-5 py-4` and the `h3` as
+    the card title;
+  - the colour classes in the card are only `border-rule bg-screen text-ink-soft text-ink`;
+  - the stylesheet resolves them to `var(--color-screen)`, `var(--color-rule)` and
+    `var(--radius-xl)`;
+  - the headline appears once, and the copy is unchanged.
+
+Uncommitted. **Still open:** the manual acceptance P-A4.2–P-A4.7 and the screenshots, on this
+revision. The Codex implementation review stays NOT READY until they are done.
+
+**Codex review of 4b: NOT READY, with no code blocker.** The one blocker is the manual
+acceptance, explicitly open. Non-blocking:
+
+- the preview confirms the Stream card's surface, padding, radius and title classes, and only
+  `bg-screen`, `border-rule`, `text-ink` and `text-ink-soft` as colours;
+- the CSS change is comment-only;
+- 7 / 7 landing tests, typecheck, lint and whitespace pass.
+
+Its one note is adopted: the palette guard named only theme colours and would have missed
+Tailwind's own palette (`text-purple-500`). It now requires every `text-`, `bg-` and `border-`
+class in the card, variant prefixes stripped, to be a pixel size (`text-[…px]`), the bare
+`border`, or one of the four. It rejects `text-purple-500`, `sm:text-beam`, `bg-loved/10` and
+`border-loved`. After the change: 7 / 7, typecheck clean, lint 0 errors.
+
+**Revision 4c (user, final):** the example's *Tonight* label is in the app's Vibe violet, with
+the existing ✨, drawn the way `vibe-links.tsx` draws a Vibe:
+`<dt className="flex shrink-0 items-center gap-1.5 text-[12px] text-vibe sm:w-16">` with
+`<Sparkles aria-hidden size={13} strokeWidth={1.75} />` from `lucide-react`. `vibe` on
+`screen` is about 6.8:1 (`globals.css`). The parity test allows `text-vibe` exactly once, on
+that label. Nothing else changes. Checks: `landing.test.ts` 7 / 7, `typecheck` clean, `lint` 0
+errors. The preview renders the label with the icon. No new Codex review was requested for this
+small, user-dictated change in the existing pattern. It goes into the outstanding final review,
+together with the manual acceptance, which stays open.
+
+**Revision 4d (user, alignment fix):** the *Tonight* label sat vertically centred beside the
+multi-line reply. The turn's row (`sm:flex-row`) stretches its children, and the label's own
+`flex items-center` then centred icon and text in the full height. Fix: `self-start` on that
+`dt`, so it sits at the top of its turn, level with *A little surprise for tonight.*, as *You*
+sits with its question. A test pins `self-start` on the label. Checks: `landing.test.ts` 7 / 7,
+lint 0 errors. The preview renders the class (`align-self: flex-start`). Again no separate Codex
+review; it goes into the final review with the open manual acceptance.
+
+## Deploy gate (2026-10-25): NOT READY, so not deployed
+
+The user gave complete visual sign-off (copy, card styling, the top-aligned violet ✨ *Tonight*)
+and asked to deploy, provided Codex could close its NOT READY findings on actual evidence.
+
+**Evidence submitted**, on the final tree (`f6276e2` plus revisions 4–4d, uncommitted):
+
+- `npm test` 1302 run, 1298 pass (the 4 known failures); typecheck clean; lint 0 errors; build
+  OK.
+- Diff against `origin/main` `5f53947`: only `page.tsx`, `globals.css` (one comment),
+  `landing.test.ts`, the deleted slideshow files and this plan. No auth or signed-in code.
+- DOM: the focusable elements in order are *Sign in with Google*, Home, Privacy, Terms and
+  Impressum; there are no tabindex attributes and no CSS order. The headings are h1, h2, h3, h2;
+  the landmarks and all labels resolve.
+- Contrast computed from the tokens.
+- `POST /auth/signin` returns 302 to Google; cross-origin returns 403.
+
+**Codex verdict: NOT READY.**
+
+- **Closed:** P-A4.2 and the screenshots, by the user's visual sign-off. No viewport runs or
+  screenshots are recorded as performed. P-A4.6, by the computed contrast. There is no code
+  blocker.
+- **Open, untested, not marked as passed:**
+  1. **P-A4.3** 200% browser zoom and text-only zoom.
+  2. **P-A4.4** real Tab navigation and visible focus. The DOM order supports it but does not
+     complete it.
+  3. **P-A4.5** VoiceOver: reading order, the figure caption announcement and label behaviour.
+  4. **P-A4.7** a real Google round trip: allowed-account sign-in, return to the signed-in page,
+     sign-out, and the refusal for an unlisted address. The 302 proves only that sign-in starts.
+
+None of the four can be run in this session: there is no browser or screen reader, and no real
+Google OAuth client. **Not committed, pushed, merged or deployed.**
+
+**Closed: Codex implementation review READY.** The user then ran the four open checks
+themselves and confirmed them: 200% and text-only zoom, keyboard focus, VoiceOver, and the Google
+round trip (allowed sign-in, denied sign-in, sign-out). Codex closed all four findings on that
+firsthand attestation and issued **READY**. It notes this is user-reported evidence, with no
+further tests or review of its own. The user authorised the release: commit, push, merge to
+`main`, production deploy.

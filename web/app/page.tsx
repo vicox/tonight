@@ -1,3 +1,5 @@
+import { Sparkles } from "lucide-react";
+
 import { LegalLinks } from "@/components/legal";
 import { SignedIn, Unavailable } from "@/components/signed-in";
 import { SiteHeader, SignIn } from "@/components/site-header";
@@ -64,39 +66,52 @@ function Landing() {
         </h2>
 
         <p className="mt-5 text-[16px] leading-relaxed text-ink-soft">
-          An AI that gets to know you, remembers what moves you, and helps make your movie nights
-          better.
+          Your personal movie AI. It remembers what you love, understands why, and helps you find
+          what to watch next.
         </p>
       </section>
 
       {/*
-        One reply, captioned as an example: the words quoted are an invented
-        person's, and the website has no chat, so nothing here looks like
-        something to type into. It keeps to the recommend skill's shape for a
-        request with no mood — a surprise, one lead, their words not made
-        stronger — and, like the skill, it never brings up a film they turned
-        down. Amber marks Tonight's turn, as it did in the examples before it.
+        One reply, captioned as an example: the person in it is invented, and the
+        website has no chat, so nothing here looks like something to type into. It
+        keeps to the recommend skill's shape for a request with no mood — a
+        surprise, the loved film as the reason, one lead — and, like the skill, it
+        never brings up a film they turned down. It names no Vibe and puts no
+        quoted words in anybody's mouth.
+
+        The card is a Stream movie card (`movie-card.tsx`): its surface, its
+        title's type and its quiet `ink-soft` for the small lines, which is how a
+        card says how a film stands. Not its hover, because this card opens
+        nothing; and not the year's `ink-faint`, which is 3.37:1 on `screen`.
+        One accent only: Tonight's name in the app's violet with its ✨, drawn
+        the way a Vibe link draws them (`vibe-links.tsx`).
       */}
       <figure
         aria-labelledby="landing-example"
-        className="mt-10 rounded-2xl border border-rule bg-screen p-6 sm:mt-14 sm:p-8"
+        className="mt-10 rounded-xl border border-rule bg-screen px-5 py-4 sm:mt-14"
       >
-        <figcaption id="landing-example" className="text-[12.5px] text-ink-soft">
+        <figcaption id="landing-example" className="text-[12px] text-ink-soft">
           Example, shortened: a reply in ChatGPT or Claude, with Tonight connected
         </figcaption>
 
         <dl className="mt-5 flex flex-col gap-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:gap-4">
-            <dt className="shrink-0 text-[13px] text-ink-soft sm:w-16">You</dt>
+            <dt className="shrink-0 text-[12px] text-ink-soft sm:w-16">You</dt>
             <dd className="min-w-0 text-[15px] text-ink">Anything for tonight?</dd>
           </div>
           <div className="flex flex-col gap-1 sm:flex-row sm:gap-4">
-            <dt className="shrink-0 text-[13px] text-beam sm:w-16">Tonight</dt>
+            <dt className="flex shrink-0 items-center gap-1.5 self-start text-[12px] text-vibe sm:w-16">
+              <Sparkles aria-hidden="true" size={13} strokeWidth={1.75} className="shrink-0" />
+              Tonight
+            </dt>
             <dd className="min-w-0">
-              <p className="font-display text-[21px] leading-snug text-ink sm:text-[24px]">
-                A surprise, from your Space Tension. You loved Arrival — “it trusts you to keep
-                up,” you said — so I’d start with Moon: one man, one station, and a quiet puzzle
-                that rewards exactly that kind of attention.
+              <h3 className="font-display text-[22px] leading-tight break-words text-ink">
+                A little surprise for tonight.
+              </h3>
+              <p className="mt-2 text-[15px] leading-relaxed text-ink">
+                You loved Arrival for its quiet tension and the way its mystery slowly unfolds. I
+                think Moon might be right up your alley. It has that same feeling of something
+                bigger hiding beneath the surface.
               </p>
               <p className="mt-3 text-[14px] text-ink-soft">
                 Or give me a mood and I’ll aim closer.
@@ -107,30 +122,21 @@ function Landing() {
       </figure>
 
       {/*
-        What is here now and what is not, side by side and plainly labelled. Today
-        is said as what it does rather than as a correction of the line above.
+        What Tonight keeps, and where it runs. The last line is small on purpose
+        but stays `ink-soft`: `ink-faint` on `night` is about 3.6:1, under the
+        4.5:1 text this size needs.
       */}
-      <section aria-label="Today, and where Tonight is going" className="mt-10 sm:mt-14">
-        <dl className="flex flex-col gap-6 sm:grid sm:grid-cols-2 sm:gap-8">
-          <div>
-            <dt className="text-[12.5px] tracking-[0.11em] text-ink-soft uppercase">
-              Today, in closed beta
-            </dt>
-            <dd className="mt-2 text-[15px] leading-relaxed text-ink-soft">
-              Tonight works inside the AI assistant you already use, like ChatGPT or Claude. Ask
-              for a film, and it draws on what it keeps: your films, what you thought of them,
-              your Vibes. Sign in to see your films and Vibes.
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[12.5px] tracking-[0.11em] text-ink-soft uppercase">
-              Where it’s going
-            </dt>
-            <dd className="mt-2 text-[15px] leading-relaxed text-ink-soft">
-              An AI that takes care of your movie nights, not only when you ask. Not available yet.
-            </dd>
-          </div>
-        </dl>
+      <section aria-labelledby="landing-taste" className="mt-10 sm:mt-14">
+        <h2 id="landing-taste" className="font-display text-[24px] leading-tight sm:text-[28px]">
+          Your taste. Your movie nights. Your AI.
+        </h2>
+        <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
+          Tonight remembers the movies you love and what makes them special to you. So every
+          recommendation feels a little more like you.
+        </p>
+        <p className="mt-4 text-[12.5px] text-ink-soft">
+          Your personal movie AI, inside ChatGPT and Claude.
+        </p>
       </section>
 
       {/*

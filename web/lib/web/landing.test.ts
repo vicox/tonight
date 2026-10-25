@@ -8,10 +8,9 @@ import { fileURLToPath } from "node:url";
  * The public page, held to what it says.
  *
  * It leads with one line in Tonight's own voice, shows one example reply, and says
- * plainly what is here today and what is not yet. What is pinned here is that the
- * approved words stay, that the headline is the only line that reaches beyond what
- * the product does today, and that nothing of the old scripted conversation comes
- * back.
+ * what Tonight keeps and where it runs. What is pinned here is that the approved
+ * words stay, that the headline is the only line that reaches beyond what the
+ * product does today, and that nothing of the old scripted conversation comes back.
  *
  * Grep-shaped, like `disclosures.test.ts`: a snapshot of the markup would fail on
  * every class name and say nothing about the page.
@@ -70,15 +69,15 @@ test("the landing page says what it was approved to say", () => {
   );
 
   for (const words of [
-    "An AI that gets to know you, remembers what moves you, and helps make your movie nights better.",
+    "Your personal movie AI. It remembers what you love, understands why, and helps you find what to watch next.",
     "Example, shortened: a reply in ChatGPT or Claude, with Tonight connected",
     "Anything for tonight?",
-    "A surprise, from your Space Tension. You loved Arrival — “it trusts you to keep up,” you said — so I’d start with Moon: one man, one station, and a quiet puzzle that rewards exactly that kind of attention.",
+    "A little surprise for tonight.",
+    "You loved Arrival for its quiet tension and the way its mystery slowly unfolds. I think Moon might be right up your alley. It has that same feeling of something bigger hiding beneath the surface.",
     "Or give me a mood and I’ll aim closer.",
-    "Today, in closed beta",
-    "Tonight works inside the AI assistant you already use, like ChatGPT or Claude. Ask for a film, and it draws on what it keeps: your films, what you thought of them, your Vibes. Sign in to see your films and Vibes.",
-    "Where it’s going",
-    "An AI that takes care of your movie nights, not only when you ask. Not available yet.",
+    "Your taste. Your movie nights. Your AI.",
+    "Tonight remembers the movies you love and what makes them special to you. So every recommendation feels a little more like you.",
+    "Your personal movie AI, inside ChatGPT and Claude.",
   ]) {
     assert.ok(page.includes(words), `the landing page no longer says "${words}"`);
   }
@@ -107,7 +106,20 @@ test("the example is an example, and nothing on the page can be typed into", () 
   const figure = page.slice(page.indexOf("<figure"), page.indexOf("</figure>"));
   assert.ok(figure.length > 0, "the example is not a figure");
   assert.match(figure, /<figcaption[^>]*>\s*Example,/, "the example is not captioned as one");
-  assert.ok(collapsed(figure).includes("I’d start with Moon"), "the reply sits outside the example");
+  assert.ok(
+    collapsed(figure).includes("I think Moon might be right up your alley."),
+    "the reply sits outside the example",
+  );
+
+  // The person in the example is invented. So the reply names none of their Vibes
+  // and puts no words in their mouth: its reason for Arrival is said, not quoted.
+  // Judged on the text alone, so the quotes around attribute values do not count.
+  const said = collapsed(figure.replace(/<[^>]*>/g, " "));
+  for (const vibe of ["Space Tension", "Popcorn Chaos", "Small Town Secrets", "Quiet Dread"]) {
+    assert.equal(said.includes(vibe), false, `the example names the Vibe ${vibe}`);
+  }
+  assert.doesNotMatch(said, /you said/i, "the example attributes words to the person");
+  assert.doesNotMatch(said, /[“”"]/, "the example quotes somebody");
 
   // The website has no chat. A message that looked like a text box would invite
   // somebody to type into a page that cannot answer.
@@ -116,17 +128,72 @@ test("the example is an example, and nothing on the page can be typed into", () 
   }
 });
 
+test("the example card is a Stream movie card", () => {
+  const page = uncommented(landing());
+  const figure = page.slice(page.indexOf("<figure"), page.indexOf("</figure>"));
+  const classes = (source: string) => source.split(/\s+/).filter(Boolean);
+  const card = read("components/movie-card.tsx");
+
+  // The surface, read from the movie card itself, so the two cannot drift: its
+  // corners, its border, its background and its padding. Not its hover, which
+  // belongs to something that opens a film.
+  const tile = classes(card.match(/<li className="([^"]*)"/)?.[1] ?? "");
+  const surface = tile.filter((name) => /^(rounded-|border|bg-|p[xy]-)/.test(name));
+  assert.deepEqual(surface, ["rounded-xl", "border", "border-rule", "bg-screen", "px-5", "py-4"]);
+  const shell = classes(figure.match(/<figure\b[^>]*className="([^"]*)"/)?.[1] ?? "");
+  for (const name of surface) {
+    assert.ok(shell.includes(name), `the example card is not ${name}, as a movie card is`);
+  }
+
+  // The heading is set exactly as a movie card's title is.
+  const title = "font-display text-[22px] leading-tight break-words text-ink";
+  assert.ok(card.includes(`"${title}"`), "the movie card's title is no longer set this way");
+  assert.equal(figure.match(/<h3\b[^>]*className="([^"]*)"/)?.[1], title);
+
+  // Only the colours a movie card's own text and surface use, plus the app's
+  // violet for Tonight's name (below): no amber, no pink, no blue. The card's year
+  // is `ink-faint`, which is 3.37:1 on `screen`, so it is not used here either.
+  // Every text-, bg- and border- class in the card is a size, the bare border, or
+  // one of those — so Tailwind's own palette (`text-purple-500`) is out too.
+  const utilities = [...figure.matchAll(/className="([^"]*)"/g)]
+    .flatMap((match) => classes(match[1]))
+    .map((name) => name.replace(/^(?:[a-z0-9-]+:)+/, ""))
+    .filter((name) => /^(?:text|bg|border)(?:-|$)/.test(name));
+  for (const name of utilities) {
+    assert.ok(
+      /^text-\[\d+(?:\.\d+)?px\]$/.test(name) ||
+        ["border", "text-ink", "text-ink-soft", "bg-screen", "border-rule", "text-vibe"].includes(name),
+      `the example card uses ${name}, which a movie card's text and surface do not`,
+    );
+  }
+
+  // The one accent: Tonight's name, in the app's violet with its ✨, as a Vibe
+  // link draws them — and nowhere else on the card.
+  assert.equal(utilities.filter((name) => name === "text-vibe").length, 1, "violet is used more than once");
+  assert.match(figure, /<dt className="[^"]*\btext-vibe\b[^"]*">\s*<Sparkles aria-hidden="true"[^>]*\/>\s*Tonight\s*<\/dt>/);
+
+  // At the top of its turn, as You is at the top of theirs. A flex label in a
+  // row that stretches would centre itself beside a long reply.
+  assert.match(figure, /<dt className="[^"]*\bself-start\b[^"]*\btext-vibe\b[^"]*">/, "Tonight is not top-aligned");
+
+  // No colour of the page's own: every colour on it is a theme token. Arbitrary
+  // sizes such as `text-[32px]` are fine; an arbitrary colour is not.
+  assert.doesNotMatch(page, /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|oklch\(/i);
+});
+
 test("the page is structured and readable", () => {
   const page = landing();
 
-  // `Tonight` in the shared header is the page's one h1; the headline sits under it.
+  // `Tonight` in the shared header is the page's one h1. Under it: the headline
+  // and the closing section as h2s, and the example's own heading as an h3.
   assert.equal(page.match(/<h1\b/g), null, "Landing has an h1 of its own");
-  assert.equal(page.match(/<h2\b/g)?.length, 1, "Landing does not have exactly one heading");
+  assert.equal(page.match(/<h2\b/g)?.length, 2, "Landing does not have exactly two h2s");
+  assert.equal(page.match(/<h3\b/g)?.length, 1, "the example does not have exactly one heading");
 
   // Each labelled part points at something that is there: a label pointing at
   // nothing names the part nothing.
   const labels = [...page.matchAll(/aria-labelledby="([^"]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(labels, ["landing-promise", "landing-example"]);
+  assert.deepEqual(labels, ["landing-promise", "landing-example", "landing-taste"]);
   for (const label of labels) {
     assert.match(page, new RegExp(`id="${label}"`), `nothing has the id ${label}`);
   }

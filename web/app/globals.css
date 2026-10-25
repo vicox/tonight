@@ -15,8 +15,8 @@
   --color-ink-faint: #6e6961;
   --color-rule: #262630;
 
-  /* Projector amber: the focus ring on every control, and the landing page's
-     accent. It used to mark the user's vibes on the signed-in page too; there a
+  /* Projector amber: the focus ring on every control. It used to be the landing
+     page's accent, and to mark the user's vibes on the signed-in page; there a
      vibe is now marked by `vibe` below. Genres stay unlit: they are what a vibe
      is built on, and if everything glows nothing does. */
   --color-beam: #e3a54a;
