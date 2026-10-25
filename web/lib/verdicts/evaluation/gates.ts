@@ -1,4 +1,4 @@
-import { BASELINE, TUESDAY, WEDNESDAY, type Step, type Trajectory } from "./trajectories.ts";
+import { BASELINE, type Step, type Trajectory } from "./trajectories.ts";
 
 /**
  * The M2 gates: is what the user said the only thing that counts, and does it
@@ -9,8 +9,8 @@ import { BASELINE, TUESDAY, WEDNESDAY, type Step, type Trajectory } from "./traj
  * M1's gates say it for that milestone and the reasoning carries: Phase 1's
  * subject was a model's prose, where *"is this a good lead"* cannot be settled by
  * a rule, so it went to a blind judge. M2's subject is what recommendation work
- * is handed — whether a withdrawn verdict is still standing, whether an evening's
- * refusal leaked past the evening, whether the words the user used survived. Each
+ * is handed — whether a withdrawn verdict is still standing, whether a dislike
+ * leaked past its film, whether the words the user used survived. Each
  * of those is a fact about a payload, and giving a fact to a judge would turn it
  * into an opinion.
  *
@@ -48,9 +48,6 @@ export type Standing = {
   year: number;
   judgement?: string;
   because?: string;
-  rejected?: string;
-  reason?: string;
-  occasion?: string;
   told: string;
 };
 
@@ -87,8 +84,6 @@ export type Observed = {
   checkpoints: Taste[];
   /** `get_verdicts` per film the trajectory touched, keyed by `title (year)`. */
   asked: Record<string, Asked>;
-  /** `get_verdicts` asked about an occasion, keyed by `title (year) @ occasion`. */
-  askedAt: Record<string, Asked>;
 };
 
 /** What a second user could see or do to the first user's claims. */
@@ -165,55 +160,43 @@ const besideVerdicts = (taste: Taste) => ({
 /**
  * What should be standing at the end of a trajectory, worked out from its steps.
  *
- * A deliberately naive replay: the last thing said in a scope stands there, and
- * taking it back leaves that scope empty. That is the rule in the words the
- * architecture uses, written out independently of `model.ts` — which resolves
- * the same question through ordering, supersession and scope layering. Two
- * implementations is the point. A gate that called `standing()` to decide what
- * `standing()` should say would agree with every bug it has.
+ * A deliberately naive replay: the last thing said about a film stands, and
+ * taking it back leaves nothing. That is the rule in the words the architecture
+ * uses, written out independently of `model.ts` — which resolves the same
+ * question through ordering and supersession. Two implementations is the point.
+ * A gate that called `standing()` to decide what `standing()` should say would
+ * agree with every bug it has.
  */
 export function expectedStanding(steps: readonly Step[]): Standing[] {
-  const held = new Map<string, Map<string, Standing>>();
+  const held = new Map<string, Standing>();
 
   // Everybody starts with the baseline opinion standing, so what a trajectory
   // should end with is that plus whatever it said itself. A gate asking whether
   // a trajectory said anything is asking whether it said anything *beyond* this.
   for (const one of BASELINE.said) {
-    held.set(
-      filmKey(one.film),
-      new Map([
-        [
-          "everywhere",
-          { title: one.film.title, year: one.film.year, judgement: one.judgement, told: one.told },
-        ],
-      ]),
-    );
-  }
-
-  for (const step of steps) {
-    if (step.act !== "verdict" && step.act !== "withdraw") continue;
-    const film = filmKey(step.film);
-    const scope = step.occasion ?? "everywhere";
-    const scopes = held.get(film) ?? new Map<string, Standing>();
-    held.set(film, scopes);
-
-    if (step.act === "withdraw") {
-      scopes.delete(scope);
-      continue;
-    }
-    scopes.set(scope, {
-      title: step.film.title,
-      year: step.film.year,
-      ...(step.judgement === undefined ? {} : { judgement: step.judgement }),
-      ...(step.because === undefined ? {} : { because: step.because }),
-      ...(step.reach === undefined ? {} : { rejected: step.reach }),
-      ...(step.reason === undefined ? {} : { reason: step.reason }),
-      ...(scope === "everywhere" ? {} : { occasion: scope }),
-      told: step.told,
+    held.set(filmKey(one.film), {
+      title: one.film.title,
+      year: one.film.year,
+      judgement: one.judgement,
+      told: one.told,
     });
   }
 
-  return [...held.values()].flatMap((scopes) => [...scopes.values()]);
+  for (const step of steps) {
+    if (step.act === "withdraw") {
+      held.delete(filmKey(step.film));
+    } else if (step.act === "verdict") {
+      held.set(filmKey(step.film), {
+        title: step.film.title,
+        year: step.film.year,
+        judgement: step.judgement,
+        ...(step.because === undefined ? {} : { because: step.because }),
+        told: step.told,
+      });
+    }
+  }
+
+  return [...held.values()];
 }
 
 type VerdictStep = Extract<Step, { act: "verdict" }>;
@@ -223,7 +206,7 @@ const verdictSteps = (steps: readonly Step[]): VerdictStep[] =>
   steps.filter((step): step is VerdictStep => step.act === "verdict");
 
 /**
- * The step that produced a standing claim: same film, same scope, last said.
+ * The step that produced a standing claim: same film, last said.
  *
  * Identity matters here rather than membership. Asking only whether some step in
  * the trajectory said a thing would let a reason attach to the wrong film and
@@ -233,32 +216,22 @@ const verdictSteps = (steps: readonly Step[]): VerdictStep[] =>
 function sourceOf(said: readonly VerdictStep[], held: Standing): VerdictStep | undefined {
   return [...said]
     .reverse()
-    .find(
-      (step) =>
-        step.film.title === held.title &&
-        step.film.year === held.year &&
-        (step.occasion ?? "everywhere") === (held.occasion ?? "everywhere"),
-    );
+    .find((step) => step.film.title === held.title && step.film.year === held.year);
 }
 
 /**
  * One claim as the trajectory said it: everything that makes it that claim.
  *
- * Film *and year*, scope, what it asserts, and the words — each field present
- * even when empty, so that absence is compared as strictly as presence and a
- * reason cannot move between a global judgement and an evening's refusal for
- * the same film without the signature changing.
+ * Film *and year*, the judgement and the words — each field present even when
+ * empty, so that absence is compared as strictly as presence and a reason cannot
+ * move from one act about a film to another without the signature changing.
  */
 function claimSaid(step: VerdictStep) {
   return {
     title: step.film.title,
     year: step.film.year,
-    scope: step.occasion ?? "everywhere",
-    about: step.judgement === undefined ? "rejection" : "judgement",
-    judgement: step.judgement ?? null,
-    reach: step.reach ?? null,
+    judgement: step.judgement,
     because: step.because ?? null,
-    reason: step.reason ?? null,
   };
 }
 
@@ -266,27 +239,18 @@ function claimSaid(step: VerdictStep) {
 type VerdictAct = {
   said: string;
   film: { title: string; year: number };
-  scope: "everywhere" | { occasion: string };
-  assertion:
-    | { about: "judgement"; judgement: string; because: string | null }
-    | { about: "rejection"; rejection: { reach: string; reason: string | null } };
+  assertion: { about: "judgement"; judgement: string; because: string | null };
 };
 
 const isVerdictAct = (act: unknown): act is VerdictAct =>
   typeof act === "object" && act !== null && (act as { said?: string }).said === "verdict";
 
 function claimRecorded(act: VerdictAct) {
-  const judgement = act.assertion.about === "judgement" ? act.assertion : undefined;
-  const rejection = act.assertion.about === "rejection" ? act.assertion.rejection : undefined;
   return {
     title: act.film.title,
     year: act.film.year,
-    scope: act.scope === "everywhere" ? "everywhere" : act.scope.occasion,
-    about: act.assertion.about,
-    judgement: judgement?.judgement ?? null,
-    reach: rejection?.reach ?? null,
-    because: judgement?.because ?? null,
-    reason: rejection?.reason ?? null,
+    judgement: act.assertion.judgement,
+    because: act.assertion.because ?? null,
   };
 }
 
@@ -443,111 +407,54 @@ export function correction(world: World): Failure[] {
 /* ------------------------------------------------------------------ gate 4 */
 
 /**
- * Scope: a refusal reaches exactly as far as the user aimed it.
+ * One film: a dislike reaches exactly the film it is about.
  *
- * Three leaks are being ruled out and they are different mistakes. A
- * `not-tonight` that shows up globally turns *"not in the mood for it"* into
- * *"does not like it"*. A `not-ever` that stops applying inside an occasion lets
- * a film they refused for good be offered on a Tuesday. And either of them
- * spreading to a **category** — a genre instruction, a vibe, a neighbouring film
- * — turns one refusal into a theory about the user, which is the version of this
+ * It stands, exactly as they said it — without that the gate would pass just as
+ * well against a store that dropped it. And it spreads nowhere: a dislike that
+ * reached a **category** — a genre instruction, a vibe, a neighbouring film —
+ * turns one opinion into a theory about the user, which is the version of this
  * failure a payload of films alone could never show. That is why every user in
  * this evaluation starts with genres and a vibe: a generalisation has to land
  * somewhere, and without somewhere to land there is nothing to catch.
+ *
+ * This gate used to hold refusals to their reach, an evening's to its evening
+ * and a permanent one to its film. Refusals are not verdicts any more, and what
+ * survives of the gate is the half that was never about reach.
  */
-export function scope(world: World): Failure[] {
-  const evening = need(world, "not-tonight-one-evening");
-  const forGood = need(world, "not-ever-one-film");
-  const prisoners = filmKey({ title: "Prisoners", year: 2013 });
+export function oneFilm(world: World): Failure[] {
+  const seen = need(world, "disliked-one-film");
+  const fail = failer("one-film", "disliked-one-film");
 
-  /* --- an evening's refusal lives in that evening ------------------------- */
-
-  const fail = failer("scope", "not-tonight-one-evening");
-  const standing = evening.after.verdicts ?? [];
-  if (asSet(standing) !== asSet(expectedStanding(evening.trajectory.steps))) {
-    fail(`the scoped picture is wrong: ${JSON.stringify(standing)}`);
+  if (asSet(seen.after.verdicts ?? []) !== asSet(expectedStanding(seen.trajectory.steps))) {
+    fail(`the dislike did not arrive as said: ${JSON.stringify(seen.after.verdicts)}`);
   }
-  // About this film: the baseline opinion is about another one, and counting it
-  // here would answer a different question.
-  const mine = standing.filter((held) => filmKey(held) === prisoners);
-  const global = mine.filter((held) => held.occasion === undefined);
-  if (global.length !== 1 || global[0]?.judgement !== "loved") {
-    fail(`the global claim should still be the "loved" they gave; it is ${JSON.stringify(global)}`);
-  }
-  if (global.some((held) => held.rejected !== undefined)) {
-    fail("an evening's refusal reached the global picture");
-  }
-  const local = mine.filter((held) => held.occasion !== undefined);
-  if (local.length !== 1 || local[0]?.rejected !== "not-tonight") {
-    fail(`the evening's refusal should stand in its own evening only; it is ${JSON.stringify(local)}`);
-  }
-
-  // Asked about an unrelated evening, the base shows through untouched.
-  const elsewhere = evening.askedAt[`${prisoners} @ ${WEDNESDAY}`];
-  const there = elsewhere?.current as { assertion?: { about?: string; judgement?: string } } | null;
-  if (there?.assertion?.about !== "judgement" || there.assertion.judgement !== "loved") {
-    fail(`another evening sees ${JSON.stringify(there?.assertion)} rather than the global claim`);
-  }
-  // And asked about its own evening, the refusal is what applies.
-  const inside = evening.askedAt[`${prisoners} @ ${TUESDAY}`];
-  const here = inside?.current as { assertion?: { about?: string } } | null;
-  if (here?.assertion?.about !== "rejection") {
-    fail(`the evening it was refused in sees ${JSON.stringify(here?.assertion)} rather than the refusal`);
-  }
-
-  /* --- a permanent refusal holds everywhere, and only for that film -------- */
-
-  const forever = failer("scope", "not-ever-one-film");
-
-  // It stands, globally, exactly as they said it. Without this the trajectory
-  // would pass just as well against a store that dropped the refusal entirely.
-  if (asSet(forGood.after.verdicts ?? []) !== asSet(expectedStanding(forGood.trajectory.steps))) {
-    forever(`the "not-ever" did not arrive as said: ${JSON.stringify(forGood.after.verdicts)}`);
-  }
-  // And it is still what applies inside any evening asked about — a permanent
-  // refusal that went quiet on a Tuesday would be offered on a Tuesday.
-  for (const occasion of [TUESDAY, WEDNESDAY]) {
-    const asked = forGood.askedAt[`${prisoners} @ ${occasion}`];
-    const applies = asked?.current as {
-      assertion?: { about?: string; rejection?: { reach?: string } };
-    } | null;
-    if (applies?.assertion?.about !== "rejection" || applies.assertion.rejection?.reach !== "not-ever") {
-      forever(`inside ${occasion} the permanent refusal reads as ${JSON.stringify(applies?.assertion)}`);
-    }
-  }
-
-  nothingElseMoved(evening, fail);
-  nothingElseMoved(forGood, forever);
-  return [...fail.failures, ...forever.failures];
+  nothingElseMoved(seen, fail);
+  return fail.failures;
 }
 
 /**
- * A refusal changed nothing outside the claim it is.
+ * A verdict changed nothing outside the claim it is.
  *
- * The same standard for both reaches, because the generalising failure does not
- * care how far the refusal was aimed: *"too long for tonight"* becoming a note
- * on the Slow Burn genre is the same mistake as *"never again"* becoming one,
- * and the evening's version is the likelier of the two — it is the one that
- * sounds like a preference. Genres, vibes and every unrelated film are compared
- * before and after, and each is named separately so a failure says what moved
- * rather than that something did.
+ * Genres, vibes and every unrelated film are compared before and after, and each
+ * is named separately so a failure says what moved rather than that something
+ * did.
  */
 function nothingElseMoved(observed: Observed, fail: (detail: string) => void): void {
   if (comparable(besideVerdicts(observed.after)) !== comparable(besideVerdicts(observed.before))) {
-    fail("a refusal changed something in the taste model that is not a verdict");
+    fail("a verdict changed something in the taste model that is not a verdict");
   }
   if (comparable(observed.after.genres) !== comparable(observed.before.genres)) {
-    fail(`a refusal reached the genres: ${JSON.stringify(observed.after.genres)}`);
+    fail(`a verdict reached the genres: ${JSON.stringify(observed.after.genres)}`);
   }
   if (comparable(observed.after.vibes) !== comparable(observed.before.vibes)) {
-    fail(`a refusal reached the vibes: ${JSON.stringify(observed.after.vibes)}`);
+    fail(`a verdict reached the vibes: ${JSON.stringify(observed.after.vibes)}`);
   }
   for (const movie of observed.after.movies) {
     const was = observed.before.movies.find(
       (held) => held.title === movie.title && held.year === movie.year,
     );
     if (was?.viewing !== movie.viewing) {
-      fail(`a refusal moved ${movie.title} from ${String(was?.viewing)} to ${String(movie.viewing)}`);
+      fail(`a verdict moved ${movie.title} from ${String(was?.viewing)} to ${String(movie.viewing)}`);
     }
   }
 
@@ -570,7 +477,7 @@ function nothingElseMoved(observed: Observed, fail: (detail: string) => void): v
       fail(`a claim appeared about ${filmKey(held)}, which they never spoke about`);
     }
     if (categories.has(held.title)) {
-      fail(`a refusal generalised into the category ${held.title}`);
+      fail(`a verdict generalised into the category ${held.title}`);
     }
   }
 }
@@ -580,7 +487,7 @@ function nothingElseMoved(observed: Observed, fail: (detail: string) => void): v
 /**
  * Reason fidelity: their words arrive on the claim they belong to, or not at all.
  *
- * Byte-for-byte, matched by film, scope and what the claim asserts — not merely
+ * Byte-for-byte, matched by film and what the claim asserts — not merely
  * present somewhere in the payload. Membership is not fidelity: a genuine reason
  * moved onto a film the user gave none for is an invented claim with their name
  * on it, and it would pass any check that only asked whether the words were
@@ -616,13 +523,10 @@ export function reasonFidelity(world: World): Failure[] {
         fail(`a claim about ${filmKey(held)} has no statement behind it at all`);
         continue;
       }
-      // Same assertion, or the words below are being compared across a judgement
-      // and a refusal, which are different claims that happen to share a film.
+      // Same judgement, or the words below are being compared across two
+      // different claims that happen to share a film.
       if ((step.judgement ?? null) !== (held.judgement ?? null)) {
         fail(`${filmKey(held)} was said as ${String(step.judgement)} and stands as ${String(held.judgement)}`);
-      }
-      if ((step.reach ?? null) !== (held.rejected ?? null)) {
-        fail(`${filmKey(held)} was refused as ${String(step.reach)} and stands as ${String(held.rejected)}`);
       }
       // Presence and absence, compared alike.
       if ((step.because ?? null) !== (held.because ?? null)) {
@@ -631,29 +535,21 @@ export function reasonFidelity(world: World): Failure[] {
             `${JSON.stringify(held.because ?? null)}`,
         );
       }
-      if ((step.reason ?? null) !== (held.reason ?? null)) {
-        fail(
-          `${filmKey(held)} was refused with ${JSON.stringify(step.reason ?? null)} and carries ` +
-            `${JSON.stringify(held.reason ?? null)}`,
-        );
-      }
     }
 
     // Everything that should stand did arrive; a reason cannot be preserved on a
     // claim that went missing.
     for (const expected of expectedStanding(observed.trajectory.steps)) {
-      const arrived = standing.find(
-        (held) => filmKey(held) === filmKey(expected) && held.occasion === expected.occasion,
-      );
+      const arrived = standing.find((held) => filmKey(held) === filmKey(expected));
       if (!arrived) fail(`${filmKey(expected)} should be standing and is not`);
     }
 
     // And the history holds exactly the acts they performed — including a
     // verdict since replaced, where a moved reason would never be noticed from
     // the current claim. Compared as a multiset of full claims rather than as a
-    // search for the words, because a film can carry a global judgement and a
-    // scoped refusal at once: asking only whether the words are somewhere in
-    // this film's history would let them slide between the two.
+    // search for the words, because one film's history holds several acts:
+    // asking only whether the words are somewhere in it would let them slide
+    // from the verdict they were said with onto the one that replaced it.
     for (const [film, asked] of Object.entries(observed.asked)) {
       const performed = said.filter((step) => filmKey(step.film) === film).map(claimSaid);
       const recorded = asked.history.filter(isVerdictAct).map(claimRecorded);
@@ -692,7 +588,7 @@ export function provenanceTexture(world: World): Failure[] {
       if (held.told !== "volunteered" && held.told !== "confirmed") {
         fail(`a standing verdict says it was told as ${JSON.stringify(held.told)}`);
       }
-      // The standing verdict is the last one said in that scope, so a corrected
+      // The standing verdict is the last one said about the film, so a corrected
       // claim is checked against the correction rather than what it replaced.
       const source = sourceOf(said, held);
       if (source && held.told !== source.told) {
@@ -847,7 +743,7 @@ export const GATES: readonly { name: string; check: Gate }[] = [
   { name: "self-confirmation", check: selfConfirmation },
   { name: "withdrawal", check: withdrawal },
   { name: "correction", check: correction },
-  { name: "scope", check: scope },
+  { name: "one-film", check: oneFilm },
   { name: "reason-fidelity", check: reasonFidelity },
   { name: "provenance-texture", check: provenanceTexture },
   { name: "non-influence", check: nonInfluence },

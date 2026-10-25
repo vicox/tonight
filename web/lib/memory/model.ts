@@ -348,17 +348,13 @@ function byFilm(acts: readonly Identified<Act>[]): Identified<Act>[][] {
 /**
  * One film's acts, each placed by what became of it.
  *
- * Current in every scope it stands in — the global claim and any evening that
- * holds one of its own — is held. Everything else is remembered: verdicts that a
- * later verdict displaced, verdicts that were taken back, and the takings-back
- * themselves, which are things the user did and so things they can see.
+ * The verdict that currently stands is held. Everything else is remembered:
+ * verdicts that a later verdict displaced, verdicts that were taken back, and the
+ * takings-back themselves, which are things the user did and so things they can
+ * see.
  */
 function placed(line: readonly Identified<Act>[]): SaidRoot[] {
-  const standing = new Set(
-    everyScope(line)
-      .map((scope) => (current(line, scope) as Identified<Verdict> | null)?.ref)
-      .filter((ref): ref is string => ref !== undefined),
-  );
+  const standing = (current(line) as Identified<Verdict> | null)?.ref;
   const displaced = new Map(
     supersession(line).map(({ verdict, by }) => [
       (verdict as Identified<Verdict>).ref,
@@ -367,7 +363,7 @@ function placed(line: readonly Identified<Act>[]): SaidRoot[] {
   );
 
   return line.map((act) => {
-    const held = standing.has(act.ref);
+    const held = act.ref === standing;
     return {
       placement: held ? ("held" as const) : ("remembered" as const),
       of: "verdict" as const,
@@ -385,12 +381,4 @@ function placed(line: readonly Identified<Act>[]): SaidRoot[] {
       handle: { by: "ref", ref: act.ref },
     };
   });
-}
-
-/** Everywhere, and each evening this film's history names. */
-function everyScope(line: readonly Act[]): Scope[] {
-  const occasions = new Set(
-    line.flatMap((act) => (act.scope === "everywhere" ? [] : [act.scope.occasion])),
-  );
-  return ["everywhere", ...[...occasions].map((occasion) => ({ occasion }))];
 }

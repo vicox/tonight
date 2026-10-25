@@ -12,7 +12,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "node --test \"lib/**/*.test.ts\"",
-    "db:migrate": "node lib/db/migrate-cli.ts"
+    "db:migrate": "node lib/db/migrate-cli.ts",
+    "db:preflight-m8": "node lib/db/preflight-m8-cli.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.7",

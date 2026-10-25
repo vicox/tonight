@@ -36,16 +36,19 @@ export { filmKey };
  * came to say it is a field, not a footnote — and so is *why*, where they said
  * why, because a reason given once and dropped cannot be recovered later.
  *
- * ## Why a rejection is not a dislike, and why one of them is local
+ * ## Why turning a film down is not here
  *
- * *"Not tonight"* and *"not ever"* look alike in a log and mean opposite things.
- * A film declined on a Tuesday because it ran three hours is not a film the user
- * dislikes, and the architecture names collapsing the two as *"one of the fastest
- * ways to build a wrong model"*. They are therefore different assertions here —
- * and they carry different scopes, which is the stronger half of the separation.
- * *"Not tonight"* is about an evening and is recorded as applying only there;
- * a claim that applied everywhere would be exactly the wrong model the
- * architecture is warning about, arrived at by a default nobody chose.
+ * A verdict is an opinion about a film, and an opinion is something somebody can
+ * only have after watching it. Turning a film down is neither. *"Don't recommend
+ * it again"* says where the film stands on their list, so it is the Movie's
+ * `viewing` — `dont-want-to-see` — and that is what keeps it from being
+ * recommended. *"Not tonight"* is about an evening, not the film, and is left in
+ * the conversation it was said in: nothing records it.
+ *
+ * Both used to be rejections here, with a reach and — for *"not tonight"* — an
+ * evening to apply in. Verdicts schema v3 converted the ones that still stood
+ * and removed the rest, so a refusal is now unsayable rather than discouraged,
+ * and so is the evening scope it needed.
  *
  * ## What this slice deliberately cannot do
  *
@@ -53,7 +56,7 @@ export { filmKey };
  * state, does not touch a Vibe, and does not change what gets recommended —
  * confidence is not modelled at all, because §2 says it is derived and never
  * stored, and M2's non-goals say not yet. Situations and companions, which would
- * give scopes richer than one occasion, are later milestones. Those arrive
+ * give a claim a scope narrower than the film, are later milestones. Those arrive
  * later and will be built on this shape rather than beside it.
  */
 
@@ -75,42 +78,19 @@ export type Film = {
 export const JUDGEMENTS = ["liked", "loved", "disliked"] as const;
 export type Judgement = (typeof JUDGEMENTS)[number];
 
-/** How far a refusal reaches. The distinction is the point of recording it. */
-export const REACHES = ["not-tonight", "not-ever"] as const;
-export type Reach = (typeof REACHES)[number];
-
 /**
- * Where a claim applies.
+ * Where a claim applies: everywhere, and nowhere narrower.
  *
- * §6: *"A Claim with no stated scope applies globally; one with a scope applies
- * **only** there"*, and a Claim without the facet *"silently becomes
- * universal"*. So the facet is never absent here; it is one of two things.
+ * §6: *"A Claim with no stated scope applies globally"*, and a Claim without the
+ * facet *"silently becomes universal"*. So the facet is stated rather than
+ * left out, and — like `claimant` — it has one legal value: a judgement is about
+ * the film, and the film is the same film on every evening.
  *
- * An **occasion** is one evening, named by an opaque identifier the caller
- * supplies. This module does not know what an evening is — that is M1's Episode,
- * and importing it would put a verdict inside history. It knows only that two
- * claims naming the same occasion are about the same one. Situations, companions
- * and every richer scope belong to later milestones; one occasion is the least
- * that makes *"not tonight"* expressible without lying about its reach.
+ * It used to admit one evening as well, which existed only so that *"not
+ * tonight"* could be said without lying about its reach. That went when
+ * refusals did; scopes narrower than the film belong to later milestones.
  */
-export type Scope = "everywhere" | { occasion: string };
-
-/**
- * A film turned down, and how far the refusal goes.
- *
- * `not-tonight` is about an evening and says nothing about the film, so it is
- * only ever scoped to that evening. `not-ever` is about the film and holds
- * beyond tonight, so it is only ever global. Neither can be written the other
- * way round, which is what keeps them from being confused after the fact.
- *
- * The reason is kept where the user gave one and is `null` where they did not,
- * because *"too long on a Tuesday"* and *"no reason given"* are different things
- * to know later.
- */
-export type Rejection = {
-  reach: Reach;
-  reason: string | null;
-};
+export type Scope = "everywhere";
 
 /**
  * What is actually being said about the film.
@@ -124,10 +104,12 @@ export type Rejection = {
  * explanation Tonight worked out for itself: an agent-authored reason would be
  * an Observation, §2 says an Observation *"may never become a Verdict without a
  * user act"*, and the way to keep that true is to leave it nowhere to be put.
+ *
+ * `about` names the one kind of assertion there is. It stays in the shape so a
+ * stored act and an answer read the same as they always have, and so anything
+ * still sending a refusal is told why rather than misread.
  */
-export type Assertion =
-  | { about: "judgement"; judgement: Judgement; because: string | null }
-  | { about: "rejection"; rejection: Rejection };
+export type Assertion = { about: "judgement"; judgement: Judgement; because: string | null };
 
 /**
  * How the user came to say it.
@@ -173,12 +155,12 @@ export type Verdict = {
 };
 
 /**
- * The user taking a claim back, in the scope they made it.
+ * The user taking a claim back.
  *
  * §6 of the milestone plan: *"withdrawal removes its influence rather than
  * replacing it with a neutral value"*. So this is not a verdict of some neutral
- * kind and there is no neutral kind to be — after a withdrawal the scope simply
- * holds nothing again, and what showed through before it still shows through.
+ * kind and there is no neutral kind to be — after a withdrawal nothing stands
+ * about the film, and nothing they said before shows through.
  *
  * It is recorded rather than erased because the record is what lets Tonight
  * explain itself later: *"you told me you loved it, and then you took that
@@ -256,7 +238,6 @@ function orderOf(act: Act): number | null {
 
 export const MAX_TITLE_LENGTH = 200;
 export const MAX_REASON_LENGTH = 2_000;
-export const MAX_OCCASION_LENGTH = 200;
 
 export class VerdictError extends Error {
   override readonly name = "VerdictError";
@@ -277,25 +258,22 @@ export function stateVerdict(
   at: unknown,
   scope: unknown = "everywhere",
 ): Verdict {
-  const said = checkAssertion(assertion);
   return {
     said: "verdict",
     claimant: "user",
     film: checkFilm(film),
-    assertion: said,
+    assertion: checkAssertion(assertion),
     told: checkTold(told),
-    scope: checkScopeFor(said, scope),
+    scope: checkScope(scope),
     at: checkTime(at),
   };
 }
 
 /**
- * Record the user taking back what they said about a film, where they said it.
+ * Record the user taking back what they said about a film.
  *
- * The scope is required to match the claim being withdrawn, and defaults to
- * global for the same reason a claim does. Withdrawing *"not tonight"* takes
- * back that evening's refusal and touches nothing else; withdrawing a global
- * judgement takes back the judgement everywhere.
+ * Global, as the judgement it takes back is: withdrawing takes the judgement
+ * back everywhere and leaves no current opinion about the film.
  */
 export function withdrawVerdict(film: unknown, at: unknown, scope: unknown = "everywhere"): Withdrawal {
   return {
@@ -315,99 +293,55 @@ export function withdrawVerdict(film: unknown, at: unknown, scope: unknown = "ev
  * claimed it (always them), when, and the order it was written in. Superseded
  * and withdrawn claims are absent by construction, because this is built from
  * `current` rather than from the history.
- *
- * Judgement and rejection keep their own words for *why*. They are different
- * facets in the model and stay different here: a reason for turning a film down
- * one evening is not an explanation of an opinion about it.
  */
 export type Standing = {
   title: string;
   year: number;
-  /** What they said about it, where they judged it. */
-  judgement?: Judgement;
+  /** What they said about it. */
+  judgement: Judgement;
   /** Their words for why they judged it so, where they gave them. */
   because?: string;
-  /** How far they turned it down, where they turned it down. */
-  rejected?: Reach;
-  /** Their words for why they turned it down, where they gave them. */
-  reason?: string;
-  /** The evening it applies to. Absent means it applies everywhere. */
-  occasion?: string;
   /** Whether they volunteered it or answered a question. Texture, never a score. */
   told: Told;
 };
 
 /**
- * Everything that currently stands about one film — globally, and per evening.
+ * What currently stands about one film: its judgement, or nothing.
  *
- * One entry for the global claim if there is one, and one for each evening that
- * holds a claim of its own. An evening where nothing local stands is absent
- * rather than repeated: §6's inheritance means the global claim already applies
- * there, and listing it twice would suggest two claims where there is one.
+ * A list, of one or none, so a caller gathering every film's standing can
+ * flatten them without asking which films had one.
  *
- * Built from `current`, so a superseded claim, a withdrawn one and an evening
- * whose refusal was taken back are all simply not here. There is no filtering
- * step that could forget to run.
+ * Built from `current`, so a superseded claim and a withdrawn one are simply
+ * not here. There is no filtering step that could forget to run.
  */
 export function standing(acts: readonly Act[]): Standing[] {
-  const line = ordered(acts);
-  if (line.length === 0) return [];
-
-  const everywhere = current(line, "everywhere");
-  const local = scopes(line)
-    .filter((scope) => scope !== "everywhere")
-    .map((scope) => current(line, scope))
-    .filter((verdict): verdict is Verdict => verdict !== null && verdict.scope !== "everywhere");
-
-  return [...(everywhere ? [everywhere] : []), ...local].map(projected);
+  const held = current(acts);
+  return held === null ? [] : [projected(held)];
 }
 
 function projected(verdict: Verdict): Standing {
-  const where = verdict.scope === "everywhere" ? {} : { occasion: verdict.scope.occasion };
-  const said =
-    verdict.assertion.about === "judgement"
-      ? {
-          judgement: verdict.assertion.judgement,
-          ...(verdict.assertion.because === null ? {} : { because: verdict.assertion.because }),
-        }
-      : {
-          rejected: verdict.assertion.rejection.reach,
-          ...(verdict.assertion.rejection.reason === null
-            ? {}
-            : { reason: verdict.assertion.rejection.reason }),
-        };
   return {
     title: verdict.film.title,
     year: verdict.film.year,
-    ...said,
-    ...where,
+    judgement: verdict.assertion.judgement,
+    ...(verdict.assertion.because === null ? {} : { because: verdict.assertion.because }),
     told: verdict.told,
   };
 }
 
 /**
- * The claim that stands where you are asking, or none.
+ * The claim that stands about the film, or none.
  *
- * §6 describes how the layers combine, and this is that description executed:
- * *"Global taste is the inherited base… Scoped Claims refine it locally… A
- * contextual Claim never overwrites a global one. It is a lens, not an edit.
- * Leaving the context restores the base untouched."*
+ * The latest act decides: a verdict stands until a later one corrects it or a
+ * withdrawal takes it back, and nothing underneath a withdrawal shows through.
  *
- * So asking globally sees only global claims — an evening's refusal is invisible
- * from outside that evening, which is the whole reason it is scoped. Asking
- * about an occasion sees that occasion's claims first and the global base
- * underneath, and a withdrawal inside the occasion restores the base rather than
- * hiding it.
- *
- * `null` means nothing stands there: either nobody spoke, or they took it back.
- * Both are silence, and silence is a complete answer rather than a gap.
+ * `null` means nothing stands: either nobody spoke, or they took it back. Both
+ * are silence, and silence is a complete answer rather than a gap.
  */
-export function current(acts: readonly Act[], asked: Scope = "everywhere"): Verdict | null {
+export function current(acts: readonly Act[]): Verdict | null {
   const line = ordered(acts);
-  const where = checkScope(asked);
-  const global = heldIn(line, "everywhere");
-  if (where === "everywhere") return global;
-  return heldIn(line, where) ?? global;
+  const latest = line[line.length - 1];
+  return latest?.said === "verdict" ? latest : null;
 }
 
 /**
@@ -416,41 +350,15 @@ export function current(acts: readonly Act[], asked: Scope = "everywhere"): Verd
  * This is the temporal-status facet, derived rather than stored: §6 requires a
  * Claim to say whether it is *"current, or superseded by a later Claim — and by
  * which"*, and reading that off the order means it can never contradict the
- * order.
- *
- * Supersession happens **within a scope**. A refusal on Tuesday does not
- * supersede a global judgement — it does not reach it — so the two are resolved
- * separately and each layer names its own displacements.
+ * order. Every verdict but the last was displaced by the act after it.
  */
 export function supersession(acts: readonly Act[]): { verdict: Verdict; by: Act }[] {
   const line = ordered(acts);
-  return scopes(line).flatMap((scope) => {
-    const layer = line.filter((act) => sameScope(act.scope, scope));
-    return layer.flatMap((act, at) => {
-      const next = layer[at + 1];
-      return act.said === "verdict" && next ? [{ verdict: act, by: next }] : [];
-    });
+  return line.flatMap((act, at) => {
+    const next = line[at + 1];
+    return act.said === "verdict" && next ? [{ verdict: act, by: next }] : [];
   });
 }
-
-/** The latest act in exactly one scope, if it left a verdict standing. */
-function heldIn(line: readonly Act[], scope: Scope): Verdict | null {
-  const layer = line.filter((act) => sameScope(act.scope, scope));
-  const latest = layer[layer.length - 1];
-  return latest?.said === "verdict" ? latest : null;
-}
-
-/** Every scope named in a history, in the order it first appears. */
-function scopes(line: readonly Act[]): Scope[] {
-  const seen: Scope[] = [];
-  for (const act of line) {
-    if (!seen.some((scope) => sameScope(scope, act.scope))) seen.push(act.scope);
-  }
-  return seen;
-}
-
-const sameScope = (a: Scope, b: Scope): boolean =>
-  a === "everywhere" || b === "everywhere" ? a === b : a.occasion === b.occasion;
 
 /**
  * One film's acts, oldest first, fully checked.
@@ -527,12 +435,9 @@ function byInstantThenOrder(a: Act, b: Act): number {
 /** An act with its keys in a fixed order, so equal content compares equal. */
 function canonical(act: Act): unknown {
   return act.said === "verdict"
-    ? [act.said, act.claimant, act.film.title, act.film.year, act.at, scopeKey(act.scope), act.told, act.assertion]
-    : [act.said, act.claimant, act.film.title, act.film.year, act.at, scopeKey(act.scope)];
+    ? [act.said, act.claimant, act.film.title, act.film.year, act.at, act.scope, act.told, act.assertion]
+    : [act.said, act.claimant, act.film.title, act.film.year, act.at, act.scope];
 }
-
-const scopeKey = (scope: Scope): string =>
-  scope === "everywhere" ? "everywhere" : `occasion:${scope.occasion}`;
 
 const key = filmKey;
 
@@ -623,54 +528,40 @@ function checkFilm(value: unknown): Film {
 }
 
 /**
- * What is being said, checked as one thing or the other.
+ * What is being said, checked as a judgement — the only thing a verdict says.
  *
- * A judgement and a rejection are different assertions rather than two shapes of
- * one, so there is no argument here that carries both and nothing to resolve if
- * a caller sends both. That is deliberate: *"not ever"* and *"disliked"* are the
- * pair most easily merged, and merging them starts with a type that can hold
- * them at once.
+ * Turning a film down is refused with the reason and where it goes instead,
+ * rather than as an unknown shape: it is the mistake a caller who learned the
+ * old surface is most likely to make, and *"not ever"* written down as
+ * `disliked` would be the wrong model — a dislike says they watched it.
  */
 function checkAssertion(value: unknown): Assertion {
   const assertion = value as Record<string, unknown> | null;
   if (typeof assertion !== "object" || assertion === null) {
-    throw new VerdictError("Say what they said: a judgement or a rejection.");
+    throw new VerdictError("Say what they said: a judgement.");
   }
-  if (assertion.about === "judgement") {
-    if (!isJudgement(assertion.judgement)) {
-      throw new VerdictError(`A judgement is one of ${JUDGEMENTS.join(", ")}.`);
-    }
-    if ("rejection" in assertion) {
-      throw new VerdictError("A judgement is not also a rejection.");
-    }
-    return {
-      about: "judgement",
-      judgement: assertion.judgement,
-      because: checkWords(assertion.because, "An explanation"),
-    };
+  if (assertion.about === "rejection" || "rejection" in assertion) {
+    throw new VerdictError(NOT_A_VERDICT);
   }
-  if (assertion.about === "rejection") {
-    if ("judgement" in assertion) {
-      throw new VerdictError("A rejection is not also a judgement.");
-    }
-    if ("because" in assertion) {
-      throw new VerdictError("A rejection gives its reason inside the rejection.");
-    }
-    return { about: "rejection", rejection: checkRejection(assertion.rejection) };
+  if (assertion.about !== "judgement") {
+    throw new VerdictError("An assertion is a judgement.");
   }
-  throw new VerdictError("An assertion is about a judgement or about a rejection.");
+  if (!isJudgement(assertion.judgement)) {
+    throw new VerdictError(`A judgement is one of ${JUDGEMENTS.join(", ")}.`);
+  }
+  return {
+    about: "judgement",
+    judgement: assertion.judgement,
+    because: checkWords(assertion.because, "An explanation"),
+  };
 }
 
-function checkRejection(value: unknown): Rejection {
-  const rejection = value as Partial<Rejection> | null;
-  if (typeof rejection !== "object" || rejection === null) {
-    throw new VerdictError("A rejection says how far it reaches.");
-  }
-  if (!isReach(rejection.reach)) {
-    throw new VerdictError(`A rejection reaches ${REACHES.join(" or ")}, and says which.`);
-  }
-  return { reach: rejection.reach, reason: checkWords(rejection.reason, "A reason") };
-}
+/**
+ * Where a refusal goes instead of here, said once for every surface that meets one.
+ */
+export const NOT_A_VERDICT =
+  "Turning a film down is not a verdict. Not wanting it suggested again is where the film " +
+  "stands on their list — viewing dont-want-to-see — and \"not tonight\" is not recorded.";
 
 /**
  * The user's own words, or the honest absence of them.
@@ -701,50 +592,15 @@ function checkTold(value: unknown): Told {
 }
 
 /**
- * Where a claim applies, checked as one of the two shapes there are.
+ * Where a claim applies, checked as the one scope there is.
  *
- * An occasion identifier is opaque here and only has to be usable as one: a
- * non-empty string that two claims can share. What it refers to is M1's evening,
- * and this module deliberately cannot look.
+ * An evening is refused rather than ignored: a claim that arrived naming one
+ * was meant to apply only there, and quietly making it global would widen what
+ * somebody said.
  */
 function checkScope(value: unknown): Scope {
   if (value === "everywhere" || value === undefined) return "everywhere";
-  const scope = value as { occasion?: unknown } | null;
-  if (typeof scope !== "object" || scope === null || !("occasion" in scope)) {
-    throw new VerdictError("A scope is everywhere, or one occasion.");
-  }
-  if (typeof scope.occasion !== "string" || scope.occasion.trim() === "") {
-    throw new VerdictError("An occasion is named.");
-  }
-  const occasion = scope.occasion.trim();
-  if (occasion.length > MAX_OCCASION_LENGTH) {
-    throw new VerdictError(`An occasion name is at most ${String(MAX_OCCASION_LENGTH)} characters.`);
-  }
-  return { occasion };
-}
-
-/**
- * The scope an assertion is allowed to have.
- *
- * *"Not tonight"* is about an evening, so it is refused without one — a global
- * *"not tonight"* is the wrong model the architecture warns about, and the way
- * to keep it out is to make it unsayable rather than merely discouraged.
- * *"Not ever"* is about the film and reaches past any evening, so it is refused
- * with one. A judgement is about the film too; scoping opinions to occasions
- * needs situations, which is a later milestone, so it is global here.
- */
-function checkScopeFor(assertion: Assertion, value: unknown): Scope {
-  const scope = checkScope(value);
-  const local = scope !== "everywhere";
-  const tonight = assertion.about === "rejection" && assertion.rejection.reach === "not-tonight";
-  if (tonight && !local) {
-    throw new VerdictError("A not-tonight refusal is about one evening, and says which.");
-  }
-  if (!tonight && local) {
-    const what = assertion.about === "judgement" ? "A judgement" : "A not-ever refusal";
-    throw new VerdictError(`${what} is about the film, so it applies everywhere.`);
-  }
-  return scope;
+  throw new VerdictError("A verdict is about the film, so it applies everywhere and nowhere narrower.");
 }
 
 /**
@@ -771,5 +627,3 @@ function checkTime(value: unknown): string {
 
 const isJudgement = (value: unknown): value is Judgement =>
   JUDGEMENTS.includes(value as Judgement);
-
-const isReach = (value: unknown): value is Reach => REACHES.includes(value as Reach);

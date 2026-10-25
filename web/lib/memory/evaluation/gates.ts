@@ -167,13 +167,11 @@ export type Gate = (world: World) => Failure[];
 export type Fate = "current" | "superseded" | "withdrawn";
 
 /** What somebody asserted, flattened to the fields a script can predict. */
-export type Assertion =
-  | { about: "judgement"; judgement: string; because: string | null }
-  | { about: "rejection"; reach: string; reason: string | null };
+export type Assertion = { about: "judgement"; judgement: string; because: string | null };
 
 export type ExpectedAct = {
   film: Film;
-  /** `"everywhere"`, or the name of the evening it was said in. */
+  /** Always `"everywhere"`: a verdict is about the film, on every evening. */
   scope: string;
   said: "verdict" | "withdrawal";
   /** `null` for a taking-back, which asserts nothing. */
@@ -245,8 +243,8 @@ const stated = (value: unknown): Established => ({ known: true, value, source: "
  * Deliberately naive and deliberately separate. It restates the M3 contract in
  * the plainest way it can be stated:
  *
- * - the last thing said in a film's scope is what stands; a taking-back leaves
- *   the scope empty; a claim a later claim replaced is superseded and one a
+ * - the last thing said about a film is what stands; a taking-back leaves
+ *   nothing standing; a claim a later claim replaced is superseded and one a
  *   taking-back silenced is withdrawn;
  * - an evening is a fact, never a preference, and a correction to one either
  *   applies whole or is refused whole — a choice they stated has to stay inside
@@ -311,12 +309,9 @@ export function expected(steps: readonly Step[]): Expected {
       case "verdict":
         acts.push({
           film: step.film,
-          scope: step.occasion ?? "everywhere",
+          scope: "everywhere",
           said: "verdict",
-          assertion:
-            step.judgement === undefined
-              ? { about: "rejection", reach: step.reach!, reason: step.reason ?? null }
-              : { about: "judgement", judgement: step.judgement, because: step.because ?? null },
+          assertion: { about: "judgement", judgement: step.judgement, because: step.because ?? null },
           told: step.told,
           fate: "current",
           placement: "held",
@@ -326,7 +321,7 @@ export function expected(steps: readonly Step[]): Expected {
       case "withdraw":
         acts.push({
           film: step.film,
-          scope: step.occasion ?? "everywhere",
+          scope: "everywhere",
           said: "withdrawal",
           assertion: null,
           told: null,
@@ -386,7 +381,7 @@ export function expected(steps: readonly Step[]): Expected {
       .map((movie) => ({ title: asFiled(movie.film.title), year: movie.film.year }));
   }
 
-  // Fates, per film and per scope, over what survived.
+  // Fates, per film, over what survived.
   const living = acts.filter((act) => act.alive);
   const standing = new Map<string, Pending | null>();
   for (const act of living) {
@@ -587,23 +582,24 @@ type SpokenAct = {
   scope: unknown;
   at: string;
   told?: string;
-  assertion?:
-    | { about: "judgement"; judgement: string; because: string | null }
-    | { about: "rejection"; rejection: { reach: string; reason: string | null } };
+  assertion?: { about: string; judgement: string; because: string | null };
 };
 
 const actOf = (root: Root): SpokenAct => root.act as SpokenAct;
 
-/** An act's assertion, flattened the same way the replay flattens the script's. */
+/**
+ * An act's assertion, flattened the same way the replay flattens the script's.
+ *
+ * `about` is carried as it came back rather than assumed, so an act that came
+ * back as anything but a judgement differs from every one the replay predicts.
+ */
 function assertionOf(act: SpokenAct): Assertion | null {
   if (act.said !== "verdict" || !act.assertion) return null;
-  return act.assertion.about === "judgement"
-    ? { about: "judgement", judgement: act.assertion.judgement, because: act.assertion.because }
-    : {
-        about: "rejection",
-        reach: act.assertion.rejection.reach,
-        reason: act.assertion.rejection.reason,
-      };
+  return {
+    about: act.assertion.about as "judgement",
+    judgement: act.assertion.judgement,
+    because: act.assertion.because,
+  };
 }
 
 /* ------------------------------------------------------- semantic signatures */
@@ -792,25 +788,14 @@ const asFiled = (title: string): string => title.split(/\s+/u).filter(Boolean).j
 const asSpoken = (title: string): string => title.trim();
 
 function wantedTaste(want: Expected): Record<string, string> {
-  const standingOf = (act: ExpectedAct): string => {
-    const said =
-      act.assertion?.about === "judgement"
-        ? {
-            judgement: act.assertion.judgement,
-            ...(act.assertion.because === null ? {} : { because: act.assertion.because }),
-          }
-        : {
-            rejected: act.assertion!.reach,
-            ...(act.assertion!.reason === null ? {} : { reason: act.assertion!.reason }),
-          };
-    return canon({
+  const standingOf = (act: ExpectedAct): string =>
+    canon({
       title: asSpoken(act.film.title),
       year: act.film.year,
-      ...said,
-      ...(act.scope === "everywhere" ? {} : { occasion: act.scope }),
+      judgement: act.assertion!.judgement,
+      ...(act.assertion!.because === null ? {} : { because: act.assertion!.because }),
       told: act.told,
     });
-  };
 
   return {
     genres: asSet(want.genres.map((one) => ({ name: one.name, instruction: one.instruction }))),
@@ -1216,8 +1201,9 @@ export function unauthored(world: World): Failure[] {
  * a Verdict carried an opinion and the view had to say which governed. Only
  * Verdicts carry opinions now, so there is nothing to rank — and what has to be
  * proved instead is that the split actually holds: saying, withdrawing and
- * forgetting a verdict leave the saved film exactly as it was, and a refusal
- * never arrives as a rating.
+ * forgetting a verdict leave the saved film exactly as it was, and a film they
+ * do not want recommended is where it stands on their list — never a verdict,
+ * and never a rating.
  *
  * The comparison is against the replay's own expectation rather than against
  * the production resolver, for the reason every gate here is: a gate that asked
@@ -1230,7 +1216,6 @@ export function precedence(world: World): Failure[] {
     "a-verdict-beside-a-saved-film",
     "withdrawal-leaves-the-film-alone",
     "never-again",
-    "not-on-a-tuesday",
   ]) {
     const seen = need(world, name);
     const fail = failer("precedence", name);
@@ -1262,15 +1247,16 @@ export function precedence(world: World): Failure[] {
     failures.push(...fail.failures);
   }
 
-  // A refusal is not a rating, wherever it appears.
-  for (const name of ["never-again", "not-on-a-tuesday"]) {
-    const seen = need(world, name);
-    const fail = failer("precedence", name);
-    if (JSON.stringify(seen.memory).includes("disliked")) {
-      fail("a refusal came back as a dislike");
-    }
-    failures.push(...fail.failures);
+  // Not wanting a film recommended is not a verdict, and certainly not a rating.
+  const never = need(world, "never-again");
+  const fail = failer("precedence", "never-again");
+  if (of(never.memory.held, "verdict").length || of(never.memory.remembered, "verdict").length) {
+    fail("not wanting a film recommended came back as a verdict");
   }
+  if (JSON.stringify(never.memory).includes("disliked")) {
+    fail("not wanting a film recommended came back as a dislike");
+  }
+  failures.push(...fail.failures);
 
   return failures;
 }
@@ -1457,9 +1443,7 @@ export function isolation(world: World): Failure[] {
     }
 
     // Supplementary, and cheap: nothing about an evening is in the taste model.
-    // Named by the keys an episode actually has — `evening` would collide with
-    // an occasion called `evening-tuesday`, which is a legitimate scope and not
-    // a leak.
+    // Named by the keys an episode actually has, which no other root uses.
     const payload = JSON.stringify(seen.taste).toLowerCase();
     for (const key of ["episodes", "offered", "recordedat", "requestsource", "offeredsource", "watched", "finished"]) {
       if (payload.includes(`"${key}"`)) fail(`"${key}" reached the taste model`);

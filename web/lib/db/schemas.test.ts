@@ -287,7 +287,7 @@ describe("upgrading the database production actually has", () => {
       // The schema moved the whole way.
       assert.deepEqual(await applied("taste"), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
       assert.deepEqual(await applied("episodes"), [1, 2]);
-      assert.deepEqual(await applied("verdicts"), [1, 2]);
+      assert.deepEqual(await applied("verdicts"), [1, 2, 3]);
       // The retirements run here too, and record nothing but themselves: this
       // database never had the tables, so the drop removes nothing.
       assert.deepEqual(await applied("verdict_questions"), [3], "the retired module did not record its removal");
@@ -326,6 +326,67 @@ describe("upgrading the database production actually has", () => {
       assert.equal(viewingOf("Prisoners"), "seen");
       assert.equal(viewingOf("Heat"), "seen", "a film they loved is a film they watched");
       assert.equal(viewingOf("Dune"), "want-to-see", "a film they had not seen is not on their list");
+    } finally {
+      await driver.close();
+    }
+  });
+
+  test("the M8 release upgrades the database M7 left, through the catalog in command order", async () => {
+    // Production as M7 left it: taste at v14 and verdicts at v2, with refusals in
+    // the verdict table. The command runs taste before verdicts, so taste v11's
+    // need on verdicts v2 is met on the way past, and verdicts v3's need on taste
+    // v14 is already met when it runs. Met whole, either need would recurse.
+    const driver = await embeddedDriver();
+    try {
+      // Everything this release's catalog holds but verdicts v3, which is the
+      // whole of what M8 adds to it.
+      for (const schema of ALL_SCHEMAS) {
+        await migrate(
+          driver,
+          schema.module === "verdicts"
+            ? { ...schema, migrations: schema.migrations.filter((one) => one.version <= 2) }
+            : schema,
+        );
+      }
+
+      const who = "google:already-here";
+      const film = (title: string, year: number, viewing: string) =>
+        driver.query(
+          `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing) VALUES ($1, $2, lower($2), $3, $4)`,
+          [who, title, year, viewing],
+        );
+      const said = (title: string, year: number, at: string, about: string, value: string, occasion: string | null = null) =>
+        driver.query(
+          `INSERT INTO tonight_verdict_acts (user_id, said, title, year, occasion, said_at, told, about, judgement, reach)
+           VALUES ($1, 'verdict', $2, $3, $4, $5, 'volunteered', $6, $7, $8)`,
+          [who, title, year, occasion, at, about, about === "judgement" ? value : null, about === "rejection" ? value : null],
+        );
+      await film("Heat", 1995, "seen");
+      await film("Zodiac", 2007, "want-to-see");
+      await said("Heat", 1995, "2026-10-01T20:00:00.000Z", "rejection", "not-ever");
+      await said("Zodiac", 2007, "2026-10-01T20:00:00.000Z", "judgement", "loved");
+      await said("Zodiac", 2007, "2026-10-02T20:00:00.000Z", "rejection", "not-tonight", "2026-10-02");
+
+      for (const schema of ALL_SCHEMAS) await migrate(driver, schema);
+
+      const [row] = await driver.query<{ versions: number[] }>(
+        "SELECT array_agg(version ORDER BY version) AS versions FROM schema_migrations WHERE module = 'verdicts'",
+      );
+      assert.deepEqual(row?.versions, [1, 2, 3]);
+
+      const user = asUser(who);
+      const { movies } = await sqlTasteStore(driver, user).taste();
+      assert.deepEqual(
+        movies.map((one) => [one.title, one.viewing]),
+        [
+          ["Heat", "dont-want-to-see"],
+          ["Zodiac", "want-to-see"],
+        ],
+      );
+      assert.deepEqual(
+        (await sqlVerdictStore(driver, user).standing()).map((one) => [one.title, one.judgement]),
+        [["Zodiac", "loved"]],
+      );
     } finally {
       await driver.close();
     }

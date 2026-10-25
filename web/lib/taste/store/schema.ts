@@ -84,7 +84,9 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * No opinion either, since v11. What the user thought of a film is a Verdict
  * and lives in the verdicts schema, on its own root: a verdict may exist for a
  * film that has no row here at all, and nothing in this schema is written to
- * hold one.
+ * hold one. The one crossing is deletion: removing a Movie removes every
+ * verdict about that film in the same transaction — the store does it, since
+ * a verdict names its film as text and there is no key here to cascade along.
  *
  * What a Movie does carry is **a fact, not a history**: `viewing` says where
  * the film stands on their list — seen, want to see, don't want to see — as one

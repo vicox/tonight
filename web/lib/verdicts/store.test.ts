@@ -35,16 +35,9 @@ const asUser = (id: string): AuthenticatedUser => ({ id }) as AuthenticatedUser;
 const prisoners: Film = { title: "Prisoners", year: 2013 };
 const zodiac: Film = { title: "Zodiac", year: 2007 };
 const TUESDAY = { occasion: "evening-1" };
-const WEDNESDAY = { occasion: "evening-2" };
 
 const judged = (judgement: "liked" | "loved" | "disliked", at: string, because: string | null = null) =>
   stateVerdict(prisoners, { about: "judgement", judgement, because }, "volunteered", at);
-
-const notTonight = (at: string, scope = TUESDAY, reason: string | null = null) =>
-  stateVerdict(prisoners, { about: "rejection", rejection: { reach: "not-tonight", reason } }, "confirmed", at, scope);
-
-const notEver = (at: string, reason: string | null = null) =>
-  stateVerdict(prisoners, { about: "rejection", rejection: { reach: "not-ever", reason } }, "volunteered", at);
 
 describe("the verdict store", () => {
   let driver: SqlDriver;
@@ -82,54 +75,29 @@ describe("the verdict store", () => {
     });
   });
 
-  test("a rejection survives as a rejection, not as a judgement", async () => {
+  test("a refusal is not written as anything", async () => {
+    // Turning a film down is not a verdict: it is refused before it reaches the
+    // table, rather than stored as the nearest shape the table still takes.
     const f = film();
-    await ana.say(about(f, notEver("2026-01-01T20:00:00.000Z", "three hours of misery")));
-    const [back] = await ana.history(f);
-    const assertion = (back as { assertion: { about: string; rejection?: unknown } }).assertion;
-    assert.equal(assertion.about, "rejection");
-    assert.deepEqual(assertion.rejection, { reach: "not-ever", reason: "three hours of misery" });
-    assert.equal("judgement" in assertion, false, "a rejection came back carrying a judgement");
+    await assert.rejects(
+      () =>
+        ana.say({
+          ...judged("disliked", "2026-01-01T20:00:00.000Z"),
+          film: f,
+          assertion: { about: "rejection", rejection: { reach: "not-ever", reason: null } },
+        } as unknown as Act),
+      VerdictError,
+    );
+    assert.deepEqual(await ana.history(f), [], "a refusal was written anyway");
   });
 
   /* ---------------------------------------------------------------- scope */
 
-  test("a global verdict comes back global", async () => {
+  test("a verdict comes back global", async () => {
     const f = film();
     await ana.say(about(f, judged("liked", "2026-01-01T20:00:00.000Z")));
     const [back] = await ana.history(f);
     assert.equal((back as { scope: unknown }).scope, "everywhere");
-  });
-
-  test("a not-tonight refusal comes back with the exact evening", async () => {
-    const f = film();
-    await ana.say(about(f, notTonight("2026-01-01T20:00:00.000Z", TUESDAY, "too long")));
-    const [back] = await ana.history(f);
-    assert.deepEqual((back as { scope: unknown }).scope, TUESDAY, "a local refusal came back global");
-    // And it still behaves as local: invisible globally, standing in its evening.
-    const history = await ana.history(f);
-    assert.equal(current(history), null);
-    assert.deepEqual(current(history, TUESDAY), back);
-  });
-
-  test("one evening cannot contaminate another", async () => {
-    const f = film();
-    const tuesday = await ana.say(about(f, notTonight("2026-01-01T20:00:00.000Z", TUESDAY, "too long")));
-    const wednesday = await ana.say(about(f, notTonight("2026-02-01T20:00:00.000Z", WEDNESDAY, "not tonight either")));
-    const history = await ana.history(f);
-    assert.deepEqual(current(history, TUESDAY), tuesday);
-    assert.deepEqual(current(history, WEDNESDAY), wednesday);
-    assert.equal(current(history, "everywhere"), null);
-    assert.deepEqual(supersession(history), [], "one evening superseded another across the round trip");
-  });
-
-  test("the global base stays available outside the occasion", async () => {
-    const f = film();
-    const judgement = await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
-    await ana.say(about(f, notTonight("2026-02-01T20:00:00.000Z")));
-    const history = await ana.history(f);
-    assert.deepEqual(current(history, "everywhere"), judgement);
-    assert.deepEqual(current(history, WEDNESDAY), judgement, "an unrelated evening lost the base");
   });
 
   /* ----------------------------------------------------------- withdrawal */
@@ -142,16 +110,6 @@ describe("the verdict store", () => {
     const history = await ana.history(f);
     assert.equal(current(history), null);
     assert.equal(history.length, 2, "the withdrawal replaced the verdict instead of following it");
-  });
-
-  test("a local withdrawal reaches only its own evening", async () => {
-    const f = film();
-    const judgement = await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
-    await ana.say(about(f, notTonight("2026-02-01T20:00:00.000Z")));
-    await ana.say(about(f, withdrawVerdict(f, "2026-03-01T20:00:00.000Z", TUESDAY)));
-    const history = await ana.history(f);
-    assert.deepEqual(current(history, TUESDAY), judgement, "the evening did not fall back to the base");
-    assert.deepEqual(current(history, "everywhere"), judgement, "a local withdrawal reached the global claim");
   });
 
   test("a withdrawal does not resurrect an earlier verdict", async () => {
@@ -179,15 +137,6 @@ describe("the verdict store", () => {
     const assertion = (back as { assertion: { because: string | null } }).assertion;
     assert.equal(assertion.because, null, "a missing explanation came back as something");
     assert.notEqual(assertion.because, "");
-  });
-
-  test("a rejection's reason stays the rejection's, and absent stays absent", async () => {
-    const f = film();
-    await ana.say(about(f, notEver("2026-01-01T20:00:00.000Z")));
-    const [back] = await ana.history(f);
-    const assertion = (back as { assertion: { rejection: { reason: string | null }; because?: unknown } }).assertion;
-    assert.equal(assertion.rejection.reason, null);
-    assert.equal("because" in assertion, false, "a judgement's facet appeared on a rejection");
   });
 
   test("volunteered and confirmed do not collapse into each other", async () => {
@@ -413,6 +362,7 @@ describe("the verdict store", () => {
       { ...sound, assertion: { about: "judgement", judgement: "adored", because: null } },
       { ...sound, at: "whenever" },
       { ...sound, scope: { occasion: "" } },
+      { ...sound, scope: TUESDAY },
     ]) {
       await assert.rejects(() => ana.say(about(f, broken as unknown as Act)), VerdictError);
     }
@@ -481,7 +431,7 @@ describe("the verdict store", () => {
     // still the shape that works.
     const f = film();
     await ana.say(about(f, judged("loved", "2026-01-01T20:00:00.000Z")));
-    const taken = await ana.say(withdrawVerdict(f, "2026-03-01T20:00:00.000Z", TUESDAY));
+    const taken = await ana.say(withdrawVerdict(f, "2026-03-01T20:00:00.000Z"));
     const history = await ana.history(f);
     const back = history.find((act) => act.said === "withdrawal");
     assert.deepEqual(back, taken);
@@ -492,7 +442,7 @@ describe("the verdict store", () => {
       said: "withdrawal",
       claimant: "user",
       film: f,
-      scope: TUESDAY,
+      scope: "everywhere",
       at: "2026-03-01T20:00:00.000Z",
     });
     const handles = back as unknown as Record<string, unknown>;
@@ -615,7 +565,7 @@ describe("the verdict store", () => {
     await mine.say(about(a, judged("loved", "2026-05-03T20:00:00.000Z", "the tension")));
     await mine.say(about(a, judged("disliked", "2026-05-04T20:00:00.000Z")));
     await mine.say(withdrawVerdict(a, "2026-05-05T20:00:00.000Z"));
-    await mine.say(about(b, notTonight("2026-05-06T20:00:00.000Z")));
+    await mine.say(about(b, judged("disliked", "2026-05-06T20:00:00.000Z")));
     await mine.say(about(b, judged("liked", "2026-05-07T20:00:00.000Z")));
 
     const expected = [...(await mine.history(a)), ...(await mine.history(b))];
@@ -634,12 +584,12 @@ describe("the verdict store", () => {
     assert.deepEqual(asSet(await mine.acts()), asSet(expected));
   });
 
-  test("acts resolves nothing — superseded, withdrawn and scoped all survive", async () => {
+  test("acts resolves nothing — superseded, withdrawn and taken-back all survive", async () => {
     const f = film();
     await ana.say(about(f, judged("loved", "2026-05-07T20:00:00.000Z", "the tension")));
     await ana.say(about(f, judged("disliked", "2026-05-08T20:00:00.000Z")));
-    await ana.say(about(f, notTonight("2026-05-09T20:00:00.000Z", WEDNESDAY, "too long")));
-    await ana.say(withdrawVerdict(f, "2026-05-10T20:00:00.000Z", WEDNESDAY));
+    await ana.say(withdrawVerdict(f, "2026-05-09T20:00:00.000Z"));
+    await ana.say(about(f, judged("liked", "2026-05-10T20:00:00.000Z")));
 
     const mine = (await ana.acts()).filter((act) => act.film.title === f.title);
     assert.equal(mine.length, 4, "an act was collapsed away");
@@ -856,22 +806,6 @@ describe("the verdict store", () => {
       (current(left) as { assertion: { judgement: string } }).assertion.judgement,
       "disliked",
     );
-  });
-
-  test("forgetting an evening's refusal leaves the global claim alone", async () => {
-    const f = film();
-    const base = await ana.say(about(f, judged("loved", "2026-06-16T20:00:00.000Z")));
-    const evening = await ana.say(about(f, notTonight("2026-06-17T20:00:00.000Z", TUESDAY, "too long")));
-    assert.equal((current(await ana.history(f), TUESDAY) as { said: string }).said, "verdict");
-
-    await ana.forget(evening.ref);
-    const left = await ana.history(f);
-    assert.deepEqual(left.map((act) => act.ref), [base.ref]);
-    // The evening falls back to the base, which never moved.
-    for (const scope of ["everywhere", TUESDAY, WEDNESDAY] as const) {
-      const held = current(left, scope) as { assertion: { judgement: string } };
-      assert.equal(held.assertion.judgement, "loved", `the base moved in ${JSON.stringify(scope)}`);
-    }
   });
 
   test("a reference that names nothing is not an error and changes nothing", async () => {

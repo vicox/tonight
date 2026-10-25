@@ -21,7 +21,7 @@ import type { Act, Film, Identified, Standing } from "./model.ts";
  *
  * ## Why there are no identifiers in this surface
  *
- * A withdrawal names a film, a scope and a time. It does not name the act it
+ * A withdrawal names a film and a time. It does not name the act it
  * takes back, because the model works out what stands from the order rather
  * than from a pointer. Handing row identifiers to callers would invite exactly
  * the pointer the model does without, and a second way to answer *"what
@@ -102,10 +102,9 @@ export type VerdictStore = {
    * What currently stands about every film this user has spoken about.
    *
    * The read recommendation work uses, and the only one that does. It answers
-   * with the projection the model builds — current claims, globally and per
-   * evening — so a superseded verdict, a withdrawn one and an evening whose
-   * refusal was taken back are absent because the model resolved them away, not
-   * because a query remembered to exclude them.
+   * with the projection the model builds — one current judgement per film — so
+   * a superseded verdict and a withdrawn one are absent because the model
+   * resolved them away, not because a query remembered to exclude them.
    *
    * Empty for somebody who has said nothing, which is the ordinary first case.
    */

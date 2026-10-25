@@ -22,15 +22,7 @@ import {
   type Taste,
   type World,
 } from "./gates.ts";
-import {
-  BASELINE,
-  FILMS,
-  TRAJECTORIES,
-  TUESDAY,
-  WEDNESDAY,
-  filmsIn,
-  type Trajectory,
-} from "./trajectories.ts";
+import { BASELINE, FILMS, TRAJECTORIES, filmsIn, type Trajectory } from "./trajectories.ts";
 
 /**
  * M2's evaluation: only what they said counts, and it counts as they said it.
@@ -125,7 +117,7 @@ describe("M2 — only what they said", () => {
     const taste = async (): Promise<Taste> => (await call("get_taste")) as unknown as Taste;
 
     // The taste everybody starts from. Genres and a vibe are here so that a
-    // rejection generalising into a category has somewhere to land where a gate
+    // verdict generalising into a category has somewhere to land where a gate
     // can see it; without them "nothing else moved" would be a claim about an
     // empty room. The film comes before the vibe because it is the vibe's core:
     // saved first, it keeps its viewing and the vibe only files it.
@@ -172,25 +164,14 @@ describe("M2 — only what they said", () => {
           ...(step.finished === undefined ? {} : { finished: step.finished }),
         });
       } else if (step.act === "verdict") {
-        const said =
-          step.judgement === undefined
-            ? {
-                about: "rejection",
-                reach: step.reach,
-                ...(step.reason === undefined ? {} : { reason: step.reason }),
-                ...(step.occasion === undefined ? {} : { occasion: step.occasion }),
-              }
-            : {
-                about: "judgement",
-                judgement: step.judgement,
-                ...(step.because === undefined ? {} : { because: step.because }),
-              };
+        const said = {
+          about: "judgement",
+          judgement: step.judgement,
+          ...(step.because === undefined ? {} : { because: step.because }),
+        };
         await call("record_verdict", { film: step.film, told: step.told, said });
       } else if (step.act === "withdraw") {
-        await call("withdraw_verdict", {
-          film: step.film,
-          ...(step.occasion === undefined ? {} : { occasion: step.occasion }),
-        });
+        await call("withdraw_verdict", { film: step.film });
       }
       // After every step, not only at the end: a trajectory is invariant only if
       // it was invariant at each point along it.
@@ -198,15 +179,8 @@ describe("M2 — only what they said", () => {
     }
 
     const asked: Record<string, Asked> = {};
-    const askedAt: Record<string, Asked> = {};
     for (const film of filmsIn(trajectory)) {
       asked[filmKey(film)] = (await call("get_verdicts", { film })) as unknown as Asked;
-      for (const occasion of [TUESDAY, WEDNESDAY]) {
-        askedAt[`${filmKey(film)} @ ${occasion}`] = (await call("get_verdicts", {
-          film,
-          occasion,
-        })) as unknown as Asked;
-      }
     }
 
     return {
@@ -215,7 +189,6 @@ describe("M2 — only what they said", () => {
       after: await taste(),
       checkpoints,
       asked,
-      askedAt,
     };
   }
 
@@ -269,7 +242,7 @@ describe("M2 — only what they said", () => {
   /* --------------------------------------------------------------- the tests */
 
   test("every trajectory names the invariant it proves", () => {
-    assert.equal(TRAJECTORIES.length, 16);
+    assert.equal(TRAJECTORIES.length, 15);
     for (const trajectory of TRAJECTORIES) {
       assert.ok(trajectory.proves.length > 20, `${trajectory.name} does not say what it proves`);
       assert.ok(trajectory.steps.length > 0);
@@ -295,12 +268,6 @@ describe("M2 — only what they said", () => {
         `no trajectory ever records ${judgement}`,
       );
     }
-    for (const reach of ["not-tonight", "not-ever"] as const) {
-      assert.ok(
-        verdicts.some((step) => step.act === "verdict" && step.reach === reach),
-        `no trajectory ever records ${reach}`,
-      );
-    }
     for (const told of ["volunteered", "confirmed"] as const) {
       assert.ok(
         verdicts.some((step) => step.act === "verdict" && step.told === told),
@@ -309,11 +276,11 @@ describe("M2 — only what they said", () => {
     }
     assert.ok(steps.some((step) => step.act === "withdraw"), "nothing is ever taken back");
     assert.ok(
-      verdicts.some((step) => step.act === "verdict" && (step.because ?? step.reason) !== undefined),
+      verdicts.some((step) => step.act === "verdict" && step.because !== undefined),
       "no reason is ever given, so fidelity is never tested",
     );
     assert.ok(
-      verdicts.some((step) => step.act === "verdict" && (step.because ?? step.reason) === undefined),
+      verdicts.some((step) => step.act === "verdict" && step.because === undefined),
       "no verdict is ever given without a reason, so absence is never tested",
     );
   });
@@ -420,29 +387,20 @@ describe("M2 — only what they said", () => {
     });
   });
 
-  test("a not-tonight that leaks past its evening is caught", () => {
-    probe("an evening's refusal goes global", "scope", (copy) => {
-      copy.seen["not-tonight-one-evening"]!.after.verdicts = [
-        { title: "Prisoners", year: 2013, rejected: "not-tonight", reason: "too long", told: "confirmed" },
-      ];
+  test("a dislike that does not arrive as said is caught", () => {
+    // Without this, "nothing else moved" would also be true of a store that
+    // dropped the dislike entirely.
+    probe("the dislike is dropped", "one-film", (copy) => {
+      const seen = copy.seen["disliked-one-film"]!;
+      seen.after.verdicts = (seen.after.verdicts ?? []).filter((held) => held.title !== "Prisoners");
     });
   });
 
-  test("a not-ever that goes quiet inside an occasion is caught", () => {
-    probe("a permanent refusal stops applying on a Tuesday", "scope", (copy) => {
-      copy.seen["not-ever-one-film"]!.askedAt[`${prisoners} @ ${TUESDAY}`] = {
-        current: null,
-        superseded: [],
-        history: [],
-      };
-    });
-  });
-
-  test("a not-ever leaking into a genre while the film verdict stays correct is caught", () => {
+  test("a dislike leaking into a genre while the film verdict stays correct is caught", () => {
     // The category-level failure: the claim about the film is exactly right, and
-    // the refusal has still become a theory about a kind of film.
-    probe("a refusal becomes a genre exclusion", "scope", (copy) => {
-      const seen = copy.seen["not-ever-one-film"]!;
+    // the dislike has still become a theory about a kind of film.
+    probe("a dislike becomes a genre exclusion", "one-film", (copy) => {
+      const seen = copy.seen["disliked-one-film"]!;
       seen.after.genres = seen.after.genres.map((genre) =>
         genre.name === "Slow Burn"
           ? { ...genre, instruction: `${genre.instruction} — but nothing three hours long` }
@@ -451,9 +409,9 @@ describe("M2 — only what they said", () => {
     });
   });
 
-  test("a not-ever leaking into a vibe is caught", () => {
-    probe("a refusal becomes a vibe exclusion", "scope", (copy) => {
-      const seen = copy.seen["not-ever-one-film"]!;
+  test("a dislike leaking into a vibe is caught", () => {
+    probe("a dislike becomes a vibe exclusion", "one-film", (copy) => {
+      const seen = copy.seen["disliked-one-film"]!;
       seen.after.vibes = [
         ...seen.after.vibes,
         { name: "Not For Them", genres: ["Slow Burn"], instruction: "avoid the long ones" },
@@ -461,66 +419,44 @@ describe("M2 — only what they said", () => {
     });
   });
 
-  test("a not-tonight leaking into a genre and a vibe is caught", () => {
-    // The same category failure as the permanent refusal's, and the likelier of
-    // the two: "too long for tonight" sounds enough like a preference that a
-    // system might file it as one. The film's own standing stays exactly right.
-    probe("an evening's refusal becomes a category exclusion", "scope", (copy) => {
-      const seen = copy.seen["not-tonight-one-evening"]!;
-      seen.after.genres = seen.after.genres.map((genre) =>
-        genre.name === "Slow Burn"
-          ? { ...genre, instruction: `${genre.instruction} — not on a weeknight` }
-          : genre,
-      );
-      seen.after.vibes = [
-        ...seen.after.vibes,
-        { name: "Short Evenings", genres: ["Heist"], instruction: "nothing that runs long" },
-      ];
-    });
-  });
-
-  test("a not-tonight taking a vibe's anchor away is caught", () => {
-    // The baseline vibe is anchored on the baseline film. A refusal that reached
+  test("a dislike taking a vibe's anchor away is caught", () => {
+    // The baseline vibe is anchored on the baseline film. A verdict that reached
     // across and cleared the anchor leaves every name, sentence and genre as it
     // was, so only the core itself can show it.
-    probe("an evening's refusal unanchors a vibe", "scope", (copy) => {
-      const seen = copy.seen["not-tonight-one-evening"]!;
+    probe("a dislike unanchors a vibe", "one-film", (copy) => {
+      const seen = copy.seen["disliked-one-film"]!;
       seen.after.vibes = seen.after.vibes.map((vibe) => ({ ...vibe, core: null }));
     });
   });
 
-  test("a not-tonight moving an unrelated film's viewing is caught", () => {
-    // The plausible bug in this model: a refusal that reaches across and rewrites
-    // what is known about watching a neighbouring film. It used to be written as
-    // a `state` of `disliked`, which is a field `Movie` no longer has — so the
-    // mutation added a property nothing reads and killed nothing.
-    probe("an evening's refusal rewrites a neighbouring film", "scope", (copy) => {
-      const seen = copy.seen["not-tonight-one-evening"]!;
+  test("a dislike moving an unrelated film's viewing is caught", () => {
+    // The plausible bug: a verdict that reaches across and rewrites where a
+    // neighbouring film stands on their list.
+    probe("a dislike rewrites a neighbouring film", "one-film", (copy) => {
+      const seen = copy.seen["disliked-one-film"]!;
       seen.after.movies = seen.after.movies.map((movie) =>
-        movie.title === "Heat" ? { ...movie, viewing: "unseen" } : movie,
+        movie.title === "Heat" ? { ...movie, viewing: "dont-want-to-see" } : movie,
       );
     });
   });
 
-  test("a not-tonight moving an unrelated film's opinion is caught", () => {
-    // The other half, and the one the baseline exists for. An evening's refusal
-    // that reached the standing opinion about another film would be a mood
-    // turned into a fact about the person — and the opinion is a verdict now, so
-    // that is where a leak would have to land.
-    probe("an evening's refusal rewrites a neighbouring opinion", "scope", (copy) => {
-      const seen = copy.seen["not-tonight-one-evening"]!;
+  test("a dislike moving an unrelated film's opinion is caught", () => {
+    // The other half, and the one the baseline exists for: one opinion turned
+    // into a fact about another film.
+    probe("a dislike rewrites a neighbouring opinion", "one-film", (copy) => {
+      const seen = copy.seen["disliked-one-film"]!;
       seen.after.verdicts = (seen.after.verdicts ?? []).map((held) =>
         held.title === "Heat" ? { ...held, judgement: "disliked" } : held,
       );
     });
   });
 
-  test("a not-tonight erasing an unrelated opinion is caught", () => {
+  test("a dislike erasing an unrelated opinion is caught", () => {
     // And the failure that looks like tidying rather than like writing: the
     // neighbouring verdict simply gone. A gate that only compared what is
     // present would miss it.
-    probe("an evening's refusal drops a neighbouring opinion", "scope", (copy) => {
-      const seen = copy.seen["not-tonight-one-evening"]!;
+    probe("a dislike drops a neighbouring opinion", "one-film", (copy) => {
+      const seen = copy.seen["disliked-one-film"]!;
       seen.after.verdicts = (seen.after.verdicts ?? []).filter((held) => held.title !== "Heat");
     });
   });
@@ -555,20 +491,19 @@ describe("M2 — only what they said", () => {
     });
   });
 
-  test("an authentic reason moved between scopes in the history is caught", () => {
-    // One film holding a global judgement and an evening's refusal at once. The
-    // words are theirs and they are in this film's history — on the wrong act.
-    // Nothing standing changes, so only the history comparison can see it.
-    probe("their words slide from the refusal onto the judgement", "reason-fidelity", (copy) => {
-      const history = copy.seen["not-tonight-one-evening"]!.asked[prisoners]!.history as {
+  test("an authentic reason moved between acts in the history is caught", () => {
+    // One film with a verdict and the correction that replaced it. The words are
+    // theirs and they are in this film's history — on the wrong act. Nothing
+    // standing changes, so only the history comparison can see it.
+    probe("their words slide from the replaced verdict onto its correction", "reason-fidelity", (copy) => {
+      const history = copy.seen["correction-supersedes"]!.asked[prisoners]!.history as {
         said: string;
-        assertion: { about: string; judgement?: string; because?: string | null; rejection?: { reason: string | null } };
+        assertion: { judgement: string; because: string | null };
       }[];
-      const judgement = history.find((act) => act.assertion.about === "judgement");
-      const rejection = history.find((act) => act.assertion.about === "rejection");
-      assert.ok(judgement && rejection, "the trajectory no longer holds both shapes for one film");
-      judgement.assertion.because = rejection.assertion.rejection!.reason;
-      rejection.assertion.rejection!.reason = null;
+      const [first, second] = history;
+      assert.ok(first?.assertion.because && second, "the trajectory no longer holds a reason to move");
+      second.assertion.because = first.assertion.because;
+      first.assertion.because = null;
     });
   });
 

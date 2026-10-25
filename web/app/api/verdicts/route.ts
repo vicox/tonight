@@ -18,13 +18,10 @@ import { authorized, given } from "../../../lib/web/api.ts";
  * a verdict has a scope, an instant, a provenance and a history, and none of
  * that could live on a saved film.
  *
- * ## A press is a global judgement, and nothing else
+ * ## A press is a judgement, and nothing else
  *
- * The page shows a collection, not an evening. So this writes a judgement that
- * applies everywhere and there is no way to say otherwise: a `not-tonight`
- * belongs to one evening, and an evening is not something a list of films has.
- * Turning down a film for a particular night stays with the assistant, which is
- * where the evening is.
+ * Liked, loved or disliked, about the film. Not wanting a film recommended is
+ * where it stands on their list, and `/api/movies` is where that is pressed.
  *
  * `volunteered`, because it is. Tonight asked nothing — the user went to the
  * page and pressed. That is the stronger of the two provenances and recording it
@@ -64,9 +61,7 @@ function pressed(body: Record<string, unknown>): Judgement | null {
   }
 
   throw new VerdictError(
-    `"judgement" must be one of ${JUDGEMENTS.join(", ")}, or null to take back what they said. ` +
-      "Turning a film down for one evening is a rejection rather than a judgement, and it is " +
-      "not something this page can say.",
+    `"judgement" must be one of ${JUDGEMENTS.join(", ")}, or null to take back what they said.`,
   );
 }
 
@@ -78,14 +73,14 @@ export async function PATCH(request: Request): Promise<Response> {
     };
     const wanted = pressed(body);
 
-    // What stands globally about this film right now. Matched by `filmKey`,
-    // because a verdict names a film as the user spelled it and two spellings of
-    // one film must not read as two positions.
+    // What stands about this film right now. Matched by `filmKey`, because a
+    // verdict names a film as the user spelled it and two spellings of one film
+    // must not read as two positions.
     const standing = await verdicts.standing();
-    const held = standing.find((one) => one.occasion === undefined && filmKey(one) === filmKey(film));
+    const held = standing.find((one) => filmKey(one) === filmKey(film));
 
     if (wanted === null) {
-      if (held?.judgement === undefined) return;
+      if (held === undefined) return;
       await verdicts.say(withdrawVerdict(film, new Date().toISOString()));
       return;
     }

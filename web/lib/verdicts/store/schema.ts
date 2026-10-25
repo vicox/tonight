@@ -1,3 +1,4 @@
+import type { Transaction } from "../../db/driver.ts";
 import type { SchemaModule } from "../../db/migrate.ts";
 
 /**
@@ -34,7 +35,7 @@ import type { SchemaModule } from "../../db/migrate.ts";
  *
  * ## Why NULL means everywhere
  *
- *     occasion  text  NULL is the global scope. A value names one evening.
+ *     occasion  text  NULL is the global scope. A value named one evening.
  *
  * §6: *"A Claim with no stated scope applies globally; one with a scope applies
  * **only** there."* The column is that sentence. It is deliberately not a text
@@ -42,15 +43,20 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * scope nobody could see, and deliberately not a second boolean, which could
  * disagree with the occasion beside it.
  *
+ * Since v3 it is always NULL. An evening was a scope only so that *"not
+ * tonight"* could be recorded, and refusals are no longer verdicts — see v3.
+ * `reach` and `reason` are always NULL for the same reason. The columns stay,
+ * held empty by constraints, rather than being dropped: v3 then leaves the
+ * build before it able to read every row, and refuses only its refusals.
+ *
  * ## Why the constraints are here as well as in the model
  *
- * `lib/verdicts/model.ts` refuses a global *"not tonight"*, a scoped *"not
- * ever"*, an empty explanation and a withdrawal that asserts something. The
- * schema refuses them too. Not because the model is untrusted, but because a
- * table outlives the code that filled it: a later migration, a repair script or
- * a restore is a writer that never passed through a constructor, and the
- * invariant that matters most here — that an evening's refusal cannot become a
- * fact about the film — is one nobody should be able to write by hand either.
+ * `lib/verdicts/model.ts` refuses a refusal, an evening, an empty explanation
+ * and a withdrawal that asserts something. The schema refuses them too. Not
+ * because the model is untrusted, but because a table outlives the code that
+ * filled it: a later migration, a repair script or a restore is a writer that
+ * never passed through a constructor, and a row the model cannot rebuild would
+ * fail every read of that user's verdicts.
  */
 export const VERDICTS_SCHEMA: SchemaModule = {
   module: "verdicts",
@@ -190,5 +196,257 @@ export const VERDICTS_SCHEMA: SchemaModule = {
           ON tonight_verdict_acts (seq);
       `,
     },
+    {
+      version: 3,
+      // It writes a Movie's viewing, and `dont-want-to-see` is a value taste v14
+      // introduced. Satisfied through v14 and no further — see `Migration.needs`
+      // for why taste v11 needing this module and this needing taste is not a loop.
+      needs: [{ module: "taste", version: 14 }],
+      run: convertRefusals,
+    },
   ],
 };
+
+/**
+ * CONVERT, then CONTRACT. A verdict is a judgement and nothing else.
+ *
+ * A refusal was a verdict with a reach — `not-ever` for good, `not-tonight` for
+ * one evening, scoped to that evening. Neither is an opinion about the film, and
+ * both now live elsewhere or nowhere:
+ *
+ *     what stood                         becomes
+ *     -----------------------------------------------------------------------
+ *     a not-ever, current for the film   the saved Movie's viewing,
+ *                                        dont-want-to-see — which is what keeps
+ *                                        a film from being recommended now
+ *     every other refusal act            nothing: removed
+ *     an evening's not-tonight           nothing: removed, with the takings-back
+ *                                        that named an evening
+ *
+ * Then the table is held to judgements, everywhere: `about` is `judgement` or
+ * empty, and `occasion` is empty. The existing checks already tie `reach` and
+ * `reason` to a refusal, so those are empty from here on too.
+ *
+ * ## Which not-ever is "current"
+ *
+ * The one the model would have answered with: the latest act in the film's
+ * global history, ordered by the instant the user spoke and then by the order
+ * this table accepted it. A not-ever they later took back, or replaced with a
+ * judgement, is not current and moves nothing — they had already changed their
+ * mind. Evening-scoped acts never reached the global answer, so they are not read.
+ *
+ * Two acts at one instant are told apart by `seq`. Rows without one predate v2,
+ * and no verdict was writable before v2 shipped, so none should exist; if two
+ * such rows tie at the latest instant, this refuses rather than guessing which
+ * stood.
+ *
+ * ## What is refused, and why nothing is invented
+ *
+ * Two cases stop the whole step, naming the account and the film, and leave the
+ * database exactly as it was:
+ *
+ *   - **A current not-ever with no saved Movie.** There is no viewing to set,
+ *     and saving a film nobody asked to keep would be inventing one; dropping
+ *     the refusal would let a film they said never to suggest come back.
+ *     Resolve each first, with the build before this one: save it as
+ *     dont-want-to-see, or forget the verdict.
+ *   - **A current not-ever on a vibe's core.** A core is a film they have seen
+ *     and the store refuses to mark one otherwise; this will not get past that
+ *     rule on their behalf. Give the vibe another core, or delete the vibe.
+ *
+ * A deploy that stops is recoverable. A guess is not.
+ *
+ * Everything up to that decision is `classifyRefusals`, which only reads, so the
+ * operator's pre-flight (`npm run db:preflight-m8`) asks exactly the question this
+ * step asks, by exactly the same rules.
+ *
+ * ## What it overwrites, and what it brings back
+ *
+ * The viewing is set whatever it was, `seen` included: "never recommend it" is
+ * the one thing a viewing now has to carry for this film, and the only place it
+ * can. And removing a current not-ever lets the judgement beneath it, if there
+ * was one, stand again — a refusal was never an opinion, and the last opinion
+ * they gave is theirs.
+ *
+ * The stamp trigger comes off for the write, as in taste v10 and v14: what they
+ * said is being moved to where it now lives, not said again, and `updated_at`
+ * is on the read.
+ *
+ * ## Order of the release
+ *
+ * Stop the application, back the database up, migrate, deploy. The build before
+ * this one reads every row afterwards but cannot write a refusal, and the
+ * removed acts cannot be recovered except from the backup.
+ */
+async function convertRefusals(tx: Transaction): Promise<void> {
+  const found = await classifyRefusals(tx);
+  const blocking = blockers(found);
+  if (blocking.length) {
+    throw new Error(
+      [
+        ...blocking,
+        "Do that with the build before this one, then run the migration again. Nothing has been changed.",
+      ].join(" "),
+    );
+  }
+
+  if (found.convert.length) {
+    await tx.exec("ALTER TABLE tonight_movies DISABLE TRIGGER tonight_movies_written_at;");
+    for (const film of found.convert) {
+      await tx.query(
+        `UPDATE tonight_movies SET viewing = 'dont-want-to-see' WHERE user_id = $1 AND id = $2`,
+        [film.userId, film.movieId],
+      );
+    }
+    await tx.exec("ALTER TABLE tonight_movies ENABLE TRIGGER tonight_movies_written_at;");
+  }
+
+  await tx.exec(`
+    -- Every refusal, current or not, and everything said for one evening: the
+    -- not-tonights and the takings-back that named an evening to take one back.
+    DELETE FROM tonight_verdict_acts WHERE about = 'rejection' OR occasion IS NOT NULL;
+
+    ALTER TABLE tonight_verdict_acts
+      ADD CONSTRAINT tonight_verdict_acts_judgement_only
+        CHECK (about IS NULL OR about = 'judgement');
+    ALTER TABLE tonight_verdict_acts
+      ADD CONSTRAINT tonight_verdict_acts_everywhere
+        CHECK (occasion IS NULL);
+  `);
+}
+
+/** One film in one account, as an operator needs it named. */
+export type Named = { userId: string; title: string; year: number };
+
+/** What v3 would do with every current not-ever, worked out without writing. */
+export type RefusalClassification = {
+  /** Saved, and not a core: becomes dont-want-to-see. */
+  convert: (Named & { movieId: string })[];
+  /** Not saved: there is no viewing to mark, and none is invented. */
+  unsaved: Named[];
+  /** A vibe's core, which is only ever seen. */
+  cores: (Named & { vibes: string[] })[];
+  /** The latest instant is shared by acts that record no order. */
+  ambiguous: Named[];
+};
+
+/**
+ * Which films v3 would mark, and which stop it — read, never written.
+ *
+ * The whole of v3's judgement, apart from what it then does: the migration acts
+ * on this answer, and `npm run db:preflight-m8` prints it, so the two cannot
+ * disagree about which film a title names, which act is current, or what counts
+ * as unresolvable.
+ *
+ * Grouped by `filmKey`, the way the verdict store groups a history — never by
+ * `lower()` — and ordered by the instant, then by `seq` with an unordered act
+ * before an ordered one at the same instant, which is the model's own rule.
+ * Evening-scoped acts never reached the global answer, so they are not read.
+ */
+export async function classifyRefusals(sql: Transaction): Promise<RefusalClassification> {
+  const { canonicalTitle, filmKey } = await import("../../films/identity.ts");
+
+  type Row = {
+    user_id: string;
+    said: string;
+    title: string;
+    year: number;
+    said_at: Date | string;
+    reach: string | null;
+    seq: string | number | null;
+  };
+  const global = await sql.query<Row>(
+    `SELECT user_id, said, title, year, said_at, reach, seq
+       FROM tonight_verdict_acts
+      WHERE occasion IS NULL`,
+  );
+
+  // One film's global history per account, grouped the way the domain names films.
+  const histories = new Map<string, Row[]>();
+  for (const act of global) {
+    const key = `${act.user_id}\u0000${filmKey(act)}`;
+    histories.set(key, [...(histories.get(key) ?? []), act]);
+  }
+
+  const instant = (act: Row) => new Date(act.said_at).getTime();
+  const order = (act: Row) => (act.seq === null ? null : Number(act.seq));
+  const named = (act: Row): Named => ({ userId: act.user_id, title: act.title, year: act.year });
+
+  const found: RefusalClassification = { convert: [], unsaved: [], cores: [], ambiguous: [] };
+  const refused: Row[] = [];
+  for (const history of histories.values()) {
+    history.sort((a, b) => {
+      const apart = instant(a) - instant(b);
+      if (apart !== 0) return apart;
+      const [left, right] = [order(a), order(b)];
+      if (left === null || right === null) return left === right ? 0 : left === null ? -1 : 1;
+      return left - right;
+    });
+    const latest = history[history.length - 1]!;
+    // An ordered act at the latest instant would sort last, so an unordered
+    // latest means every act sharing its instant is unordered too.
+    if (
+      order(latest) === null &&
+      history.some((other) => other !== latest && instant(other) === instant(latest))
+    ) {
+      found.ambiguous.push(named(latest));
+      continue;
+    }
+    if (latest.said === "verdict" && latest.reach === "not-ever") refused.push(latest);
+  }
+
+  for (const act of refused) {
+    const [movie] = await sql.query<{ id: string }>(
+      `SELECT id FROM tonight_movies WHERE user_id = $1 AND canonical_title = $2 AND year = $3`,
+      [act.user_id, canonicalTitle(act.title), act.year],
+    );
+    if (!movie) {
+      found.unsaved.push(named(act));
+      continue;
+    }
+    const cores = await sql.query<{ name: string }>(
+      `SELECT name FROM tonight_mixes WHERE user_id = $1 AND core_movie_id = $2 ORDER BY name`,
+      [act.user_id, movie.id],
+    );
+    if (cores.length) {
+      found.cores.push({ ...named(act), vibes: cores.map((one) => one.name) });
+      continue;
+    }
+    found.convert.push({ ...named(act), movieId: movie.id });
+  }
+  return found;
+}
+
+/**
+ * What stops v3, as sentences an operator can act on — empty when nothing does.
+ *
+ * The account is named beside the film because two accounts can hold the same
+ * title, and this is read by whoever runs the migration, never by a user.
+ */
+export function blockers(found: RefusalClassification): string[] {
+  const film = (one: Named) => `${one.userId} ${JSON.stringify(one.title)} (${String(one.year)})`;
+  return [
+    ...(found.unsaved.length
+      ? [
+          "Turned down for good but not saved, so there is no viewing to mark and Tonight will not " +
+            `invent a film: ${found.unsaved.map(film).join("; ")}. Save each as dont-want-to-see, or ` +
+            "forget the verdict.",
+        ]
+      : []),
+    ...(found.cores.length
+      ? [
+          "Turned down for good but a vibe's core, which is only ever seen: " +
+            found.cores
+              .map((one) => `${film(one)}, the core of ${one.vibes.map((vibe) => JSON.stringify(vibe)).join(", ")}`)
+              .join("; ") +
+            ". Give the vibe another core, or delete it.",
+        ]
+      : []),
+    ...(found.ambiguous.length
+      ? [
+          "Two things said about one film share an instant and neither records which came second, " +
+            `so Tonight will not guess which stood: ${found.ambiguous.map(film).join("; ")}.`,
+        ]
+      : []),
+  ];
+}

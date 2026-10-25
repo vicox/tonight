@@ -36,7 +36,7 @@ any number of further films.
 
 A film **they have seen and stand behind**: one with a standing `liked` or `loved`, or one they
 name themselves as what the Vibe means. Never a film you offered only as an illustration, never
-one they said they have not seen, and never one they disliked or turned down for good.
+one they said they have not seen, and never one they disliked or do not want recommended.
 
 Whether a film qualifies is a judgement about what they said, and what they said is a different
 root from the Vibe, so nothing in Tonight checks it — with the one exception below. The tools take
@@ -125,8 +125,7 @@ question about their Vibes.
      which way it points
        ├── liked / loved ───────────────────────────────▶ consider their Vibes
        ├── liked, but they want no more of the kind ────▶ stop
-       ├── disliked / not-ever / taking back a positive ▶ tension, at most once
-       └── not-tonight ─────────────────────────────────▶ stop: an evening, not the film
+       └── disliked / taking back a positive ───────────▶ tension, at most once
      consider — get_taste: Vibes with their cores and films, Genre instructions, verdicts
        │ nothing fits ──▶ stop, and say nothing more about it
      offer — in one breath, in the conversation; nothing written
@@ -175,15 +174,17 @@ comes first and whole, in tonight-recommend's shape, and the verdict is recorded
 The offer may be the answer's one closing question; it never displaces the lead or the
 directions, and if it does not fit there it waits for the next turn.
 
-**Negative evidence never becomes membership.** After `disliked`, `not-ever` or taking back a
-positive verdict:
+**Negative evidence never becomes membership.** After `disliked` or taking back a positive
+verdict:
 
 - **the film is a core** → offer once to anchor that Vibe on a film they stand behind, or to keep
   it as it is;
 - **the film is a further film** → you may offer once to take it out, or say nothing;
 - **the film is in no Vibe** → stop.
 
-`not-tonight` is about an evening, not the film: it never leads to any Vibe talk at all.
+**A turn-down is not how a film worked for them**, and it never leads to any Vibe talk at all.
+*"Stop suggesting it"* is `dont-want-to-see` on the film — a viewing, never evidence about their
+taste — and *"not tonight"* is about an evening, not the film, and is written nowhere.
 
 ### Writing what they agreed
 
@@ -215,9 +216,9 @@ membership or a core without their yes; any record that an offer was made or tur
 | *"Good, but I don't need another movie like this."* | `liked`, `because` verbatim | **stop** — they declined more of the kind |
 | *"It was fine, I guess."* | nothing, unless one light question settles it | nothing |
 | *"I hated it."* | `disliked` | tension once, if the film is in a Vibe |
-| *"Stop suggesting it."* | `not-ever` — never `disliked`, which says they watched it | tension once, if the film is in a Vibe |
+| *"Stop suggesting it."* | `dont-want-to-see` on the film — never `disliked`, which says they watched it | nothing about Vibes |
 | *"Don't recommend it again."* | `dont-want-to-see` on the film — a viewing, not a verdict | nothing about Vibes |
-| *"Not tonight — too long."* | `not-tonight`, its occasion today's date, and the reason | nothing about Vibes |
+| *"Not tonight — too long."* | nothing — it is about an evening, not the film | nothing about Vibes |
 | *"I watched it last night."* | a viewing or an evening | nothing — watching is not an opinion |
 
 ## Keeping a film: which Vibe, and proposing one

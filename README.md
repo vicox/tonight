@@ -38,13 +38,13 @@ an opinion: a `want-to-see` film may be recommended, a `dont-want-to-see` one ne
 may be in no Vibe, one, or several, and it is yours in its own right either way: nothing is
 looked up, and no film is here unless you put it there.
 
-**Verdicts** are what you thought. One film, one thing said: `liked`, `loved` or `disliked`, or
-a refusal — `not-tonight` for one evening, `not-ever` for good — with your own words for why if
-you gave them, whether you volunteered it or answered a question, and when. They have a history:
-changing your mind supersedes what you said before without erasing it, withdrawing one takes that
-verdict out of what stands — in the scope it was given in, so withdrawing an evening's
-`not-tonight` leaves a global judgement standing — and forgetting one removes it. Nothing else
-anywhere holds an opinion.
+**Verdicts** are what you thought. One film, one thing said: `liked`, `loved` or `disliked`, with
+your own words for why if you gave them, whether you volunteered it or answered a question, and
+when. They have a history: changing your mind supersedes what you said before without erasing
+it, withdrawing one takes that verdict out of what stands, and forgetting one removes it. Nothing
+else anywhere holds an opinion. Turning a film down is not a verdict: *"don't recommend it
+again"* is the film's viewing, `dont-want-to-see`, and *"not tonight"* is used that evening and
+written nowhere. Deleting a Movie deletes every verdict about it too.
 
 A Vibe is not the intersection of its Genres. `Sci-Fi` and `Thriller` are the ingredients; what
 you meant by putting them together — contained settings, mystery and pressure rather than
@@ -167,8 +167,8 @@ method ships in the skill beside the server rather than as a runtime tool.
 | `delete_vibe` | always allowed; the Genres it combined are untouched |
 | `create_movie` | a film the user named, and whether they said they watched it |
 | `update_movie` | retitle, correct the year, change its viewing, or change which Vibes it is in — never out of one it anchors |
-| `delete_movie` | removes the film they asked to remove; refused while it anchors a Vibe; the Vibes it was in are untouched |
-| `record_verdict` | what they said about one film: a judgement, or a refusal with its reach |
+| `delete_movie` | removes the film they asked to remove, and every verdict about it; refused while it anchors a Vibe; the Vibes it was in are untouched |
+| `record_verdict` | what they said about one film: liked, loved or disliked. A turn-down is refused and routed to the film's viewing |
 | `withdraw_verdict` | they no longer stand by it. The claim stops applying; that they said it stays |
 | `forget_verdict` | one act removed outright, by the reference `get_memory` gave it |
 | `get_verdicts` | everything said about one film, and which of it stands now |
@@ -212,11 +212,13 @@ addressed from outside, and there is no id in any tool schema or any answer.
   `NOT NULL`, with `want-to-see` as the default for a film saved without one. Taste v14 turned
   the old `unseen` into `want-to-see`; it backfills no `NULL`, and fails rather than guess if
   one is there.
-- **A Movie carries no opinion.** What somebody thought of a film is a Verdict, with a scope, a
+- **A Movie carries no opinion.** What somebody thought of a film is a Verdict, with a
   provenance, an instant and a history no column here could hold — so there is nowhere on a
-  Movie to put one. Taking a Verdict back removes that act from what stands and reaches exactly
-  as far as the act did: no weaker opinion is revealed underneath it in that scope, and a
-  withdrawn evening's `not-tonight` leaves a global judgement applying where it was.
+  Movie to put one. Taking a Verdict back removes that act from what stands: no weaker opinion
+  is revealed underneath it.
+- **A Verdict is a judgement and nothing else** — `liked`, `loved` or `disliked`, about the film,
+  on every evening. Verdicts v3 holds the table to that with two `CHECK`s, and the verdict tools
+  refuse an `occasion`, a `reach` or a `reason` rather than dropping it.
 - **A Vibe is anchored on one core Movie**, the film that best embodies it, and the core is always
   one of its own films: a column on the Vibe with a deferred foreign key into its memberships. A
   core is required to create a Vibe, can be replaced — the old one stays a member — and is never
@@ -225,10 +227,11 @@ addressed from outside, and there is no id in any tool schema or any answer.
   store saves a new core that way, refuses a saved film that is anything else as a core, and
   refuses to mark a core anything else. It reads that saved fact alone — whether a verdict says
   otherwise is the user's to settle, never a viewing written to get past the refusal.
-- **Deleting a Movie is allowed unless it anchors a Vibe**, and takes only its Vibe memberships
-  with it. A Vibe is *defined by* its Genres and its core, and merely *holds* its other Movies,
-  which is why those restrict and the rest cascade. Taking a core out of its Vibe is refused the
-  same way, and both refusals name the Vibes.
+- **Deleting a Movie is allowed unless it anchors a Vibe**, and takes its Vibe memberships and
+  every verdict about the film with it, in one transaction. A Vibe is *defined by* its Genres and
+  its core, and merely *holds* its other Movies, which is why those restrict and the rest
+  cascade. Taking a core out of its Vibe is refused the same way, and both refusals name the
+  Vibes.
 
 ## The website
 
@@ -269,6 +272,14 @@ Most migrations only add. Some remove something the running build still writes, 
 is no ordering that makes it safe to leave running. Taste v12, which drops the Movie `state`
 column, is one of these, and so is taste v14, which refuses the `unseen` and `NULL` viewings the
 build before it writes.
+
+So is **verdicts v3** (M8). It turns every `not-ever` that still stands into the saved film's
+viewing, `dont-want-to-see`, removes every refusal act and everything said for one evening, and
+then holds the table to judgements. It refuses — changing nothing — when a standing `not-ever`
+has no saved film (Tonight will not invent one) or is a Vibe's core, naming the account and the
+film. Find those first, without writing anything, with `npm run db:preflight-m8` against the
+production database, and resolve each with the build that is still running; then follow the four
+steps below. The removed acts come back only from the backup.
 
 So the contract for any release carrying one is four steps and their order is the whole of it:
 

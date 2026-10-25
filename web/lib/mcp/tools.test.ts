@@ -1165,51 +1165,88 @@ test("a film not saved as seen is never a core, and a standing liked does not ma
   );
 });
 
-test("a new not-tonight is named by today's date, and an older one is addressed as recorded", async () => {
-  // The occasion stays opaque to the model and unvalidated here, so an evening
-  // named before the date convention — `evening-tuesday` — is still recorded,
-  // read and taken back by exactly that string, and taking it back reaches no
-  // other evening.
+test("an old client's evening or refusal is refused at the protocol, and writes nothing", async () => {
+  // A client written when a verdict could name an evening, or be a refusal.
+  // Every such argument is refused rather than dropped: dropped, `occasion`
+  // would turn taking back one evening's refusal into taking back what they
+  // said about the film everywhere.
   const token = await tokenFor(someone());
   const HEAT = { title: "Heat", year: 1995 };
-  for (const occasion of ["evening-tuesday", "2026-10-21"]) {
-    await ok(token, "record_verdict", {
-      film: HEAT,
-      told: "volunteered",
-      said: { about: "rejection", reach: "not-tonight", occasion },
-    });
+  await ok(token, "record_verdict", {
+    film: HEAT,
+    told: "volunteered",
+    said: { about: "judgement", judgement: "loved" },
+  });
+  const before = await ok(token, "get_verdicts", { film: HEAT });
+
+  const judged = { about: "judgement", judgement: "disliked" };
+  for (const [name, args] of [
+    ["withdraw_verdict", { film: HEAT, occasion: "evening-tuesday" }],
+    ["withdraw_verdict", { film: HEAT, occasion: "2026-10-21" }],
+    ["get_verdicts", { film: HEAT, occasion: "evening-tuesday" }],
+    ["record_verdict", { film: HEAT, told: "confirmed", said: judged, occasion: "2026-10-21" }],
+    ["record_verdict", { film: HEAT, told: "confirmed", said: { ...judged, occasion: "2026-10-21" } }],
+    ["record_verdict", { film: HEAT, told: "confirmed", said: { ...judged, reason: "too long" } }],
+    ["record_verdict", { film: HEAT, told: "confirmed", said: { about: "rejection", reach: "not-ever" } }],
+    [
+      "record_verdict",
+      { film: HEAT, told: "confirmed", said: { about: "rejection", reach: "not-tonight", occasion: "2026-10-21" } },
+    ],
+  ] as const) {
+    const message = await refused(token, name, args as Record<string, unknown>);
+    // Each says where a turn-down goes, so the caller can do the right thing next.
+    assert.match(message, /dont-want-to-see/u, `${name} ${JSON.stringify(args)}: no route to the viewing`);
   }
-  const legacy = await ok(token, "get_verdicts", { film: HEAT, occasion: "evening-tuesday" });
-  assert.deepEqual(legacy.current?.scope, { occasion: "evening-tuesday" });
+  // The standing judgement survived every one of them, and nothing was added.
+  assert.deepEqual(await ok(token, "get_verdicts", { film: HEAT }), before, "a refused call changed the history");
 
-  await ok(token, "withdraw_verdict", { film: HEAT, occasion: "evening-tuesday" });
-  assert.equal((await ok(token, "get_verdicts", { film: HEAT, occasion: "evening-tuesday" })).current, null);
-  const dated = await ok(token, "get_verdicts", { film: HEAT, occasion: "2026-10-21" });
-  assert.deepEqual(dated.current?.scope, { occasion: "2026-10-21" }, "taking back one evening reached another");
-
-  // The descriptions: a new one is today's date, an existing one as recorded.
+  // And none of it is advertised any more.
   const tools = await listTools(token);
-  const schemaOf = (name: string) => JSON.stringify(tools.find((tool) => tool.name === name)?.inputSchema ?? {});
   for (const name of ["record_verdict", "withdraw_verdict", "get_verdicts"]) {
-    assert.match(schemaOf(name), /A new `not-tonight` is named by today's date as you know it, YYYY-MM-DD/u, name);
-    assert.match(schemaOf(name), /pass its occasion exactly as recorded/u, `${name}: legacy occasions unaddressable`);
+    const schema = JSON.stringify(tools.find((tool) => tool.name === name)?.inputSchema ?? {});
+    assert.doesNotMatch(schema, /occasion|not-tonight|not-ever|"reach"|"reason"/u, `${name} still offers a refusal`);
   }
-  // What their words reach: "not interested" is for good, a refusal is never a dislike.
-  assert.match(schemaOf("record_verdict"), /\*\\"Not interested\\"\* and \*\\"stop\s+suggesting it\\"\*/u);
-  assert.match(schemaOf("record_verdict"), /are `not-ever`/u);
-  // And the list's own sentence is routed away from verdicts, to the film.
-  assert.match(
-    schemaOf("record_verdict"),
-    /\*\\"Don't recommend it again\\"\* is not a\s+verdict: it puts the film on their list as dont-want-to-see/u,
-  );
-  assert.match(schemaOf("record_verdict"), /A refusal is never `disliked`/u);
-  const record = tools.find((tool) => tool.name === "record_verdict")?.description ?? "";
-  assert.match(record, /never ask them to widen it/u, "record_verdict invites a widening question");
-  assert.match(record, /never stronger than they said/u, "an unclear turn-down may be widened");
-  assert.match(
-    tools.find((tool) => tool.name === "get_taste")?.description ?? "",
-    /today's date,\s+YYYY-MM-DD, binds tonight; any other occasion is another evening's/u,
-  );
+});
+
+test("a turn-down is routed to the film's viewing, and deleting a film forgets what was said about it", async () => {
+  const tools = await listTools(await tokenFor(someone()));
+  const described = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+  const schemaOf = (name: string) => JSON.stringify(tools.find((tool) => tool.name === name)?.inputSchema ?? {});
+
+  // The words that used to be `not-ever` go to the film; "not tonight" goes nowhere.
+  const record = described("record_verdict");
+  assert.match(record, /\*\*Turning a film down is not a verdict\.\*\*/u);
+  assert.match(record, /\*\\?"Not interested\\?"\*, \*\\?"stop suggesting it\\?"\*/u);
+  assert.match(record, /dont-want-to-see,\s+with `create_movie` or `update_movie`/u);
+  assert.match(record, /are about the evening — offer something else and write nothing/u);
+  assert.match(record, /Neither is ever\s+`disliked`/u);
+  for (const name of ["create_movie", "update_movie"]) {
+    assert.match(schemaOf(name), /stop suggesting it\\" \/ \\"not interested\\" \/ \\"never again\\" -> /u, name);
+    assert.match(schemaOf(name), /the one way to keep a film from being recommended/u, name);
+  }
+  // `get_taste` keeps the exclusion, and says it is the viewing that carries it.
+  assert.match(described("get_taste"), /a `dont-want-to-see` film is \*\*never recommended\*\*/u);
+  // Deleting a film takes its verdicts — and points at the viewing for "only don't recommend".
+  assert.match(described("delete_movie"), /\*\*Everything they said about the film goes with it\*\*/u);
+  assert.match(described("delete_movie"), /If they only want it never recommended, that is dont-want-to-see/u);
+});
+
+test("delete_movie forgets every verdict about that film, and nothing about another", async () => {
+  const token = await tokenFor(someone());
+  const HEAT = { title: "Heat", year: 1995 };
+  const MOON = { title: "Moon", year: 2009 };
+  await ok(token, "create_movie", { ...HEAT, viewing: "seen" });
+  for (const judgement of ["loved", "disliked"]) {
+    await ok(token, "record_verdict", { film: HEAT, told: "volunteered", said: { about: "judgement", judgement } });
+  }
+  await ok(token, "withdraw_verdict", { film: HEAT });
+  await ok(token, "record_verdict", { film: MOON, told: "volunteered", said: { about: "judgement", judgement: "liked" } });
+
+  await ok(token, "delete_movie", HEAT);
+
+  const gone = await ok(token, "get_verdicts", { film: HEAT });
+  assert.deepEqual([gone.current, gone.history, gone.superseded], [null, [], []], "a verdict outlived its film");
+  assert.equal((await ok(token, "get_verdicts", { film: MOON })).current?.assertion?.judgement, "liked");
 });
 
 test("get_taste shows each vibe's core, always one of its own films", async () => {

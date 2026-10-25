@@ -9,8 +9,8 @@
  * ## Why trajectories rather than snapshots
  *
  * Almost every M2 claim is about a lifecycle: a verdict that was corrected, one
- * that was taken back, a refusal that applied on one evening, a question that
- * ran out of chances. A snapshot cannot tell a withdrawn verdict from one that
+ * that was taken back, a dislike that has to stay about one film, a question
+ * that ran out of chances. A snapshot cannot tell a withdrawn verdict from one that
  * was never given — both are absent — and that is exactly the difference the
  * milestone rests on. So the gates compare *paths*, and several of them compare
  * two paths that must end in the same place.
@@ -38,7 +38,6 @@
 export type Film = { title: string; year: number };
 
 export type Judgement = "liked" | "loved" | "disliked";
-export type Reach = "not-tonight" | "not-ever";
 export type Told = "volunteered" | "confirmed";
 
 export type Step =
@@ -49,18 +48,9 @@ export type Step =
   /** A film saved, with whether the user said they watched it. */
   | { act: "viewing"; film: Film; viewing: "seen" | "want-to-see" | "dont-want-to-see" }
   /** The user says what they think. The only thing that creates taste evidence. */
-  | {
-      act: "verdict";
-      film: Film;
-      told: Told;
-      judgement?: Judgement;
-      because?: string;
-      reach?: Reach;
-      reason?: string;
-      occasion?: string;
-    }
-  /** The user takes back what they said, in the scope they said it. */
-  | { act: "withdraw"; film: Film; occasion?: string };
+  | { act: "verdict"; film: Film; told: Told; judgement: Judgement; because?: string }
+  /** The user takes back what they said. */
+  | { act: "withdraw"; film: Film };
   /** Tonight notes that it has something to ask, as of some days ago. */
   /** A chance to ask went by unanswered. Stated by a caller, never observed. */
 
@@ -78,15 +68,12 @@ const heat: Film = { title: "Heat", year: 1995 };
 
 export const FILMS = { prisoners, zodiac, heat };
 
-export const TUESDAY = "evening-tuesday";
-export const WEDNESDAY = "evening-wednesday";
-
 /**
  * What every trajectory starts from, before its own steps run.
  *
  * Genres, a vibe, an unrelated film and an opinion about it, given to every user
  * in the evaluation. They exist so that *"nothing else moved"* is a claim with
- * something behind it: a rejection that generalised into a category would have
+ * something behind it: a dislike that generalised into a category would have
  * to land somewhere, and without a category in the model there is nowhere for a
  * gate to see it land.
  *
@@ -190,19 +177,11 @@ export const TRAJECTORIES: readonly Trajectory[] = [
   },
 
   {
-    name: "not-tonight-one-evening",
-    proves: "an evening's refusal applies there and nowhere else, leaving the base untouched",
-    steps: [
-      { act: "verdict", film: prisoners, told: "volunteered", judgement: "loved" },
-      { act: "verdict", film: prisoners, told: "confirmed", reach: "not-tonight", reason: "too long", occasion: TUESDAY },
-    ],
-  },
-  {
-    name: "not-ever-one-film",
-    proves: "a permanent refusal holds for that film in every occasion and generalises to no category",
+    name: "disliked-one-film",
+    proves: "a dislike, with their reason, holds for that one film and generalises to no category or neighbour",
     steps: [
       { act: "viewing", film: zodiac, viewing: "seen" },
-      { act: "verdict", film: prisoners, told: "volunteered", reach: "not-ever", reason: "three hours of misery" },
+      { act: "verdict", film: prisoners, told: "volunteered", judgement: "disliked", because: "three hours of misery" },
     ],
   },
 

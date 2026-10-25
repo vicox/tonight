@@ -1,5 +1,5 @@
 import { isSqlState, UNIQUE_VIOLATION, type SqlDriver, type Transaction } from "../../db/driver.ts";
-import { canonicalTitle } from "../../films/identity.ts";
+import { canonicalTitle, filmKey } from "../../films/identity.ts";
 import type { AuthenticatedUser } from "../../identity.ts";
 import {
   byName,
@@ -534,6 +534,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         );
         if (!removed.length) throw movieNotFound(title, year);
 
+        // Everything they said about it goes with it, in this transaction, so
+        // the film and its verdicts are gone together or not at all.
+        await forgetVerdicts(tx, owner, entry);
+
         return orderMovie({ ...entry, vibes });
       });
     },
@@ -1027,6 +1031,39 @@ async function fileCore(
     );
   }
   return added.length > 0;
+}
+
+/**
+ * Removes every verdict act about one film: what stands, what was replaced, and
+ * every taking-back.
+ *
+ * The one place this store writes outside the taste model, and it only ever
+ * deletes. Deleting a film is the user removing it from Tonight, and an opinion
+ * about a film they removed is something Tonight would otherwise go on holding
+ * about it — so it goes in the same transaction as the film, never left for a
+ * second call that could fail between the two.
+ *
+ * Matched by `filmKey`, as the verdict store groups acts, and filtered in memory
+ * for the reason `VerdictStore.history` gives: which acts are one film's is that
+ * function's answer and not a `lower()` in SQL. The year narrows the read.
+ *
+ * An act written about this film after the read below and before the commit is
+ * not removed. That is the same as it being said a moment after the film was
+ * deleted — a verdict needs no saved film — and nothing here can tell the two
+ * apart.
+ */
+async function forgetVerdicts(sql: Transaction, owner: string, film: MovieHandle): Promise<void> {
+  const wanted = filmKey(film);
+  const acts = await sql.query<{ id: string; title: string; year: number }>(
+    `SELECT id, title, year FROM tonight_verdict_acts WHERE user_id = $1 AND year = $2`,
+    [owner, film.year],
+  );
+  const ids = acts.filter((act) => filmKey(act) === wanted).map((act) => act.id);
+  if (!ids.length) return;
+  await sql.query(`DELETE FROM tonight_verdict_acts WHERE user_id = $1 AND id = ANY($2::uuid[])`, [
+    owner,
+    ids,
+  ]);
 }
 
 /**

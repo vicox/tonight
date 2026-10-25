@@ -39,8 +39,8 @@ export default function Terms() {
           <strong>An assistant you connect over MCP can read all of it. This website shows you
           part of it.</strong> The signed-in page is a view built around your saved films: it
           shows a film with what currently stands about it, so a verdict about a film you never
-          saved is not on it, nor is a <em>not tonight</em> given for one evening, nor a verdict
-          you replaced or took back, nor the evenings Tonight recorded. All of that is still
+          saved is not on it, nor a verdict you replaced or took back, nor the evenings Tonight
+          recorded. All of that is still
           stored, still yours, and still covered by the same retention and deletion terms — the{" "}
           <a href="/privacy">Privacy Policy</a> says which parts the page leaves out and why.
         </p>
@@ -140,7 +140,8 @@ export default function Terms() {
           delete any vibe yourself, and any genre no vibe is built from — a genre a vibe refers to stays
           until you take it out of that vibe or delete the vibe. For a film, the website lets you
           say where it stands on your list and what you thought of it; adding or removing one is done
-          through your assistant, which does it on request. The operator may withdraw access at any time, in
+          through your assistant, which does it on request, and removing a film removes what you said
+          about it too. The operator may withdraw access at any time, in
           particular if these terms are not respected or when the closed beta ends.
         </p>
       </section>

@@ -178,27 +178,18 @@ describe("the memory tools", () => {
     assert.equal(of(held, "verdict").length, 1);
   });
 
-  test("a refusal stays a refusal, and says nothing about the film being watched", async () => {
-    // `not-ever` and `not-tonight` turn a film down. Neither is a dislike and
-    // neither is evidence that they watched it, so a film on their list with a
-    // refusal is still a film nobody has said they have seen.
-    for (const rejection of [
-      { about: "rejection", reach: "not-ever" },
-      { about: "rejection", reach: "not-tonight", occasion: "tue" },
-    ]) {
-      const her = someone();
-      await said(her, "create_movie", BLACK_BAG);
-      await said(her, "record_verdict", { film: BLACK_BAG, told: "confirmed", said: rejection });
+  test("not wanting a film recommended is where it stands, never a verdict and never a dislike", async () => {
+    // "Don't recommend it again" turns a film down. It is the film's viewing,
+    // not something they think of it — so no verdict is held or remembered, and
+    // nothing in what Tonight holds reads as a dislike.
+    const her = someone();
+    await said(her, "create_movie", { ...BLACK_BAG, viewing: "dont-want-to-see" });
 
-      const { held } = await memory(her);
-      const [movie] = of(held, "movie");
-      assert.equal(movie?.viewing, "want-to-see", "a refusal was read as having watched it");
-      assert.equal(
-        JSON.stringify(held).includes("disliked"),
-        false,
-        "a refusal became a dislike",
-      );
-    }
+    const { held, remembered } = await memory(her);
+    const [movie] = of(held, "movie");
+    assert.equal(movie?.viewing, "dont-want-to-see");
+    assert.equal(of(held, "verdict").length + of(remembered, "verdict").length, 0, "a turn-down became a verdict");
+    assert.equal(JSON.stringify(held).includes("disliked"), false, "a turn-down became a dislike");
   });
 
   test("a superseded verdict is remembered and the later one is held", async () => {

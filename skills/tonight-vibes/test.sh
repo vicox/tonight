@@ -117,7 +117,7 @@ check "what may be a core" \
         'a standing `liked` or `loved`' 'or one they' 'name themselves')" "True"
 check "and what never may" \
     "$(order_check 'Never a film you offered only as an illustration' \
-        'never' 'one they said they have not seen' 'disliked or turned down for good')" "True"
+        'never' 'one they said they have not seen' 'disliked or do not want recommended')" "True"
 check "nothing in Tonight checks it, so the choice is yours" \
     "$(order_check 'nothing in Tonight checks it' 'choosing' 'the right one is yours')" "True"
 check "one film anchoring two Vibes is allowed and worth noticing" \
@@ -203,9 +203,7 @@ check "a positive verdict considers their Vibes" \
 check "positive but declining more of the kind stops" \
     "$(order_check 'liked, but they want no more of the kind' 'stop')" "True"
 check "negative evidence leads to tension at most once" \
-    "$(order_check 'disliked / not-ever / taking back a positive' 'tension, at most once')" "True"
-check "not-tonight stops, because it is an evening and not the film" \
-    "$(order_check 'not-tonight' 'stop: an evening, not the film')" "True"
+    "$(order_check 'disliked / taking back a positive' 'tension, at most once')" "True"
 check "a no or a new subject leaves nothing and is not offered again" \
     "$(order_check 'no / new subject' 'nothing written, nothing remembered, not offered again today')" "True"
 check "a partial yes writes exactly the agreed part" \
@@ -240,9 +238,13 @@ check "negative evidence never becomes membership" \
         '**the film is a core**' 'offer once to anchor that Vibe' \
         '**the film is a further film**' 'offer once to take it out, or say nothing' \
         '**the film is in no Vibe**' 'stop')" "True"
-check "not-tonight never leads to Vibe talk" \
-    "$(order_check '`not-tonight` is about an evening, not the film' \
-        'never leads to any Vibe talk at all')" "True"
+check "a turn-down never leads to Vibe talk" \
+    "$(order_check '**A turn-down is not how a film worked for them**' \
+        'never leads to any Vibe talk at all' \
+        '`dont-want-to-see` on the film — a viewing, never evidence about their' 'taste' \
+        '*"not tonight"* is about an evening, not the film, and is written nowhere')" "True"
+check "no verdict reach or evening survives in the skill" \
+    "$(grep -ciE 'not-ever|not-tonight' "$SKILL")" "0"
 
 echo
 echo "--- writing what they agreed ---"
@@ -414,10 +416,11 @@ check "a liked or loved does not override the list: ask once, and write only on 
 check "a viewing is never changed to get past the refusal" \
     "$(order_check '**Never change a viewing to get past the refusal**' \
         'not on the strength of a verdict' 'A viewing is written only when they said it')" "True"
-check "stop suggesting it is not-ever, never disliked" \
-    "$(order_check '*"Stop suggesting it."*' '`not-ever` — never `disliked`, which says they watched it')" "True"
-check "an evening's refusal is named by today's date" \
-    "$(order_check '*"Not tonight — too long."*' '`not-tonight`, its occasion today' 'date, and the reason')" "True"
+check "stop suggesting it is dont-want-to-see, never disliked, and no Vibe talk" \
+    "$(order_check '*"Stop suggesting it."*' \
+        '`dont-want-to-see` on the film — never `disliked`, which says they watched it' 'nothing about Vibes')" "True"
+check "not tonight writes nothing" \
+    "$(order_check '*"Not tonight — too long."*' 'nothing — it is about an evening, not the film' 'nothing about Vibes')" "True"
 check "going through Vibes re-anchors a core not seen like a missing one" \
     "$(order_check '**Anchor.**' 'A Vibe whose core reads anything' 'but `seen` is anchored again in the same way, as one with no core')" "True"
 check "don't recommend it again is a viewing, not a verdict" \

@@ -137,6 +137,10 @@ export type TasteStore = {
   /**
    * Removes a movie: its filings go with it, the vibes stay. Refused while it is a
    * vibe's core, and the refusal names the vibes.
+   *
+   * Every verdict act about the film goes with it too — current, replaced and
+   * withdrawn — in the same transaction, so nothing they said about a film they
+   * removed outlives it.
    */
   deleteMovie(title: string, year: number): Promise<Movie>;
 };

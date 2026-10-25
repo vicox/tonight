@@ -27,11 +27,17 @@ export type Migration = {
    * Almost nothing needs this. Modules are separate because they have no business
    * sharing a version sequence, and a step that reaches across one is usually a
    * step in the wrong module. The exception is a one-time conversion: legacy Movie
-   * opinions become Verdict acts, which means reading one module's table and
-   * writing another's, and there is no version of that which lives in one module.
+   * opinions become Verdict acts, and refusals become a Movie's viewing, which
+   * means reading one module's table and writing another's, and there is no
+   * version of that which lives in one module.
    *
-   * `migrate` satisfies a need by migrating the module it names first, so a
-   * caller bringing up one module does not have to know which others it leans on.
+   * `migrate` satisfies a need by migrating the module it names first — through
+   * the version named and no further — so a caller bringing up one module does
+   * not have to know which others it leans on. Stopping at that version is what
+   * lets two modules lean on each other at different points: taste v11 needs
+   * verdicts v2 and verdicts v3 needs taste v14, and bringing either module up
+   * whole to satisfy the other would come back round to the step that asked.
+   *
    * The check then runs again inside the step's own transaction and throws if the
    * need is still unmet — before the claim, so an unmet need leaves no row behind
    * and the version stays unapplied rather than being recorded as skipped.
@@ -141,12 +147,21 @@ async function requireSchema(driver: SqlDriver, schema: SchemaModule): Promise<v
  *
  * Idempotent, so it is safe on every deploy and safe twice. Called by
  * `npm run db:migrate`, and by `prepareSchema` outside production.
+ *
+ * `through` stops at that version. Only `satisfyNeeds` passes it: a need names a
+ * version, and that version is all it is owed.
  */
-export async function migrate(driver: SqlDriver, schema: SchemaModule): Promise<number> {
+export async function migrate(
+  driver: SqlDriver,
+  schema: SchemaModule,
+  through?: number,
+): Promise<number> {
   await ensureTrackingTable(driver);
 
   let applied = 0;
   for (const migration of schema.migrations) {
+    if (through !== undefined && migration.version > through) continue;
+
     // Outside the transaction, because satisfying a need means running another
     // module's migrations and those claim rows of their own. Their claims make
     // this safe to do concurrently; `requireNeeds` below is what makes it safe
@@ -191,7 +206,9 @@ export async function migrate(driver: SqlDriver, schema: SchemaModule): Promise<
  *
  * Recurses through `migrate`, which is what makes a chain of needs work and what
  * keeps the concurrency story the same one everywhere: the needed module's own
- * claims decide who applies what.
+ * claims decide who applies what. Each module is brought through the version
+ * needed and no further, which is what keeps two modules that need each other at
+ * different versions from recursing into one another. See `Migration.needs`.
  *
  * A need naming a module that does not exist is left to `requireNeeds` to
  * refuse. Guessing here — skipping it, or treating unknown as satisfied — would
@@ -209,7 +226,7 @@ async function satisfyNeeds(
   for (const need of migration.needs) {
     if (need.module === schema.module) continue;
     const needed = schemaNamed(need.module);
-    if (needed) await migrate(driver, needed);
+    if (needed) await migrate(driver, needed, need.version);
   }
 }
 
