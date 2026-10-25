@@ -352,6 +352,9 @@ test("an authenticated client can call the tool", async () => {
   const info = await getServerInfo(await accessToken());
 
   assert.equal(info.name, "Tonight");
+  // 0.2.0 since M9 reshaped the episode tools: a host comparing versions sees
+  // that its cached definitions are stale.
+  assert.equal(info.version, "0.2.0");
   assert.equal(info.authenticated, true);
   assert.ok(info.user, "a reference to the caller is returned");
 });

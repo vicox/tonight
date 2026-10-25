@@ -746,7 +746,7 @@ check "the three Movie tools are the way a direct request is done" \
         'The tools are `create_movie`, `update_movie` and `delete_movie`')" "True"
 check "a recommendation is not persistence, for a film as for a Genre" \
     "$(order_check 'A recommendation is not a saved Movie' \
-        'Naming three films writes nothing down')" "True"
+        'Naming three films saves none of them')" "True"
 check "which sentence means which points at the tools that state it" \
     "$(order_check 'What they say about a film is a verdict' \
         '`record_verdict`, never a Movie field' \
@@ -977,13 +977,13 @@ check "a turn-down is not a verdict, and goes where their words put it" \
         '*"Don'"'"'t recommend it again"*, *"stop suggesting it"*, *"not interested"*, *"never again"* say where that film stands on their list' \
         '`dont-want-to-see`' \
         '*"Not tonight"*, *"not in the mood for it"*, and one that does not say how far — *"nah, not that one"* — are about this evening' \
-        'offer something else and write nothing, and never make one into `dont-want-to-see`' \
+        'offer something else — never a viewing or a verdict, at most a pass on that evening — and never make one into `dont-want-to-see`' \
         'Never `disliked`, which says they watched it' \
         'never a question asking them to make it reach further')" "True"
 check "a turned-down film is not offered again, nor the turn-down raised" \
     "$(order_check '**A turn-down reaches exactly the film they turned down.**' \
         'that film, not its genre, its director or anything resembling it' \
-        'it is written nowhere' \
+        'it is never a viewing or a verdict — at most a pass on that evening' \
         '**A turned-down film is not offered again**' \
         '`dont-want-to-see` on any evening, *"not tonight"* in this one' \
         'not as the lead, not as a direction' 'the turn-down is not brought up')" "True"
@@ -1008,6 +1008,54 @@ check "no mood given is answered, led as a surprise, never claimed as their mood
         '**say it is a' 'surprise**' 'never that it is what they are in the mood for' \
         'Their Vibes are never listed, summarised or counted' \
         'An empty model and a failed read are their own cases')" "True"
+
+echo
+echo "--- M9: an evening, offer by offer ---"
+
+# docs/work/m9/PLAN.md. An evening is a list of offers — Tonight's (`offered`) and
+# theirs — each with four facts of its own. What is pinned is what an agent cannot
+# work out alone: when an evening is written, what each sentence writes, which
+# evening a statement may touch, and that nothing is inferred into one.
+check "a recommending reply is followed by recording the evening, and a round appends" \
+    "$(order_check '**Recording an evening.**' \
+        'After a reply that recommends films, `record_episode` notes the evening' \
+        'Another round' 'is `record_episode` with the `episode`' \
+        'never an evening looked up because it is recent')" "True"
+check "offered is what Tonight recommended, offers what they said" \
+    "$(order_check '`offered` true if you recommended it, false if they brought it up' \
+        '`offered` lists what you recommended; `offers` says what they said about the evening' )" "True"
+check "the table maps each sentence to its own fact" \
+    "$(order_check '| They say | Write on that film |' \
+        '*"I'"'"'ll go with X"*, *"let'"'"'s do X"* | `chosen: true` |' \
+        '*"we'"'"'re watching X"*, *"we started X"* | `started: true` |' \
+        '*"we finished it"* | `finished: true`, which records `started` too |' \
+        '*"turned it off halfway"* | `started: true`, `finished: false` |' \
+        '*"we didn'"'"'t watch it"* | `started: false` |' \
+        '*"actually not that one"*, about a choice | `chosen: false` |' \
+        '*"nah, not that one"* | `passed: true`, their words as `passReason` if they gave any |' \
+        '*"we'"'"'re watching Heat instead"*, Heat not offered | Heat as theirs, `started: true` |' \
+        'a new evening: `record_episode` with `offers` and no request |' \
+        '*"loved Arrival"* | never an evening — that is a verdict |' \
+        '*"I'"'"'ve seen it"* | never an evening — that is a viewing |')" "True"
+check "statements merge one film at a time, and changes are corrections" \
+    "$(order_check 'merges into the evening one film at a time' \
+        'nothing said about one film erases another' \
+        'Changing or taking back what is recorded is' '`correct_episode`')" "True"
+check "an evening is updated only on an unambiguous reference to it" \
+    "$(order_check '**Which evening, if any.**' \
+        'A statement **updates** an evening only when it unambiguously refers to that evening' \
+        'A film'"'"'s title, or the evening being recent, is never the reference')" "True"
+check "an evening of their own, naming none recorded, creates a new one" \
+    "$(order_check 'An evening of their own watching that names no evening you recorded' \
+        '**creates a new** evening with no request' 'It never' 'attaches to an existing one')" "True"
+check "an ambiguous reference updates none, and nothing is inferred into an evening" \
+    "$(order_check 'Anything else writes to **no** evening, and no question is asked in order to file it' \
+        'might be about a recorded evening but does not say so' \
+        'Nothing in an evening is ever inferred from a verdict or a viewing')" "True"
+check "a not-tonight is at most a pass on that evening, in both places it is routed" \
+    "$(grep -c 'at most a pass on that evening' "$SKILL")" "2"
+check "and the old claim that it is written nowhere is gone" \
+    "$(grep -ciE 'written nowhere|may note the evening' "$SKILL")" "0"
 
 echo
 printf '%s passed, %s failed\n' "$pass" "$fail"

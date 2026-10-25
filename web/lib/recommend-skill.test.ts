@@ -1439,7 +1439,8 @@ test("every rule the agent cannot work out for itself is in the skill", () => {
  * licence to interview.
  *
  * M8 (`docs/work/m8/PLAN.md`) took refusals out of verdicts: a turn-down for good
- * is the film's viewing, `dont-want-to-see`, and one for tonight is written nowhere.
+ * is the film's viewing, `dont-want-to-see`. M9 (`docs/work/m9/PLAN.md`) gave one for
+ * tonight its only home: never a viewing or a verdict, at most a pass on that evening.
  */
 test("M6/M8: a turn-down is a viewing or nothing, and a turned-down film is not offered again", () => {
   const flat = flatSkill();
@@ -1457,8 +1458,14 @@ test("M6/M8: a turn-down is a viewing or nothing, and a turned-down film is not 
   // that is exactly right — it is about tonight — and it is never made permanent.
   assert.match(
     flat,
-    /one that does not say how far — \*"nah, not that one"\* — are about this evening: offer something else and write nothing, and never make one into `dont-want-to-see`/,
+    /one that does not say how far — \*"nah, not that one"\* — are about this evening: offer something else — never a viewing or a verdict, at most a pass on that evening — and never make one into `dont-want-to-see`/,
   );
+  // And the bullet that says what it binds says the same about where it may go.
+  assert.match(
+    flat,
+    /\*"Not tonight"\* is about this evening: it binds as something they ruled out just now, and it is never a viewing or a verdict — at most a pass on that evening/,
+  );
+  assert.doesNotMatch(flat, /written nowhere/u);
   assert.match(flat, /Never `disliked`, which says they watched it/);
   assert.match(flat, /never a question asking them to make it reach further/);
   // D2, inside the sentence it narrows.
@@ -1524,4 +1531,58 @@ test("M6: with taste read and no mood, the answer still comes first, led as a su
     flat,
     /With an empty model the question is \*"what are two or three films you love\?"\* — and somebody new who has asked for nothing yet is asked it on its own, in one sentence/,
   );
+});
+
+/**
+ * M9 — an evening, offer by offer.
+ *
+ * `docs/work/m9/PLAN.md`. An evening is a list of offers — Tonight's (`offered`)
+ * and ones they brought up — each with four facts of its own. The skill owns what
+ * an agent cannot work out alone: that an evening is recorded after a
+ * recommending reply, what each sentence writes and on which film, which evening a
+ * statement may touch at all, and that nothing is ever inferred into one.
+ */
+test("M9: an evening is recorded after a recommending reply, and rounds append by id", () => {
+  const flat = flatSkill();
+  assert.match(flat, /\*\*Recording an evening\.\*\* After a reply that recommends films, `record_episode` notes the evening/);
+  assert.match(flat, /is `record_episode` with the `episode` id this conversation was given — never an evening looked up because it is recent/);
+  assert.match(flat, /`offered` lists what you recommended; `offers` says what they said about the evening's films/);
+  // The old "may" is gone: an evening of recommendations is normally recorded.
+  assert.doesNotMatch(flat, /may note the evening/u);
+});
+
+test("M9: each sentence writes its own fact on its own film", () => {
+  const flat = flatSkill();
+  for (const [what, row] of [
+    ["intent is chosen", /\| \*"I'll go with X"\*, \*"let's do X"\* \| `chosen: true` \|/],
+    ["beginning is started", /\| \*"we're watching X"\*, \*"we started X"\* \| `started: true` \|/],
+    ["finishing records the start too", /\| \*"we finished it"\* \| `finished: true`, which records `started` too \|/],
+    ["turned off halfway", /\| \*"turned it off halfway"\* \| `started: true`, `finished: false` \|/],
+    ["a stated no to watching", /\| \*"we didn't watch it"\* \| `started: false` \|/],
+    ["a choice taken back", /\| \*"actually not that one"\*, about a choice \| `chosen: false` \|/],
+    ["a pass with their words", /\*"nah, not that one"\* \| `passed: true`, their words as `passReason` if they gave any \|/],
+    ["a film of their own", /\| \*"we're watching Heat instead"\*, Heat not offered \| Heat as theirs, `started: true` \|/],
+    ["an evening of their own", /naming no evening you recorded \| a new evening: `record_episode` with `offers` and no request \|/],
+    ["a verdict is never an evening", /\| \*"loved Arrival"\* \| never an evening — that is a verdict \|/],
+    ["a viewing is never an evening", /\| \*"I've seen it"\* \| never an evening — that is a viewing \|/],
+  ] as [string, RegExp][]) {
+    assert.match(flat, row, `the skill lost: ${what}`);
+  }
+  // Statements merge per film, and a change is a correction.
+  assert.match(flat, /merges into the evening one film at a time: a fact you leave out stays as it is, and nothing said about one film erases another/);
+  assert.match(flat, /Changing or taking back what is recorded is `correct_episode`/);
+});
+
+test("M9: a statement touches an evening only on an unambiguous reference, and nothing is inferred", () => {
+  const flat = flatSkill();
+  const which = flat.slice(flat.indexOf("**Which evening, if any.**"), flat.indexOf("**That record is history, not taste.**"));
+  assert.ok(which.length > 200, "the attribution rule could not be found where evenings are described");
+  // (i) updating needs a reference; a title or recency is never one.
+  assert.match(which, /A statement \*\*updates\*\* an evening only when it unambiguously refers to that evening/);
+  assert.match(which, /A film's title, or the evening being recent, is never the reference/);
+  // (ii) an explicit report of their own evening creates a new one.
+  assert.match(which, /names no evening you recorded — \*"I'm watching Heat tonight"\*, \*"we watched Heat last night"\* — \*\*creates a new\*\* evening with no request\. It never attaches to an existing one/);
+  // (iii) an ambiguous reference updates none, and no question is asked to file it.
+  assert.match(which, /Anything else writes to \*\*no\*\* evening, and no question is asked in order to file it: a statement that might be about a recorded evening but does not say so/);
+  assert.match(which, /Nothing in an evening is ever inferred from a verdict or a viewing/);
 });

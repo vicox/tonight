@@ -1,18 +1,20 @@
-import type { SqlDriver } from "../../db/driver.ts";
+import type { SqlDriver, Transaction } from "../../db/driver.ts";
 import type { AuthenticatedUser } from "../../identity.ts";
 import {
-  EpisodeError,
+  addRound,
+  checkEpisode,
   correctEpisode,
+  EpisodeError,
+  isEmpty,
   stated,
   UNKNOWN,
   type Episode,
-  type Established,
-  type Correction,
   type Offer,
   type Recorded,
+  type Said,
   type Source,
 } from "../model.ts";
-import type { EpisodeStore } from "../store.ts";
+import type { EpisodeStore, Forgotten } from "../store.ts";
 import { EPISODES_SCHEMA } from "./schema.ts";
 
 export { EPISODES_SCHEMA };
@@ -20,72 +22,89 @@ export { EPISODES_SCHEMA };
 /**
  * The episode store against Postgres.
  *
- * Bound to one user before it is returned, in the same way and for the same
- * reason as the taste store: there is no method here that takes a user, and no
- * statement that reads a row without `user_id = $1`, so reaching somebody else's
- * evenings is not something a caller can express.
+ * Bound to one user before it is returned: there is no method here that takes
+ * a user, and no statement that reads a row without `user_id = $1`, so reaching
+ * somebody else's evenings is not something a caller can express.
  *
- * Three operations, which is all Slice 2 of M1 needs — write one down, read one
- * back, list them. There is no update and no delete: correcting and forgetting
- * are Slice 3, and adding them early would mean shipping a way to change history
- * before the milestone that says how changing it behaves.
+ * ## One write path
  *
- * ## What this refuses to do on a caller's behalf
+ * Every write to an existing evening is the same four steps: lock the evening's
+ * row, assemble it, apply the pure model, and write the model's answer back —
+ * the episode row, then the offers deleted and inserted again in order. The
+ * CHECKs therefore only ever see final rows, and the model is the one place
+ * every rule is enforced, identity included: no index on the title stands
+ * behind it, by design, so the row lock is what keeps two writes from both
+ * adding the same film.
  *
- * `record` inserts. It never updates, and there is no upsert: an episode that
- * already exists is an error rather than a silent rewrite of what was recorded
- * the first time. History accumulates; it does not get overwritten by a caller
- * who happened to pass an id.
+ * Offer row ids are never exposed, which is what lets a rewrite replace them.
  */
 export function sqlEpisodeStore(driver: SqlDriver, user: AuthenticatedUser): EpisodeStore {
   const owner = user.id;
 
+  /**
+   * The read-modify-write every change to an existing evening goes through.
+   * `change` is the pure model; its answer is written back whole, or — when it
+   * leaves nothing to record (F6) — the evening is deleted.
+   */
+  const rewrite = (id: string, change: (episode: Episode) => Episode) =>
+    driver.transaction<Recorded<Episode> | Forgotten>(async (tx) => {
+      const current = await held(tx, owner, id);
+      const next = change(current);
+
+      if (isEmpty(next)) {
+        const [removed] = await tx.query<{ id: string }>(
+          `DELETE FROM tonight_episodes WHERE user_id = $1 AND id = $2 RETURNING id`,
+          [owner, current.id],
+        );
+        if (!removed) throw episodeNotFound(id);
+        return { forgotten: current.id };
+      }
+
+      await tx.query(
+        `UPDATE tonight_episodes
+            SET request = $3, request_source = $4, offered_source = $5
+          WHERE user_id = $1 AND id = $2`,
+        [owner, current.id, next.request, next.requestSource, next.offeredSource],
+      );
+      await tx.query(`DELETE FROM tonight_episode_offers WHERE user_id = $1 AND episode = $2`, [
+        owner,
+        current.id,
+      ]);
+      await insertOffers(tx, owner, current.id, next.offers);
+      return { ...next, id: current.id, recordedAt: current.recordedAt };
+    });
+
   return {
     async record(episode: Episode): Promise<Recorded<Episode>> {
+      // Held to the same definition as every other write, identity included.
+      const checked = checkEpisode(episode);
+      if (isEmpty(checked)) {
+        throw new EpisodeError("An evening records what they asked for, or a film of it.");
+      }
       return driver.transaction(async (tx) => {
         const [row] = await tx.query<{ id: string; recorded_at: Date | string }>(
-          `INSERT INTO tonight_episodes (user_id, request, request_source, offered_source, watched, finished)
-                VALUES ($1, $2, $3, $4, $5, $6)
+          `INSERT INTO tonight_episodes (user_id, request, request_source, offered_source)
+                VALUES ($1, $2, $3, $4)
              RETURNING id, recorded_at`,
-          [
-            owner,
-            episode.request,
-            episode.requestSource,
-            episode.offeredSource,
-            flag(episode.watched),
-            flag(episode.finished),
-          ],
+          [owner, checked.request, checked.requestSource, checked.offeredSource],
         );
         if (!row) throw new EpisodeError("The episode was not written down.");
-
-        // The offers go in with their position, so the order Tonight put them in
-        // survives. `chosen` is carried on the row it is about, which is why no
-        // statement here has to check that the chosen film was one of them.
-        const chosen = episode.chosen.known ? episode.chosen.value : null;
-        for (const [position, offer] of episode.offered.entries()) {
-          await tx.query(
-            `INSERT INTO tonight_episode_offers
-                    (user_id, episode, position, title, year, lead, chosen)
-                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [
-              owner,
-              row.id,
-              position,
-              offer.title,
-              offer.year,
-              offer.lead,
-              chosen !== null && chosen.title === offer.title && chosen.year === offer.year,
-            ],
-          );
-        }
-        return { ...episode, id: row.id, recordedAt: moment(row.recorded_at) };
+        await insertOffers(tx, owner, row.id, checked.offers);
+        return { ...checked, id: row.id, recordedAt: moment(row.recorded_at) };
       });
+    },
+
+    async addRound(id, round) {
+      const done = await rewrite(id, (episode) => addRound(episode, round));
+      // A round is additive and never empties an evening; anything else is a bug.
+      if ("forgotten" in done) throw new EpisodeError("A round cannot remove an evening.");
+      return done;
     },
 
     async episode(id: string): Promise<Recorded<Episode>> {
       return driver.transaction(async (tx) => {
         const [row] = await tx.query<EpisodeRow>(
-          `SELECT id, request, request_source, offered_source, watched, finished, recorded_at
+          `SELECT id, request, request_source, offered_source, recorded_at
              FROM tonight_episodes
             WHERE user_id = $1 AND id = $2`,
           [owner, id],
@@ -98,12 +117,10 @@ export function sqlEpisodeStore(driver: SqlDriver, user: AuthenticatedUser): Epi
     async episodes(): Promise<Recorded<Episode>[]> {
       return driver.transaction(async (tx) => {
         // One snapshot for both statements, so an episode written between the two
-        // reads cannot come back with no offers — a state the store is never in,
-        // reported as though it were. The taste store fixes its snapshot for the
-        // same reason; this transaction only reads, so it cannot be aborted.
+        // reads cannot come back with no offers. Read-only, so it cannot abort.
         await tx.exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
         const rows = await tx.query<EpisodeRow>(
-          `SELECT id, request, request_source, offered_source, watched, finished, recorded_at
+          `SELECT id, request, request_source, offered_source, recorded_at
              FROM tonight_episodes
             WHERE user_id = $1
             ORDER BY recorded_at, id`,
@@ -118,128 +135,81 @@ export function sqlEpisodeStore(driver: SqlDriver, user: AuthenticatedUser): Epi
       });
     },
 
-    async correct(id: string, correction: Correction): Promise<Recorded<Episode>> {
-      return driver.transaction(async (tx) => {
-        // Locked before it is read, because this is a read-then-write and two
-        // corrections arriving together would otherwise each apply to the state
-        // the other found. The taste store locks the same way for the same
-        // reason; the row is this user's or there is no row.
-        const [row] = await tx.query<EpisodeRow>(
-          `SELECT id, request, request_source, offered_source, watched, finished, recorded_at
-             FROM tonight_episodes
-            WHERE user_id = $1 AND id = $2
-              FOR UPDATE`,
-          [owner, id],
-        );
-        if (!row) throw episodeNotFound(id);
-
-        // The correction is applied by the model, against the offers this
-        // episode actually holds. That is what keeps a corrected `chosen` inside
-        // the films Tonight put forward, and it is one code path rather than a
-        // second copy of the rule living in SQL.
-        const current = assemble(row, await offersOf(tx, owner, [row.id]));
-        const corrected = correctEpisode(current, correction);
-
-        await tx.query(
-          `UPDATE tonight_episodes
-              SET request = $3, request_source = $4, offered_source = $5,
-                  watched = $6, finished = $7
-            WHERE user_id = $1 AND id = $2`,
-          [
-            owner,
-            row.id,
-            corrected.request,
-            corrected.requestSource,
-            corrected.offeredSource,
-            flag(corrected.watched),
-            flag(corrected.finished),
-          ],
-        );
-
-        // A corrected offer list replaces the rows rather than reconciling them.
-        // Position is part of what was said — the directions are ordered by
-        // distance from the lead — so matching old rows to new ones would mean
-        // deciding which of them is "the same offer moved", a question nobody
-        // asked and the list cannot answer.
-        const replaced = "offered" in correction;
-        if (replaced) {
-          await tx.query(
-            `DELETE FROM tonight_episode_offers WHERE user_id = $1 AND episode = $2`,
-            [owner, row.id],
-          );
-          for (const [position, offer] of corrected.offered.entries()) {
-            await tx.query(
-              `INSERT INTO tonight_episode_offers
-                      (user_id, episode, position, title, year, lead)
-                    VALUES ($1, $2, $3, $4, $5, $6)`,
-              [owner, row.id, position, offer.title, offer.year, offer.lead],
-            );
-          }
-        }
-
-        // Chosen lives on the offer rows, so setting it is clearing the mark and
-        // putting it back. Both statements are scoped to this episode and this
-        // user, and the clear runs first so the partial unique index is never
-        // asked to hold two. Replacing the offers also means re-marking, because
-        // the rows carrying the old mark are gone — and the model has already
-        // refused any replacement that would have dropped the chosen film.
-        if ("chosen" in correction || replaced) {
-          await tx.query(
-            `UPDATE tonight_episode_offers SET chosen = false
-              WHERE user_id = $1 AND episode = $2 AND chosen`,
-            [owner, row.id],
-          );
-          if (corrected.chosen.known) {
-            const { title, year } = corrected.chosen.value;
-            await tx.query(
-              `UPDATE tonight_episode_offers SET chosen = true
-                WHERE user_id = $1 AND episode = $2 AND title = $3 AND year = $4`,
-              [owner, row.id, title, year],
-            );
-          }
-        }
-
-        return { ...corrected, id: row.id, recordedAt: moment(row.recorded_at) };
-      });
+    async correct(id, correction) {
+      return rewrite(id, (episode) => correctEpisode(episode, correction));
     },
 
     async forget(id: string): Promise<Recorded<Episode>> {
       return driver.transaction(async (tx) => {
-        const [row] = await tx.query<EpisodeRow>(
-          `SELECT id, request, request_source, offered_source, watched, finished, recorded_at
-             FROM tonight_episodes
-            WHERE user_id = $1 AND id = $2
-              FOR UPDATE`,
-          [owner, id],
-        );
-        if (!row) throw episodeNotFound(id);
-
-        // Read before the rows go, so the answer describes the evening that
-        // existed a moment ago rather than an empty shell of it.
-        const going = assemble(row, await offersOf(tx, owner, [row.id]));
-
-        // The offers go with it by cascade — an offer belonging to no episode is
-        // nothing. Nothing is flagged and nothing is kept: the contract is
-        // forgetting, and a filtered row is not forgotten.
+        const going = await held(tx, owner, id);
+        // The offers go with it by cascade. Nothing is flagged and nothing is
+        // kept: the contract is forgetting, and a filtered row is not forgotten.
         const [removed] = await tx.query<{ id: string }>(
           `DELETE FROM tonight_episodes WHERE user_id = $1 AND id = $2 RETURNING id`,
-          [owner, row.id],
+          [owner, going.id],
         );
         if (!removed) throw episodeNotFound(id);
-
         return going;
       });
     },
   };
 }
 
+/**
+ * One evening of this user's, its row locked for the rest of the transaction.
+ *
+ * Locked before it is read, because every caller writes back what it read: two
+ * writes arriving together would otherwise each apply to the state the other
+ * found, and two rounds could both add the same film.
+ */
+async function held(tx: Transaction, owner: string, id: string): Promise<Recorded<Episode>> {
+  const [row] = await tx.query<EpisodeRow>(
+    `SELECT id, request, request_source, offered_source, recorded_at
+       FROM tonight_episodes
+      WHERE user_id = $1 AND id = $2
+        FOR UPDATE`,
+    [owner, id],
+  );
+  if (!row) throw episodeNotFound(id);
+  return assemble(row, await offersOf(tx, owner, [row.id]));
+}
+
+/** The offers, in the evening's order, with every fact as its column says. */
+async function insertOffers(
+  tx: Transaction,
+  owner: string,
+  episode: string,
+  offers: readonly Offer[],
+): Promise<void> {
+  for (const [position, offer] of offers.entries()) {
+    await tx.query(
+      `INSERT INTO tonight_episode_offers
+              (user_id, episode, position, title, year, offered, lead,
+               chosen, started, finished, passed, pass_reason)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [
+        owner,
+        episode,
+        position,
+        offer.title,
+        offer.year,
+        offer.offered,
+        offer.lead,
+        flag(offer.chosen),
+        flag(offer.started),
+        flag(offer.finished),
+        flag(offer.passed),
+        offer.passReason ?? null,
+      ],
+    );
+  }
+}
+
 type EpisodeRow = {
+  id: string;
+  request: string | null;
   request_source: string;
   offered_source: string;
-  id: string;
-  request: string;
-  watched: boolean | null;
-  finished: boolean | null;
   recorded_at: Date | string;
 };
 
@@ -248,8 +218,13 @@ type OfferRow = {
   position: number;
   title: string;
   year: number;
+  offered: boolean;
   lead: boolean;
-  chosen: boolean;
+  chosen: boolean | null;
+  started: boolean | null;
+  finished: boolean | null;
+  passed: boolean | null;
+  pass_reason: string | null;
 };
 
 async function offersOf(
@@ -259,7 +234,8 @@ async function offersOf(
 ): Promise<OfferRow[]> {
   if (episodes.length === 0) return [];
   return tx.query<OfferRow>(
-    `SELECT episode, position, title, year, lead, chosen
+    `SELECT episode, position, title, year, offered, lead,
+            chosen, started, finished, passed, pass_reason
        FROM tonight_episode_offers
       WHERE user_id = $1 AND episode = ANY($2)
       ORDER BY episode, position`,
@@ -268,41 +244,40 @@ async function offersOf(
 }
 
 /**
- * Rebuild one episode from its rows.
+ * One evening rebuilt from its rows.
  *
- * The outcomes are reconstructed as `stated`, and that is a fact about the model
- * rather than an assumption made here: `stateOutcome` is the only way an outcome
- * is ever established and it only produces `stated`, so there is no observed
- * outcome for a column to have lost. A contract in `model.test.ts` pins that, so
- * if an outcome ever becomes observable the test fails and this has to change
- * rather than quietly mislabelling it.
+ * Every offer fact is reconstructed as `stated`: the user is the only way one is
+ * ever established, so there is no observed fact for a column to have lost.
  */
 function assemble(row: EpisodeRow, offers: readonly OfferRow[]): Recorded<Episode> {
   const mine = offers.filter((offer) => offer.episode === row.id);
-  const chosen = mine.find((offer) => offer.chosen);
   return {
     id: row.id,
     recordedAt: moment(row.recorded_at),
     request: row.request,
     requestSource: sourceOf(row.request_source),
-    offered: mine.map((offer) => ({ title: offer.title, year: offer.year, lead: offer.lead })),
+    offers: mine.map(offerOf),
     offeredSource: sourceOf(row.offered_source),
-    chosen: chosen ? stated(offerOf(chosen)) : UNKNOWN,
-    watched: established(row.watched),
-    finished: established(row.finished),
   };
 }
 
-const offerOf = (row: OfferRow): Offer => ({ title: row.title, year: row.year, lead: row.lead });
+function offerOf(row: OfferRow): Offer {
+  return {
+    title: row.title,
+    year: row.year,
+    offered: row.offered,
+    lead: row.lead,
+    chosen: established(row.chosen),
+    started: established(row.started),
+    finished: established(row.finished),
+    passed: established(row.passed),
+    ...(row.pass_reason === null ? {} : { passReason: row.pass_reason }),
+  };
+}
 
 /**
- * A column back into a provenance, refusing anything else.
- *
- * The table's check constraint holds this to two values already. This is here
- * so that a row written by something that skipped the constraint fails loudly
- * rather than being read as whichever of the two came first in the code — a
- * corrected request quietly reading as observed is the exact lie these two
- * columns exist to prevent.
+ * A column back into a provenance, refusing anything else. The CHECK holds it
+ * to two values already; this fails loudly on a row written around it.
  */
 function sourceOf(value: string): Source {
   if (value !== "observed" && value !== "stated") {
@@ -311,19 +286,13 @@ function sourceOf(value: string): Source {
   return value;
 }
 
-/**
- * A column back into a fact or a silence.
- *
- * `null` is unknown and `false` is a stated no, and the two must not meet. The
- * shape of this function is the guard: there is no `??` and no default, so there
- * is nowhere for a missing value to acquire one.
- */
-function established(value: boolean | null): Established<boolean> {
+/** A column back into a fact or a silence. `null` is unknown; `false` is a stated no. */
+function established(value: boolean | null): Said {
   return value === null ? UNKNOWN : stated(value);
 }
 
 /** A fact back into a column, keeping the silence a silence. */
-function flag(value: Established<boolean>): boolean | null {
+function flag(value: Said): boolean | null {
   return value.known ? value.value : null;
 }
 

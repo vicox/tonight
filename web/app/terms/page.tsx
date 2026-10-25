@@ -118,8 +118,9 @@ export default function Terms() {
           <a href="/privacy">Privacy Policy</a>. In short: Tonight stores your genres, your vibes,
           the films you told it about — including where each stands on your list — and
           what you have said about particular films. It also records the
-          evenings it took part in: what you asked for, what it offered, and whatever you said you
-          did with it. Anything you do not say stays unknown, and that record is history rather
+          evenings it took part in: what you asked for, what it offered, any film you brought up
+          yourself, and whatever you said you did with each. Anything you do not say stays unknown,
+          and that record is history rather
           than taste — nothing about what you like is learned from it, and you can correct or
           delete any of it. What Tonight does not build is a profile from how you use it, and
           what it thinks while talking to you is not kept: a question it meant to ask, something

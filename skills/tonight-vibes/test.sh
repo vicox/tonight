@@ -259,7 +259,7 @@ check "a turn-down never leads to Vibe talk" \
     "$(order_check '**A turn-down is not how a film worked for them**' \
         'never leads to any Vibe talk at all' \
         '`dont-want-to-see` on the film — a viewing, never evidence about their' 'taste' \
-        '*"not tonight"* is about an evening, not the film, and is written nowhere')" "True"
+        '*"not tonight"* is about an evening, not the film: never a viewing or a verdict, at most a pass on that evening')" "True"
 check "no verdict reach or evening survives in the skill" \
     "$(grep -ciE 'not-ever|not-tonight' "$SKILL")" "0"
 
@@ -281,7 +281,7 @@ check "what is never written" \
         'a paraphrase of their reason' 'a' 'stronger judgement than theirs' \
         'an occasion, daypart or attention field anywhere' \
         'a Vibe, a' 'membership or a core without their yes' \
-        'any record that an offer was made or turned down')" "True"
+        'any record that a Vibe offer was made or turned down')" "True"
 check "the worked cases include the opt-out and the not-tonight" \
     "$(order_check 'Good, but I don' 'they declined more of the kind' \
         'Not tonight — too long' 'nothing about Vibes')" "True"
@@ -443,8 +443,33 @@ check "a viewing is never changed to get past the refusal" \
 check "stop suggesting it is dont-want-to-see, never disliked, and no Vibe talk" \
     "$(order_check '*"Stop suggesting it."*' \
         '`dont-want-to-see` on the film — never `disliked`, which says they watched it' 'nothing about Vibes')" "True"
-check "not tonight writes nothing" \
-    "$(order_check '*"Not tonight — too long."*' 'nothing — it is about an evening, not the film' 'nothing about Vibes')" "True"
+check "not tonight is at most a pass on that evening, with their reason" \
+    "$(order_check '*"Not tonight — too long."*' 'at most a pass on that evening, *"too long"* as its reason — it is about an evening, not the film' 'nothing about Vibes')" "True"
+# M9: the attribution rule, whole, where Vibes meet a watched film — the update
+# on an unambiguous reference, the new evening of their own, and no evening at
+# all when it is unclear. Code review 1: the first half alone was not the rule.
+check "a watch last night is a viewing, never a verdict" \
+    "$(order_check '**Watching is not an opinion.**' \
+        '*"I watched it last night"* is a viewing, never a verdict.')" "True"
+check "attribution (i): an evening is updated only on an unambiguous reference, never by title or recency" \
+    "$(order_check '**Watching is not an opinion.**' \
+        'it **updates** a recorded evening — `started` on that film — only when they unambiguously referred to that evening' \
+        'A title that matches, or the evening being recent, is never the reference')" "True"
+check "attribution (ii): an evening of their own naming no recorded evening creates a new evening" \
+    "$(order_check '**Watching is not an opinion.**' \
+        'an evening of their own watching that names no evening you recorded **creates a new** evening with no request' \
+        'never attaches to an existing one')" "True"
+check "attribution (iii): an ambiguous reference writes to no evening, and nothing is asked to file it" \
+    "$(order_check '**Watching is not an opinion.**' \
+        'a statement that might be about a recorded evening but does not say so' \
+        'writes to **no** evening, and no question is asked in order to file it')" "True"
+check "the table row carries all three routes" \
+    "$(order_check '*"I watched it last night."*' \
+        '`started` on a recorded evening only when they referred to it' \
+        'a new evening of their own when they named none you recorded' \
+        'no evening when it is unclear')" "True"
+check "the old route to a viewing or an evening is gone" \
+    "$(grep -ciE 'a viewing or an evening|written nowhere' "$SKILL")" "0"
 check "going through Vibes re-anchors a core not seen like a missing one" \
     "$(order_check '**Anchor.**' 'A Vibe whose core reads anything' 'but `seen` is anchored again in the same way, as one with no core')" "True"
 check "don't recommend it again is a viewing, not a verdict" \

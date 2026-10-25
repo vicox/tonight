@@ -1,6 +1,6 @@
 import { filmKey } from "../../films/identity.ts";
 import { OWNER_HISTORY, STRANGER_HISTORY, UNICODE_FILMS } from "./trajectories.ts";
-import type { Film, Offer, Step, Trajectory, Viewing } from "./trajectories.ts";
+import type { Film, Offer, OfferStatement, Step, Trajectory, Viewing } from "./trajectories.ts";
 
 /**
  * The M3 gates: can Tonight say what it knows, and can it be corrected?
@@ -188,15 +188,27 @@ export type Established =
   | { known: false }
   | { known: true; value: unknown; source: "stated" };
 
+/** One film of an evening, as the script says it should read. */
+export type ExpectedOffer = {
+  title: string;
+  year: number;
+  offered: boolean;
+  lead: boolean;
+  chosen: Established;
+  started: Established;
+  finished: Established;
+  passed: Established;
+  passReason?: string;
+};
+
 export type ExpectedEvening = {
   request: string;
   requestSource: "observed" | "stated";
-  offered: Offer[];
+  offers: ExpectedOffer[];
   offeredSource: "observed" | "stated";
-  chosen: Established;
-  watched: Established;
-  finished: Established;
 };
+
+const FACTS = ["chosen", "started", "finished", "passed"] as const;
 
 
 export type ExpectedVibe = {
@@ -247,8 +259,9 @@ const stated = (value: unknown): Established => ({ known: true, value, source: "
  *   nothing standing; a claim a later claim replaced is superseded and one a
  *   taking-back silenced is withdrawn;
  * - an evening is a fact, never a preference, and a correction to one either
- *   applies whole or is refused whole — a choice they stated has to stay inside
- *   the list of films Tonight offered, and is rebound to the entry in it;
+ *   applies whole or is refused whole — a passed film is never also chosen or
+ *   started, a finished one was started, and a film they brought up stays only
+ *   while something they said about it stands;
  * - a saved film and a verdict are two roots about one film, and neither is
  *   read from the other: the film says whether it was watched, the verdict says
  *   what they thought, and nothing ranks them.
@@ -347,11 +360,8 @@ export function expected(steps: readonly Step[]): Expected {
         evenings.push({
           request: step.request,
           requestSource: "observed",
-          offered: [...step.offered],
+          offers: step.offered.map((one) => blankOffer(one, true, one.lead)),
           offeredSource: "observed",
-          chosen: UNKNOWN,
-          watched: UNKNOWN,
-          finished: UNKNOWN,
         });
         break;
       case "outcome":
@@ -416,58 +426,84 @@ export function expected(steps: readonly Step[]): Expected {
   };
 }
 
+const blankOffer = (film: { title: string; year: number }, offered: boolean, lead: boolean): ExpectedOffer => ({
+  title: film.title,
+  year: film.year,
+  offered,
+  lead,
+  chosen: UNKNOWN,
+  started: UNKNOWN,
+  finished: UNKNOWN,
+  passed: UNKNOWN,
+});
+
+const sameFilm = (one: { title: string; year: number }, other: { title: string; year: number }) =>
+  one.title === other.title && one.year === other.year;
+
+const isYes = (fact: Established) => fact.known && fact.value === true;
+
 /**
  * One correction to an evening, or the refusal of it — restated, not imported.
  *
- * The two rules that make this more than a field assignment are Slice 2's and
- * they are both here: a choice carried across a corrected offer list is rebound
- * to the entry in the new list, so the evening read back says what the list
- * says; and a choice that is no longer in the list at all refuses the whole
- * correction, because dropping what they said in order to fit what Tonight
- * wrote down repairs the wrong one of the two.
+ * What makes this more than a field assignment is M9's: a corrected offer list
+ * keeps every film that something they said still stands on, as theirs; what
+ * they said merges film by film, with `null` taking a fact back and a finish
+ * recording the start it says; a film they brought up leaves once nothing they
+ * said about it stands; and an evening in which a passed film is also chosen or
+ * started, or a finished one is not started, refuses the whole correction.
  */
 function correction(
   night: ExpectedEvening,
   step: Extract<Step, { act: "outcome" } | { act: "amend" }>,
 ): ExpectedEvening | "refused" {
-  const asked = step as {
-    request?: string;
-    offered?: Offer[];
-    chosen?: Offer | null;
-    watched?: boolean | null;
-    finished?: boolean | null;
-  };
-  const offered = "offered" in asked && asked.offered !== undefined ? [...asked.offered] : night.offered;
+  const asked = step as { request?: string; offered?: Offer[]; offers?: OfferStatement[] };
 
-  let chosen: Established;
-  if ("chosen" in asked) {
-    const want = asked.chosen ?? null;
-    if (want === null) chosen = UNKNOWN;
-    else {
-      const among = offered.find((one) => one.title === want.title && one.year === want.year);
-      if (!among) return "refused";
-      chosen = stated(among);
+  let offers = night.offers.map((one) => ({ ...one }));
+  if (asked.offered !== undefined) {
+    const listed = asked.offered;
+    offers = offers.map((one) => {
+      const there = listed.find((film) => sameFilm(film, one));
+      return there ? { ...one, offered: true, lead: there.lead } : { ...one, offered: false, lead: false };
+    });
+    for (const film of listed) {
+      if (!offers.some((one) => sameFilm(one, film))) offers.push(blankOffer(film, true, film.lead));
     }
-  } else if (!night.chosen.known) {
-    chosen = UNKNOWN;
-  } else {
-    const had = night.chosen.value as Offer;
-    const still = offered.find((one) => one.title === had.title && one.year === had.year);
-    if (!still) return "refused";
-    chosen = stated(still);
   }
 
-  const flag = (was: Established, key: "watched" | "finished"): Established =>
-    key in asked ? (asked[key] === null || asked[key] === undefined ? UNKNOWN : stated(asked[key])) : was;
+  for (const said of asked.offers ?? []) {
+    let one = offers.find((offer) => sameFilm(offer, said));
+    if (!one) {
+      one = blankOffer(said, false, false);
+      offers.push(one);
+    }
+    for (const fact of FACTS) {
+      const value = said[fact];
+      if (value === undefined) continue;
+      one[fact] = value === null ? UNKNOWN : stated(value);
+    }
+    if (isYes(one.finished)) {
+      if (said.started === false || said.started === null) return "refused";
+      if (one.started.known && one.started.value === false) return "refused";
+      if (!one.started.known) one.started = stated(true);
+    }
+    if (said.passReason !== undefined) {
+      if (said.passReason === null) delete one.passReason;
+      else one.passReason = said.passReason;
+    }
+    if (!isYes(one.passed) && said.passReason === undefined) delete one.passReason;
+  }
+
+  offers = offers.filter((one) => one.offered || FACTS.some((fact) => one[fact].known));
+  for (const one of offers) {
+    if (isYes(one.passed) && (isYes(one.chosen) || isYes(one.started))) return "refused";
+    if (isYes(one.finished) && !isYes(one.started)) return "refused";
+  }
 
   return {
-    request: "request" in asked && asked.request !== undefined ? asked.request : night.request,
-    requestSource: "request" in asked && asked.request !== undefined ? "stated" : night.requestSource,
-    offered,
-    offeredSource: "offered" in asked && asked.offered !== undefined ? "stated" : night.offeredSource,
-    chosen,
-    watched: flag(night.watched, "watched"),
-    finished: flag(night.finished, "finished"),
+    request: asked.request !== undefined ? asked.request : night.request,
+    requestSource: asked.request !== undefined ? "stated" : night.requestSource,
+    offers,
+    offeredSource: asked.offered !== undefined ? "stated" : night.offeredSource,
   };
 }
 
@@ -664,12 +700,9 @@ function observedRoot(root: Root): string {
       return canon({
         ...shared,
         request: root.request,
-        requestSource: root.requestSource,
-        offered: root.offered,
+        requestSource: root.requestSource ?? null,
+        offers: root.offers,
         offeredSource: root.offeredSource,
-        chosen: root.chosen,
-        watched: root.watched,
-        finished: root.finished,
       });
     default:
       return canon({ of: root.of, unrecognised: true });
@@ -727,11 +760,8 @@ const wantedEvening = (night: ExpectedEvening) =>
     from: "evening",
     request: night.request,
     requestSource: night.requestSource,
-    offered: night.offered,
+    offers: night.offers,
     offeredSource: night.offeredSource,
-    chosen: night.chosen,
-    watched: night.watched,
-    finished: night.finished,
   });
 
 /** Every root the script says should be there, as signatures. */
@@ -1028,9 +1058,23 @@ export function traceability(world: World): Failure[] {
       if (root.of === "evening") {
         if (basis.kind !== "evening") fail(`an evening says it was ${String(basis.kind)}`);
         if (typeof basis.recordedAt !== "string") fail("an evening has no recording time");
-        for (const source of ["requestSource", "offeredSource"]) {
+        // A request is shown with where it came from; no request, no provenance.
+        const sources = root.request === null ? ["offeredSource"] : ["requestSource", "offeredSource"];
+        for (const source of sources) {
           if (!["observed", "stated"].includes(String(root[source]))) {
             fail(`an evening's ${source} is ${String(root[source])}`);
+          }
+        }
+        if (root.request === null && "requestSource" in root) {
+          fail("an evening with no request says where its request came from");
+        }
+        // Every fact about a film of the evening is the user's, or not known.
+        for (const offer of (root.offers ?? []) as Record<string, unknown>[]) {
+          for (const fact of FACTS) {
+            const held = offer[fact] as { known?: boolean; source?: string } | undefined;
+            if (held?.known && held.source !== "stated") {
+              fail(`an evening's ${fact} came from ${String(held.source)}, which the user never gave`);
+            }
           }
         }
       }
@@ -1108,24 +1152,27 @@ export function traceability(world: World): Failure[] {
     const fates = differ(want.acts.map(fateOf), of(all, "verdict").map(fateGot));
     if (fates) fail(`what became of what they said is not what the history says — ${fates}`);
 
-    // An evening's outcomes, each with its complete known/value/source structure.
+    // An evening's facts, film by film, each with its complete known/value/source structure.
+    const factsOf = (offers: readonly Record<string, unknown>[]) =>
+      offers.map((one) => ({
+        title: one.title,
+        year: one.year,
+        ...Object.fromEntries(FACTS.map((fact) => [fact, one[fact]])),
+        passReason: one.passReason ?? null,
+      }));
     const sourced = (night: ExpectedEvening) =>
       canon({
         request: night.request,
         requestSource: night.requestSource,
         offeredSource: night.offeredSource,
-        chosen: night.chosen,
-        watched: night.watched,
-        finished: night.finished,
+        offers: factsOf(night.offers),
       });
     const sourcedGot = (root: Root) =>
       canon({
         request: root.request,
-        requestSource: root.requestSource,
+        requestSource: root.requestSource ?? null,
         offeredSource: root.offeredSource,
-        chosen: root.chosen,
-        watched: root.watched,
-        finished: root.finished,
+        offers: factsOf((root.offers ?? []) as Record<string, unknown>[]),
       });
     const sources = differ(want.evenings.map(sourced), of(all, "evening").map(sourcedGot));
     if (sources) fail(`an evening does not say where its facts came from — ${sources}`);
@@ -1445,7 +1492,7 @@ export function isolation(world: World): Failure[] {
     // Supplementary, and cheap: nothing about an evening is in the taste model.
     // Named by the keys an episode actually has, which no other root uses.
     const payload = JSON.stringify(seen.taste).toLowerCase();
-    for (const key of ["episodes", "offered", "recordedat", "requestsource", "offeredsource", "watched", "finished"]) {
+    for (const key of ["episodes", "offers", "offered", "recordedat", "requestsource", "offeredsource", "started", "finished", "passed", "passreason"]) {
       if (payload.includes(`"${key}"`)) fail(`"${key}" reached the taste model`);
     }
     for (const night of want.evenings) {

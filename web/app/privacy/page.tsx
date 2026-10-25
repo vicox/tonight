@@ -161,7 +161,8 @@ export default function Privacy() {
           carries no rating, and being recommended something writes no verdict. Turning a film
           down is not a verdict: <em>don&rsquo;t recommend it again</em> is kept as where the film
           stands on your list, <em>don&rsquo;t want to see</em>, and <em>not tonight</em> is used
-          for that evening and not stored at all.
+          for that evening and is never a viewing or a verdict — at most a pass recorded on that
+          evening.
         </p>
         <p>
           <strong>Verdicts keep their history, and you can take one back.</strong> Changing your
@@ -176,9 +177,13 @@ export default function Privacy() {
         </p>
         <p>
           <strong>What is stored about an evening.</strong> Tonight records the evenings it took
-          part in: what you asked for in your own words, the films it put forward, and — only if
-          you say so — which one you went with, whether you watched it, and whether you finished
-          it. Anything you do not say stays <em>unknown</em>, permanently and on purpose: unknown
+          part in: what you asked for in your own words, the films it put forward, any film you
+          brought up yourself, and — only if you say so, film by film — whether you chose it,
+          started it or finished it, and whether you passed on it for that evening, with your
+          reason if you gave one. A film you brought up is kept only while something you said
+          about it stands, and an evening you told Tonight about without asking it anything is
+          recorded only because you did. Anything you do not say stays <em>unknown</em>,
+          permanently and on purpose: unknown
           is not a quiet no, and Tonight will not fill it in from what seemed likely. Being
           offered a film is not choosing it, choosing is not watching, watching is not finishing,
           and finishing is not liking — none of those is ever concluded from the one before.

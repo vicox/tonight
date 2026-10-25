@@ -1213,16 +1213,27 @@ test("a turn-down is routed to the film's viewing, and deleting a film forgets w
   const described = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
   const schemaOf = (name: string) => JSON.stringify(tools.find((tool) => tool.name === name)?.inputSchema ?? {});
 
-  // The words that used to be `not-ever` go to the film; "not tonight" goes nowhere.
+  // The words that used to be `not-ever` go to the film; "not tonight" is never a
+  // viewing or a verdict — at most a pass on that evening.
   const record = described("record_verdict");
   assert.match(record, /\*\*Turning a film down is not a verdict\.\*\*/u);
   assert.match(record, /\*\\?"Not interested\\?"\*, \*\\?"stop suggesting it\\?"\*/u);
   assert.match(record, /dont-want-to-see,\s+with `create_movie` or `update_movie`/u);
-  assert.match(record, /are about the evening — offer something else and write nothing/u);
+  assert.match(
+    record,
+    /are about the evening — offer something else; never a viewing or a verdict, at most\s+a pass on that evening \(`correct_episode`\)/u,
+  );
+  assert.doesNotMatch(record, /write nothing/u, "record_verdict still says a turn-down for tonight writes nothing");
   assert.match(record, /Neither is ever\s+`disliked`/u);
   for (const name of ["create_movie", "update_movie"]) {
     assert.match(schemaOf(name), /stop suggesting it\\" \/ \\"not interested\\" \/ \\"never again\\" -> /u, name);
     assert.match(schemaOf(name), /the one way to keep a film from being recommended/u, name);
+    assert.match(
+      schemaOf(name),
+      /\\"Not tonight\\" is none of these: it is about the evening, so it is used tonight and is never a viewing or a verdict — at most a pass on that evening/u,
+      name,
+    );
+    assert.doesNotMatch(schemaOf(name), /written nowhere/u, name);
   }
   // `get_taste` keeps the exclusion, and says it is the viewing that carries it.
   assert.match(described("get_taste"), /a `dont-want-to-see` film is \*\*never recommended\*\*/u);
@@ -1411,5 +1422,84 @@ test("the tools that change a saved film say that clearing it is its own request
       /still true|separate thing they said/iu,
       `${what}: does not say why it is left`,
     );
+  }
+});
+
+// --- episodes, through the protocol ----------------------------------------
+
+test("correct_episode refuses the old top-level outcomes, writes nothing, and says where facts go now", async () => {
+  // Only the protocol applies the strict input schema, so this is the contract
+  // that reaches a host still holding M8's definitions: its `chosen`,
+  // `watched` and `finished` are refused with a route to `offers`, never
+  // silently dropped into a call that then corrects nothing.
+  const token = await tokenFor(someone());
+  const ZODIAC = { title: "Zodiac", year: 2007 };
+  const recorded = await ok(token, "record_episode", {
+    request: "something tense",
+    offered: [{ ...ZODIAC, lead: true }],
+  });
+  const id = recorded.episode.id as string;
+  const read = async () => JSON.stringify((await ok(token, "get_episodes")).episodes);
+  const before = await read();
+
+  for (const args of [
+    { chosen: ZODIAC },
+    { chosen: null },
+    { watched: true },
+    { finished: false },
+    { watched: true, offers: [{ ...ZODIAC, started: true }] },
+  ]) {
+    const message = await refused(token, "correct_episode", { episode: id, ...args });
+    assert.match(message, /offers: \[\{ title, year, chosen \| started \| finished \| passed \}\]/u, JSON.stringify(args));
+  }
+  // Any other unknown key is refused rather than stripped, at both levels.
+  const unknown = await refused(token, "correct_episode", { episode: id, verdict: "loved" });
+  assert.match(unknown, /verdict/u);
+  const fact = await refused(token, "correct_episode", { episode: id, offers: [{ ...ZODIAC, watched: true }] });
+  assert.match(fact, /started/u, "a statement's `watched` is not routed to `started`");
+  const round = await refused(token, "record_episode", { episode: id, offers: [{ ...ZODIAC, watched: true }] });
+  assert.match(round, /started/u);
+
+  assert.equal(await read(), before, "a refused call changed the evening");
+
+  // And the new shape is what corrects it.
+  const done = await ok(token, "correct_episode", { episode: id, offers: [{ ...ZODIAC, started: true }] });
+  assert.deepEqual(done.episode.offers[0].started, { known: true, value: true, source: "stated" });
+});
+
+test("the episode tools advertise the offer shape, and which of them can remove", async () => {
+  const tools = await listTools(await tokenFor(someone()));
+  type Advertised = {
+    inputSchema: { properties: Record<string, unknown>; required?: string[]; additionalProperties?: unknown };
+    annotations?: { destructiveHint?: boolean; idempotentHint?: boolean };
+  };
+  const tool = (name: string) => tools.find((one) => one.name === name) as unknown as Advertised;
+
+  const correct = tool("correct_episode");
+  assert.deepEqual(Object.keys(correct.inputSchema.properties).sort(), ["episode", "offered", "offers", "request"]);
+  assert.deepEqual(correct.inputSchema.required, ["episode"]);
+  assert.equal(correct.inputSchema.additionalProperties, false, "correct_episode is not strict");
+  assert.equal(correct.annotations?.destructiveHint, true);
+
+  const record = tool("record_episode");
+  assert.deepEqual(Object.keys(record.inputSchema.properties).sort(), ["episode", "offered", "offers", "request"]);
+  assert.deepEqual(record.inputSchema.required ?? [], [], "record_episode still requires a field");
+  assert.equal(record.annotations?.destructiveHint, false);
+
+  // An offer statement names a film and its four facts, and nothing else.
+  for (const which of [correct, record]) {
+    const offers = which.inputSchema.properties.offers as {
+      items: { properties: Record<string, unknown>; additionalProperties?: unknown };
+    };
+    assert.deepEqual(Object.keys(offers.items.properties).sort(), [
+      "chosen",
+      "finished",
+      "passReason",
+      "passed",
+      "started",
+      "title",
+      "year",
+    ]);
+    assert.equal(offers.items.additionalProperties, false, "an offer statement is not strict");
   }
 });

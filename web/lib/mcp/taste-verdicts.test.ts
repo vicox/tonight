@@ -248,9 +248,10 @@ describe("what recommendation work is handed", () => {
       offered: [{ title: f.title, year: f.year, lead: true }],
     });
     const id = (written.episode as { id: string }).id;
-    await said(withHistory, "correct_episode", { episode: id, chosen: { title: f.title, year: f.year } });
-    await said(withHistory, "correct_episode", { episode: id, watched: true });
-    await said(withHistory, "correct_episode", { episode: id, finished: true });
+    // One fact at a time, each on the film it is about, as the user would say them.
+    await said(withHistory, "correct_episode", { episode: id, offers: [{ title: f.title, year: f.year, chosen: true }] });
+    await said(withHistory, "correct_episode", { episode: id, offers: [{ title: f.title, year: f.year, started: true }] });
+    await said(withHistory, "correct_episode", { episode: id, offers: [{ title: f.title, year: f.year, finished: true }] });
 
     const one = await taste(withHistory);
     const other = await taste(without);
@@ -280,7 +281,7 @@ describe("what recommendation work is handed", () => {
     });
     await said(asked, "correct_episode", {
       episode: (written.episode as { id: string }).id,
-      watched: true,
+      offers: [{ title: f.title, year: f.year, started: true }],
     });
 
     for (const absent of ["ask_about", "record_question", "open_question", "get_open_questions", "record_opportunity"]) {

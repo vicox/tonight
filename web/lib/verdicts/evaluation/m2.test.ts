@@ -157,11 +157,17 @@ describe("M2 — only what they said", () => {
         });
         episode = (written as { episode: { id: string } }).episode.id;
       } else if (step.act === "outcome") {
+        // Facts are the film's own since M9: chose → chosen, watched → started.
         await call("correct_episode", {
           episode,
-          ...(step.chose === undefined ? {} : { chosen: step.chose ? lead : null }),
-          ...(step.watched === undefined ? {} : { watched: step.watched }),
-          ...(step.finished === undefined ? {} : { finished: step.finished }),
+          offers: [
+            {
+              ...lead!,
+              ...(step.chose === undefined ? {} : { chosen: step.chose ? true : null }),
+              ...(step.watched === undefined ? {} : { started: step.watched }),
+              ...(step.finished === undefined ? {} : { finished: step.finished }),
+            },
+          ],
         });
       } else if (step.act === "verdict") {
         const said = {

@@ -168,10 +168,23 @@ test("every page says what a film record now holds", () => {
     assert.match(privacy, new RegExp(`<em>${judgement}</em>`), `${judgement} is not named`);
   }
   // A turn-down is disclosed as what it is stored as now: the film's place on the
-  // list, or — for one evening — nothing at all.
+  // list, or — for one evening — never a viewing or a verdict, at most a pass on
+  // that evening (M9).
   assert.match(privacy, /Turning a film\s+down is not a verdict/);
   assert.match(privacy, /<em>don&rsquo;t recommend it again<\/em> is kept as where the film\s+stands on your list/);
-  assert.match(privacy, /<em>not tonight<\/em> is used\s+for that evening and not stored at all/);
+  assert.match(
+    privacy,
+    /<em>not tonight<\/em> is used\s+for that evening and is never a viewing or a verdict — at most a pass recorded on that\s+evening/,
+  );
+  assert.doesNotMatch(privacy, /for that evening and not stored at all/, "not tonight is still disclosed as stored nowhere");
+  // The evening is disclosed film by film, and a pass's reason as stored (M9).
+  assert.match(privacy, /any film you\s+brought up yourself/);
+  assert.match(
+    privacy,
+    /only if you say so, film by film — whether you chose it,\s+started it or finished it, and whether you passed on it for that evening, with your\s+reason if you gave one/,
+  );
+  assert.match(privacy, /A film you brought up is kept only while something you said\s+about it stands/);
+  assert.doesNotMatch(privacy, /which one you went with/, "the evening is still disclosed as one chosen film");
   assert.doesNotMatch(privacy, /<em>not ever<\/em>/, "a permanent refusal is still disclosed as a verdict");
   assert.match(privacy, /records your own words for why if you gave them/);
   assert.match(privacy, /Verdicts keep their history, and you can take one back/);

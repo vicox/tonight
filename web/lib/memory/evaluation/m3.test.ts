@@ -171,9 +171,7 @@ describe("M3 — explains itself, and can be corrected", () => {
           const args: Record<string, unknown> = { episode: evening };
           if ("request" in step && step.request !== undefined) args.request = step.request;
           if ("offered" in step && step.offered !== undefined) args.offered = step.offered;
-          if ("chosen" in step) args.chosen = step.chosen ?? null;
-          if ("watched" in step && step.watched !== undefined) args.watched = step.watched;
-          if ("finished" in step && step.finished !== undefined) args.finished = step.finished;
+          if (step.offers !== undefined) args.offers = step.offers;
 
           if (step.act === "amend" && step.refused) {
             // The evening either side of a correction the product has to refuse,
@@ -887,17 +885,28 @@ describe("M3 — explains itself, and can be corrected", () => {
       const evening = copy.seen["the-correction-was-refused"]!.atomicity!.after.remembered.find(
         (root) => root.of === "evening",
       )!;
-      evening.offered = [];
-      evening.offeredSource = "stated";
+      evening.request = "something else entirely";
+      evening.requestSource = "stated";
     });
   });
 
   test("a kept choice still wearing the old offer's description is caught", () => {
-    probe("a retained choice is not rebound to the corrected list", "correcting", (copy) => {
+    probe("a retained choice is not on the film as the corrected list describes it", "correcting", (copy) => {
       const evening = copy.seen["the-offer-changed-under-the-choice"]!.memory.remembered.find(
         (root) => root.of === "evening",
       )!;
-      (evening.chosen as { value: { lead: boolean } }).value.lead = true;
+      const heat = (evening.offers as { title: string; lead: boolean }[]).find((one) => one.title === "Heat")!;
+      heat.lead = true;
+    });
+  });
+
+  test("a choice dropped along with a corrected offer list is caught", () => {
+    probe("a film they chose left the evening when Tonight's list was corrected", "correcting", (copy) => {
+      const evening = copy.seen["the-offer-changed-under-the-choice"]!.memory.remembered.find(
+        (root) => root.of === "evening",
+      )!;
+      const heat = (evening.offers as { chosen: unknown }[])[0]!;
+      heat.chosen = { known: false };
     });
   });
 
