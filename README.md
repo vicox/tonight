@@ -146,7 +146,7 @@ connector by its registered app ID, so the connector has to be installed as well
 
 ## The MCP tools
 
-Twenty, all deterministic, and all of them operations on the five things Tonight persists:
+Twenty-one, all deterministic, and all of them operations on the five things Tonight persists:
 Movies, Genres, Vibes, Episodes and Verdicts. There is no tool for anything Tonight itself
 thought — a question it meant to ask, something it noticed, a change it was about to suggest —
 because there is nowhere for such a thing to go. What it thinks while it is talking to somebody
@@ -178,6 +178,7 @@ method ships in the skill beside the server rather than as a runtime tool.
 | `correct_episode` | putting an evening right, and what they said happened with each of its films (`offers`: chosen, started, finished, passed), merged one film at a time — only on their unambiguous reference to that evening |
 | `forget_episode` | an evening removed |
 | `get_episodes` | the evenings, as history rather than as taste: each film an offer, Tonight's or theirs, with its own facts |
+| `check_candidates` | the films you are about to recommend, against what Tonight holds about each — saved or not, where it stands, what stands about it; never a film of its own |
 
 Whose model a tool acts on is never an argument. The store is opened for the authenticated user
 before any tool exists to call it, so there is no `user_id` in any schema and nowhere for a

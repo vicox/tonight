@@ -34,7 +34,8 @@ export type Standing = { judgement: Judgement };
  *
  * `viewing` is where the film stands on their list and `standing` is what
  * currently stands about liking, which may be absent. True when the list says
- * `seen` outright, or when an opinion implies it.
+ * `seen` outright, or when an opinion implies it. `viewing` is `null` for a film
+ * that is not on their list at all, where only an opinion can say they watched it.
  *
  * `want-to-see` or `dont-want-to-see` plus a standing judgement is a
  * contradiction the user can create, and this answers `true` — the opinion is
@@ -43,7 +44,7 @@ export type Standing = { judgement: Judgement };
  * visible where they are stored, and a rare disagreement between two honest
  * records is not worth a machinery of its own.
  */
-export function effectivelySeen(viewing: Viewing, standing: Standing | null): boolean {
+export function effectivelySeen(viewing: Viewing | null, standing: Standing | null): boolean {
   if (viewing === "seen") return true;
   return standing !== null && "judgement" in standing;
 }
