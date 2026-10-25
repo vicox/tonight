@@ -105,7 +105,7 @@ tools and then migrated, once **per run**:
 
 `m5-01-anchored` holds Hit Man, a film they love that is in no Vibe. Since the vibe rule,
 `record_verdict` keeps a liked or loved only for a film in a Vibe, so today's tools cannot write
-that state: it exists only as data from before the rule, or as something pressed on the website.
+that state: it exists only as data written before the rule.
 The fixture says `"seed": "pre-vibe-rule"`, and is seeded the way the legacy fixture is, with no
 migration:
 

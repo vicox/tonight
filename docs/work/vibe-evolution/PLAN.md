@@ -574,3 +574,20 @@ boundaries hold.
 
   The real-PostgreSQL races remain unexecuted there too: no PostgreSQL binaries, no test URL, and
   no Docker daemon.
+
+### Merged with the website read-only change (`3e65ab9`)
+
+Latest `main` made the website read-only. It removed every `/api/*` write route and
+`web/lib/web/routes.test.ts`. The merge had one conflict, and resolving it changed nothing
+material:
+
+- **`routes.test.ts`:** deleted on `main` and modified here, by the website scope pin (test 16).
+  Resolved by **accepting the deletion**: the routes that pin exercised no longer exist.
+- **Limitation 1 (web routes) no longer applies.** The website writes nothing, so the MCP tools are
+  the only writer of verdicts, filings and vibes.
+- **What still stands outside the guarantee:** limitations 2–5 — `forget_verdict`, retitles,
+  existing data, and direct SQL or a future caller that omits the option.
+- **Wording only, no behaviour:** three comments and one evaluation README line no longer say the
+  website writes — the `KeepFiled` comment, two `taste/store.test.ts` comments, and the M5 README.
+- **Auto-merged:** `README.md`, in separate hunks — the read-only *website* section, and this
+  change's tool table.

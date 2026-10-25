@@ -1,60 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fallbackTo, refocus, rescueTo, returnTo } from "./refocus.ts";
-
-/**
- * Where focus lands when a row leaves the list it was being read in.
- *
- * The rule, on its own, with strings standing in for controls: the dialog's
- * effect is three lines of glue around this, and this is the part with the
- * decisions in it. What cannot be tested here is that a browser is asked to
- * focus the answer — see `overview.test.ts`, and the note there about what
- * remains browser-only.
- */
-
-const MARKS = ["Solaris", "Stalker", "Arrival", "Dune"];
-
-test("the row that moved up into the gap takes the focus", () => {
-  // The film at index 1 was given another mark and left the list. The films
-  // after it have moved up, so index 1 is now the one under the reader's hand.
-  assert.equal(refocus(["Solaris", "Arrival", "Dune"], 1, "Close"), "Arrival");
-});
-
-test("the last row leaving falls back to the row above it", () => {
-  assert.equal(refocus(["Solaris", "Stalker", "Arrival"], 3, "Close"), "Arrival");
-  assert.equal(refocus(["Solaris"], 3, "Close"), "Solaris");
-});
-
-test("the first row leaving keeps the focus at the top of the list", () => {
-  assert.equal(refocus(["Stalker", "Arrival", "Dune"], 0, "Close"), "Stalker");
-});
-
-test("an emptied list hands focus to the way out", () => {
-  // The last film under this tile was given another mark. Focus has to stay
-  // inside the dialog, and the only thing left in it is the way out.
-  assert.equal(refocus([], 0, "Close"), "Close");
-  assert.equal(refocus([], 7, "Close"), "Close");
-});
-
-test("nothing to focus and nothing to fall back to is nothing, not a throw", () => {
-  // Reachable only if the dialog has no controls at all, which it always has.
-  // Answering null keeps that a caller's `?.focus()` rather than a crash inside
-  // an effect.
-  assert.equal(refocus([], 0, null), null);
-});
-
-test("a position that was never remembered focuses the first row", () => {
-  // Nothing in the list had been focused: the reader arrived, the list changed.
-  assert.equal(refocus(MARKS, -1, "Close"), "Solaris");
-});
-
-test("an unchanged list focuses where focus already was", () => {
-  // Not a case the dialog uses — it only calls this when focus has been lost —
-  // but the rule has to be total, and a list that did not change is the one
-  // place it could be asked something ambiguous.
-  assert.equal(refocus(MARKS, 2, "Close"), "Arrival");
-});
+import { fallbackTo, rescueTo, returnTo } from "./refocus.ts";
 
 /**
  * Where focus goes when a dialog closes, and where it goes if that place then
@@ -99,12 +46,12 @@ test("a refresh that removes the invoker after the dialog closes", () => {
 });
 
 /**
- * Where focus lands after something is deleted.
+ * Where focus lands when what opened a dialog has gone.
  *
- * A delete is the one thing that can take away every control of its kind, and
- * the answer must never be nothing: a browser with nothing to focus drops it on
- * `<body>`, which is a reader at the top of the page with no way back to where
- * they were. So each case below ends with an assertion that an answer was given.
+ * Deleting can take away every control of its kind, and the answer must never be
+ * nothing: a browser with nothing to focus drops it on `<body>`, which is a
+ * reader at the top of the page with no way back to where they were. So each
+ * case below ends with an assertion that an answer was given.
  *
  * The two islands compose these three rules the same way, and `closing` and
  * `refreshed` below are that composition written once, with strings standing in
@@ -116,16 +63,13 @@ test("a refresh that removes the invoker after the dialog closes", () => {
 const HEADING = "Your genres";
 const SECTION = HEADING;
 
-/**
- * The dialog closing: focus is owed back, unless what opened it was just deleted.
- */
+/** The dialog closing: focus is owed back to what opened it, if it is still there. */
 const closing = (
   invoker: string | null,
   present: boolean,
-  removed: boolean,
   ways: readonly (string | null)[],
   section: string | null,
-) => returnTo(removed ? null : invoker, present, fallbackTo([...ways, section], invoker));
+) => returnTo(invoker, present, fallbackTo([...ways, section], invoker));
 
 /** The render after it: whatever took focus has gone, and nothing else has it. */
 const refreshed = (
@@ -134,60 +78,56 @@ const refreshed = (
   section: string | null,
 ) => rescueTo(handedTo, ways.includes(handedTo), true, fallbackTo([...ways, section], null));
 
-test("deleting a genre hands focus to a genre that is still there", () => {
-  // The page is a render behind: the deleted label is still on screen, and it is
-  // still what opened the dialog. It is not where focus belongs.
-  const back = closing("Mystery", true, true, ["Slow Burn", "Mystery", "Popcorn Chaos"], SECTION);
+test("a genre that has gone hands focus to a genre that is still there", () => {
+  const back = closing("Mystery", false, ["Slow Burn", "Popcorn Chaos"], SECTION);
   assert.equal(back, "Slow Burn");
-  assert.notEqual(back, "Mystery", "focus was handed to the label that is about to go");
   assert.notEqual(back, null);
 
-  // And the render that removes it strands nothing, because focus is not on it.
+  // And a later render strands nothing, because focus is not on what went.
   assert.equal(refreshed(back, ["Slow Burn", "Popcorn Chaos"], SECTION), null);
 });
 
-test("deleting the last genre hands focus to the section itself", () => {
+test("the last genre gone hands focus to the section itself", () => {
   // Nothing of the same kind is left, and the island that drew the labels is
   // unmounted with them. The heading is what the section keeps either way.
-  const back = closing("Mystery", true, true, ["Mystery"], SECTION);
+  const back = closing("Mystery", false, [], SECTION);
   assert.equal(back, HEADING);
   assert.notEqual(back, null);
 });
 
-test("deleting a vibe hands focus to another card before anything else", () => {
-  const cards = ["Small Town Secrets", "Quiet Dread"];
-  const back = closing("Quiet Dread", true, true, [...cards, "9 other movies"], "Your vibes");
+test("a vibe that has gone hands focus to another card before anything else", () => {
+  const back = closing("Quiet Dread", false, ["Small Town Secrets", "9 other movies"], "Your vibes");
   assert.equal(back, "Small Town Secrets");
   assert.notEqual(back, null);
 });
 
-test("deleting the last vibe hands focus to the films that are in none", () => {
-  // The stack is empty and the remainder's line has just become the only way
-  // into a film from this section — which is exactly where a reader is going.
-  const back = closing("Quiet Dread", true, true, ["Quiet Dread", "9 other movies"], "Your vibes");
+test("the last vibe gone hands focus to the films that are in none", () => {
+  // The stack is empty and the remainder's line is the only way into a film
+  // from this section — which is exactly where a reader is going.
+  const back = closing("Quiet Dread", false, ["9 other movies"], "Your vibes");
   assert.equal(back, "9 other movies");
   assert.notEqual(back, null);
 });
 
-test("deleting the last vibe with every film filed hands focus to the section", () => {
+test("the last vibe gone with every film filed hands focus to the section", () => {
   // No card left and no remainder — every film is in some other vibe, or there
   // are no films at all. The heading is still there.
-  const back = closing("Quiet Dread", true, true, ["Quiet Dread", null], "Your vibes");
+  const back = closing("Quiet Dread", false, [null], "Your vibes");
   assert.equal(back, "Your vibes");
   assert.notEqual(back, null);
 });
 
-test("dismissing a dialog still hands focus back to what opened it", () => {
-  // Cancel, Escape, Close and a press outside are not deletions, and none of
-  // them changed anything. What opened the dialog is where focus was.
-  assert.equal(closing("Mystery", true, false, ["Slow Burn", "Mystery"], SECTION), "Mystery");
-  assert.equal(closing("Quiet Dread", true, false, ["Quiet Dread"], "Your vibes"), "Quiet Dread");
+test("dismissing a dialog hands focus back to what opened it", () => {
+  // Escape, the way out and a press outside changed nothing. What opened the
+  // dialog is where focus was.
+  assert.equal(closing("Mystery", true, ["Slow Burn", "Mystery"], SECTION), "Mystery");
+  assert.equal(closing("Quiet Dread", true, ["Quiet Dread"], "Your vibes"), "Quiet Dread");
 });
 
-test("a control deleted from somewhere else is rescued by the next render", () => {
-  // The other order, and the other agent: the dialog was dismissed, focus went
-  // back to the label — and a delete from an assistant or a second window takes
-  // that label away. Nothing else has focus, so it is on the document.
+test("a control that has gone from somewhere else is rescued by the next render", () => {
+  // The other order: the dialog was dismissed, focus went back to the label —
+  // and a render without it arrives afterwards. Nothing else has focus, so it is
+  // on the document.
   assert.equal(refreshed("Mystery", ["Slow Burn"], SECTION), "Slow Burn");
   assert.equal(refreshed("Mystery", [], SECTION), HEADING);
 });

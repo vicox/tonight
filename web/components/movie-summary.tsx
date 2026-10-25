@@ -87,7 +87,7 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  * ## A dialog the browser opens
  *
  * `<dialog>` with `showModal()`, as every dialog here does: the top layer, the
- * rest of the page inert, and Escape, all from the element. See `manage.tsx`
+ * rest of the page inert, and Escape, all from the element. See `chosen.tsx`
  * for the longer version of why none of that is written here.
  *
  * Focus on the way out is the exception, and it is `MovieSummary`'s rather than
@@ -98,13 +98,10 @@ import { rescueTo, returnTo } from "@/lib/web/refocus";
  * ## Nothing here holds a copy of a film
  *
  * The only state is which selection is open. Both the counts and the open list are
- * derived from the `movies` prop on every render, so a mark pressed inside the
- * dialog needs no adjustment here at all: a mark writes through the same
- * route boundary it always does and asks for the page to be re-rendered, the
- * server's answer arrives as a new `movies`, and every count in the row and the
- * list under it are all recomputed from it. A film that no longer
- * belongs to the open selection leaves the list, because the list was never a
- * snapshot to leave it in.
+ * derived from the `movies` prop on every render, so whenever the server renders
+ * a new `movies`, every count in the row and the list under it are recomputed
+ * from it. A film that no longer belongs to the open selection leaves the list,
+ * because the list was never a snapshot to leave it in.
  */
 /**
  * The films saved this week, as the summary's seventh way in.
@@ -141,8 +138,7 @@ export function MovieSummary({
    *
    * Six of the seven are a set of states and one is this week's arrivals, so the
    * answer is derived here rather than in the dialog — and derived rather than
-   * remembered, which is what keeps a mark pressed inside it from leaving a
-   * stale list behind.
+   * remembered, so a new render can never leave a stale list behind.
    */
   /**
    * The summary's own row, which is where focus goes when the control that
@@ -162,9 +158,9 @@ export function MovieSummary({
   /**
    * What focus was last handed back to, until it is known to have survived.
    *
-   * The quiet line can be the answer and can then disappear: giving the last
-   * film without a status a state takes it off the page, and that can land
-   * either side of the dialog closing. This is the second half of that race —
+   * The quiet line can be the answer and can then disappear: once the last film
+   * without an opinion has one, a render takes it off the page, and that can
+   * land either side of the dialog closing. This is the second half of that race —
    * see the effect below, and `lib/web/refocus.ts` for both halves as rules.
    */
   const handedTo = useRef<HTMLElement | null>(null);

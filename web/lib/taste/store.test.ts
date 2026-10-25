@@ -1737,7 +1737,7 @@ for (const driver of drivers) {
       await alice.updateMovie("Heat", 1995, { vibes: ["Quiet Dread"] }, rule);
       assert.deepEqual((await movieOf(alice, "Heat", 1995))?.vibes, ["Quiet Dread"]);
 
-      // Without the rule — the website's call — it leaves as it always did.
+      // Without the rule — any caller but the MCP server — it leaves as it always did.
       await alice.updateMovie("Heat", 1995, { vibes: [] });
       assert.deepEqual((await movieOf(alice, "Heat", 1995))?.vibes, []);
 
@@ -1801,7 +1801,7 @@ for (const driver of drivers) {
       await alice.deleteVibe("Space Tension", rule);
       assert.equal(await vibeOf(alice, "Space Tension"), undefined);
 
-      // Without the rule — the website's call — a vibe goes as it always did.
+      // Without the rule — any caller but the MCP server — a vibe goes as it always did.
       assert.equal((await alice.deleteVibe("Quiet Dread")).name, "Quiet Dread");
       assert.deepEqual((await movieOf(alice, "Heat", 1995))?.vibes, []);
     });

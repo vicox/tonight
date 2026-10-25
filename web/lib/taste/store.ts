@@ -111,8 +111,8 @@ export type MovieChanges = {
  * With `positiveNeedsVibe`, `updateMovie` refuses to take a film with a standing
  * liked or loved out of its last vibe, and `deleteVibe` refuses to delete the
  * last vibe of one. Decided inside the write's transaction, while the films are
- * held. Only the MCP server passes it; the website's routes do not, and behave
- * exactly as they did.
+ * held. Only the MCP server passes it — the website writes nothing — and a caller
+ * that leaves it out gets these writes exactly as they always were.
  */
 export type KeepFiled = { positiveNeedsVibe?: boolean };
 

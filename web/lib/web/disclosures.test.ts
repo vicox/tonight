@@ -297,16 +297,32 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
     "privacy still equates the MCP answer with the page",
   );
 
-  // And the page does not edit everything it shows. It sets a film's two marks
-  // and nothing else about a film, which a reader exercising a right of
-  // rectification has to be told accurately in both directions: what they can
-  // change here, and what only an assistant can.
-  assert.match(privacy, /lets you say where a film stands on your list and what you thought of it/);
-  assert.match(privacy, /changing its title or year, and removing it are done through your assistant/);
-  assert.match(text("terms"), /say where it stands on your list and what you thought of it/);
-  assert.match(text("terms"), /adding or removing one is done through your assistant/);
-  assert.match(text("readme"), /where a film stands on the user's list and what they thought of it can be set\s+there/);
-  assert.match(text("readme"), /everything else about a Movie is done through an assistant/);
+  // And the page edits nothing it shows. A reader exercising a right of
+  // rectification has to be told accurately where a correction is made: every
+  // one, a film's two marks included, through an assistant.
+  assert.match(
+    privacy,
+    /saying where it stands on your list and what you thought of it, adding one, changing its title or year, and removing it are done through your assistant/,
+  );
+  assert.match(privacy, /the signed-in page only shows them/);
+  assert.match(privacy, /delete any vibe at any time through your assistant/);
+  assert.match(text("terms"), /saying where it stands on your list and what you thought of it, adding one and removing one are all done through your assistant/);
+  assert.match(text("terms"), /the website only shows them/);
+  assert.match(text("readme"), /changes none of it: it has no write endpoint/);
+  assert.match(text("readme"), /is made through an assistant/);
+
+  // The claims it replaces, which would now promise a control that is not there.
+  for (const [page, claim] of [
+    ["privacy", "lets you say where a film stands"],
+    ["privacy", "on this website or through your assistant"],
+    ["privacy", "by you on this website"],
+    ["terms", "the website lets you"],
+    ["terms", "delete any vibe yourself"],
+    ["readme", "can be set there"],
+    ["readme", "Genres and Vibes are managed there"],
+  ] as const) {
+    assert.equal(text(page).includes(claim), false, `${page} still says "${claim}"`);
+  }
 
   // The README has to agree with itself. It said the website "shows the whole
   // model" one paragraph above saying a Movie in no Vibe is not on it, and only

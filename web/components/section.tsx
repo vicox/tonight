@@ -23,14 +23,14 @@
  *
  * ## The heading is also where focus goes when there is nothing else
  *
- * A section's contents can empty: deleting the last genre takes away every
+ * A section's contents can empty: the last genre deleted takes away every
  * control the genres section had, and the client island that drew them is
  * unmounted with them. Something has to be left for focus to land on, or a
  * browser drops it on `<body>` — a reader at the top of the page, with no way
  * back to what they were doing. The heading is the one thing a section always
  * has, and it names the place the reader is still in, so it is marked
  * `data-fallback` and made focusable without joining the tab order. See
- * `sectionFallback`, `lib/web/refocus.ts`, and the deletes in `manage.tsx`.
+ * `sectionFallback` and `lib/web/refocus.ts`.
  */
 export function Section({
   title,

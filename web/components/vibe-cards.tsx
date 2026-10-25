@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 
 import { Chip } from "./chip";
 import { Chosen, WAY_IN } from "./chosen";
-import { Manage } from "./manage";
 import { Films } from "./movie-row";
 import { sectionFallback } from "./section";
 import { WayOut } from "./way-out";
@@ -50,14 +49,14 @@ import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
  *
  * None of it is stored on a vibe and none of it is kept here: the films the vibe's
  * handles resolve to are read again on every render, and the heart is how many
- * of those are loved. So a mark pressed inside the dialog moves the heart on the
- * card by the next render. See `lib/web/vibes.ts`.
+ * of those are loved. So a film an assistant marks as loved moves the heart on
+ * the card by the next render. See `lib/web/vibes.ts`.
  *
  * The order the cards come in is the same kind of answer: read off the films
- * every render, the liveliest vibe first, and never written down. A mark pressed
- * in a dialog can therefore move a card up the list by the next render, which is
- * the point — the list is for finding tonight's vibe, not for remembering which
- * was made first.
+ * every render, the liveliest vibe first, and never written down. What an
+ * assistant records can therefore move a card up the list by the next render,
+ * which is the point — the list is for finding tonight's vibe, not for
+ * remembering which was made first.
  */
 /**
  * What the section's one non-vibe way in stands for.
@@ -106,14 +105,6 @@ export function VibeCards({
    * thing left of the same kind.
    */
   const remainder = useRef<HTMLButtonElement>(null);
-  /**
-   * Whether the vibe whose dialog is closing was deleted rather than dismissed.
-   *
-   * The page is a render behind at that moment: the deletion has landed in the
-   * store and the card is still on screen, so "is the invoker still in the
-   * document" answers yes about a control with one render left to live.
-   */
-  const removed = useRef(false);
 
   /**
    * Focus, once there is no dialog to hold it.
@@ -132,8 +123,7 @@ export function VibeCards({
    */
   useEffect(() => {
     const cards = [...(stack.current?.querySelectorAll<HTMLElement>("button") ?? [])];
-    // The deleted card is skipped even though the page still shows it: the
-    // deletion has landed, and this render is the last one it appears in.
+    // The pressed card is skipped as a fallback: it is the one being checked for.
     const stable = fallbackTo(
       [...cards, remainder.current, sectionFallback(stack.current)],
       invoker.current,
@@ -141,11 +131,9 @@ export function VibeCards({
 
     if (open === null && invoker.current !== null) {
       const pressed = invoker.current;
-      const gone = removed.current;
       invoker.current = null;
-      removed.current = false;
 
-      const back = returnTo(gone ? null : pressed, document.contains(pressed), stable);
+      const back = returnTo(pressed, document.contains(pressed), stable);
       handedTo.current = back;
       back?.focus();
       return;
@@ -332,12 +320,6 @@ export function VibeCards({
             vibe={open}
             films={filmsIn(open, movies)}
             onClose={() => setOpen(null)}
-            // Closed because the vibe is gone, which is not the same as closed.
-            // See `removed`.
-            onRemoved={() => {
-              removed.current = true;
-              setOpen(null);
-            }}
           />
         )
       )}
@@ -353,8 +335,8 @@ export function VibeCards({
  * and then the films they have kept under it — narrowing from what the vibe is
  * made of to what is actually in it, and the same order the card is read in, so
  * that opening one is a card getting longer rather than a second arrangement of
- * the same four things. The films are the only part that can be changed from
- * here, through the same rows and the same marks as everywhere else.
+ * the same four things. The films are the same rows, with the same marks, as
+ * everywhere else. Nothing here changes the vibe: that is said to an assistant.
  *
  * The genres are chips and nothing more. On the overview a genre's own label
  * opens its meaning; here a genre is context for the vibe, and a control inside
@@ -364,13 +346,10 @@ function Detail({
   vibe,
   films,
   onClose,
-  onRemoved,
 }: {
   vibe: Vibe;
   films: readonly Shown[];
   onClose: () => void;
-  /** Closed because the vibe was deleted, which the stack answers differently. */
-  onRemoved: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -387,8 +366,7 @@ function Detail({
       ref={dialog}
       aria-label={vibe.name}
       // Escape is the browser's: it fires `cancel`, and taking the default would
-      // let the element close itself while React still had it mounted. A mark's
-      // menu inside here takes its own Escape first — see `movie-state.tsx`.
+      // let the element close itself while React still had it mounted.
       onCancel={(event) => {
         event.preventDefault();
         onClose();
@@ -402,13 +380,12 @@ function Detail({
     >
       <div className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8">
         {/*
-          The name, what can be done to the vibe, and the way out — in that order,
-          so the `×` is the last thing on the row and the rightmost.
+          The name, then the way out, so the `×` is the last thing on the row and
+          the rightmost.
         */}
         <header className="flex items-start justify-between gap-4">
           <h2 className="min-w-0 font-display text-[24px] leading-tight break-words">{vibe.name}</h2>
           <div className="flex shrink-0 items-center gap-1">
-            <Manage kind="vibe" name={vibe.name} onRemoved={onRemoved} />
             <WayOut name={vibe.name} onClose={onClose} />
           </div>
         </header>

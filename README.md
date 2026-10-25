@@ -237,15 +237,14 @@ addressed from outside, and there is no id in any tool schema or any answer.
 ## The website
 
 [`web/`](web) is a Next.js application. One address serves two pages: a landing page for anyone,
-and — for whoever is signed in — their own taste model, read and managed through the same store
-the MCP tools use. There is no second surface and no second copy of the rules.
+and — for whoever is signed in — their own taste model, read through the same store the MCP
+tools use. There is no second surface and no second copy of the rules.
 
-The website shows a Vibe-oriented view of the model and edits part of it: Genres and Vibes are
-managed there, where a film stands on the user's list and what they thought of it can be set
-there, and everything else about a Movie is done through an assistant. It does not recommend,
-and it has no model inside it to recommend with: the panel at the foot of the page names the
-sentence to take to your assistant. It is *a* place to manage the model rather than the only one — an assistant
-asked outright to rename a Genre or delete a Vibe uses the same tools and does it there and then.
+The website shows a Vibe-oriented view of the model and changes none of it: it has no write
+endpoint, and every change — a Genre or Vibe created, renamed or deleted, where a film stands on
+the user's list, what they thought of it — is made through an assistant, which uses the MCP
+tools and does it there and then. It does not recommend, and it has no model inside it to
+recommend with: the panel at the foot of the page names the sentence to take to your assistant.
 
 The page is organised around Vibes, and a Movie in no Vibe is listed under *Other movies* beneath
 them — recording that somebody watched a film makes one, and so does deleting the last Vibe it was
@@ -335,5 +334,5 @@ bash chatgpt-plugin/test.sh
   *evidence for proposing changes* to the explicit model, never a second invisible model that
   outvotes it.
 - **Self-service account deletion.** `/privacy`, `/terms` and `/impressum` are published, and a
-  user can delete their own Genres and Vibes — but removing an account and everything belonging
-  to it is done by hand on request rather than by a button in the product.
+  user can have their assistant delete their own Genres and Vibes — but removing an account and
+  everything belonging to it is done by hand on request rather than by a button in the product.

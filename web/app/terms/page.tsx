@@ -137,12 +137,12 @@ export default function Terms() {
       <section>
         <h2>Ending it</h2>
         <p>
-          You can stop using Tonight whenever you like and ask for your data to be deleted. You can
-          delete any vibe yourself, and any genre no vibe is built from — a genre a vibe refers to stays
-          until you take it out of that vibe or delete the vibe. For a film, the website lets you
-          say where it stands on your list and what you thought of it; adding or removing one is done
-          through your assistant, which does it on request, and removing a film removes what you said
-          about it too. The operator may withdraw access at any time, in
+          You can stop using Tonight whenever you like and ask for your data to be deleted. Through
+          your assistant you can delete any vibe, and any genre no vibe is built from — a genre a vibe
+          refers to stays until you take it out of that vibe or delete the vibe. For a film, saying
+          where it stands on your list and what you thought of it, adding one and removing one are
+          all done through your assistant, which does it on request; the website only shows them.
+          Removing a film removes what you said about it too. The operator may withdraw access at any time, in
           particular if these terms are not respected or when the closed beta ends.
         </p>
       </section>

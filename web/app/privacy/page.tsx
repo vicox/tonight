@@ -40,8 +40,8 @@ export default function Privacy() {
         </p>
         <p>
           This policy covers the hosted service at tonight.movie — its web pages including the
-          signed-in view of your taste model at <code>/</code>, the endpoints that page writes through
-          under <code>/api</code>, the website&rsquo;s own sign-in endpoints under <code>/auth</code>,
+          signed-in view of your taste model at <code>/</code>, the website&rsquo;s own sign-in
+          endpoints under <code>/auth</code>,
           the endpoints an MCP client is authorized through under <code>/oauth</code>, and the MCP
           endpoint at <code>/mcp</code>.
         </p>
@@ -235,8 +235,8 @@ export default function Privacy() {
         <p>
           <strong>Nothing you do changes your taste model except changing it.</strong> Tonight draws no
           conclusions from how you use it and writes nothing back from a recommendation: your genres
-          and vibes change only through the operations that change them — by you on this website, or
-          by an assistant you have asked to make a change. What a recommendation itself looks like is
+          and vibes change only through the operations that change them, made by an assistant you
+          have asked to make a change. What a recommendation itself looks like is
           not ours to promise: it is produced by the assistant you connect, from your taste model
           together with its own knowledge, its own context and whatever other tools it has.
         </p>
@@ -505,12 +505,12 @@ export default function Privacy() {
       <section>
         <h2>Deleting your data</h2>
         <p>
-          You can delete any vibe yourself at any time, on this website or through your assistant, and
-          any genre no vibe is built from. A genre a vibe does refer to stays until that vibe does not:
-          take it out of the vibe, or delete the vibe, and the genre can go. For a film, the
-          signed-in page lets you say where a film stands on your list and what you thought of it; adding one,
-          changing its title or year, and removing it are done through your assistant, which does
-          each there and then. Removing a film removes everything you said about it as well — every
+          You can delete any vibe at any time through your assistant, and any genre no vibe is built
+          from. A genre a vibe does refer to stays until that vibe does not: take it out of the vibe,
+          or delete the vibe, and the genre can go. For a film, saying where it stands on your list
+          and what you thought of it, adding one, changing its title or year, and removing it are
+          done through your assistant, which does each there and then; the signed-in page only shows
+          them. Removing a film removes everything you said about it as well — every
           verdict, including ones you replaced or took back. To have your account and everything belonging to it removed, write
           to{" "}
           <a href={`mailto:${op.email}`}>{op.email}</a>. During this beta, deleting an account is
