@@ -547,7 +547,7 @@ test("a film's card is its year, how it stands, its title and its vibes, and not
 
   // A dark card of its own: the screen's surface, an edge and rounded corners —
   // a thing of its own, not a line in a table.
-  const li = drawn.match(/<li\s+data-viewing=\{movie\.viewing\}\s+className="([^"]*)"/);
+  const li = drawn.match(/<li className="([^"]*)" data-viewing=\{movie\.viewing\}>/);
   assert.ok(li, "a card is not a list item with a class list of its own, saying where its film stands");
   for (const rule of ["relative", "rounded-xl", "border", "border-rule", "bg-screen"]) {
     assert.ok(li[1].split(/\s+/).includes(rule), `a card has no ${rule}`);
@@ -858,7 +858,7 @@ test("the Stream's one filter: include previously seen, ticked, under the headin
   // Every film is still handed over, in the order `stream` gives — the filter
   // draws less, it never orders or fetches anything.
   assert.match(films, /<MovieCards movies=\{stream\(movies\)\} label="Your movies, most recently saved first" \/>/);
-  assert.match(card, /<li\s+data-viewing=\{movie\.viewing\}/, "a card does not say where its film stands");
+  assert.match(card, /<li className="[^"]*" data-viewing=\{movie\.viewing\}>/, "a card does not say where its film stands");
 
   // Unticked, exactly the films seen before are not drawn — on the Stream only.
   const css = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");

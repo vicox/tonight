@@ -3769,8 +3769,9 @@ describe("upgrading films that were saved before they had a canonical name", () 
     assert.deepEqual(
       read.movies.map((movie) => ({ title: movie.title, year: movie.year, viewing: movie.viewing })),
       [
-        { title: "Black Bag", year: 2025, viewing: "seen-before" },
-        { title: "Heat", year: 1995, viewing: "seen-before" },
+        // Loved, then seen (taste v10), then seen now (taste v15).
+        { title: "Black Bag", year: 2025, viewing: "seen-now" },
+        { title: "Heat", year: 1995, viewing: "seen-now" },
       ],
     );
     await sql.close();

@@ -229,7 +229,10 @@ deployed or migrated when it came.
     nothing `seen-before`, and leaves the other viewings and every stamp as they were. After v15,
     the migrated row reads `seen-now` and `seen` is refused.
   - The end-to-end upgrades through v15 now expect `seen-now`: v10's loved film, v14's kept
-    `seen`, and the production upgrade from v7 in `schemas.test.ts`.
+    `seen`, and the production upgrade from v7 in `schemas.test.ts`. One more was missed in the
+    first pass and caught by the full suite before release: the canonical-name upgrade from v7 in
+    `lib/taste/store.test.ts:3772`. It was a test expectation only, and the reviewed migration
+    code did not change.
   - Rows that tests write directly as `seen-before` after the migration are data, not the
     mapping, and are unchanged.
 - **Wording:**
