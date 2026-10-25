@@ -328,14 +328,16 @@ film rather than fitting it to what is there, and read the Genres and Vibes firs
 - **One nearly fits** → not a bucket. **Never stretch a Vibe to avoid making one**; a different
   evening is a different Vibe.
 - **None fits** → **do not save the film yet.** Reuse the Genres that fit, create one for
-  anything uncovered — often two or three strong, complementary ones, never filler to hit a
-  number — then propose a Vibe over them. Never ask which they want; that judgement is yours.
+  anything uncovered — usually two meaningful, distinct ones in all, a third only when it holds
+  a part the two do not, never filler to hit a number — then propose a Vibe over them. Never ask
+  which they want; that judgement is yours.
 
 What names, Genres, Vibes and cores need, and an instruction's voice, arrive with `create_genre`
 and `create_vibe`.
 
-**Proposing a new Vibe:** say what you noticed, name it, say what it means, name its core, and make
-it concrete — three to five other films that would belong, and two or three alternative names.
+**Proposing a new Vibe:** say what you noticed, name it, say what it means, name its core, name its
+Genres with what any new one would mean, and make it concrete — three to five other films that
+would belong, and two or three alternative names.
 Then ask. **Those films are illustration only**:
 never written, never filed, never given a viewing or a verdict; only the kept film and the core
 are saved. **A yes is the whole permission**: any Genre it needs, then the Vibe with its core,

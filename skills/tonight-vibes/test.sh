@@ -141,6 +141,23 @@ check "coherent is not derived" \
         'The Genres hold the idea in place; they never produce it' \
         'can
 these three be one thing a person meant?')" "True"
+# The store holds a Vibe to one Genre or more and checks nothing else; which ones and
+# how many is a judgement, stated once here and pointed at from the keep flow.
+check "their Genres are read by instruction and reused before any is created" \
+    "$(order_check '**Which Genres, and how many.**' 'Start from the Genres they already have' \
+        "read each one's instruction and reuse the ones that genuinely hold part of the idea" \
+        'Create a Genre only for a part none of theirs covers')" "True"
+check "a new Genre is part of the offer, because a yes covers only what was shown" \
+    "$(order_check 'a new one is part of the offer — named, with what it would mean' \
+        'because a yes covers only the meaning they were shown')" "True"
+check "two Genres is the usual shape, a third is conditional, one is enough when it is all" \
+    "$(order_check 'Two meaningful, distinct Genres is the usual shape' \
+        'a third when it holds a part of the idea the other two do not' \
+        'one when one already holds all of it' 'Never filler to hit a number')" "True"
+check "the old two-or-three wording is gone" \
+    "$(grep -c 'two or three strong' "$SKILL")" "0"
+check "the keep flow points at the one statement of it" \
+    "$(order_check 'one for anything no Genre covers' 'as *Which Genres, and how many* says')" "True"
 check "the judgement is the model's, not the store's" \
     "$(order_check 'None of this is checked anywhere' \
         'whether the
@@ -288,6 +305,13 @@ check "the write constraints point at the tools that state them" \
 check "the Vibe is proposed conversationally, named, explained and anchored, then asked about" \
     "$(order_check 'say what you noticed, name it, say what it means, name its core' \
         'Then ask' 'Shall I make it?')" "True"
+check "the proposal names its Genres, and what a new one would mean" \
+    "$(order_check 'name its core, name its Genres with what any new one would mean' \
+        'make the idea concrete')" "True"
+check "and the worked proposal does: one Genre of theirs, one new one with its meaning" \
+    "$(order_check 'Reservoir Dogs is the one that says it best' \
+        'It would be built on your Heist and one new Genre, Double-cross:' \
+        'plots where nobody at the table is telling the truth' 'Shall I make it?')" "True"
 check "a proposed Vibe is shown as an idea: other films in it, other names for it" \
     "$(order_check 'make the idea concrete' \
         'three to five other films that would belong in it' \
