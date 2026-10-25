@@ -2,7 +2,6 @@ import { LegalLinks } from "@/components/legal";
 import { SignedIn, Unavailable } from "@/components/signed-in";
 import { SiteHeader, SignIn } from "@/components/site-header";
 import { StreamView } from "@/components/stream-view";
-import { WorkedExamples } from "@/components/worked-examples";
 import { readHeld, resolveVisitor } from "@/lib/web/held";
 import type { SignedInVisitor } from "@/lib/web/visitor";
 
@@ -43,9 +42,11 @@ export default async function Home() {
 }
 
 /**
- * The public page: what the loop is, shown with worked examples.
+ * The public page: one line in Tonight's own voice, one example of what it is like
+ * when it knows you, and the way in.
  *
- * It reads nothing about the visitor and renders the same for everybody.
+ * It reads nothing about the visitor and renders the same for everybody. Nothing
+ * on it moves: the slideshow that used to be here, and its client code, are gone.
  */
 function Landing() {
   return (
@@ -54,34 +55,83 @@ function Landing() {
         <SignIn />
       </SiteHeader>
 
-      <section>
-        <p className="font-display text-[28px] leading-tight sm:text-[32px]">
-          Tonight doesn&rsquo;t just remember what you love.
-          <br />
-          It understands why.
-        </p>
+      <section aria-labelledby="landing-promise">
+        <h2
+          id="landing-promise"
+          className="font-display text-[32px] leading-[1.1] text-balance sm:text-[44px]"
+        >
+          Your next movie is already on my mind.
+        </h2>
 
-        <p className="mt-5 text-[15px] leading-relaxed text-ink-soft">
-          Discover what makes movies special to you through personal Vibes — and get
-          recommendations that truly match your taste.
-        </p>
-
-        <p className="mt-6 text-[13px] leading-relaxed text-ink-soft">
-          {/*
-            The arrows are punctuation standing in for "leads to", and read aloud
-            they are noise. The sentence they draw is available instead.
-          */}
-          <span className="sr-only">
-            A conversation leads to a recommendation, your taste grows, and the recommendations
-            get better.
-          </span>
-          <span aria-hidden="true" className="font-mono text-[12.5px]">
-            conversation → recommendation → your taste grows → better recommendations
-          </span>
+        <p className="mt-5 text-[16px] leading-relaxed text-ink-soft">
+          An AI that gets to know you, remembers what moves you, and helps make your movie nights
+          better.
         </p>
       </section>
 
-      <WorkedExamples />
+      {/*
+        One reply, captioned as an example: the words quoted are an invented
+        person's, and the website has no chat, so nothing here looks like
+        something to type into. It keeps to the recommend skill's shape for a
+        request with no mood — a surprise, one lead, their words not made
+        stronger — and, like the skill, it never brings up a film they turned
+        down. Amber marks Tonight's turn, as it did in the examples before it.
+      */}
+      <figure
+        aria-labelledby="landing-example"
+        className="mt-10 rounded-2xl border border-rule bg-screen p-6 sm:mt-14 sm:p-8"
+      >
+        <figcaption id="landing-example" className="text-[12.5px] text-ink-soft">
+          Example, shortened: a reply in ChatGPT or Claude, with Tonight connected
+        </figcaption>
+
+        <dl className="mt-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:gap-4">
+            <dt className="shrink-0 text-[13px] text-ink-soft sm:w-16">You</dt>
+            <dd className="min-w-0 text-[15px] text-ink">Anything for tonight?</dd>
+          </div>
+          <div className="flex flex-col gap-1 sm:flex-row sm:gap-4">
+            <dt className="shrink-0 text-[13px] text-beam sm:w-16">Tonight</dt>
+            <dd className="min-w-0">
+              <p className="font-display text-[21px] leading-snug text-ink sm:text-[24px]">
+                A surprise, from your Space Tension. You loved Arrival — “it trusts you to keep
+                up,” you said — so I’d start with Moon: one man, one station, and a quiet puzzle
+                that rewards exactly that kind of attention.
+              </p>
+              <p className="mt-3 text-[14px] text-ink-soft">
+                Or give me a mood and I’ll aim closer.
+              </p>
+            </dd>
+          </div>
+        </dl>
+      </figure>
+
+      {/*
+        What is here now and what is not, side by side and plainly labelled. Today
+        is said as what it does rather than as a correction of the line above.
+      */}
+      <section aria-label="Today, and where Tonight is going" className="mt-10 sm:mt-14">
+        <dl className="flex flex-col gap-6 sm:grid sm:grid-cols-2 sm:gap-8">
+          <div>
+            <dt className="text-[12.5px] tracking-[0.11em] text-ink-soft uppercase">
+              Today, in closed beta
+            </dt>
+            <dd className="mt-2 text-[15px] leading-relaxed text-ink-soft">
+              Tonight works inside the AI assistant you already use, like ChatGPT or Claude. Ask
+              for a film, and it draws on what it keeps: your films, what you thought of them,
+              your Vibes. Sign in to see your films and Vibes.
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[12.5px] tracking-[0.11em] text-ink-soft uppercase">
+              Where it’s going
+            </dt>
+            <dd className="mt-2 text-[15px] leading-relaxed text-ink-soft">
+              An AI that takes care of your movie nights, not only when you ask. Not available yet.
+            </dd>
+          </div>
+        </dl>
+      </section>
 
       {/*
         Linked rather than merely present: Google's OAuth branding step asks for a
