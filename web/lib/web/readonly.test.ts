@@ -5,25 +5,28 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 /**
- * The website is read-only, and this is what holds it there.
+ * The website reads, with one narrow exception, and this is what holds it there.
  *
- * Nothing on the website writes the user's data — not a film, a verdict, a
- * genre, a vibe or an evening. Every one of those is changed through an
- * assistant, over `/mcp`, by the tools in `lib/mcp/server.ts`. The website
- * reads the same stores in a Server Component and shows what they hold.
+ * The exception is a film's five choices — *Love it*, *Like it*, *Want to see*,
+ * *Not interested*, *Dislike* — posted from the film's screen to `/movie/choose`
+ * and kept by `lib/web/choose.ts`: a verdict, a withdrawal, or the film's viewing,
+ * for a film the signed-in user has saved, and nothing else. Every other change —
+ * a film added, retitled, refiled or removed, a genre or a vibe, an evening — is
+ * made through an assistant, over `/mcp`, by the tools in `lib/mcp/server.ts`.
  *
  * So the guard is structural rather than a refusal at runtime. Next.js routes by
  * file: a path with no handler answers 404 to every method, so a write route
  * that does not exist cannot be called by a browser, a script or anyone else.
- * What has to be kept true is that none comes back, and these tests fail the
+ * What has to be kept true is that no other comes, and these tests fail the
  * moment one does — a route that accepts a mutating method, a server action, a
- * client `fetch`, a form posting anywhere but sign-in, or a page calling a store
- * operation that writes.
+ * client `fetch`, a form posting anywhere but sign-in, sign-out and the choices,
+ * a page or component calling a store operation that writes, or the choice route
+ * writing anything beyond its three kinds of write.
  *
- * What stays mutable is listed, and nothing else may join it: the website's own
+ * What is mutable is listed, and nothing else may join it: the website's own
  * sign-in and sign-out, which write a browser session and nothing of the user's
- * taste; and the shared MCP and OAuth routes, which are the assistant's surface
- * and are deliberately not the website's to limit.
+ * taste; a film's choices; and the shared MCP and OAuth routes, which are the
+ * assistant's surface and are deliberately not the website's to limit.
  */
 
 const WEB = fileURLToPath(new URL("../../", import.meta.url));
@@ -67,15 +70,18 @@ function mutatingRoutes(): string[] {
  * Everything on the site that accepts a write, and why each may.
  *
  * `auth/*` writes a browser session, a parked sign-in and a rate-limit counter —
- * authentication, without which the read-only page cannot be reached. `mcp` and
- * `oauth/*` are the assistant's surface: MCP sessions, client registrations,
- * authorization codes, and every write an assistant makes on the user's behalf.
+ * authentication, without which the signed-in screens cannot be reached.
+ * `movie/choose` is a film's five choices, and only those — see the last test.
+ * `mcp` and `oauth/*` are the assistant's surface: MCP sessions, client
+ * registrations, authorization codes, and every write an assistant makes on the
+ * user's behalf.
  */
 const ALLOWED = [
   "auth/signin POST",
   "auth/signout POST",
   "mcp DELETE",
   "mcp POST",
+  "movie/choose POST",
   "oauth/authorize POST",
   "oauth/register POST",
   "oauth/token POST",
@@ -90,11 +96,11 @@ test("the website's write routes are gone, not guarded", () => {
   }
 });
 
-test("the only routes that accept a write are sign-in, sign-out and the assistant's", () => {
+test("the only routes that accept a write are sign-in, sign-out, a film's choices and the assistant's", () => {
   assert.deepEqual(
     mutatingRoutes(),
     ALLOWED,
-    "a route accepts a mutating method that is not authentication or MCP — the website is read-only",
+    "a route accepts a mutating method that is not authentication, a film's choices or MCP",
   );
 });
 
@@ -126,7 +132,7 @@ test("no component sends a request or re-reads the page after one", () => {
   }
 });
 
-test("the only forms are sign-in and sign-out", () => {
+test("the only forms are sign-in, sign-out and a film's choices", () => {
   const forms: string[] = [];
   for (const path of [...files(APP), ...files(COMPONENTS)].filter(shipped)) {
     for (const match of read(path).matchAll(/<form\b[^>]*>/g)) {
@@ -134,16 +140,64 @@ test("the only forms are sign-in and sign-out", () => {
     }
   }
 
-  assert.equal(forms.length, 2, `unexpected forms:\n${forms.join("\n")}`);
-  for (const form of forms) {
-    assert.match(form, /^components\/site-header\.tsx: /, `a form outside the header: ${form}`);
+  assert.equal(forms.length, 3, `unexpected forms:\n${forms.join("\n")}`);
+  const header = forms.filter((form) => form.startsWith("components/site-header.tsx: "));
+  assert.equal(header.length, 2, "sign-in and sign-out are not the header's two forms");
+  for (const form of header) {
     assert.match(form, /action="\/auth\/sign(in|out)"/, `a form posting elsewhere: ${form}`);
+  }
+  const [choices] = forms.filter((form) => !form.startsWith("components/site-header.tsx: "));
+  assert.match(choices ?? "", /^components\/movie-choices\.tsx: /, `a form outside the header and the choices: ${choices}`);
+  assert.match(choices ?? "", /method="post"/);
+  assert.match(choices ?? "", /action="\/movie\/choose"/, `the choices post elsewhere: ${choices}`);
+});
+
+test("the choice route writes a verdict, a withdrawal or a viewing, and nothing else", () => {
+  // The route file hands the request over and does nothing of its own.
+  const route = read(join("app", "movie", "choose", "route.ts"));
+  assert.match(route, /return handleChoice\(request\);/);
+
+  // What it hands it to writes three kinds of thing, through the stores'
+  // own operations and their own rules — and calls no other operation that writes.
+  const choose = read(join("lib", "web", "choose.ts"));
+  assert.match(choose, /\.updateMovie\(movie\.title, movie\.year, \{ viewing: outcome\.viewing \}\)/, "a viewing is written some other way");
+  assert.match(choose, /\.sayFiled\(verdict\)/, "a liked or loved does not go through the vibe rule");
+  assert.match(choose, /\.saySaved\(withdrawVerdict\(/, "a take-back is written without holding the film");
+  assert.match(choose, /\.saySaved\(verdict\)/, "a disliked is written without holding the film");
+  // Never the verdict store's own `say`, which writes about any film, saved or
+  // not: a press could then land after the film was deleted, and outlive it.
+  assert.doesNotMatch(choose, /\.say\s*\(/, "an act is written without holding its film");
+  // An answer to the question the page puts, not something said unasked.
+  assert.match(choose, /"confirmed"/, "a pressed verdict is not told as confirmed");
+  assert.doesNotMatch(choose, /"volunteered"/, "a pressed verdict is told as volunteered");
+  const others = choose.match(
+    /\.\s*(create\w+|delete\w+|updateGenre|updateVibe|forget|record|addRound|correct)\s*\(/,
+  );
+  assert.equal(others, null, `the choice route calls ${others?.[1]}, which it may not`);
+  for (const [check, name] of [
+    [/wrongOrigin\(request, config/, "the canonical origin"],
+    [/crossSite\(request, config\)/, "a page of ours"],
+    [/signedInVisitor\(sessionOf\(request, config\)\)/, "a session"],
+  ] as [RegExp, string][]) {
+    assert.match(choose, check, `the choice route does not check ${name}`);
+  }
+
+  // And nothing else under `lib/web` writes the user's taste, verdicts or
+  // evenings: the choices are the one place. (Sign-in's own session writes are
+  // authentication, and are the routes above.)
+  const call =
+    /\.\s*(create(?:Genre|Vibe|Movie)|update(?:Genre|Vibe|Movie)|delete(?:Genre|Vibe|Movie)|say|sayFiled|saySaved|forget|record|addRound|correct)\s*\(/;
+  for (const path of files(join(LIB, "web")).filter(shipped)) {
+    if (path === join("lib", "web", "choose.ts")) continue;
+    const found = read(path).match(call);
+    assert.equal(found, null, `${path} calls ${found?.[1]}, which writes`);
   }
 });
 
 test("no page or component calls a store operation that writes", () => {
-  // The stores are opened by the page to read them. Every operation below
-  // writes, and each is reached only through `lib/mcp/server.ts`.
+  // The stores are opened by the pages to read them. Every operation below
+  // writes, and each is reached only through `lib/mcp/server.ts` — or, for a
+  // film's choices, `lib/web/choose.ts`, pinned above.
   const writes = [
     "createGenre",
     "updateGenre",
@@ -155,6 +209,8 @@ test("no page or component calls a store operation that writes", () => {
     "updateMovie",
     "deleteMovie",
     "say",
+    "sayFiled",
+    "saySaved",
     "forget",
     "record",
     "addRound",

@@ -45,6 +45,11 @@ const nextConfig: NextConfig = {
    * and this user's genres and vibes for whoever is signed in. Two answers at one URL is
    * exactly the shape a shared cache gets wrong.
    *
+   * `/vibe` and `/movie` are one vibe's and one film's screen, signed in only, and
+   * their URL carries a vibe's name or a film's title. They get the same rule, for
+   * the same reason, and for one more: the address itself is something about the
+   * person, and a referrer must not take it to another site.
+   *
    * Declared here rather than in the page because a Server Component cannot set a
    * response header — and because a rule about which URLs are private belongs
    * somewhere it can be read in one place.
@@ -64,6 +69,14 @@ const nextConfig: NextConfig = {
           { key: "referrer-policy", value: "same-origin" },
         ],
       },
+      ...["/vibe", "/movie"].map((source) => ({
+        source,
+        headers: [
+          { key: "cache-control", value: "private, no-store, max-age=0, must-revalidate" },
+          { key: "x-frame-options", value: "DENY" },
+          { key: "referrer-policy", value: "same-origin" },
+        ],
+      })),
       {
         // The sign-in endpoints answer redirects and refusals mid-flow. None of it
         // may sit in a cache to be handed to the next caller.

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 /**
- * The signed-in overview, held to the decisions that make it a reading page.
+ * The signed-in screens, held to the decisions that make them reading pages.
  *
  * ## Why this reads the source rather than the rendering
  *
@@ -17,161 +17,165 @@ import test from "node:test";
  *
  * What it pins is the set of decisions that are invisible when they break: a page
  * that quietly grew a poster, a `false` that became indistinguishable from
- * "nothing said", a create control on a page that is supposed to be read.
+ * "nothing said", a control that writes on a page that is supposed to be read.
  *
- * Ten sources, because the page is that many files: the board itself, the
- * section all three of its parts are drawn by, the genre labels, the vibe cards,
- * the dialog they and the summary all open, the type a name is set in, a film's
- * row — shared by the board and the summary's dialog — the summary tiles, the
- * mark on a row, and the way out every dialog is left by. What can be tested for
- * real is kept out of here and tested that way: the arithmetic behind the tiles
- * in `movie-summary.test.ts`, and where focus goes when a dialog closes in
- * `refocus.test.ts`. That nothing on the website writes is `readonly.test.ts`.
+ * Many sources, because the signed-in screens are that many files: the Stream
+ * and the cards it shares with a vibe's screen, a card's status and its vibe
+ * links, a vibe's screen and a film's with its five choices, the pages and the
+ * frame behind them, the section every heading is drawn by, the genre labels,
+ * the type a name is set in, and the icons and words a film's answers are drawn
+ * with. What can be tested for real is kept out of here
+ * and tested that way: the Stream's order and a card's status in
+ * `stream.test.ts`, what a URL may choose in `screens.test.ts`, what a choice
+ * means in `choices.test.ts` and what it writes in `choose.test.ts`. That the
+ * choices are the website's one write is `readonly.test.ts`.
  *
  * ## What is browser-only, and stays that way
  *
- * Three things below are pinned as the wiring that produces a behaviour rather
+ * Some things below are pinned as the wiring that produces a behaviour rather
  * than as the behaviour itself, because reproducing them needs a browser: that a
- * press on the surface around the card *reaches* the dialog element and not a box
- * in front of it; that a removed control actually drops focus, so the effect that
- * puts it back has something to do; and that a long title with three long vibe
- * names lays out with the mark still on the right. Layout, hit-testing and focus
- * on element removal are the browser's, and no assertion over source can stand in
- * for them — what these tests can do is fail when the structure those behaviours
- * depend on is taken apart, which is how all three were broken in the first place.
+ * press on a card's ✨ or between its vibe names falls through to the film, and
+ * that a long title or three long vibe names lay out inside the card. Layout and
+ * hit-testing are the browser's, and no assertion over source can stand in for
+ * them — what these tests can do is fail when the structure those behaviours
+ * depend on is taken apart.
  */
 
-const VIEW = new URL("../../components/taste-view.tsx", import.meta.url);
+const VIEW = new URL("../../components/stream-view.tsx", import.meta.url);
 const SECTION = new URL("../../components/section.tsx", import.meta.url);
 const CHIP = new URL("../../components/chip.tsx", import.meta.url);
 const LABELS = new URL("../../components/genre-labels.tsx", import.meta.url);
-const DIALOG = new URL("../../components/chosen.tsx", import.meta.url);
-const VIBES = new URL("../../components/vibe-cards.tsx", import.meta.url);
-const ROW = new URL("../../components/movie-row.tsx", import.meta.url);
-const SUMMARY = new URL("../../components/movie-summary.tsx", import.meta.url);
 const MARKS = new URL("../../components/movie-mark.tsx", import.meta.url);
-const EXIT = new URL("../../components/way-out.tsx", import.meta.url);
+const CHOICES = new URL("../../components/movie-choices.tsx", import.meta.url);
+const CARD = new URL("../../components/movie-card.tsx", import.meta.url);
+const STATUS = new URL("../../components/movie-status.tsx", import.meta.url);
+const LINKS = new URL("../../components/vibe-links.tsx", import.meta.url);
+const VIBE_VIEW = new URL("../../components/vibe-view.tsx", import.meta.url);
+const MOVIE_VIEW = new URL("../../components/movie-view.tsx", import.meta.url);
+const BACK = new URL("../../components/back-to-stream.tsx", import.meta.url);
+const FRAME = new URL("../../components/signed-in.tsx", import.meta.url);
+const VIBE_PAGE = new URL("../../app/vibe/page.tsx", import.meta.url);
+const MOVIE_PAGE = new URL("../../app/movie/page.tsx", import.meta.url);
 
 const source = readFileSync(VIEW, "utf8");
 const section = readFileSync(SECTION, "utf8");
 const chip = readFileSync(CHIP, "utf8");
-const model = readFileSync(new URL("./movie-summary.ts", import.meta.url), "utf8");
 const labels = readFileSync(LABELS, "utf8");
-const dialog = readFileSync(DIALOG, "utf8");
-const cards = readFileSync(VIBES, "utf8");
-const row = readFileSync(ROW, "utf8");
-const summary = readFileSync(SUMMARY, "utf8");
 const marks = readFileSync(MARKS, "utf8");
-const exit = readFileSync(EXIT, "utf8");
+const choices = readFileSync(CHOICES, "utf8");
+const card = readFileSync(CARD, "utf8");
+const status = readFileSync(STATUS, "utf8");
+const links = readFileSync(LINKS, "utf8");
+const vibeView = readFileSync(VIBE_VIEW, "utf8");
+const movieView = readFileSync(MOVIE_VIEW, "utf8");
+const back = readFileSync(BACK, "utf8");
+const frame = readFileSync(FRAME, "utf8");
+const vibePage = readFileSync(VIBE_PAGE, "utf8");
+const moviePage = readFileSync(MOVIE_PAGE, "utf8");
+const globals = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
 
-test("the resting page shows names and counts, and no instruction", () => {
-  // Neither kind of instruction is on the page at rest any more: a genre's is in
-  // the dialog its label opens, a vibe's is in the dialog its card opens. What is
-  // left outside is what can be scanned.
+/** Every file the redesigned screens added, by name, for the checks that hold all of them. */
+const NEW: [string, string][] = [
+  ["stream-view.tsx", source],
+  ["movie-card.tsx", card],
+  ["movie-status.tsx", status],
+  ["vibe-links.tsx", links],
+  ["vibe-view.tsx", vibeView],
+  ["movie-view.tsx", movieView],
+  ["movie-choices.tsx", choices],
+  ["back-to-stream.tsx", back],
+  ["signed-in.tsx", frame],
+  ["app/vibe/page.tsx", vibePage],
+  ["app/movie/page.tsx", moviePage],
+];
+
+test("the Stream shows no instruction, and each is rendered once, where it is read", () => {
+  // No instruction is on the Stream: a vibe's is on the vibe's own screen. What
+  // is on the Stream is what can be scanned — films and names.
   // Read as what is rendered rather than as the word: the page's own prose
   // explains that there is no instruction on it, and prose is not a defect.
   assert.equal(
-    /\.instruction\}|instruction=/.test(source),
+    /\.instruction\}|instruction=/.test(source + card),
     false,
-    "the page renders an instruction, or hands one to something that does",
+    "the Stream renders an instruction, or hands one to something that does",
   );
 
-  // And each is rendered in exactly one place, inside the dialog that owns it.
-  for (const [what, body, file] of [
-    ["a genre", bodyOf("Meaning", labels), labels],
-    ["a vibe", bodyOf("Detail", cards), cards],
-  ] as [string, string, string][]) {
-    assert.match(body, /\{vibe\.instruction\}|\{genre\.instruction\}/, `${what} has no meaning in its dialog`);
-    assert.equal(
-      (file.match(/\.instruction\}/g) ?? []).length,
-      1,
-      `${what}'s instruction is rendered in more than one place`,
-    );
-  }
+  // A vibe's is rendered once, on its screen.
+  assert.match(bodyOf("VibeView", vibeView), /\{vibe\.instruction\}/, "a vibe has no meaning on its screen");
+  assert.equal((vibeView.match(/\.instruction\}/g) ?? []).length, 1, "a vibe's instruction is rendered twice");
+
+  // A genre is a label and nothing more: the dialog that showed what one means is
+  // gone with the rest of the dialogs, and nothing replaced it.
+  assert.equal(/\.instruction\b/.test(labels), false, "a genre's instruction is rendered");
 });
 
-test("films in no vibe are one line under the vibes, not a section", () => {
-  const stack = bodyOf("VibeCards", cards);
+test("the Stream is every film, once, in one flat list, newest saved first", () => {
+  const view = bodyOf("StreamView");
 
-  // A film gets there by ordinary means — saying "I've seen that" files nothing,
-  // and deleting a vibe leaves its films behind — so it is the vibes' own
-  // remainder rather than a place of its own. It was a heading, a sentence and a
-  // list of rows; it is a line that opens the same dialog every other way in
-  // opens.
-  // Which films, and in which order, is `inNoVibe` — held in `vibes.test.ts`
-  // against fixtures that fail on a dropped item, a reversal or a filed film.
-  // What is left to pin here is that the component asks it and nothing else.
-  const declaration = stack.slice(stack.indexOf("const other ="));
+  // Which films, and in which order, is `stream` — held in `stream.test.ts`
+  // against fixtures that fail on a dropped film, a moved card or an undated film
+  // put first. What is pinned here is that the page asks it, and draws what it
+  // answers as one list of cards, with no vibe as their context.
+  assert.match(
+    view,
+    /<MovieCards movies=\{stream\(movies\)\} label="Your movies, most recently saved first" \/>/,
+    "the cards are not the films `stream` orders, or the list does not say what it is",
+  );
+  assert.equal((view.match(/<MovieCards\b/g) ?? []).length, 1, "the films are split across more than one list");
+  assert.equal(/<MovieCard\b|<ul\b|<li\b/.test(view), false, "the Stream draws films of its own");
+
+  // One list, and every card in it the same card.
+  const list = bodyOf("MovieCards", card);
+  assert.equal((list.match(/<ul\b/g) ?? []).length, 1);
+  assert.match(list, /<ul aria-label=\{label\}/, "the list does not say what it is");
+  assert.match(
+    list,
+    /\{movies\.map\(\(movie\) => \(\s*<MovieCard key=\{`\$\{movie\.year\} \$\{movie\.title\}`\} movie=\{movie\} from=\{from\} \/>/,
+  );
+
+  // No grouping of any kind: not by vibe, and not by how a film stands. A film
+  // in no vibe is a card like the rest, with no word standing in for the vibe.
   assert.equal(
-    declaration.slice(0, declaration.indexOf(";") + 1),
-    "const other = inNoVibe(movies);",
-    "the remainder is worked out here rather than by the rule, or changed after it",
+    /inOrder|filmsIn\(|selected\(|\.viewing ===|<Films\b/.test(view),
+    false,
+    "the Stream groups its films",
   );
-  assert.match(stack, /\{other\.length > 0 && \(/, "the line is shown when there are none");
-  assert.match(stack, /\{other\.length\} other movies/, "the line does not say how many there are");
-  assert.match(stack, /setOpen\(OTHER\)/, "the line opens something else");
-  assert.match(stack, /<Chosen title="Other movies" films=\{other\}/, "it opens a dialog of its own");
-
-  // Nothing of the section survives: no heading, no sentence under it, no rows
-  // on the page, and no ordering of its own.
-  assert.equal(/Other movies</.test(source), false, "the page still has the heading");
-  assert.equal(/<Loose|title="Other movies"/.test(source), false, "the section is still rendered");
-  assert.equal(/<Films/.test(stack), false, "the films are drawn on the page again");
-
-
-  // Set like the summary's own ways in, quiet and after the cards.
-  assert.match(stack, /\$\{WAY_IN\} hover:text-ink-soft/, "the line is set apart from the others");
-  assert.match(stack, /mt-3 text-\[12\.5px\] leading-relaxed text-ink-faint/);
-  assert.ok(
-    stack.indexOf("inOrder(vibes, movies)") < stack.indexOf("other.length > 0"),
-    "the line is set above the cards",
-  );
+  assert.equal(/Other movies|No vibe/.test(source + card), false, "a film in no vibe gets a placeholder");
 });
 
-test("nothing on the page offers to create anything", () => {
-  // The overview is grown in conversation. A create control here would make the
+test("nothing on any screen offers to create anything", () => {
+  // The model is grown in conversation. A create control here would make the
   // website the way in, which it deliberately is not.
-  for (const control of ["Add genre", "Add vibe", "Add movie", "Add film", "New genre", "New vibe"]) {
-    assert.equal(source.includes(control), false, `the overview offers "${control}"`);
+  for (const [name, file] of NEW) {
+    for (const control of ["Add genre", "Add vibe", "Add movie", "Add film", "New genre", "New vibe"]) {
+      assert.equal(file.includes(control), false, `${name} offers "${control}"`);
+    }
   }
 });
 
-test("a film list is a list, without rules, columns or pictures", () => {
-  const films = bodyOf("Films", row);
+test("a film list is a list of cards, without rules, columns or pictures", () => {
+  const list = bodyOf("MovieCards", card);
+  const drawn = list + bodyOf("MovieCard", card);
 
-  assert.ok(films.includes("<ul"), "the films are not a list");
-  assert.equal(/<table|<t[dhr]\b|role="(table|row|cell)"/.test(films), false, "it is a table");
-  assert.equal(/divide-|border-[tb]\b|border-y\b/.test(films), false, "it has row separators");
-  assert.equal(/<img|Image|poster|backdrop/i.test(films), false, "it carries an image");
+  assert.ok(list.includes("<ul"), "the films are not a list");
+  assert.equal(/<table|<t[dhr]\b|role="(table|row|cell)"/.test(drawn), false, "it is a table");
+  assert.equal(/divide-|border-[tb]\b|border-y\b/.test(list), false, "it has row separators");
+  assert.equal(/<img|Image|poster|backdrop/i.test(drawn), false, "it carries an image");
 
-  // The year is part of the film's name here, so it is set in the title's own
-  // type: no size, colour or numeric treatment of its own.
-  assert.match(films, /\{movie\.title\} \(\{movie\.year\}\)/, "the year is styled apart");
+  // The plain list of titles every vibe used to show is gone, and so is the
+  // mark drawn on each of its rows; the cards replace both.
+  for (const file of ["components/movie-row.tsx"]) {
+    assert.equal(existsSync(new URL(`../../${file}`, import.meta.url)), false, `${file} is still in the tree`);
+  }
+  assert.doesNotMatch(marks, /function MovieMark\b/, "the row's mark is still drawn");
 });
 
 test("the IMDb link says IMDb, and is absent when there is no id", () => {
-  const films = bodyOf("Films", row);
-  assert.match(films, /movie\.imdbId !== null/, "the link is not conditional on there being an id");
+  assert.match(bodyOf("MovieView", movieView), /movie\.imdbId !== null/, "the link is not conditional on there being an id");
 
-  const link = bodyOf("Imdb", row);
+  const link = bodyOf("Imdb", movieView);
   assert.match(link, /https:\/\/www\.imdb\.com\/title\//);
   assert.match(link, />\s*IMDb</, "the visible link text does not contain IMDb");
-});
-
-test("a row shows two marks, and each draws the answer the film carries", () => {
-  // Two, not one and not seven. A film answers two questions — whether it was
-  // watched and what they made of it — and a single mark showing both would
-  // have to pick which of two true things to draw.
-  assert.match(row, /<MovieMark mark=\{VIEWING\}/, "the row does not draw the viewing mark");
-  assert.match(row, /mark=\{JUDGEMENT\}/, "the row does not draw the judgement mark");
-  assert.match(row, /value=\{movie\.viewing\}/);
-  assert.match(row, /value=\{movie\.position\?\.judgement \?\? null\}/);
-
-  // And one component behind both, so the two cannot drift into two ways of
-  // drawing an answer.
-  assert.match(marks, /export function MovieMark<T>/);
-  assert.match(marks, /const chosen = mark\.choices\.find/);
-  assert.match(marks, /<current\.icon/, "the mark does not draw the current answer");
 });
 
 test("each answer has its Lucide icon, and nothing-said has its own", () => {
@@ -190,11 +194,7 @@ test("each answer has its Lucide icon, and nothing-said has its own", () => {
       `${value} is not drawn with ${icon}`,
     );
   }
-
-  // Circle draws the unset value on both marks, and is not one of the answers
-  // either offers: nothing in the model, the store or the tools knows about it.
-  assert.equal((marks.match(/unset: \{ label: "[^"]+", icon: Circle \}/g) ?? []).length, 2);
-  assert.equal(/value: "nothing_said"|value: "circle"/.test(marks), false, "Circle became an answer");
+  assert.match(marks, /value: null, label: "Nothing said", icon: MessageCircleOff/);
 });
 
 test("the viewing mark shows the three answers and no empty one", () => {
@@ -219,482 +219,60 @@ test("the judgement mark shows the three, and silence as its own answer", () => 
   );
 });
 
-test("a mark is an image with a name, not a control", () => {
-  const drawn = bodyOf("MovieMark", marks);
-
-  // What a listener hears is the question and the answer, the same sentence the
-  // pressable mark used to carry — and a pointer gets the answer as a tooltip,
-  // because there is no menu left to open to read it.
-  assert.match(drawn, /role="img"/, "the mark is not announced as an image");
-  assert.match(drawn, /aria-label=\{`\$\{mark\.asks\} \$\{title\} \(\$\{year\}\): \$\{current\.label\}`\}/);
-  assert.match(drawn, /title=\{current\.label\}/, "a pointer has no way to read the answer");
-  assert.match(drawn, /<current\.icon\n\s+aria-hidden="true"/, "the icon is read out as well as the label");
-
-  // Nothing to press and nothing to open: no button, no menu, no keyboard.
+test("the marks' vocabulary is how an answer looks, and nothing to press or send", () => {
+  // Where a film stands and what they made of it are written by a film's five
+  // choices, through their own route, and otherwise said to an assistant. This
+  // is only how each answer is drawn: no control, no request, no state.
   for (const [what, pattern] of [
     ["a button", /<button\b/],
     ["a menu", /role="menu|aria-haspopup|aria-expanded/],
     ["a key handler", /onKeyDown|onClick/],
-  ] as [string, RegExp][]) {
-    assert.doesNotMatch(marks, pattern, `the mark has ${what} again`);
-  }
-});
-
-test("a mark writes nothing, and keeps nothing of its own", () => {
-  // Where a film stands and what they made of it are said to an assistant. A
-  // mark that could send either would be a second way to write them, with a
-  // second set of rules and no tool description to say what it does.
-  for (const [what, pattern] of [
     ["a request", /\bfetch\s*\(|method:/],
     ["a route to write to", /endpoint|\/api\//],
     ["a router to refresh", /useRouter|router\./],
     ["state of its own", /\buse(State|Effect|Ref|Transition|Id)\b/],
   ] as [string, RegExp][]) {
-    assert.doesNotMatch(marks, pattern, `the mark has ${what}`);
+    assert.doesNotMatch(marks, pattern, `the marks have ${what}`);
   }
-
-  // And so it is no client component: a row renders on the server page and in
-  // the dialogs alike, and the mark goes with it either way.
-  assert.doesNotMatch(marks, /^"use client";/, "the mark is a client component again");
+  assert.doesNotMatch(marks, /^"use client";/, "the marks are a client component again");
   assert.equal(existsSync(new URL("./pending.ts", import.meta.url)), false, "the pending seam is back");
 });
 
-test("the counts sit above every film they count", () => {
-  const view = bodyOf("TasteView");
+test("the Stream is its heading, how many films, and then the films — nothing between", () => {
+  const view = bodyOf("StreamView");
 
-  // Given the whole collection, not a vibe's films: what is counted is spread
-  // across every vibe on the page.
-  assert.match(view, /<MovieSummary movies=\{movies\}/, "the page has no counts on it");
-
-  const at = view.indexOf("<MovieSummary");
-  assert.ok(at < view.indexOf('title="Your genres"'), "the counts are below the genres");
-  assert.ok(at < view.indexOf('title="Your vibes"'), "the counts are below the vibes");
-});
-
-test("the counts are one line of plain text, in one type", () => {
-  const films = bodyOf("MovieSummary", summary);
-
-  // The two questions, in the order they are read, laid end to end. Composed
-  // from the model's own lists so the order is the model's and not a second
-  // opinion about it, with an empty answer left out.
-  assert.match(films, /const row = \[\.\.\.WATCHED, \.\.\.SAID\]\.filter\(/);
-  assert.match(films, /row\.map\(\(selection, index\)/, "the row is not rendered as one list");
-
-  // One `Count` draws every control, so the answers cannot drift apart from one
-  // another: they are given the row's own type and nothing of their own.
-  const line = films.slice(films.indexOf("row.map"), films.indexOf("recent.length > 0"));
-  assert.equal((line.match(/<Count\b/g) ?? []).length, 1, "an item is drawn differently");
-  assert.match(line, /"hover:text-ink"/, "the answers carry a type of their own");
-
-  // The remainder steps down from that type — smaller and quieter, because it is
-  // what is left over rather than something somebody said — and it is the only
-  // exception, taken from a list rather than named at the item.
-  assert.match(line, /remainders\.includes\(selection\)/, "the exception is not one list");
+  // The films section is the heading and the count, and the cards straight under
+  // it: no line of counts by status, no "recently added", no summary of any kind.
   assert.match(
-    line,
-    /"text-\[12\.5px\] text-ink-faint hover:text-ink-soft"/,
-    "the remainder is not set quieter than the five",
+    view,
+    /<Section title="Your movies" count=\{movies\.length\}>\s*\{movies\.length === 0 \? \(/,
+    "something sits between the heading and the films",
   );
-  assert.match(films, /const remainders = \[NO_OPINION\];/);
-  assert.equal(
-    /font-|tracking-|opacity-|leading-(snug|tight)/.test(line),
-    false,
-    "an item is set apart by its weight, tracking, opacity or leading",
-  );
-
-  // The type is on the row, once.
-  const row = films.match(/className="flex flex-wrap items-baseline[^"]*"/);
-  assert.ok(row, "the row is not a wrapping line");
-  // The type the two facts were set in before the row was flattened, now the
-  // type of every item in it.
-  assert.match(row[0], /text-\[15px\]/, "the row is not set in the type the facts had");
-  assert.match(row[0], /leading-relaxed/, "the row's lines are set tighter than the facts were");
-  assert.match(row[0], /\btext-ink\b/, "the row is not set in the colour the facts had");
-
-  // Nothing left of the hierarchy that used to be drawn around them, and nothing
-  // that made a tile a tile.
-  assert.equal(/grid-cols-|border-l|\bpl-[34]\b/.test(films), false, "the hierarchy is back");
-  const inside = films.slice(films.indexOf('ref={lines}'), films.indexOf("</Section>"));
-  assert.equal(
-    /bg-screen|rounded-xl|rounded-2xl|border border-rule|font-display/.test(inside),
-    false,
-    "a count has been given a tile's surface again",
-  );
-
-  // Wrapping rather than overflowing, and a separator is written before the
-  // control it precedes and inside the same box — so a line cannot break after
-  // a dot and leave it hanging.
-  assert.match(films, /flex-wrap/, "the line cannot wrap");
-  assert.equal(/overflow-x|whitespace-nowrap|min-w-\[/.test(films), false, "a line can overflow");
-  assert.match(
-    line,
-    /<span key=\{selection\.key\} className="flex items-baseline[^"]*">\s*\{index > 0 && <Separator \/>\}/,
-    "a separator can be left dangling at the end of a line",
-  );
-});
-
-test("a count is a control, with the words first and the number after", () => {
-  const count = bodyOf("Count", summary);
-
-  assert.match(count, /<button/, "a count is not something you can press");
-  assert.match(count, /aria-haspopup="dialog"/, "a count does not say it opens a dialog");
-
-  // The words then the number, which is how it is set and how it is said — so
-  // the control's own text is its accessible name, and only the two whose words
-  // are not sufficient get a label of their own.
-  assert.match(count, /\{selection\.label\} <span className="tabular-nums">\{count\}<\/span>/);
-  assert.match(count, /aria-label=\{spoken\(selection, count\)\}/);
-  // The number is part of the name, not decoration, and there is no glyph left
-  // in here to hide from a listener — the arrow on `recently added` is passed in
-  // from outside, already hidden.
-  assert.equal(
-    (count.match(/aria-hidden="true"/g) ?? []).length,
-    0,
-    "something in the control is hidden from a listener",
-  );
-
-  // Hover and focus that read as navigation: an underline and a real focus ring,
-  // and nothing that turns it back into a pill. The line is there in both states
-  // and only its colour moves — see the test below for why switching the line
-  // itself made these flicker.
-  assert.match(count, /WAY_IN/, "a count is not set like the other ways in");
-  // The focus ring is part of the shared rule, and it is checked against that
-  // rule rather than against this file — see the test below.
-  assert.match(count, /WAY_IN/, "a count does not take its focus ring from the shared rule");
-  assert.equal(/rounded-full|px-3 py-1|bg-/.test(count), false, "a count is a pill again");
-});
-
-test("no heart, and no icon at all, in the summary", () => {
-  // The heart belonged to the hierarchy it sat in: a mark on one of five rungs.
-  // In two lines of text it was one glyph pretending to be a heading, so it is
-  // gone, and the summary draws no icon of its own.
-  assert.equal(/lucide-react/.test(summary), false, "the summary still imports an icon");
-  assert.equal(/<Heart|icon=|typeof Heart/.test(summary), false, "a count still draws an icon");
-});
-
-test("the total is beside the heading, and is not a tile", () => {
-  const films = bodyOf("MovieSummary", summary);
-
-  // The same heading treatment the genres and the vibes get, with every film
-  // counted — the ones nobody has said anything about included.
-  assert.match(
-    films,
-    /<Section[\s\S]{0,200}?title="Your movies"[\s\S]{0,200}?count=\{movies\.length\}/,
-    "the films section does not carry the total beside its heading",
-  );
-
-  // And not a second time as a tile. A number for "all of them" in the row
-  // invited reading the row as a breakdown of its first entry.
-  assert.equal(/"Total"/.test(summary + model), false, "Total is still a tile");
-});
-
-test("a control with nothing in it is left out of the row", () => {
-  const films = bodyOf("MovieSummary", summary);
-
-  // In the row with the rest and in the same type, and out of it entirely when
-  // there is none: nothing to say, and a zero would read as an answer that
-  // happens to be empty. The row is two exhaustive questions laid end to end,
-  // which is why it is filtered rather than assembled from a fixed spine.
-  assert.match(
-    films,
-    /const row = \[\.\.\.WATCHED, \.\.\.SAID\]\.filter\(\(one\) => selected\(one, movies\)\.length > 0\);/,
-    "the count is always shown",
-  );
-
-  const line = films.slice(films.indexOf("row.map"), films.indexOf("recent.length > 0"));
-  assert.match(
-    line,
-    /phrased=\{remainders\.includes\(selection\)\}/,
-    "the two remainders are not written as sentences",
-  );
-
-  // Quieter than the five, and still in their row: the step down is a size and a
-  // colour, not a line of its own, an indent or a container.
-  assert.match(line, /text-\[12\.5px\] text-ink-faint/, "the remainders are not set quieter");
-  assert.equal(
-    /border|\bpl-\d|<div/.test(line),
-    false,
-    "the remainders have been given a hierarchy of their own again",
-  );
-});
-
-test("one dialog serves every one of the seven ways in", () => {
-  const films = bodyOf("MovieSummary", summary);
-
-  // The same `Chosen`, whichever count was pressed — and now also for this
-  // week's arrivals, which is not a state at all. A second dialog for the odd
-  // one out would be two of everything a dialog does.
-  assert.equal(
-    (dialog.match(/element\.showModal\(\)/g) ?? []).length,
-    1,
-    "there is more than one films dialog",
-  );
-  assert.equal((films.match(/<Chosen/g) ?? []).length, 1, "the counts open different dialogs");
-  assert.match(films, /title=\{open\.label\}/, "the dialog is not named for what was pressed");
-
-  // Six of the seven are a set of states; the seventh is the week, and it is
-  // answered by `recentlyAdded` rather than by `selected`.
-  assert.match(
-    films,
-    /films=\{open === RECENT \? recent : selected\(open, movies\)\}/,
-    "the dialog is not given the films the pressed control stands for",
-  );
-  assert.match(summary, /const RECENT: Selection = \{/, "this week is not shaped like the others");
-  assert.match(summary, /holds: \(\) => false/, "this week claims to be an answer");
-});
-
-test("the summary is an overview of a collection, not a report about it", () => {
-  // Four numbers. No share of anything, no direction of travel, nothing to
-  // animate and no fifth metric — a tile reading "+3 this week" would be a claim
-  // about the user's habits, and this is a page for finding a film.
-  assert.equal(
-    // Word-bounded, so that an `HTMLParagraphElement` is not read as a graph.
-    /%|\bpercent|\bchart|\bgraph\b|\btrend|\bsparkline|\baverage|Math\.round|animate-/i.test(
-      summary,
-    ),
-    false,
-    "the summary grew a measurement of its own",
-  );
-
-  // The counts are not about when anything was saved. `Recently added` is —
-  // that is the whole of what it says — so the line is drawn around the
-  // arithmetic rather than around the module: what a film was said to be, and
-  // when it arrived, stay two separate questions.
-  // Read as the property being taken rather than as the word, because the
-  // module's own prose explains which timestamp it uses and why — and prose is
-  // not a defect.
-  const takes = /\.(createdAt|updatedAt)\b/;
-  assert.equal(takes.test(bodyOf("selected", model)), false, "a count reads a timestamp");
-  for (const [name, file] of [
-    ["the summary", summary],
-    ["a film's row", row],
-  ] as [string, string][]) {
-    assert.equal(takes.test(file), false, `${name} reads a timestamp`);
+  for (const [what, pattern] of [
+    ["a summary", /MovieSummary|recentlyAdded|selected\(|WATCHED|\bSAID\b/],
+    ["a count by status", /Recently added|with no opinion|No opinion|Seen \{|Want to see \{/],
+  ] as [string, RegExp][]) {
+    assert.doesNotMatch(source, pattern, `the Stream has ${what}`);
   }
 
-  // And `updatedAt` is taken nowhere. It moves when a mark is pressed, so a
-  // "recently added" built on it would answer "recently touched" and reorder
-  // itself under somebody's hand as they used it.
-  assert.equal(/\.updatedAt\b/.test(model), false, "the section reads the wrong timestamp");
+  // And the files that drew it are gone rather than orphaned.
+  for (const file of ["components/movie-summary.tsx", "lib/web/movie-summary.ts"]) {
+    assert.equal(existsSync(new URL(`../../${file}`, import.meta.url)), false, `${file} is still in the tree`);
+  }
 });
 
-test("the counts are absent when there is nothing to count", () => {
-  // Four zeros over an empty taste model read as a broken instrument. Same
-  // reasoning as the "Other movies" section, which is also absent when empty —
-  // and the arithmetic still holds, see `movie-summary.test.ts`.
-  assert.match(bodyOf("MovieSummary", summary), /if \(!movies\.length\) return null;/);
-});
+test("every section on the Stream is drawn by one component", () => {
+  const view = bodyOf("StreamView");
 
-test("a count opens the dialog the browser has, not one written here", () => {
-  const chosen = bodyOf("Chosen", dialog);
-
-  assert.match(chosen, /<dialog/, "the films open in something other than a dialog");
-  assert.match(dialog, /element\.showModal\(\);/, "it is not opened as a modal");
-
-  // Escape through the element's own `cancel`, and the backdrop is the element
-  // rather than a scrim of our own. `TasteEditor` does both the same way.
-  assert.match(chosen, /onCancel=\{\(event\) => \{/);
-  assert.match(chosen, /event\.target === dialog\.current/);
-  assert.match(chosen, /backdrop:bg-scrim/);
-
-  // Which means none of what `showModal` brings is re-implemented next to it: no
-  // role to declare, no trap to keep, no note of what to focus on the way out.
-  // Reading `document.activeElement` is not on this list — putting focus back
-  // after a row has been removed under the reader is the one thing the element
-  // does not do, and it is pinned as its own test below.
-  assert.equal(
-    /role="dialog"|aria-modal=|inert=|tabIndex=/.test(summary + dialog),
-    false,
-    "the dialog has grown a hand-written half",
-  );
-});
-
-test("the dialog shows the page's own rows, and says where each film is filed", () => {
-  const chosen = bodyOf("Chosen", dialog);
-
-  assert.match(chosen, /<Films movies=\{films\} filed/, "the dialog does not reuse the film list");
-  assert.equal(
-    /<Viewing|<li|imdb\.com/i.test(summary),
-    false,
-    "the dialog draws a film row of its own",
-  );
-
-  // The same heading treatment as a panel on the page, so what opens reads as
-  // the page in front of itself rather than as a second design.
-  assert.match(chosen, /<h2 className="font-display/);
-
-  // Inside a vibe the heading above the list already says where the films are, so
-  // only the dialog asks for it.
-  assert.equal(/<Films[^>]*filed/.test(source), false, "a vibe repeats its own name on every row");
-});
-
-test("a row reads title, year, IMDb, then where it is filed, then the mark", () => {
-  const films = bodyOf("Films", row);
-
-  const title = films.indexOf("{movie.title} ({movie.year})");
-  const imdb = films.indexOf("<Imdb id=");
-  const filed = films.indexOf("<Filed movie=");
-  const mark = films.indexOf("<MovieMark ");
-
-  assert.ok(title < imdb, "the IMDb link is not after the year");
-  assert.ok(imdb < filed, "the vibes come before the link out");
-  assert.ok(filed < mark, "the mark is not the last thing on the row");
-  assert.match(films, /\{filed && <Filed movie=\{movie\} \/>\}/, "the vibes are always shown");
-
-  // Every vibe, as plain secondary text. A chip is how a vibe appears when it is
-  // the subject; three of them on a film's row would out-shout the film's name.
-  const where = bodyOf("Filed", row);
-  assert.match(where, /filedUnder\(movie\)/, "the row decides for itself what to say");
-  assert.match(where, /text-ink-faint/, "where a film is filed is not secondary");
-  assert.equal(/<Chip|uppercase|slice\(0|\+ *\d/.test(where), false, "the vibes are abbreviated");
-});
-
-test("it is the same mark on a row in both places, with the same behaviour", () => {
-  // Not a second control that happens to look like it: the row is one component,
-  // rendered by the page and by the dialog, handing each mark the same things
-  // either way round. Everything the mark itself is held to — an image with a
-  // name, writing nothing — is pinned above and applies to a row in the dialog
-  // because it is the same row.
-  assert.match(
-    bodyOf("Films", row),
-    /<MovieMark mark=\{VIEWING\} value=\{movie\.viewing\} title=\{movie\.title\} year=\{movie\.year\} \/>/,
-  );
-
-  // The row file is on both sides of the client boundary — the server page
-  // renders it, the dialog ships it — so it must not claim one of them.
-  assert.doesNotMatch(row, /^"use client";/, "the row can no longer render on the server");
-  assert.match(summary, /^"use client";/, "the tiles cannot open anything");
-});
-
-test("neither a count nor an open list is a copy of the films", () => {
-  // The only state is which tile is open. Whenever the server renders a new
-  // `movies`, every count and the open list are computed from it again. So a film
-  // that no longer belongs to the open tile leaves the list, and the tile above
-  // it is already showing one fewer.
-  assert.match(summary, /useState<Selection \| null>\(null\)/);
-  assert.equal(
-    /useState[<(][^)]*Movie|useEffect\([^)]*movies/.test(summary),
-    false,
-    "the summary holds its own copy of the films",
-  );
-
-  assert.match(summary, /count=\{selected\(selection, movies\)\.length\}/);
-  // The list the dialog shows is worked out by the summary on every render and
-  // handed over, rather than derived inside a component that is unmounted and
-  // remounted around it — and never stored, so a new render cannot leave a stale
-  // list behind.
-  assert.match(bodyOf("MovieSummary", summary), /selected\(open, movies\)/);
-  assert.equal(
-    /useState[<(][^)]*Movie|useRef[<(][^)]*Movie\b/.test(summary),
-    false,
-    "the summary holds a copy of the films",
-  );
-});
-
-test("a press outside the card closes the dialog, and so do Escape and the way out", () => {
-  const chosen = bodyOf("Chosen", dialog);
-
-  // The press has to be able to land on the element: it is the surface the card
-  // sits on, and the card is its only child. A box of the dialog's own filling
-  // the viewport would be the target of every press outside the card instead,
-  // and Escape would quietly become the only way out.
-  assert.match(chosen, /if \(event\.target === dialog\.current\) onClose\(\);/);
-  assert.match(
-    chosen,
-    /<dialog[\s\S]*?className="m-0 h-dvh[^"]*w-dvw[^"]*overflow-y-auto[^"]*px-5 py-\[8vh\]/,
-    "the dialog is not the surface the card sits on",
-  );
-
-  const inside = chosen.slice(chosen.indexOf("backdrop:bg-scrim"));
-  assert.equal(
-    /min-h-dvh|h-dvh|w-dvw|w-screen|inset-0/.test(inside),
-    false,
-    "something inside the dialog covers it, so a press outside the card cannot reach it",
-  );
-
-  // The other two ways out are untouched by that.
-  assert.match(chosen, /onCancel=\{\(event\) => \{/, "Escape no longer closes it");
-  assert.match(chosen, /<WayOut\b/, "there is no way out of the dialog");
-});
-
-test("closing the dialog puts focus back on the control that opened it", () => {
-  const films = bodyOf("MovieSummary", summary);
-
-  // What was pressed is kept from the press — `event.currentTarget` — and not
-  // read back off the document: a pointer press does not make a button the
-  // active element in every browser, so `document.activeElement` would answer a
-  // question about the browser rather than about what somebody pressed.
-  assert.match(films, /invoker\.current = event\.currentTarget;/, "the press is not remembered");
-  // Every way in remembers its own press. Counted as handlers rather than as
-  // controls, because the row is rendered from a list: what has to hold is that
-  // no `Count` is given an `onOpen` that forgets.
-  const handlers = (films.match(/onOpen=\{\(event\) => \{/g) ?? []).length;
-  assert.equal(
-    (films.match(/invoker\.current = event\.currentTarget;/g) ?? []).length,
-    handlers,
-    "one of the controls does not remember what was pressed",
-  );
-  assert.equal((films.match(/<Count\b/g) ?? []).length, handlers, "a count opens nothing");
-
-  // The fallback is a control that is always there. `Not seen` is the first
-  // button inside the summary's lines and is rendered at nought, so focus has
-  // somewhere intentional to land when the invoker has gone.
-  assert.match(films, /lines\.current\?\.querySelector<HTMLButtonElement>\("button"\)/);
-
-  // And restoring it is this component's, not the dialog's: React unmounts a
-  // dialog in the same commit that closes it, so the only thing that can be sure
-  // of putting focus anywhere is the thing still mounted afterwards.
-  assert.match(films, /returnTo\(invoker\.current, document\.contains\(invoker\.current\)/);
-  const chosen = bodyOf("Chosen", dialog);
-  const from = chosen.indexOf("const element = dialog.current;");
-  const opening = chosen.slice(from, chosen.indexOf("useEffect", from));
-  assert.match(opening, /showModal\(\)/, "the effect sliced is not the one that opens it");
-  assert.doesNotMatch(opening, /\.focus\(\)/, "the dialog restores focus on its way out again");
-
-  // The two orderings of the race are decided in `refocus.ts` and tested there.
-  // What is pinned here is that both are asked: the invoker at the moment of
-  // closing, and — for the one that arrives after it — whatever focus was handed
-  // to, once it has left the document with nothing else taking focus.
-  assert.match(films, /rescueTo\(/, "the later half of the race is not handled");
-  assert.match(films, /document\.activeElement === document\.body/);
-  assert.match(films, /handedTo\.current = back;/, "what focus went to is not remembered");
-});
-
-test("the mark stays on the right of a row, however the words wrap", () => {
-  const films = bodyOf("Films", row);
-
-  // The words are one box that gives way: it grows into the room the mark does
-  // not want, and a long title with three long vibe names wraps inside it. The
-  // mark is that box's sibling rather than its last item, which is what keeps it
-  // on the right of the row's first line instead of being pushed under it.
-  assert.match(films, /className="flex min-w-0 flex-1 flex-wrap items-baseline/);
-  assert.ok(
-    films.includes("</span>\n          <span className=\"flex shrink-0 items-center"),
-    "the marks are inside the box that wraps, so a long row pushes them off the line",
-  );
-
-  // Which is also why the row is no longer three items spread apart: with two,
-  // one of them growing, there is nothing left to spread.
-  assert.equal(/justify-between/.test(films), false, "the row spreads its items again");
-});
-
-test("films, genres and vibes are three peers, drawn by one section", () => {
-  const view = bodyOf("TasteView");
-
-  // The three parts of a taste model, each a section of the page and none of
-  // them inside another. One component draws all three, which is what keeps
-  // their headings from drifting apart.
-  assert.match(
-    bodyOf("MovieSummary", summary),
-    /<Section[\s\S]{0,200}?title="Your movies"[\s\S]{0,200}?count=/,
-  );
-  assert.match(view, /<Section\n\s+title="Your genres"/);
-  assert.match(view, /<Section\n\s+title="Your vibes"/);
+  // The films, and the short list of vibes a film cannot reach. One component
+  // draws both headings, which is what keeps them from drifting apart.
+  assert.match(view, /<Section title="Your movies" count=\{movies\.length\}>/);
+  assert.match(view, /<Section\n\s+title="Vibes with no films"/);
+  assert.equal((view.match(/<Section\b/g) ?? []).length, 2, "the Stream has a section besides those two");
 
   // And the heading itself is written once, in that component. A second <h2> on
   // the page would be a section drawing its own.
-  assert.match(section, /<h2[\s\S]{0,400}?font-display text-\[26px\] leading-none/);
-  assert.match(section, /\{title\}\s*<\/h2>/, "the heading does not render the section's title");
+  assert.match(section, /<h2 className="font-display text-\[26px\] leading-none">\{title\}<\/h2>/);
   assert.equal(/<h2/.test(source), false, "the page draws a section heading of its own");
 });
 
@@ -714,378 +292,101 @@ test("a section carries no surface, and is not handed one", () => {
   // Nor through the class name it is given: that is the page's rhythm — where a
   // section sits — and nothing else.
   assert.equal(
-    /<Section[^>]*className="[^"]*(bg-|\bborder|rounded|\bp-\d|\bpx-\d|\bpy-\d)/.test(source + summary),
+    /<Section[^>]*className="[^"]*(bg-|\bborder|rounded|\bp-\d|\bpx-\d|\bpy-\d)/.test(source),
     false,
     "a section is handed a surface through its class name",
   );
 });
 
-test("each section keeps its own copy, and the films section stays quiet", () => {
-  const view = bodyOf("TasteView");
+test("each section keeps its own copy", () => {
+  const view = bodyOf("StreamView");
 
-  // The descriptive lines under the two headings are the ones that were there.
-  assert.match(view, /note="The pieces your taste is made of\./);
-  // The vibes line says what a vibe *means* and where it is built, in that
-  // order. It used to say "your genres, mixed into something of your own",
-  // which read as though mixing the genres produced the vibe — the one thing
-  // the model denies. So the meaning leads and the genres follow it.
-  assert.match(view, /note="What a night should feel like, in your words\. Built on your genres\."/);
-  assert.doesNotMatch(view, /mixed into something/u, "the mixing metaphor came back");
-
-  // The empty state, which taught the wrong model twice in one sentence. It
-  // read "ask ChatGPT for something two of your genres would both fit": find
-  // where two genres overlap and the vibe is what you find — which is the
-  // intersection the product denies — and two of them, when one is the
-  // invariant. It now asks for the idea first and the genres that belong in it.
+  // With no films, the one sentence that says where they come from: a
+  // conversation, not a form on this page.
   assert.match(
     view,
-    /Tell ChatGPT what kind of night you mean, and which of your genres belong in it\./u,
-    "the vibes empty state no longer asks for the idea and its genres",
+    /Nothing here yet\. Tell ChatGPT what you are in the mood for, and what you tell it can be\s+saved here\./u,
+    "the empty Stream no longer says where films come from",
   );
-  // Neither mistake, however it is reworded later.
+  // The short list says what it is.
+  assert.match(view, /note="Nothing is in these yet\."/);
+
+  // None of the Stream's copy reads a vibe as what its genres have in common, or
+  // asks for two genres when one is enough — the two mistakes the old empty
+  // state made, however it is reworded later.
   for (const derivation of [/would both fit/iu, /\boverlap\b/iu, /\bintersect/iu, /both of your genres/iu]) {
-    assert.doesNotMatch(view, derivation, "the empty state reads a vibe as what its genres have in common");
+    assert.doesNotMatch(view, derivation, "the Stream reads a vibe as what its genres have in common");
   }
   for (const plural of [/two of your genres/iu, /two genres/iu, /at least two/iu]) {
-    assert.doesNotMatch(view, plural, "the empty state asks for two genres, and one is enough");
+    assert.doesNotMatch(view, plural, "the Stream asks for two genres, and one is enough");
   }
-
-  // The films section carries the total beside its heading and a line under it
-  // saying what these films are, exactly as the other two do — three sections of
-  // one page, described the same way.
-  const movies = bodyOf("MovieSummary", summary);
-  const opening = movies.slice(movies.indexOf("<Section"), movies.indexOf(">", movies.indexOf("<Section")) + 1);
-  assert.match(opening, /title="Your movies"/, "the films section lost its heading");
-  assert.match(opening, /count=\{movies\.length\}/, "the total is no longer beside the heading");
-  assert.match(
-    opening,
-    /note="Films you've saved, seen, or want to watch\."/,
-    "the films section has no line saying what these films are",
-  );
+  assert.doesNotMatch(view, /mixed into something/u, "the mixing metaphor came back");
 });
 
-test("a genre is a compact label, and a vibe is a compact card", () => {
-  // A genre is its name and nothing else, so it is the size of its name and sits
-  // next to the others. A vibe is a composition, so it keeps a card — with the
-  // accent edge that says the user made it — and the card is now a name and two
-  // numbers rather than the whole vibe.
-  assert.match(
-    bodyOf("TasteView"),
-    /<GenreLabels genres=\{taste\.genres\} vibes=\{taste\.vibes\} movies=\{movies\}/,
-    "genres are not labels, or are not given what they need to reach their films",
-  );
-  assert.match(
-    bodyOf("TasteView"),
-    /<VibeCards vibes=\{taste\.vibes\} movies=\{movies\}/,
-    "the page does not hand the vibes their films",
-  );
+test("a genre is a compact label, on a vibe's screen only, and nothing to press", () => {
+  // A genre is its name and nothing else here, and it is listed in one place: a
+  // vibe's screen, the genres that vibe is built from.
+  assert.match(bodyOf("VibeView", vibeView), /<GenreLabels genres=\{genres\} \/>/);
+  assert.match(vibePage, /genres=\{genresOf\(vibe, held\.taste\.genres\)\}/, "a vibe is given other genres");
 
-  const row = bodyOf("GenreLabels", labels);
-  assert.match(row, /flex flex-wrap/, "the labels are not laid out to wrap");
-  assert.match(row, /<button/, "a label is not a control");
-  assert.match(row, /aria-haspopup="dialog"/, "a label does not say what it opens");
-  assert.equal(
-    /<Chevron|<details|<summary|open:|(?<!max-)\bw-full/.test(row),
-    false,
-    "a label can still expand in place, so opening one moves the others",
-  );
-  assert.match(row, /max-w-full/, "a long name can push the page sideways");
-  assert.match(row, /break-words/, "a name with no spaces in it has nowhere to break");
-  assert.match(row, /text-left/, "a name that wrapped onto two lines is centred");
-
-  // A vibe is not a card any more, and not a table row either. Ten bordered
-  // boxes on a raised ground read as a list of records; ten rules between them
-  // read as the same list with thinner lines. Nothing is drawn around a vibe or
-  // between two of them — the films summary above lost its tiles the same way.
-  const stack = bodyOf("VibeCards", cards);
-  assert.equal(
-    /rounded-xl|border border-beam-dim|\bdivide-/.test(stack),
-    false,
-    "a vibe has been given an edge again, around it or between it and the next",
-  );
-  // What marks one is its name. The accent is on the word the user chose rather
-  // than on geometry, which is the least of it that still says whose this is.
-  // The name is the only thing on a card set at that size, so the class it is
-  // given is unambiguous without slicing for it.
-  assert.match(
-    stack,
-    /font-display text-\[22px\][^"]*text-beam/,
-    "the vibe's name has lost the accent that says whose it is",
-  );
-  // And the space between them is what separates them.
-  assert.match(stack, /flex flex-col gap-\d/, "the vibes are not separated by space");
-});
-
-test("a closed vibe card is a name, what it is made of, and a loved count", () => {
-  const stack = bodyOf("VibeCards", cards);
-
-  // The name, the genres it combines, and — only when there are any — how many
-  // of its films are loved.
-  assert.match(stack, /\{vibe\.name\}/, "the card does not show what the vibe is called");
-  assert.match(stack, /\{vibe\.genres\.map\(/, "the card does not show what the vibe is made of");
-  assert.match(stack, /\{loved > 0 && \(/, "a vibe with nothing loved still shows a heart");
-  assert.match(stack, /<Heart /, "the loved signal is not the mark's own heart");
-  assert.match(stack, /\{loved\}/, "the heart is not given a number");
-
-  // One heart with a number beside it, never one per film: a row of hearts is a
-  // rating, and this is a count.
-  assert.equal((stack.match(/<Heart /g) ?? []).length, 1, "the hearts are being repeated");
-  assert.equal(/\.map\([^)]*Heart|Array\.from/.test(stack), false, "a heart is drawn per film");
-
-  // How many films are in it is not on the card. It is a measurement rather than
-  // a recognition, and beside the loved count it read as half of a score. Read
-  // as what is rendered, since the spoken label is still given the number.
-  assert.equal(
-    /\{films\.length\}/.test(stack),
-    false,
-    "the card shows how many films are in the vibe again",
-  );
-  assert.match(
-    stack,
-    /aria-label=\{spokenVibe\(vibe\.name, films\.length, loved\)\}/,
-    "a listener is no longer given the count the card leaves out",
-  );
-
-  // The genres are the chip the dialog already sets them in, not a variant of
-  // one: what a name looks like is one decision, and the ground it sits on is
-  // chosen where it is used. Asked of the two places separately, because one of
-  // them losing its chip is not something the other should be able to hide.
-  const region = enclosing(stack, "{vibe.genres.map(");
-  assert.match(region.contents, /<Chip\b/, "the card sets a genre some other way");
-  assert.match(bodyOf("Detail", cards), /<Chip\b/, "the dialog sets a genre some other way");
-  assert.equal(
-    /tracking-\[0\.11em\]|\buppercase\b/.test(cards),
-    false,
-    "a vibe draws chip typography of its own beside the shared rule",
-  );
-
-  // The row is a `<span>`, and that is not a preference: it sits inside the
-  // card's own `<button>`, which may hold phrasing content only, so a `<div>`
-  // here is markup the browser rewrites out from under React.
-  assert.equal(region.tag, "span", "the genre row is not phrasing content inside the button");
-
-  // Hidden from a listener, like every other part of the card: the button's own
-  // `aria-label` is what is read out, and these would repeat half of it.
-  assert.match(region.attributes, /aria-hidden="true"/, "the genre row is read out twice");
-
-  // A line of its own, and one that wraps: three long genre names on a narrow
-  // screen have to break rather than widen the card.
-  const laid = region.classes;
-  assert.ok(laid.length > 0, "the genre row is laid out by something other than a class list");
-  for (const rule of ["w-full", "flex", "flex-wrap"]) {
-    assert.ok(laid.includes(rule), `the genre row has no ${rule}, so it cannot take a line and wrap`);
+  // Not on the Stream: no section of genres no vibe is built from, no labels,
+  // and no copy about them. The genres themselves are untouched — this only
+  // stops listing them.
+  for (const [what, pattern] of [
+    ["genre labels", /GenreLabels/],
+    ["the loose genres", /looseGenres|\bloose\b/],
+    ["the section's heading or note", /Other genres|Genres no vibe is built from/],
+  ] as [string, RegExp][]) {
+    assert.doesNotMatch(source, pattern, `the Stream has ${what}`);
   }
-
-  // Informational, not interactive: a genre's own label opens its meaning on the
-  // page, and a control inside the card's own button is not a thing a browser
-  // will render.
-  assert.equal(
-    /<button|onClick|aria-haspopup/.test(region.contents),
-    false,
-    "a genre on the card can be pressed",
+  assert.doesNotMatch(
+    readFileSync(new URL("./stream.ts", import.meta.url), "utf8"),
+    /looseGenres/,
+    "what only the Stream's genre section used is still here",
   );
 
-  // Name, then what it is made of, then what is in it — the dialog's order, one
-  // level shorter, so that opening a card reads as the same thing at length.
-  const order = ["{vibe.name}", "{vibe.genres.map(", "{glance}"].map((mark) => stack.indexOf(mark));
-  assert.equal(order.some((at) => at === -1), false, "the card is missing one of the three");
-  assert.deepEqual([...order].sort((a, b) => a - b), order, "the three are out of order");
+  const line = bodyOf("GenreLabels", labels);
+  assert.match(line, /<ul className="flex flex-wrap/, "the labels are not one wrapping list");
+  assert.match(line, /<li\b/);
+  assert.match(line, /max-w-full/, "a long name can push the page sideways");
+  assert.match(line, /break-words/, "a name with no spaces in it has nowhere to break");
 
-  // And the rest of the vibe is still not on the closed card: no instruction, no
-  // film row, no mark. All of that is in the dialog.
-  assert.equal(
-    /instruction|<Films|Viewing/.test(stack),
-    false,
-    "the closed card still carries the vibe's details",
-  );
-});
-
-test("a card previews three of its films, quietly, under the name", () => {
-  const stack = bodyOf("VibeCards", cards);
-
-  // Titles and nothing else, and which three is a rule the card does not carry:
-  // `lib/web/vibes.ts` decides, and its own tests hold the ordering.
-  assert.match(stack, /const glance = preview\(films\);/, "the card chooses its own preview");
-  assert.match(stack, /\{glance !== null && \(/, "an empty vibe still gets a line");
-
-  // Under the name rather than beside it, and on a line of its own: `w-full` is
-  // what puts it there without disturbing the name or the loved signal above.
-  const line = stack.match(/className="([^"]*text-\[12\.5px\][^"]*)"[\s\S]{0,80}\{glance\}/);
-  assert.ok(line, "the preview is not the quiet aside it should be");
-  assert.match(line[1], /\bw-full\b/, "the preview shares a line with the name");
-  assert.match(line[1], /text-ink-faint/, "the preview is not quieter than the name");
-  assert.match(line[1], /text-left/, "the preview is centred");
-
-  // A film's title can be long and need not contain a space.
-  assert.match(line[1], /min-w-0/, "a long title can widen the card");
-  assert.match(line[1], /break-words/, "a long title has nowhere to break");
-
-  // Written after both numbers, which is what keeps them on one line together:
-  // a `w-full` item takes the line it is placed on, so putting the preview first
-  // pushed the heart down to a line of its own. Reading order is unaffected —
-  // the preview has a line to itself either way.
-  const name = stack.search(/>\s*\{vibe\.name\}\s*</);
-  assert.ok(name < stack.indexOf("{glance}"), "the preview is above the name");
-  assert.ok(
-    stack.indexOf("{loved}") < stack.indexOf("{glance}"),
-    "the preview is written before the heart, which costs the heart its line",
-  );
-});
-
-test("a vibe card opens its own dialog, in the order the vibe was built", () => {
-  const stack = bodyOf("VibeCards", cards);
-  assert.match(stack, /aria-haspopup="dialog"/, "the card does not say what it opens");
-  assert.match(stack, /setOpen\(vibe\)/, "pressing a card opens something else");
-  assert.match(stack, /<Detail\b/, "the card opens no dialog");
-  assert.match(stack, /vibe=\{open\}/, "the dialog is not given the vibe that was pressed");
-
-  const detail = bodyOf("Detail", cards);
-  assert.match(detail, /<dialog/, "the vibe opens in something other than a dialog");
-  assert.match(cards, /element\.showModal\(\);/, "it is not opened as a modal");
-
-  // Name, then what it is made of, then what it means, then what is in it —
-  // narrowing from the composition to the films, and the same order the card is
-  // read in. Keyed on the heading that shows the name rather than on the name
-  // itself: `aria-label={vibe.name}` is on the element above and would answer for
-  // a title that had been moved or removed.
-  const title = detail.search(/<h2[^>]*>\{vibe\.name\}<\/h2>/);
-  assert.notEqual(title, -1, "the dialog has no heading showing the vibe's name");
-
-  const order = [title, ...["<Chip", "{vibe.instruction}", "<Films"].map((mark) => detail.indexOf(mark))];
-  assert.equal(order.some((at) => at === -1), false, "the dialog is missing one of the four");
-  assert.deepEqual([...order].sort((a, b) => a - b), order, "the four are out of order");
-
-  // The films are the page's own rows, with their own marks, and the genres are
-  // chips rather than another set of controls: inside a dialog they are context.
-  assert.match(detail, /<Films movies=\{films\}/, "the dialog draws film rows of its own");
-  assert.equal(/<GenreLabels|aria-haspopup="dialog"/.test(detail), false, "a genre here opens a dialog");
-});
-
-test("a vibe dialog is dismissed like the others, and hands focus back to the card", () => {
-  const detail = bodyOf("Detail", cards);
-
-  assert.match(detail, /onCancel=\{\(event\) => \{/, "Escape does not close it");
-  assert.match(detail, /event\.target === dialog\.current/, "a press outside the card does nothing");
-  assert.match(detail, /<WayOut\b/, "there is no way out of the dialog");
-  assert.match(detail, /backdrop:bg-scrim/);
-  assert.equal(
-    /role="dialog"|aria-modal=|inert=|tabIndex=/.test(cards),
-    false,
-    "the dialog has grown a hand-written half",
-  );
-
-  // Escape is the element's own `cancel`, not a key handler written here.
-  assert.equal(/onKeyDown|"Escape"/.test(cards), false, "the dialog handles keys itself");
-
-  const stack = bodyOf("VibeCards", cards);
-  assert.match(stack, /invoker\.current = event\.currentTarget;/, "the card pressed is not kept");
-  assert.match(stack, /returnTo\([\s\S]{0,60}?document\.contains\(/);
-  assert.match(
-    stack,
-    /stack\.current\?\.querySelectorAll<HTMLElement>\("button"\)/,
-    "there is nowhere to put focus when the card pressed has gone",
-  );
-
-  // And what that choice answers is what is focused — deciding correctly and
-  // then not asking for focus would look the same in every other assertion here.
-  const chosen = stack.slice(stack.indexOf("const back = returnTo("));
-  assert.match(
-    chosen.slice(0, chosen.indexOf("\n  });")),
-    /back\?\.focus\(\);/,
-    "the element the rule chose is never asked to take focus",
-  );
-  assert.doesNotMatch(detail, /\.focus\(\)/, "the dialog restores focus on its way out again");
-});
-
-test("a long name stays inside the card, and inside the dialog", () => {
-  const stack = bodyOf("VibeCards", cards);
-
-  // A name is valid up to two hundred characters and need not contain a space.
-  // `min-w-0` is what makes the breaking mean anything: a flex item is as wide
-  // as its longest unbreakable word until it is allowed to be narrower, which
-  // is how a 63-character name came to be 507px wide in a 350px card.
-  //
-  // It is needed on the flex item the name is, which is the name's own element
-  // now that no count sits beside it — and it is checked against that element's
-  // own class list, because read over the whole file some other list would
-  // answer for it.
-  //
-  // That is the last plain class list before the name is rendered: the card
-  // itself builds its own from an array, so it is not one of them. Anchored on
-  // the name as an element's content rather than as text: `key=` and the spoken
-  // label both mention it, and both come first.
-  const rendered = stack.search(/>\s*\{vibe\.name\}\s*</);
-  assert.notEqual(rendered, -1, "the card no longer renders the vibe's name");
-  const upToTheName = stack.slice(0, rendered);
-  const lists = [...upToTheName.matchAll(/className="([^"]*)"/g)].map((match) => match[1]);
-  assert.ok(lists.length >= 1, "the name is no longer rendered with a class list of its own");
-
-  const name = lists[lists.length - 1];
-  assert.match(name, /font-display/, "the name is not the display type on the card");
-  assert.match(name, /min-w-0/, "a long name can widen the card");
-  assert.match(name, /break-words/, "a long name has nowhere to break");
-  assert.equal(
-    /truncate|text-ellipsis|line-clamp/.test(stack),
-    false,
-    "a name is being cut off to keep it on one line",
-  );
-
-  // The loved signal stays on the right even when the name pushes it onto a line
-  // of its own, which `justify-between` alone does not do for a single item.
-  const signal = stack.match(/className="([^"]*shrink-0[^"]*tabular-nums[^"]*)"/);
-  assert.ok(signal, "the loved signal is not the compact one it was");
-  assert.match(signal[1], /ml-auto/, "the loved signal falls to the left when it wraps");
-
-  // And a genre's name in the dialog is a chip, which carries the same
-  // protection on the rule itself: every chip holds something somebody typed.
-  // Read off the class list the chip actually renders with, because the file
-  // explains `min-w-0` in prose and prose is not a safeguard.
-  const chipClasses = bodyOf("Chip", chip).match(/className=\{`([^`]*)`\}/);
-  assert.ok(chipClasses, "a chip no longer renders a class list of its own");
-  for (const [rule, why] of [
-    ["min-w-0", "a long genre name can widen the dialog"],
-    ["max-w-full", "a chip can be wider than what it sits in"],
-    ["break-words", "a genre name with no spaces has nowhere to break"],
-  ] as [string, string][]) {
-    assert.ok(chipClasses[1].includes(rule), why);
+  // A label opens nothing: no button, no dialog, no list of films behind it.
+  for (const [what, pattern] of [
+    ["a button", /<button\b/],
+    ["a dialog", /<dialog|showModal|aria-haspopup/],
+    ["a handler", /onClick|onKeyDown/],
+    ["client code", /^"use client";|\buse(State|Effect|Ref)\b/m],
+    ["a list of films", /<Films\b|filmsUnder/],
+  ] as [string, RegExp][]) {
+    assert.doesNotMatch(labels, pattern, `a genre label has ${what}`);
   }
 });
 
-test("what a vibe card shows is read off the films, not held anywhere", () => {
-  const stack = bodyOf("VibeCards", cards);
-
-  // Membership from the vibe's own handles, loved from the same films — so a mark
-  // pressed in the dialog moves the heart by the next render. The arithmetic
-  // itself is `vibes.test.ts`.
-  assert.match(stack, /filmsIn\(vibe, movies\)/, "the card counts something other than its films");
-
-  // The order of the cards is the same kind of answer, and the same rule holds
-  // it: read off the films every render rather than kept anywhere. Which order,
-  // and why, is `vibes.test.ts`.
-  assert.match(stack, /inOrder\(vibes, movies\)\.map/, "the cards are not shown liveliest first");
-  assert.match(stack, /selected\(LOVED, films\)\.length/, "the heart counts something else");
-  assert.equal(
-    /useState[<(][^)]*Movie|useRef[<(][^)]*Movie\b/.test(cards),
-    false,
-    "the cards keep a copy of the films",
+test("a long name stays inside its card, and inside its heading", () => {
+  // A title is valid up to two hundred characters and a vibe's name up to sixty,
+  // and neither need contain a space. `min-w-0` is what makes the breaking mean
+  // anything: a flex or grid item is as wide as its longest unbreakable word
+  // until it is allowed to be narrower.
+  const drawn = bodyOf("MovieCard", card);
+  assert.match(drawn, /<h3 className="[^"]*\bmin-w-0\b/, "a long title can widen the card");
+  assert.match(drawn, /font-display text-\[22px\] leading-tight break-words/, "a long title has nowhere to break");
+  assert.match(bodyOf("VibeLinks", links), /min-w-0 break-words text-vibe/, "a long vibe name can widen the card");
+  assert.match(
+    bodyOf("VibeView", vibeView),
+    /<h2[\s\S]{0,120}?className="min-w-0[^"]*break-words/,
+    "a long vibe name can widen its screen",
   );
-});
-
-test("opening a genre cannot move the labels", () => {
-  const row = bodyOf("GenreLabels", labels);
-
-  // The dialog is a sibling of the line rather than a child of it: whatever it
-  // does, it does outside the flow the labels are laid out in.
-  const line = row.indexOf("flex flex-wrap");
-  const dialog = row.indexOf("<Meaning");
-  assert.ok(line < dialog, "the dialog is rendered before the labels");
-  assert.ok(
-    row.slice(line, dialog).includes("</div>"),
-    "the dialog is inside the wrapping line, where it can push the labels around",
+  assert.match(
+    bodyOf("MovieView", movieView),
+    /<h2 className="[^"]*min-w-0[^"]*break-words/,
+    "a long title can widen its screen",
   );
 
-  // And what is open is a genre, not a piece of layout.
-  assert.match(row, /useState<Genre \| null>\(null\)/, "the labels keep something else in state");
+  // And none is cut off to keep it on one line.
+  for (const [name, file] of NEW) {
+    assert.equal(/truncate|text-ellipsis|line-clamp/.test(file), false, `${name} cuts a name off`);
+  }
 });
 
 test("a name is set one way, on whichever surface it is read", () => {
@@ -1094,7 +395,7 @@ test("a name is set one way, on whichever surface it is read", () => {
   // the rule is declared and how the classes are joined are the component's
   // business, and a check on either would fail on a reformatting that changed
   // nothing.
-  const everywhere = source + labels + chip;
+  const everywhere = [source, labels, chip, ...NEW.map(([, file]) => file)].join("\n");
   for (const [rule, count] of [
     ["tracking-[0.11em]", (everywhere.match(/tracking-\[0\.11em\]/g) ?? []).length],
     ["uppercase", (everywhere.match(/\buppercase\b/g) ?? []).length],
@@ -1102,463 +403,393 @@ test("a name is set one way, on whichever surface it is read", () => {
     assert.equal(count, 1, `${rule} is written out in more than one place`);
   }
 
-  // Both the label and the chip inside a vibe reach for that one rule.
+  // A genre's label reaches for that one rule, and raises itself off the page.
   const label = bodyOf("GenreLabels", labels);
-  const inCard = bodyOf("Chip", chip);
   assert.match(label, /\bCHIP\b/, "a genre label sets its own name styling");
-  assert.match(inCard, /\bCHIP\b/, "a chip in a vibe sets its own name styling");
-
-  // And they are told apart by the ground each sits on: a genre labels itself on
-  // the page and is raised off it, the same name inside a vibe's card is cut into
-  // it. Whichever way they are written, the two must not end up the same.
   assert.match(label, /bg-screen/, "a genre label is not raised off the page");
   assert.doesNotMatch(label, /bg-night/, "a genre label is cut into the page");
-  assert.match(inCard, /bg-night/, "a chip in a vibe is not cut into the card");
-  assert.doesNotMatch(inCard, /bg-screen/, "a chip in a vibe is raised off the card");
 });
 
-test("a genre opens its films, in the rows the rest of the page uses", () => {
-  const dialog = bodyOf("Meaning", labels);
-
-  // The name, the meaning, then the films: the order a reader wants them, and
-  // the same `Films` a vibe's dialog and the summary's open. No second way of
-  // showing a film anywhere on this page.
-  assert.match(dialog, /<Films movies=\{films\}/, "a genre's films are not the page's own rows");
-  assert.ok(
-    dialog.indexOf("{genre.instruction}") < dialog.indexOf("<Films"),
-    "the films are above the meaning",
-  );
-  assert.match(dialog, /<Films[^>]*\bfiled\b/, "a row does not say which vibes it is filed in");
-
-  // Derived by the labels on every render and handed in, like every other list
-  // on this page: nothing in here holds a copy of a film, so what the store says
-  // shows by the next render.
-  const row = bodyOf("GenreLabels", labels);
-  assert.match(row, /films=\{filmsUnder\(open, vibes, movies\)\}/, "the films are not derived per render");
-  assert.equal(
-    /useState<(readonly )?Movie|useMemo|\.filter\(|\.map\(\(movie/.test(dialog),
-    false,
-    "the dialog works out or keeps its own films",
-  );
-
-  // No films is left as no films. A genre named and not yet combined into
-  // anything is an ordinary state, and a line describing the gap would read as
-  // something gone wrong.
-  assert.equal(
-    /films\.length === 0|Nothing here|No films/.test(dialog),
-    false,
-    "a genre with no films behind it says so instead of saying nothing",
-  );
-});
-
-test("a genre's meaning can be dismissed three ways, and hands focus back", () => {
-  const dialog = bodyOf("Meaning", labels);
-
-  // The same dialog the summary tiles open, for the same reasons: `showModal`
-  // brings the top layer, the page's inertness, Escape and the focus handed back
-  // to the control that opened it.
-  assert.match(dialog, /<dialog/, "the meaning opens in something other than a dialog");
-  assert.match(labels, /element\.showModal\(\);/, "it is not opened as a modal");
-  assert.match(dialog, /onCancel=\{\(event\) => \{/, "Escape does not close it");
-  assert.match(dialog, /event\.target === dialog\.current/, "a press outside the card does nothing");
-  assert.match(dialog, /<WayOut\b/, "there is no way out of the dialog");
-  assert.match(dialog, /backdrop:bg-scrim/);
-
-  // Which means none of what the element brings is re-implemented beside it: no
-  // role to declare, no trap to keep, no inertness to arrange.
-  assert.equal(
-    /role="dialog"|aria-modal=|inert=|tabIndex=/.test(labels),
-    false,
-    "the dialog has grown a hand-written half",
-  );
-
-  // A long name in the heading wraps rather than widening the card.
-  assert.match(dialog, /<h2[^>]*break-words/, "a long name can stretch the dialog");
-
-  // Focus on the way out is the exception, and it belongs to the labels rather
-  // than to this: React unmounts a dialog in the same commit that closes it. So
-  // what is pinned is that the label pressed is remembered from the press and
-  // restored by the component that outlives the dialog.
-  const row = bodyOf("GenreLabels", labels);
-
-  // The label that was pressed, taken from the press. Not `document.activeElement`
-  // — clicking a button does not make it the active element in every browser, so
-  // that would answer a question about the browser rather than about what
-  // somebody pressed.
-  assert.match(row, /invoker\.current = event\.currentTarget;/, "the label pressed is not kept");
-  assert.match(row, /onClick=\{\(event\) => \{/, "the press does not carry what was pressed");
-
-  // Restored to that exact button when it is still there, and to a label that is
-  // still there when it is not — renaming a genre re-keys its row — rather than
-  // to `<body>`, which is a reader at the top of the page with no way back.
-  assert.match(row, /returnTo\([\s\S]{0,60}?document\.contains\(/);
-  assert.match(
-    row,
-    /line\.current\?\.querySelectorAll<HTMLElement>\("button"\)/,
-    "there is nowhere to put focus when the label pressed has gone",
-  );
-  assert.match(row, /<div ref=\{line\}/, "the line of labels cannot be reached to fall back to");
-  assert.doesNotMatch(dialog, /\.focus\(\)/, "the dialog restores focus on its way out again");
-
-  // Nothing inside it writes. A genre is renamed and rewritten through an
-  // assistant, and a way to do it here would be a second set of rules about a name.
-  assert.equal(
-    /fetch\(|onSave|<input|<textarea|method: "/.test(labels),
-    false,
-    "the meaning has become a second editor",
-  );
-
-  // The card, the heading and the surface are the page's own.
-  assert.match(dialog, /rounded-2xl border border-rule bg-screen/);
-  assert.match(dialog, /<h2 className="[^"]*font-display/, "the name is not the dialog's heading");
-  assert.match(dialog, /aria-label=\{genre\.name\}/, "the dialog is not named for its genre");
-});
-
-/**
- * Nothing on the page manages anything.
- *
- * The page used to carry a management section at its foot — a list of names with
- * Edit and Delete beside each — and that list read as the real interface. Then a
- * delete lived inside each genre's and vibe's dialog. Neither is here now: the
- * website reads, and creating, renaming and deleting are conversation's work.
- */
-
-test("the page has no management section and no way to edit anything", () => {
-  // The foot of the page is prose and nothing else now.
-  const everywhere = source + labels + cards + summary + dialog + row + marks;
+test("no screen manages anything, and the one form is a film's five choices", () => {
+  const everywhere = [source, labels, marks, ...NEW.map(([, file]) => file)].join("\n");
   assert.equal(/Advanced/.test(everywhere), false, "the Advanced section is still here");
+  assert.equal(/<details|<summary/.test(source), false, "the Stream carries a collapsed section of its own");
+
+  // Nothing renames, rewrites or deletes: no field to type in, and no draft.
   assert.equal(
-    /<details|<summary/.test(source),
+    /<textarea|type="text"|new_name|onSave|Draft\b/.test(everywhere),
     false,
-    "the page still carries a collapsed section of its own",
+    "a screen can edit a genre, a vibe or a film's name",
   );
 
-  // No editing, and nothing standing in for it: no form, no field, no rename.
-  assert.equal(
-    /<input|<textarea|<form|new_name|onSave|Draft\b/.test(everywhere),
-    false,
-    "the page can still edit a genre or a vibe",
+  // One form, and the one kind of field it needs: which film it is about.
+  assert.deepEqual(everywhere.match(/<form\b[^>]*>/g), [
+    '<form method="post" action="/movie/choose" className="mt-4 flex flex-wrap gap-2">',
+  ]);
+  assert.deepEqual(
+    [...choices.matchAll(/<input type="(\w+)" name="(\w+)"/g)].map((match) => `${match[1]} ${match[2]}`),
+    ["hidden title", "hidden year", "hidden from"],
   );
 
-  // Nor anything that deletes. No endpoint is named and no delete is offered.
-  assert.equal(/\/api\//.test(everywhere), false, "the page names a write endpoint");
+  // Nor anything that deletes, and no other endpoint.
+  assert.equal(/\/api\//.test(everywhere), false, "a screen names a write endpoint");
   assert.equal(/<Manage\b|onRemoved/.test(everywhere), false, "a genre or vibe can be deleted here");
-
   for (const control of ["Edit", "Rename", "Delete", "Add genre", "Add vibe", "New genre", "New vibe"]) {
     assert.equal(
       new RegExp(`>\\s*${control}\\s*<|>${control}</`).test(everywhere),
       false,
-      `the page offers "${control}"`,
+      `a screen offers "${control}"`,
     );
   }
 
   // And the files that held all of it are gone rather than orphaned.
-  for (const file of ["taste-advanced.tsx", "taste-editor.tsx", "manage.tsx"]) {
-    assert.equal(
-      existsSync(new URL(`../../components/${file}`, import.meta.url)),
-      false,
-      `${file} is still in the tree`,
-    );
+  for (const file of [
+    "taste-advanced.tsx",
+    "taste-editor.tsx",
+    "manage.tsx",
+    "taste-view.tsx",
+    "vibe-cards.tsx",
+  ]) {
+    assert.equal(existsSync(new URL(`../../components/${file}`, import.meta.url)), false, `${file} is still in the tree`);
   }
 });
 
-test("both detail dialogs carry a heading and a way out, and nothing to manage with", () => {
-  for (const [what, body] of [
-    ["a genre", bodyOf("Meaning", labels)],
-    ["a vibe", bodyOf("Detail", cards)],
-  ] as [string, string][]) {
-    // Nothing that changes the thing the dialog is about.
-    assert.equal(/<Manage\b|onRemoved|aria-haspopup="menu"/.test(body), false, `${what} can be managed here`);
-
-    // The name, then the way out at the end of that row, which is the top right.
-    const header = body.slice(body.indexOf("<header"), body.indexOf("</header>"));
-    assert.match(header, /justify-between/, `${what}'s way out is not at the end of the heading row`);
-    assert.ok(header.indexOf("<h2") < header.indexOf("<WayOut"), `${what}'s way out comes first`);
-    // A name can wrap to several lines and must not carry the control down with it.
-    assert.match(header, /items-start/, `${what}'s way out is aligned to a wrapping name`);
-    assert.match(header, /<h2[^>]*\bmin-w-0\b/, `a long name can widen ${what}'s dialog`);
-  }
-});
-
-test("a genre or vibe that has gone hands focus on rather than dropping it", () => {
-  // The rules themselves are `refocus.test.ts`, including which control each
-  // case should land on. What is pinned here is that both islands ask them, and
-  // ask them with everything their section has left.
-  const line = bodyOf("GenreLabels", labels);
-  const stack = bodyOf("VibeCards", cards);
-
-  for (const [what, body, own] of [
-    ["the genres", line, /line\.current\?\.querySelectorAll/],
-    ["the vibes", stack, /stack\.current\?\.querySelectorAll/],
-  ] as [string, string, RegExp][]) {
-    assert.match(body, /fallbackTo\(/, `${what} still fall back to a single control`);
-    assert.match(body, own, `${what} do not offer what the section has left`);
-    // The heading, last: a section that has been emptied still has one, and the
-    // island that drew its controls is unmounted with them.
-    assert.match(body, /sectionFallback\(/, `${what} have nowhere to go when the section empties`);
-
-    // The pressed control is not its own fallback, and it is what focus goes
-    // back to whenever it is still there.
-    const chain = body.slice(body.indexOf("fallbackTo("), body.indexOf("if (open === null"));
-    assert.match(chain, /invoker\.current/, `${what} can fall back to the control that went`);
-    assert.match(body, /returnTo\(pressed, document\.contains\(pressed\)/, `${what} do not return focus`);
-    assert.equal(/removed\.current|onRemoved/.test(body), false, `${what} still tell a delete apart`);
-
-    // And again after the render, for the other order of the same race.
-    assert.match(body, /rescueTo\(/, `${what} do not look again once the page comes back`);
-  }
-
-  // The vibes prefer another card, then the films that are in no vibe, then the
-  // heading — the order a reader would go looking in.
-  assert.match(
-    stack,
-    /\[\.\.\.cards, remainder\.current, sectionFallback\(stack\.current\)\]/,
-    "the vibes do not prefer a card, then the remainder, then the section",
+test("a vibe's screen carries its name, and nothing to manage it with", () => {
+  const heading = enclosing(bodyOf("VibeView", vibeView), "{vibe.name}");
+  assert.equal(heading.tag, "h2", "the vibe's name is not its screen's heading");
+  assert.equal(
+    /<Manage\b|onRemoved|aria-haspopup|<button\b|<form\b/.test(vibeView),
+    false,
+    "a vibe can be managed on its screen",
   );
-  assert.match(cards, /ref=\{remainder\}/, "the remainder's line cannot be focused");
-
-  // The last resort is real, and on every section: focusable, and out of the tab
-  // order so that nobody has to pass three headings to reach the page.
-  assert.match(section, /data-fallback/, "a section has no last resort for focus");
-  assert.match(section, /tabIndex=\{-1\}/, "the heading cannot be given focus");
-  assert.match(section, /export function sectionFallback/, "the anchor is found by two spellings");
+  assert.match(bodyOf("VibeView", vibeView), /<BackToStream \/>/, "there is no way back to the Stream");
 });
 
 /**
- * The way out of a dialog.
+ * No dialog is left.
  *
- * One control, in the top right of every dialog on the page, and the same
- * questions asked of all three of them: a reader who learns where it is in one
- * should find it in the others. It used to be a button at the foot of the card,
- * which put the way out below however much the dialog held.
+ * The website used to open a dialog full of film rows from its counts, from a
+ * genre's label and from the films in no vibe. All of it is gone, not hidden: a
+ * film is opened on its own screen, a vibe on its own, and nothing pops up over
+ * either.
  */
 
-test("every dialog is left by a × in its header, and nothing at its foot", () => {
-  for (const [whose, body, file] of [
-    ["the films dialog's", bodyOf("Chosen", dialog), dialog],
-    ["a genre's", bodyOf("Meaning", labels), labels],
-    ["a vibe's", bodyOf("Detail", cards), cards],
-  ] as [string, string, string][]) {
-    // In the header, once, and given both what it closes and the closing.
-    const header = body.slice(body.indexOf("<header"), body.indexOf("</header>"));
-    assert.match(header, /<WayOut\b/, `${whose} way out is not in its header`);
-    assert.equal((body.match(/<WayOut\b/g) ?? []).length, 1, `${whose} dialog has two ways out`);
-
-    const given = header.slice(header.indexOf("<WayOut"));
-    assert.match(given, /name=\{/, `${whose} way out is not named for what it closes`);
-    assert.match(given, /onClose=\{onClose\}/, `${whose} way out does not close the dialog`);
-
-    // Rightmost, which here means last: the header lays its controls out in the
-    // order they are written, so the `×` is written after everything else.
-    const controls = [...header.matchAll(/<(WayOut|button)\b/g)].map((match) => match[1]);
-    assert.equal(controls.at(-1), "WayOut", `${whose} way out is not the last control in the row`);
-
-    // And nothing is left at the foot of the card.
-    assert.equal(
-      />\s*Close\s*</.test(file),
-      false,
-      `${whose} dialog still has a Close button at the foot`,
-    );
+test("no dialog is left anywhere, and nothing that drew one", () => {
+  const roots = ["app", "components", "lib/web"];
+  for (const root of roots) {
+    const base = new URL(`../../${root}/`, import.meta.url);
+    for (const entry of readdirSync(base, { recursive: true, encoding: "utf8" })) {
+      if (!/\.(tsx?|css)$/.test(entry) || /\.test\.ts$/.test(entry)) continue;
+      const text = readFileSync(new URL(entry, base), "utf8");
+      for (const [what, pattern] of [
+        ["a dialog", /<dialog\b|showModal\(|role="dialog"|aria-haspopup="dialog"/],
+        ["the old films dialog", /\bChosen\b|\bWayOut\b|\bWAY_IN\b|refocus\.ts|returnTo\(|rescueTo\(|fallbackTo\(/],
+        ["a focus fallback for one", /sectionFallback|data-fallback|--color-scrim|backdrop:/],
+      ] as [string, RegExp][]) {
+        assert.doesNotMatch(text, pattern, `${root}/${entry} has ${what}`);
+      }
+    }
   }
 
-  // One control, drawn once: an `×`, named for what it closes, set by the one
-  // rule for a control in a header.
-  const drawn = bodyOf("WayOut", exit);
-  assert.match(exit, /from "lucide-react"/, "the × is drawn by hand");
-  assert.match(drawn, /<X\b/, "the way out is not an ×");
-  assert.match(drawn, /aria-label=\{`Close \$\{name\}`\}/, "a listener is not told what it closes");
-  assert.match(drawn, /\bHEADER_CONTROL\b/, "the way out sets its own styling");
-
-  const at = exit.indexOf("export const HEADER_CONTROL");
-  assert.notEqual(at, -1, "there is no one rule for a control in a header");
-  const rule = exit.slice(at, exit.indexOf(";", at) + 1);
-  for (const word of ["size-8", "rounded-md", "hover:bg-ink/10", "focus-visible:outline-beam"]) {
-    assert.ok(rule.includes(word), `a control in a header has no ${word}`);
+  for (const file of [
+    "components/chosen.tsx",
+    "components/way-out.tsx",
+    "components/movie-summary.tsx",
+    "lib/web/movie-summary.ts",
+    "lib/web/refocus.ts",
+  ]) {
+    assert.equal(existsSync(new URL(`../../${file}`, import.meta.url)), false, `${file} is still in the tree`);
   }
-
-  // It closes and reaches for nothing else. Escape, a press outside the card and
-  // where focus goes afterwards are all unchanged and none of them is here: two
-  // of them are the dialog's own, and the third belongs to whatever opened it.
-  assert.match(drawn, /onClick=\{onClose\}/, "the way out does something other than close");
-  assert.equal(
-    /\.focus\(\)|useState|useEffect|preventDefault|showModal\(/.test(exit),
-    false,
-    "the way out has taken over something the dialog or the page was doing",
-  );
-
-  // The `×` is a shape, so it is hidden from a listener: the control's own name
-  // is what is read out.
-  assert.match(drawn, /<X aria-hidden="true"/, "the × is read out as a character");
 });
 
-test("a way in's underline is there in both states, and only its colour moves", () => {
-  // One rule for every way into the collection — the summary's seven and the
-  // vibes' remainder — so a reader never has to work out whether two of them
-  // behave the same.
-  // Read as the value it declares, not as the way it is written: one string, an
-  // array joined, or anything else that comes out the same is the same rule.
-  // Everything below is asserted against that declaration alone: read over the
-  // whole file, some other control's own styling could answer for this rule.
-  const at = dialog.indexOf("export const WAY_IN");
-  assert.notEqual(at, -1, "there is no one rule for a way in any more");
-  const rule = dialog.slice(at, dialog.indexOf(";", at) + 1);
+/**
+ * The Stream's cards, and the two screens they open.
+ *
+ * What a card is made of and what it leaves out, which part of it is pressed for
+ * what, and what a vibe's and a film's screen show. Which films and in which
+ * order is `stream.test.ts`; what a URL may choose is `screens.test.ts`; what a
+ * film's choices mean is `choices.test.ts`, and what they write `choose.test.ts`.
+ */
 
-  // The line exists at rest and on hover; hover changes the colour. Switching
-  // the *line* on and off is what made these flicker: the controls are a few
-  // words tall with little between them, so a pointer crossing the block leaves
-  // and re-enters several of them, and each crossing flashed a line into
-  // existence. A colour is transitionable, and a line is not.
-  assert.match(rule, /\bunderline\b/, "the resting line is gone");
-  assert.match(rule, /decoration-transparent/, "the resting line is visible");
-  assert.match(rule, /hover:decoration-/, "hover does not change the line's colour");
-  // `no-underline` is rejected in any form, not only a hovered one: bare, it
-  // takes the resting line away — and `\bunderline\b` above would still match
-  // inside the word, so the rest of this test would go on passing.
-  assert.equal(
-    /hover:underline|\bno-underline\b|group-hover:underline/.test(rule),
-    false,
-    "the underline is switched on and off again",
+test("a film's card is its year, how it stands, its title and its vibes, and nothing else", () => {
+  const drawn = bodyOf("MovieCard", card);
+
+  // A dark card of its own: the screen's surface, an edge and rounded corners —
+  // a thing of its own, not a line in a table.
+  const li = drawn.match(/<li className="([^"]*)"/);
+  assert.ok(li, "a card is not a list item with a class list of its own");
+  for (const rule of ["relative", "rounded-xl", "border", "border-rule", "bg-screen"]) {
+    assert.ok(li[1].split(/\s+/).includes(rule), `a card has no ${rule}`);
+  }
+
+  // The year, quiet and apart from the title, and hidden from a listener: the
+  // title's link says it.
+  assert.match(
+    drawn,
+    /<span aria-hidden="true" className="[^"]*text-ink-faint[^"]*tabular-nums[^"]*">\s*\{movie\.year\}\s*<\/span>/,
+    "the year is not the quiet aside it should be",
   );
+  assert.match(drawn, /<span className="sr-only"> \(\{movie\.year\}\)<\/span>/, "a listener is not told the year");
 
-  // The keyboard's own signal, on the rule itself: a ring, offset off the text,
-  // in the page's one accent. Every way in gets it because every way in is set
-  // from here.
-  assert.match(rule, /focus-visible:outline-2/, "the rule gives no focus ring");
-  assert.match(rule, /focus-visible:outline-offset-2/, "the ring sits on the words");
-  assert.match(rule, /focus-visible:outline-beam/, "the ring is not the page's accent");
+  // The title, in the display type and larger than anything else on the card.
+  assert.match(drawn, /font-display text-\[22px\]/, "the title is not set in the display type");
+  const sizes = [...card.matchAll(/text-\[(\d+(?:\.\d+)?)px\]/g)].map((match) => Number(match[1]));
+  assert.equal(Math.max(...sizes), 22, "something on the card is set larger than the title");
 
-  // And nothing about hover touches the box: no border, width or padding that
-  // only one state has.
-  assert.equal(
-    /hover:(border|p[xytblr]?-|w-|h-|text-\[)/.test(rule),
-    false,
-    "hover changes the control's geometry",
+  // How it stands, and every vibe it is in — and no line at all for none.
+  assert.match(
+    drawn,
+    /<MovieStatus\s+viewing=\{movie\.viewing\}\s+judgement=\{movie\.position\?\.judgement \?\? null\}/,
+    "the status is not the film's own",
   );
+  assert.match(drawn, /\{movie\.vibes\.length > 0 && \(/, "a film in no vibe still gets a line");
+  assert.match(drawn, /<VibeLinks names=\{movie\.vibes\} label="Vibes:" raised \/>/, "the card names other vibes");
 
-  // Both places use it, and neither writes the treatment out again.
-  assert.match(bodyOf("Count", summary), /WAY_IN/, "a count is set some other way");
-  assert.match(bodyOf("VibeCards", cards), /WAY_IN/, "the remainder is set some other way");
-  for (const [name, file] of [
-    ["the summary", summary],
-    ["the vibe cards", cards],
-  ] as [string, string][]) {
+  // And nothing else: no genre, no mark to press, no picture, no date, and no
+  // word standing in for a missing vibe.
+  for (const [what, pattern] of [
+    ["a genre", /genre|<Chip|CHIP|GenreLabels/i],
+    ["a mark", /<MovieMark/],
+    ["a picture", /<img|Image|poster|backdrop/i],
+    ["a synopsis", /synopsis/i],
+    ["a date", /createdAt|updatedAt/],
+    ["a placeholder for no vibe", /Other movies|No vibe/],
+  ] as [string, RegExp][]) {
+    assert.doesNotMatch(drawn, pattern, `a card shows ${what}`);
+  }
+});
+
+test("a card is one link to its film, and only a vibe's name is raised above it", () => {
+  const drawn = bodyOf("MovieCard", card);
+
+  // The title is the card's one link, to the film — with the vibe it is listed
+  // under as its context on that vibe's screen, and none on the Stream —
+  // stretched over the whole card, which carries the focus ring while it has
+  // focus.
+  assert.equal((drawn.match(/<Link\b/g) ?? []).length, 1, "the card has a second link of its own");
+  assert.match(drawn, /<Link\s+href=\{movieHref\(movie, from\)\}\s+prefetch=\{false\}/, "the card's link is not the film's");
+  assert.doesNotMatch(bodyOf("StreamView"), /<MovieCards\b[^>]*\bfrom=/, "a card on the Stream is given a vibe");
+  assert.match(drawn, /after:absolute after:inset-0/, "the title's link does not cover the card");
+  assert.match(drawn, /focus-visible:after:outline-beam/, "the card shows no focus ring");
+
+  // Each name is raised above it, and never the line around them: the ✨, the
+  // separators and the gaps fall through to the film.
+  const names = bodyOf("VibeLinks", links);
+  assert.match(names, /raised \? "relative z-10" : ""/, "a name is not raised above the card's link");
+  for (const [, classes] of names.matchAll(/className="([^"]*)"/g)) {
     assert.equal(
-      /decoration-transparent/.test(file),
+      /\brelative\b|\bz-\d/.test(classes),
       false,
-      `${name} writes the underline treatment out again`,
+      "something around the names is raised, so a press on it no longer opens the film",
     );
   }
 });
 
-test("recently added is one quiet control, not a list", () => {
-  const films = bodyOf("MovieSummary", summary);
+test("a card reads title, status, then vibes, and shows the year and status first", () => {
+  const drawn = bodyOf("MovieCard", card);
 
-  // A count and an arrow, and the films themselves behind the same dialog every
-  // other count opens. No rows on the page: the summary says what there is, and
-  // opening something is how you see it.
-  assert.match(films, /\{recent\.length > 0 && \(/, "an empty week still gets a control");
-  assert.match(films, /selection=\{RECENT\}/, "the control stands for something else");
-  assert.match(films, /count=\{recent\.length\}/, "the control does not say how many there are");
-  assert.match(films, /setOpen\(RECENT\)/, "the control opens something else");
-  assert.equal(/<Films/.test(films), false, "the recent films are drawn on the page again");
-  assert.match(bodyOf("Chosen", dialog), /<Films movies=\{films\}/, "the dialog draws no rows");
-  assert.equal(/Recently added<\/h3>|<h3/.test(summary), false, "the subsection heading is back");
+  // The order a listener and the keyboard meet the parts in.
+  const order = ["<h3", "<MovieStatus", "<VibeLinks"].map((mark) => drawn.indexOf(mark));
+  assert.equal(order.some((at) => at === -1), false, "the card is missing one of the three");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "the card is read out of order");
 
-  // Quieter than the row, which is the one place weight says something.
-  const control = films.slice(films.indexOf("recent.length > 0"));
-  assert.match(control, /text-ink-faint/, "the control is not quieter than the row");
-  // A step away from the row, not a paragraph break: it is a separate action and
-  // it belongs to the same compact summary.
-  assert.match(control, /mt-3/, "there is no room between the row and the control");
+  // And where each is seen, placed by the grid rather than by that order: the
+  // year and the status on the top row, the title under them, and the vibes
+  // directly under the title.
+  assert.match(drawn, /grid grid-cols-\[minmax\(0,1fr\)_auto\]/, "the card is not laid out by a grid");
+  assert.match(drawn, /className="col-start-1 row-start-1\b/, "the year is not at the top left");
+  assert.match(drawn, /className="col-start-2 row-start-1"/, "the status is not at the top right");
+  assert.match(drawn, /<h3 className="col-span-2 row-start-2\b/, "the title is not under the top row");
+  assert.match(drawn, /<div className="col-span-2 row-start-3\b/, "the vibes are not directly under the title");
+});
 
-  // The page settles the instant, once, where the render happens.
+test("a status is the marks' own icon and word, and only loved and liked are coloured", () => {
+  const drawn = bodyOf("MovieStatus", status);
+
+  // Which facts is `statusOf`'s rule; how each is drawn is the marks' vocabulary,
+  // so a card cannot draw a verdict differently from a film's screen.
+  assert.match(drawn, /statusOf\(viewing, judgement\)/, "the status decides for itself what to show");
+  assert.match(status, /VIEWING\.choices\.find/);
+  assert.match(status, /JUDGEMENT\.choices\.find/);
+  assert.equal(/from "lucide-react"/.test(status), false, "the status draws icons of its own");
+
+  // An icon and its word: the icon hidden from a listener, the word read.
+  assert.match(drawn, /<Icon\s+aria-hidden="true"/, "the icon is read out as well as the word");
+  assert.match(drawn, /\{choice\.label\}/, "the status is an icon without its word");
+
+  // Loved in pink, liked in blue, and everything else quiet — disliked included.
+  assert.match(status, /loved: "text-loved"/);
+  assert.match(status, /liked: "text-liked"/);
+  assert.match(drawn, /TONE\[key\] \?\? "text-ink-soft"/, "the other statuses are not quiet");
+  assert.equal(/alarm|text-red|disliked:/.test(status), false, "a verdict is drawn as an error");
+  for (const token of ["--color-loved:", "--color-liked:", "--color-vibe:"]) {
+    assert.ok(globals.includes(token), `${token} is not defined`);
+  }
+
+  // Read, never pressed, and nothing of its own: no client code at all.
+  for (const [what, pattern] of [
+    ["client code", /^"use client";/m],
+    ["state", /\buse(State|Effect|Ref)\b/],
+    ["a button", /<button\b/],
+    ["a handler or a tab stop", /onClick|onKeyDown|tabIndex/],
+  ] as [string, RegExp][]) {
+    assert.doesNotMatch(status, pattern, `the status has ${what}`);
+  }
+});
+
+test("a vibe's names are each a link to its screen, behind one violet sparkle", () => {
+  const drawn = bodyOf("VibeLinks", links);
+
+  assert.match(drawn, /if \(!names\.length\) return null;/, "no vibes still draws a line");
+  assert.match(drawn, /<Sparkles aria-hidden="true"[^>]*text-vibe/, "the sparkle is not the vibe's violet");
+  assert.equal((drawn.match(/<Sparkles\b/g) ?? []).length, 1, "a sparkle is drawn per name");
+
+  // Every name, each its own link — never the first and a count.
+  assert.match(drawn, /names\.map\(\(name, index\)/, "not every name is drawn");
+  assert.match(drawn, /<Link\s+href=\{vibeHref\(name\)\}\s+prefetch=\{false\}/, "a name does not open its vibe");
+  assert.match(drawn, /text-vibe underline/, "a name is not in the vibe's violet");
+  assert.equal(/slice\(0|\.length - |\bmore\b/.test(drawn), false, "the names are cut to the first and a count");
+
+  // A film's screen names its vibes the same way, in one line like a card's —
+  // the one it was reached through first, then the others.
+  assert.match(movieView, /const vibes = context === null \? movie\.vibes : \[context, \.\.\.alsoIn\(movie, context\)\];/);
+  assert.match(movieView, /<VibeLinks names=\{vibes\} label="Vibes:" \/>/);
+  assert.equal((movieView.match(/<VibeLinks\b/g) ?? []).length, 1, "a film's screen names its vibes in two places");
+});
+
+test("a vibe's screen is its name, its genres, what it means and its films, in that order", () => {
+  const drawn = bodyOf("VibeView", vibeView);
+
+  const title = drawn.search(/>\s*\{vibe\.name\}\s*<\/h2>/);
+  assert.notEqual(title, -1, "the screen has no heading showing the vibe's name");
+  const order = [title, ...["<GenreLabels", "{vibe.instruction}", "<MovieCards"].map((mark) => drawn.indexOf(mark))];
+  assert.equal(order.some((at) => at === -1), false, "the screen is missing one of the four");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "the four are out of order");
+
+  // Its films are the Stream's own cards — the same component, not a copy of
+  // its markup — and each opens the film with this vibe as the one it was
+  // reached through.
   assert.match(
-    bodyOf("TasteView"),
-    /recent=\{recentlyAdded\(movies, new Date\(\)\)\}/,
-    "the page does not hand the summary its recent films",
+    drawn,
+    /<MovieCards movies=\{films\} from=\{vibe\.name\} label=\{`Films in \$\{vibe\.name\}`\}/,
+    "a vibe's films are not the Stream's cards, or a film opened from here does not know its vibe",
   );
+  assert.equal(/<MovieCard\b|<ul\b|<li\b|<Films\b|<Link\b/.test(vibeView), false, "a vibe's screen draws films of its own");
+  assert.match(drawn, /No films in this vibe yet\./, "an empty vibe says nothing");
+
+  // The page hands it what the rules that own them work out.
+  assert.match(vibePage, /findVibe\(held\.taste\.vibes, single\(query\.name\)\)/);
+  assert.match(vibePage, /films=\{filmsIn\(vibe, movies\)\}/);
 });
 
-test("the vibes' remainder is dismissed and hands focus back like the rest", () => {
-  const stack = bodyOf("VibeCards", cards);
+test("a film's screen is its year, its title, its vibes, then what do you think", () => {
+  const drawn = bodyOf("MovieView", movieView);
 
-  // A real button that says what it opens, remembering its own press — and the
-  // same architecture the cards already use, not a second one beside it.
-  assert.match(stack, /<button[\s\S]{0,120}?aria-haspopup="dialog"/);
-  assert.equal(
-    (stack.match(/invoker\.current = event\.currentTarget;/g) ?? []).length,
-    2,
-    "the remainder does not remember its own press, or the cards stopped doing so",
-  );
-
-  // Focus back to it while it is there, and to a surviving card when it has
-  // gone — which is what happens when the last film in no vibe is filed into one.
-  // The line itself is one of the places focus can fall back *to*, which is what
-  // catches the other way round: the last vibe deleted, with films still in none.
-  assert.match(stack, /returnTo\([\s\S]{0,60}?document\.contains\(/);
-  assert.match(stack, /stack\.current\?\.querySelectorAll<HTMLElement>\("button"\)/);
-  assert.match(stack, /remainder\.current/, "the remainder is not somewhere focus can land");
-  // One films dialog for the remainder — the one the summary opens — beside the
-  // vibe's own detail, which is a different thing and keeps its own.
-  assert.equal((cards.match(/<Chosen/g) ?? []).length, 1, "there is a second films dialog");
-  assert.match(cards, /<Films movies=\{films\}/, "a vibe's own detail lost its rows");
-});
-
-test("with no vibes at all, the films in none of them are still reachable", () => {
-  const view = bodyOf("TasteView");
-
-  // The cards are rendered whatever the vibes look like, because the remainder
-  // lives under them: with no vibes every film is in none of them, which is
-  // exactly when the one way to those films must not be missing. The message
-  // that there are no vibes yet is beside it, not instead of it.
+  // The year above the title rather than after it, hidden there from a listener,
+  // who hears it as part of the heading.
+  assert.match(drawn, /<p aria-hidden="true" className="[^"]*tabular-nums[^"]*">\s*\{movie\.year\}\s*<\/p>/);
   assert.match(
-    view,
-    /<VibeCards vibes=\{taste\.vibes\} movies=\{movies\}/,
-    "the page does not render the vibes section",
+    drawn,
+    /<h2 className="[^"]*font-display text-\[36px\][^"]*">\s*\{movie\.title\}\s*<span className="sr-only"> \(\{movie\.year\}\)<\/span>/,
+    "the title is not the large heading, with its year said to a listener",
   );
-  assert.match(view, /\{taste\.vibes\.length === 0 && \(/, "the empty message is not shown beside it");
-  assert.equal(
-    /taste\.vibes\.length === 0 \? \(/.test(view),
-    false,
-    "the cards are still shown instead of the empty message, so the remainder goes with them",
-  );
+  assert.doesNotMatch(drawn, /\{movie\.title\} \(\{movie\.year\}\)/, "the year is appended to the title");
 
-  // And the control itself asks only whether there are such films, never how
-  // many vibes there are.
-  const stack = bodyOf("VibeCards", cards);
-  assert.match(stack, /\{other\.length > 0 && \(/, "the line asks about something else");
-  assert.equal(
-    /vibes\.length === 0|!vibes\.length/.test(stack),
-    false,
-    "the line is hidden when there are no vibes",
-  );
+  // In that order: year, title, vibes, the choices.
+  const order = ["{movie.year}", "<h2", "<VibeLinks", "<MovieChoices"].map((mark) => drawn.indexOf(mark));
+  assert.equal(order.some((at) => at === -1), false, "the screen is missing one of the four");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "the four are out of order");
+
+  // The choices are given the film's own facts and the way back.
+  assert.match(drawn, /viewing=\{movie\.viewing\}\s+judgement=\{movie\.position\?\.judgement \?\? null\}\s+from=\{context\}\s+refused=\{refused\}/);
+
+  // Below them, quietly: their own words beside a standing verdict, and IMDb.
+  const choicesAt = drawn.indexOf("<MovieChoices");
+  assert.ok(choicesAt < drawn.indexOf("movie.position.because"), "their words are above the choices");
+  assert.ok(choicesAt < drawn.indexOf("<Imdb"), "the IMDb link is above the choices");
+  assert.match(drawn, /movie\.position\?\.judgement !== undefined && movie\.position\.because !== undefined/);
+
+  // The page hands it the film, the context and a refusal, each chosen by the
+  // query and checked against what was read.
+  assert.match(moviePage, /findMovie\(movies, single\(query\.title\), single\(query\.year\)\)/);
+  assert.match(moviePage, /contextOf\(movie, single\(query\.from\)\)/);
+  assert.match(moviePage, /refusalFor\(single\(query\.refused\)\)/);
+
+  // Nothing the film does not hold.
+  for (const [what, pattern] of [
+    ["a genre", /genre/i],
+    ["a synopsis", /synopsis/i],
+    ["a picture", /<img|poster|backdrop/i],
+    ["a runtime or cast", /\bruntime\b|\bcast\b/i],
+    ["an evening", /episode|offer|evening/i],
+    ["a placeholder for no vibe", /Other movies|No vibe/],
+  ] as [string, RegExp][]) {
+    assert.doesNotMatch(drawn, pattern, `a film's screen shows ${what}`);
+  }
 });
 
-test("the remainder's focus is handed back, and rescued if its line then goes", () => {
-  const stack = bodyOf("VibeCards", cards);
+test("what do you think is five buttons in one form, posting to the one write route", () => {
+  const drawn = bodyOf("MovieChoices", choices);
 
-  // Filing the last film that is in no vibe takes the line off the page, and that
-  // can land either side of the dialog closing. Both halves are asked, the same
-  // two rules the summary uses: the invoker at the moment of closing, and — for
-  // the render that arrives after it — whatever focus was handed to, once it has
-  // left the document with nothing else having taken it.
-  assert.match(stack, /returnTo\([\s\S]{0,60}?document\.contains\(/);
-  assert.match(stack, /handedTo\.current = back;/, "what focus went to is not remembered");
-  assert.match(stack, /rescueTo\(/, "the later half of the race is not handled");
-  assert.match(stack, /document\.activeElement === document\.body/, "a moved focus would be stolen");
+  assert.match(drawn, /<h3 id="what-do-you-think"[^>]*>\s*What do you think\?\s*<\/h3>/);
+  assert.match(drawn, /<form method="post" action="\/movie\/choose"/, "the choices post somewhere else");
 
-  // The fallback is worked out once and used by both halves, so the two cannot
-  // come to different answers about where focus belongs.
-  assert.equal(
-    (stack.match(/const stable = fallbackTo\(/g) ?? []).length,
-    1,
-    "the fallback is worked out more than once, or not at all",
-  );
-  assert.equal(
-    (stack.match(/\bstable\b/g) ?? []).length,
-    3,
-    "one of the two halves works out its own fallback, or does not use it",
-  );
+  // Every button is one of the five, in their order, each sending its own key,
+  // and pressed when its fact is what the film stands at.
+  assert.match(drawn, /\{CHOICES\.map\(\(choice\) => \{/);
+  assert.equal((drawn.match(/<button\b/g) ?? []).length, 1, "a button is drawn outside the five");
+  assert.match(drawn, /type="submit"\s+name="choice"\s+value=\{choice\.key\}\s+aria-pressed=\{pressed\}/);
+  assert.match(drawn, /const pressed = isPressed\(choice, viewing, judgement\);/);
+
+  // The icons are the marks' own; loved and liked carry their colours when pressed.
+  assert.match(choices, /JUDGEMENT\.choices\.find/);
+  assert.match(choices, /VIEWING\.choices\.find/);
+  assert.equal(/from "lucide-react"/.test(choices), false, "the choices draw icons of their own");
+  assert.match(choices, /love: "border-loved bg-loved\/10 text-loved"/);
+  assert.match(choices, /like: "border-liked bg-liked\/10 text-liked"/);
+
+  // A refusal is said in fixed words, as an alert; no reason is ever asked for.
+  assert.match(drawn, /<p role="alert"[^>]*>\s*\{refusalSentence\(refused\)\}/);
+  assert.equal(/<textarea|type="text"|name="because"/.test(choices), false, "a press asks for words");
+
+  // No client code: the browser sends the form, the server answers with the page.
+  for (const [what, pattern] of [
+    ["client code", /^"use client";/m],
+    ["state", /\buse(State|Effect|Ref|Transition)\b/],
+    ["a handler", /onClick|onSubmit/],
+    ["a request", /\bfetch\s*\(/],
+    ["a router", /useRouter|router\./],
+  ] as [string, RegExp][]) {
+    assert.doesNotMatch(choices, pattern, `the choices have ${what}`);
+  }
+});
+
+test("the new screens have nothing to press but links, and a film's five choices", () => {
+  for (const [name, file] of NEW) {
+    // Its form and its five buttons are the choices, pinned above; what it must
+    // not have is pinned there too.
+    if (name === "movie-choices.tsx") continue;
+    for (const [what, pattern] of [
+      ["a button", /<button\b/],
+      ["a menu", /role="menu"|aria-haspopup="menu"/],
+      ["a handler", /\bon(Click|KeyDown|Submit|Change)=/],
+      ["a form or a field", /<form\b|<input\b|<textarea\b|<select\b/],
+      ["client code", /^"use client";/m],
+      ["a router", /useRouter|router\./],
+      ["a request", /\bfetch\s*\(/],
+      ["a management control", /<Manage\b|onRemoved|>\s*(Delete|Edit|Rename|Save)\s*</],
+    ] as [string, RegExp][]) {
+      assert.doesNotMatch(file, pattern, `${name} has ${what}`);
+    }
+  }
+
+  // Every way to a screen is a link that fetches nothing ahead of a press: a
+  // prefetch of a private page is a private render nobody asked for.
+  for (const [name, file] of NEW) {
+    const all = (file.match(/<Link\b/g) ?? []).length;
+    const quiet = (file.match(/<Link\b[^>]*?prefetch=\{false\}/g) ?? []).length;
+    assert.equal(quiet, all, `${name} has a link that prefetches`);
+  }
 });
 
 /**

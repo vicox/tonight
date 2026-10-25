@@ -817,6 +817,14 @@ test("the home page is declared private and uncacheable", async () => {
   // here is the landing page, which is meant to be found.
   assert.equal(header("x-robots-tag"), "");
 
+  // A vibe's and a film's screen are signed in only, and their address carries a
+  // vibe's name or a film's title: the same rule, header for header.
+  for (const page of ["/vibe", "/movie"]) {
+    const rule = rules.find((one) => one.source === page);
+    assert.ok(rule, `${page} has no header rule`);
+    assert.deepEqual(rule.headers, homeRule.headers, `${page} is not as private as the home page`);
+  }
+
   // The sign-in endpoints answer redirects and refusals mid-flow, which must not
   // be cached either.
   const authRule = rules.find((rule) => rule.source === "/auth/:path*");
@@ -838,29 +846,65 @@ test("loading the signed-in page creates nothing", async () => {
   }
 });
 
-test("the signed-in page opens one store, for the session owner, and writes nothing", async () => {
-  // `home` above composes what the page does, and every isolation test runs against
-  // that composition. This is the one check that the page still *is* that
+test("the signed-in pages open one store each, for the session owner, and write nothing", async () => {
+  // `home` above composes what the pages do, and every isolation test runs against
+  // that composition. This is the one check that the pages still *are* that
   // composition: a literal read of the source, here to catch the wiring drifting
-  // away from the helper rather than to understand the file.
-  const page = readFileSync(new URL("../../app/page.tsx", import.meta.url), "utf8");
+  // away from the helper rather than to understand the files.
+  const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+  const held = read("lib/web/held.ts");
+  const home = read("app/page.tsx");
+  const vibe = read("app/vibe/page.tsx");
+  const movie = read("app/movie/page.tsx");
 
-  // One data source, and its owner is the resolved visitor — not a route parameter,
-  // a search parameter or anything else a request could carry.
-  assert.equal(page.match(/tasteStore\(/g)?.length, 1, "exactly one store is opened");
-  assert.match(page, /tasteStore\(visitor\.user\)/);
-  assert.equal(page.includes("searchParams"), false, "no search parameter is read");
-  assert.equal(page.includes("params"), false, "no route parameter is read");
+  // One read, written once, for every signed-in screen: the taste model and the
+  // verdicts, each opened for the resolved visitor and nobody a request names.
+  assert.equal(held.match(/tasteStore\(/g)?.length, 1, "exactly one taste store is opened");
+  assert.match(held, /tasteStore\(visitor\.user\)/);
+  assert.match(held, /verdictStore\(visitor\.user\)/);
+  assert.match(held, /\.taste\(\)/, "the whole model is not what is read");
+  assert.match(held, /\.standing\(\)/);
+  assert.equal(/searchParams|params/.test(held), false, "the read takes something a request carries");
 
-  // The whole model, from that one store.
-  assert.match(page, /\.taste\(\)/);
+  // Every page asks it, with the visitor the session resolved, and opens no store
+  // of its own.
+  for (const [name, page] of [
+    ["the home page", home],
+    ["a vibe's page", vibe],
+    ["a film's page", movie],
+  ] as [string, string][]) {
+    assert.match(page, /const visitor = await resolveVisitor\(\);/, `${name} finds its visitor some other way`);
+    assert.match(page, /readHeld\(visitor\)/, `${name} reads some other way`);
+    assert.equal(/tasteStore\(|verdictStore\(/.test(page), false, `${name} opens a store of its own`);
+  }
+
+  // The home page reads nothing from the request at all.
+  assert.equal(home.includes("searchParams"), false, "the home page reads a search parameter");
+  assert.equal(home.includes("params"), false, "the home page reads a route parameter");
+
+  // A vibe's and a film's page read the query only to choose among what was
+  // already read for the visitor: each value goes through `single` and straight
+  // into the lookup that takes it.
+  assert.equal([...vibe.matchAll(/query\.(\w+)/g)].map((match) => match[1]).join(), "name");
+  assert.match(vibe, /findVibe\(held\.taste\.vibes, single\(query\.name\)\)/);
+  assert.deepEqual(
+    [...movie.matchAll(/query\.(\w+)/g)].map((match) => match[1]),
+    ["title", "year", "from", "refused"],
+  );
+  assert.match(movie, /findMovie\(movies, single\(query\.title\), single\(query\.year\)\)/);
+  assert.match(movie, /contextOf\(movie, single\(query\.from\)\)/);
+  // A refusal the choice route sent back is one of a fixed set, never text.
+  assert.match(movie, /refusalFor\(single\(query\.refused\)\)/);
 
   // And nothing that would change the account by looking at it.
   for (const mutation of [
     "createGenre", "updateGenre", "deleteGenre",
     "createVibe", "updateVibe", "deleteVibe",
+    "createMovie", "updateMovie", "deleteMovie",
   ]) {
-    assert.equal(page.includes(mutation), false, `the page calls ${mutation}`);
+    for (const [name, file] of [["held.ts", held], ["app/page.tsx", home], ["app/vibe/page.tsx", vibe], ["app/movie/page.tsx", movie]]) {
+      assert.equal(file.includes(mutation), false, `${name} calls ${mutation}`);
+    }
   }
 });
 
@@ -905,7 +949,7 @@ function productSources(): [string, string][] {
   return found;
 }
 
-test("there is one application route, and no /dashboard behind it", async () => {
+test("the signed-in home is /, with a vibe's and a film's screen beside it, and no /dashboard", async () => {
   // The app used to live at its own address. It does not any more, and there is no
   // redirect standing in for it either — a second address that renders the same
   // rows, or resolves to the one that does, is a second thing to keep true.
@@ -917,4 +961,14 @@ test("there is one application route, and no /dashboard behind it", async () => 
 
   const { default: config } = await import("../../next.config.ts");
   assert.equal(config.redirects, undefined, "and nothing redirects from it");
+
+  // What a browser can open is the home page, one vibe's screen, one film's, and
+  // the three legal pages. A signed-out visitor sent home from a screen is sent
+  // by the page itself, not by a rule in the config.
+  const app = new URL("../../app/", import.meta.url);
+  const pages = readdirSync(app, { recursive: true, encoding: "utf8" })
+    .filter((entry) => /(^|\/)page\.tsx$/.test(entry))
+    .map((entry) => `/${entry.replace(/\/?page\.tsx$/, "")}`)
+    .sort();
+  assert.deepEqual(pages, ["/", "/impressum", "/movie", "/privacy", "/terms", "/vibe"]);
 });

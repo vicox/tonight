@@ -272,8 +272,10 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
   const privacy = text("privacy");
   assert.match(privacy, /shows you less than that/);
   assert.match(privacy, /a view of your data rather than\s+the same answer rearranged/);
-  assert.match(privacy, /lists the rest under/);
-  assert.match(privacy, /Other movies/);
+  // What the page is, said as it is laid out: every saved film, with its vibes —
+  // a film in no vibe included, under no heading of its own.
+  assert.match(privacy, /lists every film you saved, each with the vibes it is in/);
+  assert.equal(privacy.includes("Other movies"), false, "privacy still names a section the page no longer has");
 
   // Each omission named, because a general "less" tells a reader nothing about
   // whether the thing they are looking for should be here.
@@ -297,19 +299,33 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
     "privacy still equates the MCP answer with the page",
   );
 
-  // And the page edits nothing it shows. A reader exercising a right of
-  // rectification has to be told accurately where a correction is made: every
-  // one, a film's two marks included, through an assistant.
+  // And the page edits one thing it shows, and nothing else. A reader exercising
+  // a right of rectification has to be told accurately where a correction is
+  // made: a film's place on the list and what they thought of it either through
+  // an assistant or with the five choices on the film's page, and everything
+  // else through an assistant.
+  assert.match(privacy, /For a film, adding one, changing its title or year, and removing it are done through your assistant/);
   assert.match(
     privacy,
-    /saying where it stands on your list and what you thought of it, adding one, changing its title or year, and removing it are done through your assistant/,
+    /Where it stands on your list and what you thought of it can be said through your assistant too, or with the five choices on the film&rsquo;s own page/,
   );
-  assert.match(privacy, /the signed-in page only shows them/);
+  assert.match(privacy, /pressing an opinion again takes it back/);
+  assert.match(privacy, /<code>\/movie\/choose<\/code>/, "the write endpoint is not in the policy's scope");
+  assert.match(privacy, /what a genre means is not on it at all/, "the genre meaning the page no longer shows is not disclosed");
   assert.match(privacy, /delete any vibe at any time through your assistant/);
-  assert.match(text("terms"), /saying where it stands on your list and what you thought of it, adding one and removing one are all done through your assistant/);
-  assert.match(text("terms"), /the website only shows them/);
-  assert.match(text("readme"), /changes none of it: it has no write endpoint/);
+  assert.match(text("terms"), /For a film, adding one and removing one are done through your assistant/);
+  assert.match(text("terms"), /or with the five choices on the film&rsquo;s page on the website/);
+  assert.match(text("readme"), /Its one write endpoint is a film's page asking \*What do you think\?\*/);
   assert.match(text("readme"), /is made through an assistant/);
+
+  // The read-only claims, now untrue in their absolute form.
+  for (const [page, claim] of [
+    ["privacy", "the signed-in page only shows them"],
+    ["terms", "the website only shows them"],
+    ["readme", "changes none of it: it has no write endpoint"],
+  ] as const) {
+    assert.equal(text(page).includes(claim), false, `${page} still says "${claim}"`);
+  }
 
   // The claims it replaces, which would now promise a control that is not there.
   for (const [page, claim] of [
@@ -333,8 +349,8 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
     false,
     "the README still claims the website shows the whole model",
   );
-  assert.match(readme, /shows a Vibe-oriented view of the model/);
-  assert.match(readme, /a Movie in no Vibe is listed under \*Other movies\*/);
+  assert.match(readme, /shows a film-centred view of the model, with a page for each Vibe/);
+  assert.match(readme, /Every Movie is listed, newest first, with the Vibes it is in — a Movie in no Vibe is listed too/);
   assert.match(readme, /the website is a view of it, not the definition of it/);
 });
 

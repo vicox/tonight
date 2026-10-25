@@ -306,12 +306,12 @@ export async function handleSignOut(
  *
  * `Origin` is what a browser sends on every form post, same-origin ones included,
  * and it is one of the few request headers a page cannot forge. A missing header
- * is refused rather than waved through: the two callers are both forms on this
- * site, so an absent `Origin` is not something a legitimate press produces.
+ * is refused rather than waved through: every caller is a form on this site, so
+ * an absent `Origin` is not something a legitimate press produces.
  *
- * This is the CSRF defence for the website's two state-changing endpoints,
- * sign-in and sign-out, which are both here — the website writes nothing else.
- * It stands alone. The session
+ * This is the CSRF defence for the website's state-changing endpoints: sign-in
+ * and sign-out, here, and a film's five choices (`lib/web/choose.ts`), which is
+ * the only other thing the website writes. It stands alone. The session
  * cookie's `SameSite=Lax` means a cross-site post carries no session anyway, but
  * that is a property of the browser honouring an attribute, and this is a property
  * of the server.

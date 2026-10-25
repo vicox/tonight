@@ -1716,6 +1716,70 @@ for (const driver of drivers) {
       assert.deepEqual(await actsOf(sql, ALICE), []);
     });
 
+    // --- anything else, only about a saved film ---------------------------
+
+    const disliked = (film: { title: string; year: number }) =>
+      stateVerdict(film, { about: "judgement", judgement: "disliked" }, "confirmed", "2026-01-01T21:00:00.000Z");
+    const takenBack = (film: { title: string; year: number }) =>
+      withdrawVerdict(film, "2026-01-01T21:01:00.000Z");
+
+    test("saySaved writes a disliked or a taking-back about a saved film, filed or not, under any spelling", async () => {
+      const { alice, sql } = await fresh();
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+
+      await alice.saySaved(disliked({ title: "  heat ", year: 1995 }));
+      await alice.saySaved(takenBack({ title: "Heat", year: 1995 }));
+      // Sorted, as above: the read order follows the database's collation.
+      assert.deepEqual((await actsOf(sql, ALICE)).sort(), ["Heat 1995 withdrawal", "heat 1995 verdict disliked"]);
+    });
+
+    test("saySaved refuses a film that is not saved, or saved only by another account, with nothing written", async () => {
+      const { alice, bob, sql } = await fresh();
+      await bob.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+
+      for (const act of [disliked({ title: "Heat", year: 1995 }), takenBack({ title: "Heat", year: 1995 })]) {
+        assert.match(await refusal(alice.saySaved(act)), /no movie "Heat" \(1995\)/);
+      }
+      assert.deepEqual(await actsOf(sql, ALICE), []);
+    });
+
+    test("saySaved leaves a liked or loved to sayFiled", async () => {
+      const { alice, sql } = await fresh();
+      await vibe(alice, "Space Tension");
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+      for (const judgement of ["liked", "loved"] as const) {
+        assert.match(
+          await refusal(alice.saySaved(positive({ title: "Heat", year: 1995 }, judgement))),
+          /a liked or loved is held to a vibe — that is sayFiled/,
+        );
+      }
+      assert.deepEqual(await actsOf(sql, ALICE), []);
+    });
+
+    test("a film deleted after a caller read it: saySaved writes nothing, so nothing outlives it", async () => {
+      // The window a film's screen has: it read the film, the film was deleted
+      // through an assistant, and then the press arrives.
+      const { alice, sql } = await fresh();
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+      await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "disliked");
+      assert.ok(await movieOf(alice, "Heat", 1995), "the caller read the film");
+
+      await alice.deleteMovie("Heat", 1995);
+      for (const act of [disliked({ title: "Heat", year: 1995 }), takenBack({ title: "Heat", year: 1995 })]) {
+        assert.match(await refusal(alice.saySaved(act)), /no movie "Heat" \(1995\)/);
+      }
+      assert.deepEqual(await actsOf(sql, ALICE), [], "something said about a deleted film outlived it");
+    });
+
+    test("what saySaved wrote goes with its film", async () => {
+      const { alice, sql } = await fresh();
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+      await alice.saySaved(disliked({ title: "Heat", year: 1995 }));
+
+      await alice.deleteMovie("Heat", 1995);
+      assert.deepEqual(await actsOf(sql, ALICE), []);
+    });
+
     test("with the rule, a film they like or love cannot leave its last vibe — and without it, it can", async () => {
       const { alice, sql } = await fresh();
       await vibe(alice, "Space Tension");

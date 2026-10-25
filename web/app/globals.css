@@ -15,22 +15,28 @@
   --color-ink-faint: #6e6961;
   --color-rule: #262630;
 
-  /* The one accent: projector amber. It marks what the user made — their vibes,
-     and nothing else. Genres are deliberately unlit: they are what a vibe is
-     built on, and if everything glows nothing does. It used to light a
-     connector drawn between the two sections as well, which said that genres
-     produce a vibe; they do not, and it is gone. */
+  /* Projector amber: the focus ring on every control, and the landing page's
+     accent. It used to mark the user's vibes on the signed-in page too; there a
+     vibe is now marked by `vibe` below. Genres stay unlit: they are what a vibe
+     is built on, and if everything glows nothing does. */
   --color-beam: #e3a54a;
   --color-beam-dim: #6b4f24;
 
-  /* The one warning. Deleting a genre or a vibe is the only thing on the website
-     that takes something away for good, and the confirmation for it must not
-     look like the amber that marks what the user made. Brick rather than a
-     signal red: it belongs in this room, and it appears nowhere else. */
+  /* What the user made, on the signed-in screens: a vibe's name and its ✨, in
+     violet. And the two verdicts that say a film worked for them, on a film's
+     card: loved in pink, liked in blue. Nothing else is coloured — not the other
+     statuses, and not `disliked`, which is a verdict and not an error. Each is
+     above 4.5:1 against `screen` (about 6.8, 6.9 and 7.2:1). */
+  --color-vibe: #a78bfa;
+  --color-loved: #f472b6;
+  --color-liked: #60a5fa;
+
+  /* The one warning colour, brick rather than a signal red. Nothing on the
+     website uses it: nothing there deletes, so there is nothing to confirm, and
+     a refused choice on a film's screen is said in words rather than in red.
+     Not for a verdict either — `disliked` is an opinion, not a fault. */
   --color-alarm: #cf5b45;
   --color-alarm-dim: #5c2a20;
-
-  --color-scrim: rgba(6, 6, 10, 0.72);
 }
 
 html {

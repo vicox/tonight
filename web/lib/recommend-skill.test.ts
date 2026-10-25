@@ -677,7 +677,11 @@ test("the model can be inspected and changed in the conversation, in plain sente
   assert.match(flat, /## Asked about the model directly/);
   assert.match(flat, /\*\*do those\*\*, in the conversation/);
   assert.match(flat, /the answer is ordinary sentences/);
-  assert.match(flat, /is \*a\* management surface, not \*the\* one/);
+  // The website marks a film and nothing more, so it is never where a change the
+  // conversation can make is sent.
+  assert.match(flat, /The website marks a film from its page/);
+  assert.match(flat, /it is not \*the\* place to manage anything/);
+  assert.doesNotMatch(flat, /is \*a\* management surface/);
 });
 
 /**
