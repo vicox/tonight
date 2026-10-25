@@ -1,38 +1,53 @@
-import { declared, type Statement, type Step, type Trajectory } from "./trajectories.ts";
+import { declared, FACTS, type Declared, type Statement, type Step, type Trajectory } from "./trajectories.ts";
 
 /**
- * The M1 gates. All seven are deterministic, and that is not a shortcut.
+ * The M1 gates, under M9's evening. All deterministic, and that is not a shortcut.
  *
- * `phase-2-architecture.md` gives criterion verdicts to the blind judge because
- * Phase 1's subject was a model's prose, where "is this a good lead" cannot be
- * settled by a rule. M1's subject is a tool surface: whether an outcome is
- * unknown, whether a corrected value replaced the old one, whether the taste
- * model moved. None of that is a question about meaning, so none of it needs a
- * reader — and inventing one would make a fact into an opinion.
+ * M1's subject is a tool surface: whether a fact is unknown, whether a corrected
+ * value replaced the old one, whether the taste model moved. None of that is a
+ * question about meaning, so none of it needs a reader — and inventing one would
+ * make a fact into an opinion.
  *
  * What M1 does *not* evaluate here is whether an agent uses the tools faithfully
- * — whether it records the request in the user's words rather than a paraphrase,
- * or resists asking a leading question. That is behaviour under a model, it
- * needs a sweep to observe, and it belongs to the milestone where episodes start
- * influencing what is recommended. See `limits` at the foot of this file.
+ * — whether it records the request in the user's words, or attributes a
+ * statement only to the evening it was about. That is behaviour under a model,
+ * and needs a sweep to observe. See `LIMITS` at the foot of this file.
  */
+
+type Established<T> = { known: true; value: T; source: string } | { known: false };
+
+/** One offer, in the shape `get_episodes` returns. */
+export type ReadOffer = {
+  title: string;
+  year: number;
+  offered: boolean;
+  lead: boolean;
+  chosen: Established<boolean>;
+  started: Established<boolean>;
+  finished: Established<boolean>;
+  passed: Established<boolean>;
+  passReason?: string;
+};
 
 /** One episode, in the shape `get_episodes` returns. */
 export type ReadEpisode = {
   id: string;
-  request: string;
-  offered: { title: string; year: number; lead: boolean }[];
-  chosen: Established<{ title: string; year: number; lead: boolean }>;
-  watched: Established<boolean>;
-  finished: Established<boolean>;
+  recordedAt: string;
+  request: string | null;
+  requestSource?: string;
+  offers: ReadOffer[];
+  offeredSource: string;
 };
 
-type Established<T> = { known: true; value: T; source: string } | { known: false };
-
-export type Outcome = "chosen" | "watched" | "finished";
-export const OUTCOMES: readonly Outcome[] = ["chosen", "watched", "finished"];
-
 export type Failure = { gate: string; trajectory: string; detail: string };
+
+/** One step expected to be refused, as the runner saw it. */
+export type Refusal = {
+  /** The tool answered with an error. */
+  refused: boolean;
+  /** The evening read byte-for-byte the same just before and just after. */
+  unchanged: boolean;
+};
 
 /**
  * What a trajectory left behind, as the gates need to see it.
@@ -46,28 +61,58 @@ export type Result = {
   episodes: ReadEpisode[];
   /** The episode the trajectory acted on, if it still exists. */
   subject?: ReadEpisode;
-  /** Whether each `refused` step was in fact refused. */
-  refusals: boolean[];
+  /** Every step expected to be refused, in order. */
+  refusals: Refusal[];
+  /** Steps expected to succeed that the tools refused, with what they said. */
+  unexpected: string[];
   tasteBefore: unknown;
   tasteAfter: unknown;
 };
+
+/* ------------------------------------------------------------------ gate 0 */
+
+/** Every step the script expects to succeed did, and every refusal was one. */
+export function steps(result: Result): Failure[] {
+  const fail = failer("steps", result);
+  for (const complaint of result.unexpected) fail(`a step expected to succeed was refused: ${complaint}`);
+  const expected = result.trajectory.steps.filter(
+    (step) => step.act === "refused" || step.act === "refusedRound",
+  ).length;
+  if (result.refusals.length !== expected) {
+    fail(`${String(expected)} refusals were scripted and ${String(result.refusals.length)} observed`);
+  }
+  return fail.failures;
+}
 
 /* ------------------------------------------------------------------ gate 1 */
 
 /**
  * Factuality: a remembered fact is either established by a statement, or not
- * known. There is no third shape, and no established fact without a source.
+ * known. There is no third shape, and no established fact without the user as
+ * its source. A request is shown with its provenance, and only a request is.
  */
 export function factuality(result: Result): Failure[] {
   const fail = failer("factuality", result);
-  if (!result.subject) return [];
-  for (const outcome of OUTCOMES) {
-    const held = result.subject[outcome];
-    if (!held.known) continue;
-    if (held.source !== "stated") {
-      fail(`${outcome} is established with source ${held.source}, which the user never gave`);
+  const subject = result.subject;
+  if (!subject) return [];
+  for (const offer of subject.offers) {
+    for (const fact of FACTS) {
+      const held = offer[fact];
+      if (!held.known) continue;
+      if (held.source !== "stated") {
+        fail(`${offer.title}: ${fact} has source ${held.source}, which the user never gave`);
+      }
+      if (typeof held.value !== "boolean") fail(`${offer.title}: ${fact} is known and carries no yes or no`);
     }
-    if (held.value === undefined) fail(`${outcome} says it is known and carries no value`);
+    if (offer.passReason !== undefined && !(offer.passed.known && offer.passed.value)) {
+      fail(`${offer.title}: a reason is held without a pass`);
+    }
+  }
+  if (subject.request === null && subject.requestSource !== undefined) {
+    fail("an evening with no request shows where its request came from");
+  }
+  if (subject.request !== null && subject.requestSource === undefined) {
+    fail("an evening's request is shown without where it came from");
   }
   return fail.failures;
 }
@@ -77,24 +122,28 @@ export function factuality(result: Result): Failure[] {
 /**
  * The implication chain: nothing is remembered that the user did not state.
  *
- * Compares what the episode holds against what the trajectory declared, so this
- * catches every link at once — offering becoming chosen, chosen becoming
- * watched, watched becoming finished — and any inference nobody has thought of
- * yet. A per-link assertion would only catch the links somebody listed.
+ * Compares what each offer holds against the replay, so this catches every link
+ * at once — offering becoming chosen, chosen becoming started, a pass becoming
+ * anything — and any inference nobody has thought of yet. The one entailment the
+ * plan allows (finished ⇒ started) is in the replay, so it is the only one that
+ * passes.
  */
 export function chain(result: Result): Failure[] {
   const fail = failer("chain", result);
-  if (!result.subject) return [];
+  const subject = result.subject;
+  if (!subject) return [];
   const said = declared(result.trajectory.steps);
 
-  for (const outcome of OUTCOMES) {
-    const held = result.subject[outcome];
-    const stated = said[outcome];
-    if (held.known && (stated === undefined || stated === null)) {
-      fail(`${outcome} is remembered as ${JSON.stringify(held.value)} and was never stated`);
+  for (const offer of subject.offers) {
+    const expected = said.offers.find((one) => one.title === offer.title && one.year === offer.year);
+    if (!expected) {
+      fail(`${offer.title} (${String(offer.year)}) is in the evening and nothing put it there`);
+      continue;
     }
-    if (!held.known && stated !== undefined && stated !== null) {
-      fail(`${outcome} was stated and is not remembered`);
+    for (const fact of FACTS) {
+      if (offer[fact].known && expected[fact] === null) {
+        fail(`${offer.title}: ${fact} is remembered as ${JSON.stringify(valueOf(offer[fact]))} and was never stated`);
+      }
     }
   }
   return fail.failures;
@@ -103,40 +152,33 @@ export function chain(result: Result): Failure[] {
 /* ------------------------------------------------------------------ gate 3 */
 
 /**
- * Write permission: every remembered fact traces to something M1 may know.
- *
- * Two provenances are legitimate, and the architecture is explicit that
- * requiring a user act for all of them would be wrong: what was asked and what
- * was offered are runtime facts Tonight observed, and the outcomes are the
- * user's statements. What may never appear is taste — gate 7 holds that from the
- * other side.
+ * Write permission: what was asked and what was offered trace to the latest
+ * accepted statement of each — Tonight's observation, or the user's correction —
+ * and the films they brought up trace to what they said.
  */
 export function permission(result: Result): Failure[] {
   const fail = failer("permission", result);
-  if (!result.subject) return [];
-
-  const recorded = result.trajectory.steps.find((step) => step.act === "record");
-  if (!recorded || recorded.act !== "record") return fail.failures;
-
-  if (result.subject.request !== recorded.request.trim()) {
-    fail(`the request was not kept as it was given: ${JSON.stringify(result.subject.request)}`);
-  }
-  if (result.subject.offered.length !== recorded.offered.length) {
-    fail(`${result.subject.offered.length} films remembered, ${recorded.offered.length} offered`);
-  }
-  for (const [at, offer] of result.subject.offered.entries()) {
-    const given = recorded.offered[at];
-    if (!given || offer.title !== given.title || offer.year !== given.year || offer.lead !== given.lead) {
-      fail(`offer ${String(at)} is not the one that was put forward`);
-    }
-  }
-  // Every established outcome must have a statement behind it. The source check
-  // in gate 1 says the store believes so; this says the trajectory agrees.
+  const subject = result.subject;
+  if (!subject) return [];
   const said = declared(result.trajectory.steps);
-  for (const outcome of OUTCOMES) {
-    if (result.subject[outcome].known && said[outcome] === undefined) {
-      fail(`${outcome} is established with no statement anywhere in the trajectory`);
-    }
+
+  if (subject.request !== said.request) {
+    fail(`the request is ${JSON.stringify(subject.request)}; it was given as ${JSON.stringify(said.request)}`);
+  }
+  if (said.request !== null && subject.requestSource !== said.requestSource) {
+    fail(`the request claims to be ${String(subject.requestSource)}, and is ${said.requestSource}`);
+  }
+  if (subject.offeredSource !== said.offeredSource) {
+    fail(`the offer list claims to be ${subject.offeredSource}, and is ${said.offeredSource}`);
+  }
+
+  const shape = (offers: readonly { title: string; year: number; offered: boolean; lead: boolean }[]) =>
+    offers.map(({ title, year, offered, lead }) => ({ title, year, offered, lead }));
+  if (JSON.stringify(shape(subject.offers)) !== JSON.stringify(shape(said.offers))) {
+    fail(
+      `the evening's films are ${JSON.stringify(shape(subject.offers))}; ` +
+        `the script put forward ${JSON.stringify(shape(said.offers))}`,
+    );
   }
   return fail.failures;
 }
@@ -144,52 +186,65 @@ export function permission(result: Result): Failure[] {
 /* ------------------------------------------------------------------ gate 4 */
 
 /**
- * Correction: the current answer is the latest statement, and the superseded one
- * is nowhere.
+ * Correction: each fact is the latest thing said about it, a retraction reaches
+ * unknown rather than false, and every refusal both refused and left the evening
+ * exactly as it was.
  */
 export function correction(result: Result): Failure[] {
   const fail = failer("correction", result);
-  if (!result.subject) return [];
+  const subject = result.subject;
   const said = declared(result.trajectory.steps);
 
-  for (const outcome of OUTCOMES) {
-    const held = result.subject[outcome];
-    const latest = said[outcome];
-    if (latest === undefined || latest === null) {
-      if (held.known) fail(`${outcome} survived a retraction as ${JSON.stringify(held.value)}`);
-      continue;
-    }
-    if (!held.known) {
-      fail(`${outcome} was stated last as ${JSON.stringify(latest)} and is not remembered`);
-      continue;
-    }
-    const current = outcome === "chosen" ? { title: (held.value as { title: string }).title, year: (held.value as { year: number }).year } : held.value;
-    if (JSON.stringify(current) !== JSON.stringify(latest)) {
-      fail(`${outcome} is ${JSON.stringify(current)}; the last statement was ${JSON.stringify(latest)}`);
+  if (subject) {
+    for (const expected of said.offers) {
+      const offer = subject.offers.find((one) => one.title === expected.title && one.year === expected.year);
+      if (!offer) {
+        fail(`${expected.title} (${String(expected.year)}) was said about and is not in the evening`);
+        continue;
+      }
+      for (const fact of FACTS) {
+        const latest = expected[fact];
+        const held = offer[fact];
+        if (latest === null) {
+          if (held.known) fail(`${offer.title}: ${fact} survived a retraction as ${String(valueOf(held))}`);
+        } else if (!held.known) {
+          fail(`${offer.title}: ${fact} was stated last as ${String(latest)} and is not remembered`);
+        } else if (held.value !== latest) {
+          fail(`${offer.title}: ${fact} is ${String(held.value)}; the last statement was ${String(latest)}`);
+        }
+      }
+      if (offer.passReason !== expected.passReason) {
+        fail(`${offer.title}: the reason is ${JSON.stringify(offer.passReason)}; they said ${JSON.stringify(expected.passReason)}`);
+      }
     }
   }
 
-  // A refused correction must not have landed. The trajectory says which steps
-  // were expected to be refused; if one succeeded, that is the failure.
-  result.refusals.forEach((refused, at) => {
-    if (!refused) fail(`a correction expected to be refused was accepted (refusal ${String(at)})`);
+  result.refusals.forEach((refusal, at) => {
+    if (!refusal.refused) fail(`a step expected to be refused was accepted (refusal ${String(at)})`);
+    if (!refusal.unchanged) fail(`a refused step still moved the evening (refusal ${String(at)})`);
   });
   return fail.failures;
 }
 
 /* ------------------------------------------------------------------ gate 5 */
 
-/** Forgetting: the evening is absent from the public surface, offers and all. */
+/**
+ * Forgetting: an evening that was forgotten, or deleted when nothing they said
+ * was left in it (F6), is absent from the public surface, offers and all.
+ */
 export function forgetting(result: Result): Failure[] {
   const fail = failer("forgetting", result);
-  const forgets = result.trajectory.steps.some((step) => step.act === "forget");
-  if (!forgets) return fail.failures;
-
-  if (result.subject) fail("a forgotten evening is still readable");
-  const forgotten = result.trajectory.steps.find((step) => step.act === "record");
-  if (forgotten?.act === "record") {
-    const lingering = result.episodes.find((episode) => episode.request === forgotten.request);
-    if (lingering) fail("a forgotten evening is still listed");
+  const said: Declared = declared(result.trajectory.steps);
+  if (said.exists) {
+    if (!result.subject) fail("an evening the script keeps is gone");
+    return fail.failures;
+  }
+  if (result.subject) fail("a forgotten or emptied evening is still readable");
+  const first = result.trajectory.steps.find((step) => step.act === "record");
+  if (first?.act === "record" && first.request !== undefined) {
+    if (result.episodes.some((episode) => episode.request === first.request)) {
+      fail("a forgotten evening is still listed");
+    }
   }
   return fail.failures;
 }
@@ -210,11 +265,15 @@ export function untouchedTaste(result: Result): Failure[] {
   return fail.failures;
 }
 
-export const GATES = [factuality, chain, permission, correction, forgetting, untouchedTaste];
+export const GATES = [steps, factuality, chain, permission, correction, forgetting, untouchedTaste];
 
 /** Runs every gate over every result. Empty means M1 passes. */
 export function gate(results: readonly Result[]): Failure[] {
   return results.flatMap((result) => GATES.flatMap((check) => check(result)));
+}
+
+function valueOf(fact: Established<boolean>): boolean | undefined {
+  return fact.known ? fact.value : undefined;
 }
 
 function failer(gate: string, result: Result) {

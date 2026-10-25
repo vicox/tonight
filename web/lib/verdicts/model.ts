@@ -561,7 +561,8 @@ function checkAssertion(value: unknown): Assertion {
  */
 export const NOT_A_VERDICT =
   "Turning a film down is not a verdict. Not wanting it suggested again is where the film " +
-  "stands on their list — viewing dont-want-to-see — and \"not tonight\" is not recorded.";
+  "stands on their list — viewing dont-want-to-see — and \"not tonight\" is never a viewing or a " +
+  "verdict, at most a pass on that evening.";
 
 /**
  * The user's own words, or the honest absence of them.

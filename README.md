@@ -43,8 +43,9 @@ your own words for why if you gave them, whether you volunteered it or answered 
 when. They have a history: changing your mind supersedes what you said before without erasing
 it, withdrawing one takes that verdict out of what stands, and forgetting one removes it. Nothing
 else anywhere holds an opinion. Turning a film down is not a verdict: *"don't recommend it
-again"* is the film's viewing, `dont-want-to-see`, and *"not tonight"* is used that evening and
-written nowhere. Deleting a Movie deletes every verdict about it too.
+again"* is the film's viewing, `dont-want-to-see`, and *"not tonight"* is used that evening and is
+never a viewing or a verdict — at most a pass on that evening. Deleting a Movie deletes every
+verdict about it too.
 
 A Vibe is not the intersection of its Genres. `Sci-Fi` and `Thriller` are the ingredients; what
 you meant by putting them together — contained settings, mystery and pressure rather than
@@ -173,10 +174,10 @@ method ships in the skill beside the server rather than as a runtime tool.
 | `forget_verdict` | one act removed outright, by the reference `get_memory` gave it |
 | `get_verdicts` | everything said about one film, and which of it stands now |
 | `get_memory` | the whole of what Tonight holds: what is current, and what it remembers |
-| `record_episode` | an evening: what was asked for, and the films put forward |
-| `correct_episode` | putting an evening right, including what they said they did with it |
+| `record_episode` | a film evening: what was asked for and the films put forward (`offered`), another round of the same evening, or an evening of their own — adding only, never changing what is recorded |
+| `correct_episode` | putting an evening right, and what they said happened with each of its films (`offers`: chosen, started, finished, passed), merged one film at a time — only on their unambiguous reference to that evening |
 | `forget_episode` | an evening removed |
-| `get_episodes` | the evenings, as history rather than as taste |
+| `get_episodes` | the evenings, as history rather than as taste: each film an offer, Tonight's or theirs, with its own facts |
 
 Whose model a tool acts on is never an argument. The store is opened for the authenticated user
 before any tool exists to call it, so there is no `user_id` in any schema and nowhere for a
@@ -281,6 +282,17 @@ film. Find those first, without writing anything, with `npm run db:preflight-m8`
 production database, and resolve each with the build that is still running; then follow the four
 steps below. The removed acts come back only from the backup.
 
+So is **episodes v3** (M9). An evening becomes its offers, each with its own `offered` flag and
+its own `chosen`, `started`, `finished` and `passed`: the evening-level `watched` and `finished`
+move onto the film the evening chose (`watched` becomes `started`) and their columns are dropped,
+so the build before it fails loudly rather than misreading an evening. It refuses — changing
+nothing — when an evening says it watched or finished something without a chosen film, says it
+finished a film it did not watch, or offers the same film twice, naming the account and the
+evening. Find those first with `npm run db:preflight-m9`, resolve each with the running build,
+then follow the four steps below; rollback is the backup. After deploying, reconnect the Tonight
+connector in each host — clients may keep the old tool definitions — and check with `tools/list`
+that `correct_episode` and `record_episode` take `offers`.
+
 So the contract for any release carrying one is four steps and their order is the whole of it:
 
 1. **Stop the application.** Traffic quiesced, nothing writing.
@@ -316,7 +328,7 @@ bash chatgpt-plugin/test.sh
   but its instant is when somebody spoke rather than when they watched, and an Episode's is the
   evening it was written down.
 - **Recommendations joined to what caused them.** An Episode already records an evening — what
-  was asked for, the films put forward, and what the user said they did with one — so what was
+  was asked for, the films put forward, and what the user said they did with each — so what was
   recommended is written down. What is not here is the join: an offered film names no Genre or
   Vibe as its reason. The model is designed for it — the reference would be by uuid, the way every
   relation here does it, so a later rename would cost nothing — but behavioural history must stay

@@ -215,14 +215,42 @@ describe("the memory tools", () => {
     })) as { episode: { id: string } };
     await said(her, "correct_episode", {
       episode: written.episode.id,
-      chosen: HEAT,
-      watched: true,
-      finished: true,
+      offers: [{ ...HEAT, chosen: true, started: true, finished: true }],
     });
 
     const { held, remembered } = await memory(her);
     assert.equal(held.length, 0, "a finished evening produced something held");
     assert.deepEqual(remembered.map((root) => root.of), ["evening"]);
+  });
+
+  test("an evening they started themselves is remembered without a request or its source", async () => {
+    const her = someone();
+    await said(her, "record_episode", { offers: [{ ...HEAT, started: true }] });
+
+    const evening = of((await memory(her)).remembered, "evening")[0]!;
+    assert.equal(evening.request, null);
+    assert.equal("requestSource" in evening, false, "an evening with no request says where its request came from");
+    assert.equal(evening.offeredSource, "observed");
+    const [offer] = evening.offers as { title: string; offered: boolean; started: { known: boolean; value?: boolean } }[];
+    assert.equal(offer?.title, "Heat");
+    assert.equal(offer?.offered, false, "a film they brought up reads as Tonight's");
+    assert.deepEqual(offer?.started, { known: true, value: true, source: "stated" });
+  });
+
+  test("an evening emptied by taking its last film back is forgotten, and gone from memory", async () => {
+    const her = someone();
+    const written = (await said(her, "record_episode", { offers: [{ ...HEAT, started: true }] })) as {
+      episode: { id: string };
+    };
+    assert.equal(of((await memory(her)).remembered, "evening").length, 1);
+
+    const answer = await said(her, "correct_episode", {
+      episode: written.episode.id,
+      offers: [{ ...HEAT, started: null }],
+    });
+    assert.deepEqual(answer, { episode: null, forgotten: written.episode.id });
+    assert.equal(of((await memory(her)).remembered, "evening").length, 0, "an emptied evening is still remembered");
+    assert.deepEqual((await said(her, "get_episodes")).episodes, []);
   });
 
   /* ------------------------------------------------------------ provenance */
@@ -433,48 +461,91 @@ describe("the memory tools", () => {
       request: "something tense",
       offered: [first],
     })) as { episode: { id: string } };
-    await said(her, "correct_episode", { episode: written.episode.id, chosen: first });
+    await said(her, "correct_episode", {
+      episode: written.episode.id,
+      offers: [{ title: first.title, year: first.year, chosen: true }],
+    });
 
+    // The wrong film taken back, the right one offered and chosen, in one call.
     await said(her, "correct_episode", {
       episode: written.episode.id,
       request: "something quiet, actually",
       offered: [second],
-      chosen: second,
+      offers: [
+        { title: first.title, year: first.year, chosen: null },
+        { title: second.title, year: second.year, chosen: true },
+      ],
     });
 
     const evening = of((await memory(her)).remembered, "evening")[0]!;
     assert.equal(evening.request, "something quiet, actually");
     assert.equal(evening.requestSource, "stated", "a corrected request still claims Tonight heard it");
     assert.equal(evening.offeredSource, "stated");
-    assert.deepEqual(evening.offered, [second]);
-    assert.deepEqual((evening.chosen as { value: unknown }).value, second);
+    assert.deepEqual(
+      (evening.offers as { title: string; offered: boolean; lead: boolean; chosen: unknown }[]).map((offer) => [
+        offer.title,
+        offer.offered,
+        offer.lead,
+        offer.chosen,
+      ]),
+      [["Second", true, true, { known: true, value: true, source: "stated" }]],
+    );
     // Nothing of the old evening survives as a current fact.
     assert.equal(JSON.stringify(evening).includes("First"), false, "an old fact survived the correction");
     assert.equal(JSON.stringify(evening).includes("something tense"), false);
   });
 
-  test("an offer list can be emptied when nothing is left chosen, and not otherwise", async () => {
+  test("an offer list can be emptied, and a film they still said something about stays as theirs", async () => {
     const her = someone();
     const film = { title: "Only", year: 2003, lead: true };
     const written = (await said(her, "record_episode", { request: "tense", offered: [film] })) as {
       episode: { id: string };
     };
-    await said(her, "correct_episode", { episode: written.episode.id, chosen: film, watched: true });
+    await said(her, "correct_episode", {
+      episode: written.episode.id,
+      offers: [{ title: film.title, year: film.year, chosen: true, started: true }],
+    });
 
-    // Offers alone cannot drop the film they said they watched.
-    const complaint = await refused(her, "correct_episode", { episode: written.episode.id, offered: [] });
-    assert.match(complaint, /Only/u, "the refusal does not name the film in the way");
-    const untouched = of((await memory(her)).remembered, "evening")[0]!;
-    assert.deepEqual(untouched.offered, [film], "a refused correction still landed");
-    assert.equal(untouched.offeredSource, "observed");
+    // Tonight did not offer it after all: their choice and start stay, on a film of theirs.
+    await said(her, "correct_episode", { episode: written.episode.id, offered: [] });
+    const kept = of((await memory(her)).remembered, "evening")[0]!;
+    assert.equal(kept.offeredSource, "stated");
+    const [theirs] = kept.offers as { title: string; offered: boolean; lead: boolean; started: unknown }[];
+    assert.equal(theirs?.title, "Only");
+    assert.equal(theirs?.offered, false, "a film nobody offered still reads as Tonight's");
+    assert.equal(theirs?.lead, false, "a film nobody offered still leads");
+    assert.deepEqual(theirs?.started, { known: true, value: true, source: "stated" }, "an outcome went with the offers");
 
-    // Both together is a consistent evening, so it is allowed.
-    await said(her, "correct_episode", { episode: written.episode.id, offered: [], chosen: null });
+    // Once nothing they said about it stands, it leaves; the evening keeps its request.
+    await said(her, "correct_episode", {
+      episode: written.episode.id,
+      offers: [{ title: film.title, year: film.year, chosen: null, started: null }],
+    });
     const after = of((await memory(her)).remembered, "evening")[0]!;
-    assert.deepEqual(after.offered, []);
-    assert.equal(after.offeredSource, "stated");
-    assert.equal((after.chosen as { known: boolean }).known, false);
-    assert.equal((after.watched as { value: boolean }).value, true, "an outcome went with the offers");
+    assert.deepEqual(after.offers, []);
+    assert.equal(after.request, "tense");
+  });
+
+  test("a correction that cannot stand is refused whole and leaves the evening as it was", async () => {
+    const her = someone();
+    const film = { title: "Only", year: 2003, lead: true };
+    const written = (await said(her, "record_episode", { request: "tense", offered: [film] })) as {
+      episode: { id: string };
+    };
+    await said(her, "correct_episode", {
+      episode: written.episode.id,
+      offers: [{ title: film.title, year: film.year, chosen: true }],
+    });
+    const before = of((await memory(her)).remembered, "evening")[0]!;
+
+    // A pass on the film they chose, with a new request beside it: none of it takes.
+    const complaint = await refused(her, "correct_episode", {
+      episode: written.episode.id,
+      request: "something else",
+      offers: [{ title: film.title, year: film.year, passed: true }],
+    });
+    assert.match(complaint, /Only/u, "the refusal does not name the film in the way");
+    assert.deepEqual(of((await memory(her)).remembered, "evening")[0], before, "a refused correction still landed");
   });
 
   test("one user's evening is not correctable by another", async () => {

@@ -152,8 +152,16 @@ question about their Vibes.
   one they gave.
 - **Lukewarm or ambiguous words write nothing** — *"it was fine, I guess"* — unless one light
   question settles them, and then the answer is `confirmed`.
-- **Watching is not an opinion.** *"I watched it last night"* is a viewing or an evening, never a
-  verdict. Neither is taking your recommendation.
+- **Watching is not an opinion.** *"I watched it last night"* is a viewing, never a verdict.
+  Neither is taking your recommendation. Whether it touches an evening is the recommend skill's
+  rule, whole:
+  - it **updates** a recorded evening — `started` on that film — only when they unambiguously
+    referred to that evening: a reply in the conversation that recorded it, or their naming it.
+    A title that matches, or the evening being recent, is never the reference;
+  - an evening of their own watching that names no evening you recorded **creates a new**
+    evening with no request, and never attaches to an existing one;
+  - anything else — a statement that might be about a recorded evening but does not say so
+    included — writes to **no** evening, and no question is asked in order to file it.
 - A sentence about **when** or **how** a film worked — a lazy Sunday, half-watching, with friends
   — is part of their reason and stays in `because`. It is never an occasion, a daypart or an
   attention level stored anywhere else, and never a claim like *"you like low-attention films"*.
@@ -192,7 +200,8 @@ verdict:
 
 **A turn-down is not how a film worked for them**, and it never leads to any Vibe talk at all.
 *"Stop suggesting it"* is `dont-want-to-see` on the film — a viewing, never evidence about their
-taste — and *"not tonight"* is about an evening, not the film, and is written nowhere.
+taste — and *"not tonight"* is about an evening, not the film: never a viewing or a verdict, at
+most a pass on that evening.
 
 ### Writing what they agreed
 
@@ -212,7 +221,7 @@ not happen.
 
 **Never written:** a film you named only as an illustration; a paraphrase of their reason; a
 stronger judgement than theirs; an occasion, daypart or attention field anywhere; a Vibe, a
-membership or a core without their yes; any record that an offer was made or turned down.
+membership or a core without their yes; any record that a Vibe offer was made or turned down.
 
 ### How it sounds
 
@@ -226,8 +235,8 @@ membership or a core without their yes; any record that an offer was made or tur
 | *"I hated it."* | `disliked` | tension once, if the film is in a Vibe |
 | *"Stop suggesting it."* | `dont-want-to-see` on the film — never `disliked`, which says they watched it | nothing about Vibes |
 | *"Don't recommend it again."* | `dont-want-to-see` on the film — a viewing, not a verdict | nothing about Vibes |
-| *"Not tonight — too long."* | nothing — it is about an evening, not the film | nothing about Vibes |
-| *"I watched it last night."* | a viewing or an evening | nothing — watching is not an opinion |
+| *"Not tonight — too long."* | at most a pass on that evening, *"too long"* as its reason — it is about an evening, not the film | nothing about Vibes |
+| *"I watched it last night."* | a viewing; `started` on a recorded evening only when they referred to it, a new evening of their own when they named none you recorded, and no evening when it is unclear | nothing — watching is not an opinion |
 
 ## Keeping a film: which Vibe, and proposing one
 

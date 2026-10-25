@@ -286,7 +286,7 @@ describe("upgrading the database production actually has", () => {
 
       // The schema moved the whole way.
       assert.deepEqual(await applied("taste"), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
-      assert.deepEqual(await applied("episodes"), [1, 2]);
+      assert.deepEqual(await applied("episodes"), [1, 2, 3]);
       assert.deepEqual(await applied("verdicts"), [1, 2, 3]);
       // The retirements run here too, and record nothing but themselves: this
       // database never had the tables, so the drop removes nothing.
@@ -387,6 +387,66 @@ describe("upgrading the database production actually has", () => {
         (await sqlVerdictStore(driver, user).standing()).map((one) => [one.title, one.judgement]),
         [["Zodiac", "loved"]],
       );
+    } finally {
+      await driver.close();
+    }
+  });
+
+  test("the M9 release upgrades the database M8 left, evenings and all, through the catalog", async () => {
+    // Production as M8 leaves it: everything in this catalog but episodes v3,
+    // which is the whole of what M9 adds to it.
+    const driver = await embeddedDriver();
+    try {
+      for (const schema of ALL_SCHEMAS) {
+        await migrate(
+          driver,
+          schema.module === "episodes"
+            ? { ...schema, migrations: schema.migrations.filter((one) => one.version <= 2) }
+            : schema,
+        );
+      }
+
+      const who = "google:already-here";
+      const [evening] = await driver.query<{ id: string }>(
+        "INSERT INTO tonight_episodes (user_id, request, watched, finished) VALUES ($1, $2, true, false) RETURNING id",
+        [who, "something tense"],
+      );
+      for (const [position, title, chosen] of [
+        [0, "Heat", true],
+        [1, "Cure", false],
+      ] as const) {
+        await driver.query(
+          `INSERT INTO tonight_episode_offers (user_id, episode, position, title, year, lead, chosen)
+           VALUES ($1, $2, $3, $4, 1995, $5, $6)`,
+          [who, evening!.id, position, title, position === 0, chosen],
+        );
+      }
+
+      for (const schema of ALL_SCHEMAS) await migrate(driver, schema);
+
+      const [row] = await driver.query<{ versions: number[] }>(
+        "SELECT array_agg(version ORDER BY version) AS versions FROM schema_migrations WHERE module = 'episodes'",
+      );
+      assert.deepEqual(row?.versions, [1, 2, 3]);
+
+      const [read] = await sqlEpisodeStore(driver, asUser(who)).episodes();
+      assert.ok(read, "the upgrade lost an evening");
+      assert.equal(read.request, "something tense");
+      assert.deepEqual(
+        read.offers.map((offer) => [
+          offer.title,
+          offer.offered,
+          offer.lead,
+          offer.chosen.known && offer.chosen.value,
+          offer.started.known && offer.started.value,
+          offer.finished.known && offer.finished.value,
+        ]),
+        [
+          ["Heat", true, true, true, true, false],
+          ["Cure", true, false, false, false, false],
+        ],
+      );
+      assert.equal(read.offers[1]?.chosen.known, false, "M8's 'not chosen' became a stated no");
     } finally {
       await driver.close();
     }

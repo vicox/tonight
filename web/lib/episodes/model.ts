@@ -1,291 +1,432 @@
 /**
- * An evening Tonight was part of: what was asked, what was offered, and what the
- * user later said happened.
+ * A film evening Tonight was part of, offer by offer.
  *
- * M1 of `docs/work/phase-2-implementation.md`. This is history, and history is
- * not taste — which is why it is a module of its own rather than three more
- * fields on the taste model. `lib/taste/store/schema.ts` said so before there was
- * anything to say it about: history, when it arrives, is "evidence for
- * *proposing* changes to this model — never a second, invisible model that
- * quietly outvotes it". Nothing here reads or writes a genre, a vibe or a movie
- * state, and nothing here concludes anything about what somebody likes.
+ * One evening may run over several recommendation rounds, and may hold films the
+ * user brought up themselves. Each film of the evening is an **Offer**: a row
+ * that says whether Tonight recommended it (`offered`) and what the user said
+ * happened with it. This is history, and history is not taste — which is why it
+ * is a module of its own, and why nothing here reads or writes a genre, a vibe, a
+ * Movie or a verdict, and nothing here concludes anything about what somebody
+ * likes.
  *
- * ## Why a field can be unknown forever
+ * ## Four facts per offer, each one known or not
  *
- * Tonight sees what it was asked and what it offered, because it was there for
- * both. It does not see an evening. Whether a film was put on, watched to the
- * end, or abandoned twenty minutes in is something only the user can say, and
- * most of the time nobody says it.
+ *     chosen     they intend to watch it
+ *     started    they actually began it — true without `chosen` is fine
+ *     finished   they completed it — and so began it (F2)
+ *     passed     an explicit "not tonight", with their reason if they gave one
  *
- * So the outcome fields are `unknown` until somebody states otherwise, and
- * `unknown` is a permanent, ordinary, complete answer rather than a gap waiting
- * to be filled. An episode with three unknown outcomes is a correct record of a
- * partly-known evening.
+ * Every fact is `Established<boolean>`: unknown until the user states it, and
+ * then exactly what they stated. Unknown is a permanent, ordinary, complete
+ * answer, never a quiet no. The one entailment is F2 — saying they finished a
+ * film says they began it — and nothing else is ever derived: not from another
+ * fact, not from a verdict, not from a viewing, not from another evening.
  *
- * The temptation this exists to refuse is small and reasonable every single
- * time: Tonight recommended one film, the user did not object, so surely they
- * watched it — and if they watched it to the end, surely they liked it. Each
- * step is plausible, none is observed, and the result is a detailed viewing
- * history that reads as fact, is partly invented, and is indistinguishable
- * afterwards from what the user actually said. That is the failure the
- * architecture calls a history that is inaccurate *and* reads as surveillance,
- * and it is prevented here by making the honest answer expressible.
+ * ## The rules, by the names the plan gives them
  *
- *     A recommendation does not imply a choice.
- *     A choice does not imply it was watched.
- *     Watching does not imply finishing.
+ *     F1  independence — nothing set from anything but F2
+ *     F2  finished ⇒ started, with explicit statements taking precedence
+ *     F3  a pass excludes taking: passed with chosen or started is refused
+ *     F4  a reason belongs to a pass
+ *     F5  an offer they brought up lives only while one of its facts is known
+ *     F6  an evening with no request lives only while it holds an offer
+ *     F7  one statement per offer per array
  *
- * The chain stops there on purpose. Whether they *liked* it is a Verdict, it is
- * owned by the user, and it belongs to M2 — there is deliberately nowhere in
- * this file to put one.
+ * Identity inside an evening is the exact title and year, as M8's duplicate rule
+ * was: no folding, no truncation, no digest. A film offered again in a later
+ * round is the same offer, keeps its first place and what was said about it.
  */
 
 /** How a field came to be known. There is no third way, and no default. */
 export type Source =
   /** Tonight was there: it received the request, it made the offer. */
   | "observed"
-  /** The user said so. The only way an outcome is ever established. */
+  /** The user said so. The only way a fact about an offer is ever established. */
   | "stated";
 
 /**
  * A fact, or the honest absence of one.
  *
- * Modelled as a union rather than a nullable value because the difference
- * between *"they told me they did not finish it"* and *"nobody ever said"* is the
- * whole point, and `finished: false` cannot hold both. One is something the user
- * said and may be acted on; the other is silence and may not.
+ * A union rather than a nullable value because *"they told me they did not
+ * finish it"* and *"nobody ever said"* are different answers, and `false` alone
+ * cannot hold both.
  */
 export type Established<T> = { known: true; value: T; source: Source } | { known: false };
 
 /** The permanent, first-class absence. Not a placeholder for a later value. */
 export const UNKNOWN: Established<never> = { known: false };
 
-/** Something the user stated. Outcomes are only ever established this way. */
+/** Something the user stated. Offer facts are only ever established this way. */
 export function stated<T>(value: T): Established<T> {
   return { known: true, value, source: "stated" };
 }
 
-/** Something Tonight witnessed itself. Only the request and the offer qualify. */
+/** Something Tonight witnessed itself. Only the request and the offer list qualify. */
 export function observed<T>(value: T): Established<T> {
   return { known: true, value, source: "observed" };
 }
 
-/** A film Tonight put forward, as it referred to it at the time. */
+/** One of the four facts an offer carries. */
+export type Said = Established<boolean>;
+
+/** The four facts, in the order they are always listed. */
+export const FACTS = ["chosen", "started", "finished", "passed"] as const;
+export type Fact = (typeof FACTS)[number];
+
+/**
+ * One film of an evening.
+ *
+ * `offered` is whether Tonight recommended it in any round of this evening;
+ * `false` is a film they brought up themselves. `lead` is whether Tonight led
+ * with it in some round, and only an offered film can have led.
+ */
 export type Offer = {
   title: string;
   year: number;
-  /** Whether this was the lead, in the Phase 1 sense, or one of the directions. */
+  offered: boolean;
   lead: boolean;
+  chosen: Said;
+  started: Said;
+  finished: Said;
+  passed: Said;
+  /** Their words for passing, present only while `passed` is true. */
+  passReason?: string;
 };
 
 /**
  * One evening.
  *
- * `request` and `offered` are always present and always `observed`: an episode
- * without them is not an episode, because nothing happened that Tonight was part
- * of. Every outcome is `Established` and starts unknown.
+ * `request` is what they asked for, in their words, or `null` for an evening
+ * they told Tonight about without asking it anything (`record_episode` with
+ * their own films). `offers` are in the order each film first appeared.
  */
 export type Episode = {
-  /** What they asked for, in their words. Never a paraphrase, never a summary. */
-  request: string;
-  /**
-   * How the request came to be what it says.
-   *
-   * `observed` is the ordinary case: Tonight received the request and wrote it
-   * down. `stated` means the user later said it was wrong and gave the right
-   * one. The difference is not decoration — a corrected request is something
-   * they told Tonight, and calling it observed afterwards would claim Tonight
-   * witnessed a sentence it never heard.
-   *
-   * A plain `Source` rather than an `Established`: a request is never unknown,
-   * because an evening without one is not an evening.
-   */
+  request: string | null;
+  /** How the request came to be what it says. Meaningless while `request` is null. */
   requestSource: Source;
-  /** The films put forward. May be empty: an answer that named none is a fact too. */
-  offered: readonly Offer[];
-  /** How the offer list came to be what it says. As `requestSource`. */
+  offers: readonly Offer[];
+  /** How the offered set came to be what it says. */
   offeredSource: Source;
-  /** Which film they said they went with. */
-  chosen: Established<Offer>;
-  /** Whether they said they watched it. */
-  watched: Established<boolean>;
-  /** Whether they said they finished it. */
-  finished: Established<boolean>;
 };
 
 /**
  * An episode that has been written down, and can be found again.
  *
- * Identity exists so a later statement can reach the evening it is about. It is
- * the store's, generated there, and stable: correcting what happened does not
- * make it a different evening. `recordedAt` is when Tonight wrote the episode,
- * which is not when the evening happened and is never presented as though it
- * were — only the user could say that, and nobody asked.
+ * `recordedAt` is when Tonight wrote the evening down — not when it happened,
+ * and never presented as though it were.
  */
 export type Recorded<T> = T & { id: string; recordedAt: string };
 
+/** One film as Tonight offered it in a round — M8's `Offer`, renamed. */
+export type OfferedFilm = { title: string; year: number; lead: boolean };
+
+/**
+ * What the user said about one film of the evening.
+ *
+ * A key left out keeps the stored value. `null` takes it back to unknown —
+ * allowed in `correct_episode` only; `record_episode` is additive and refuses it.
+ */
+export type OfferStatement = {
+  title: string;
+  year: number;
+  chosen?: boolean | null;
+  started?: boolean | null;
+  finished?: boolean | null;
+  passed?: boolean | null;
+  passReason?: string | null;
+};
+
 export const MAX_REQUEST_LENGTH = 2_000;
+/** Films Tonight may put forward in one round, as before. */
 export const MAX_OFFERED = 10;
+/** Films one evening may hold, every round and their own films together. */
+export const MAX_OFFERS_PER_EVENING = 50;
+export const MAX_PASS_REASON_LENGTH = 2_000;
 
 export class EpisodeError extends Error {
   override readonly name = "EpisodeError";
 }
 
-/**
- * What the user said about how the evening went.
- *
- * Every field is optional and independent, and that independence is the rule
- * rather than a convenience: there is no argument shape here that lets one
- * outcome be derived from another, so no caller can express "watched, therefore
- * finished" even by accident. A field left out stays as it was.
- */
-export type OutcomeStatement = {
-  chosen?: Offer | null;
-  watched?: boolean | null;
-  finished?: boolean | null;
-};
+/** What a new evening is recorded from. */
+export type Beginning = { request?: unknown; offered?: unknown; offers?: unknown };
+
+/** What a later round of the same evening adds. */
+export type Round = { offered?: unknown; offers?: unknown };
+
+/** What a correction may change. Every key is optional; an absent key is untouched. */
+export type Correction = { request?: unknown; offered?: unknown; offers?: unknown };
 
 /**
- * Everything about an evening that the user may put right.
+ * The words `correct_episode` used to take, and why they are refused.
  *
- * The outcomes, and the two facts Tonight recorded for itself. Those two are
- * here because M3 promises that what is shown can be corrected where it is
- * shown, and an evening whose request was written down wrongly cannot be
- * repaired by deleting the evening — that loses the outcomes with it.
- *
- * An absent key is untouched, as it is for the outcomes. There is no `null` for
- * `request` or `offered`: neither can be taken back to unknown, because an
- * evening is not an evening without them.
+ * Kept as one sentence so the MCP boundary and the model say the same thing.
  */
-export type Correction = OutcomeStatement & {
-  request?: string;
-  offered?: readonly Offer[];
-};
+export const FACTS_ARE_PER_OFFER =
+  "Facts are per offer now — offers: [{ title, year, chosen | started | finished | passed }]. " +
+  "An evening no longer has one chosen film or one watched/finished.";
 
 /**
- * Begin an episode from what Tonight observed.
+ * Begin an evening.
  *
- * The outcomes start unknown and there is no parameter to start them anywhere
- * else. Recording that an evening happened says nothing about how it went.
+ * Tonight's offers for this round are observed; the user's statements, if any,
+ * fill facts in. A request is required whenever Tonight offered something, and
+ * an evening needs a request or at least one film — otherwise it records
+ * nothing. Statements here are additive: there is nothing stored to retract.
  */
-export function beginEpisode(request: unknown, offered: unknown): Episode {
-  return {
-    request: checkRequest(request),
-    // Both observed, always: recording an evening is Tonight writing down what
-    // it asked and what it offered. There is no parameter to say otherwise,
-    // because at this moment there is nothing else it could honestly be.
-    requestSource: "observed",
-    offered: checkOffered(offered),
-    offeredSource: "observed",
-    chosen: UNKNOWN,
-    watched: UNKNOWN,
-    finished: UNKNOWN,
-  };
+export function beginEpisode(input: Beginning): Episode {
+  const request = input.request === undefined || input.request === null ? null : checkRequest(input.request);
+  const offered = checkOffered(input.offered ?? [], { max: MAX_OFFERED, oneLead: true });
+  const statements = checkStatements(input.offers ?? []);
+
+  if (offered.length > 0 && request === null) {
+    throw new EpisodeError(
+      "An evening Tonight recommended films for records what they asked for — give the request, in their words.",
+    );
+  }
+
+  let offers: Offer[] = offered.map((film) => offerFrom(film, true));
+  offers = applyStatements(offers, statements, "additive");
+  const episode: Episode = { request, requestSource: "observed", offers, offeredSource: "observed" };
+  if (isEmpty(episode)) {
+    throw new EpisodeError(
+      "An evening records what they asked for, or a film of it — say one of the two.",
+    );
+  }
+  return checkEpisode(episode);
 }
 
 /**
- * Apply what the user said, and nothing else.
+ * Add a later round to an evening: more films Tonight offered, and what was
+ * said in the same breath.
  *
- * `null` retracts a field to unknown — the user taking back something they said
- * leaves silence, not a false value. An absent field is untouched.
+ * Additive only. A film already there becomes offered and gains the lead if it
+ * leads this round; nothing stored is removed or overwritten — a statement may
+ * fill an unknown fact or a missing reason, restating a stored value is a
+ * no-op, and anything else is refused and routed to `correct_episode`.
+ */
+export function addRound(episode: Episode, round: Round): Episode {
+  if ("request" in round) {
+    throw new EpisodeError(
+      "An evening keeps the request it was recorded with; a later round adds films, not a new request.",
+    );
+  }
+  const offered = checkOffered(round.offered ?? [], { max: MAX_OFFERED, oneLead: true });
+  const statements = checkStatements(round.offers ?? []);
+  if (!offered.length && !statements.length) {
+    throw new EpisodeError("A round adds films Tonight offered, or what they said about one.");
+  }
+
+  const offers = episode.offers.map((offer) => ({ ...offer }));
+  for (const film of offered) {
+    const at = offers.findIndex((offer) => same(offer, film));
+    if (at === -1) {
+      offers.push(offerFrom(film, true));
+    } else {
+      const was = offers[at]!;
+      offers[at] = { ...was, offered: true, lead: was.lead || film.lead };
+    }
+  }
+  return checkEpisode({ ...episode, offers: applyStatements(offers, statements, "additive") });
+}
+
+/**
+ * Put an evening right.
  *
- * A chosen film must be one Tonight actually offered. Anything else is a
- * different evening, and quietly accepting it would let an episode claim Tonight
- * was part of something it had no part in.
+ * - `request` replaces the request, which becomes `stated`.
+ * - `offered` replaces the set of films Tonight offered, with leads as given,
+ *   and the set becomes `stated`. A film leaving the set stays as theirs while
+ *   something they said about it stands (F5).
+ * - `offers` merges statements one film at a time; `null` takes a fact back.
+ *
+ * The result may be an evening with no request and no film (F6). That is not
+ * refused here: the store deletes such an evening rather than writing it.
  */
 export function correctEpisode(episode: Episode, correction: Correction): Episode {
-  const keys = ["request", "offered", "chosen", "watched", "finished"] as const;
-  if (!keys.some((key) => key in correction)) {
-    throw new EpisodeError("Say what to correct: the request, the films offered, or what happened.");
+  for (const retired of ["chosen", "watched", "finished"]) {
+    if (retired in correction) throw new EpisodeError(FACTS_ARE_PER_OFFER);
+  }
+  const keys = ["request", "offered", "offers"] as const;
+  if (!keys.some((key) => key in correction && correction[key] !== undefined)) {
+    throw new EpisodeError("Say what to correct: the request, the films offered, or what they said about one.");
   }
 
-  // One transition, described whole before any of it is judged. Each field is
-  // either what the correction says or what it already was, and the invariants
-  // are then checked against *that* evening — not against a half-applied one.
-  //
-  // The order used to be the other way round, and it made a legitimate
-  // correction impossible: replacing the offers and the choice together was
-  // refused, because the new list was held against the choice the user was in
-  // the middle of replacing.
-  const offered = "offered" in correction ? checkOffered(correction.offered) : episode.offered;
-  const chosen =
-    "chosen" in correction ? choiceAmong(offered, correction.chosen) : retained(episode.chosen, offered);
+  let request = episode.request;
+  let requestSource = episode.requestSource;
+  if (correction.request !== undefined) {
+    if (correction.request === null) {
+      throw new EpisodeError("A request can be corrected, not removed.");
+    }
+    request = checkRequest(correction.request);
+    requestSource = "stated";
+  }
 
-  return {
-    request: "request" in correction ? checkRequest(correction.request) : episode.request,
-    requestSource: "request" in correction ? "stated" : episode.requestSource,
-    offered,
-    offeredSource: "offered" in correction ? "stated" : episode.offeredSource,
-    chosen,
-    watched: "watched" in correction ? establishFlag(correction.watched, "watched") : episode.watched,
-    finished:
-      "finished" in correction ? establishFlag(correction.finished, "finished") : episode.finished,
-  };
+  let offers = episode.offers.map((offer) => ({ ...offer }));
+  let offeredSource = episode.offeredSource;
+  if (correction.offered !== undefined) {
+    const offered = checkOffered(correction.offered, { max: MAX_OFFERS_PER_EVENING, oneLead: false });
+    offers = offers.map((offer) => {
+      const film = offered.find((one) => same(offer, one));
+      return film ? { ...offer, offered: true, lead: film.lead } : { ...offer, offered: false, lead: false };
+    });
+    for (const film of offered) {
+      if (!offers.some((offer) => same(offer, film))) offers.push(offerFrom(film, true));
+    }
+    offeredSource = "stated";
+  }
+
+  if (correction.offers !== undefined) {
+    offers = applyStatements(offers, checkStatements(correction.offers), "correct");
+  }
+
+  // F5, after the whole call has merged.
+  offers = offers.filter((offer) => offer.offered || FACTS.some((fact) => offer[fact].known));
+
+  return checkEpisode({ request, requestSource, offers, offeredSource });
+}
+
+/** An evening with no request and no film: nothing left to record (F6). */
+export function isEmpty(episode: Episode): boolean {
+  return episode.request === null && episode.offers.length === 0;
 }
 
 /**
- * A choice they already stated, carried across a corrected offer list.
+ * The invariants every stored evening holds, checked whole.
  *
- * What is being kept is *"they chose film A"*. The Offer it points at is how
- * that film was described in the list — its place, and whether it led — and a
- * corrected list may describe it differently. So the choice is rebound to the
- * entry in the new list rather than kept as the old one: otherwise the evening
- * returned here would say `lead: true` and the same evening read back from the
- * store would say `lead: false`, and both would claim to be what happened.
- *
- * If the film is not in the new list at all, the correction is refused whole.
- * What they chose is theirs and the offer list is Tonight's; dropping their
- * statement to make Tonight's list fit repairs the wrong one of the two. A
- * correction that genuinely means to change both says so, and takes the other
- * path above.
+ * Every write path ends here, so a new evening, a round and a correction are
+ * held to one definition — identity included, since no index enforces it.
  */
-function retained(chosen: Established<Offer>, offered: readonly Offer[]): Established<Offer> {
-  if (!chosen.known) return UNKNOWN;
-  const { title, year } = chosen.value;
-  const still = offered.find((offer) => offer.title === title && offer.year === year);
-  if (!still) {
-    throw new EpisodeError(
-      `They said they chose ${title} (${String(year)}), which is not in that list of films. ` +
-        `Correct what they chose in the same breath, or leave that film in.`,
-    );
+export function checkEpisode(episode: Episode): Episode {
+  if (episode.offers.length > MAX_OFFERS_PER_EVENING) {
+    throw new EpisodeError(`An evening holds at most ${String(MAX_OFFERS_PER_EVENING)} films.`);
   }
-  return stated(still);
+  const seen = new Set<string>();
+  for (const offer of episode.offers) {
+    const key = identity(offer);
+    if (seen.has(key)) {
+      throw new EpisodeError(`${describe(offer)} is in that evening twice.`);
+    }
+    seen.add(key);
+    if (offer.lead && !offer.offered) {
+      throw new EpisodeError(`Only a film Tonight offered can have led: ${describe(offer)}.`);
+    }
+    if (isTrue(offer.finished) && !isTrue(offer.started)) {
+      throw new EpisodeError(`They finished ${describe(offer)}, so they started it.`);
+    }
+    if (isTrue(offer.passed) && (isTrue(offer.chosen) || isTrue(offer.started))) {
+      throw new EpisodeError(
+        `They passed on ${describe(offer)} that evening, so it cannot also be chosen or started — ` +
+          "if they changed their mind, take the pass back (passed: null) in the same call.",
+      );
+    }
+    if (offer.passReason !== undefined && !isTrue(offer.passed)) {
+      throw new EpisodeError(`A reason belongs to a pass: ${describe(offer)} is not passed.`);
+    }
+    if (!offer.offered && !FACTS.some((fact) => offer[fact].known)) {
+      throw new EpisodeError(
+        `${describe(offer)} was not offered by Tonight, so it is in the evening only for what they said about it — say something.`,
+      );
+    }
+  }
+  return episode;
 }
+
+/* ------------------------------------------------------------- statements */
+
+type Mode = "additive" | "correct";
 
 /**
- * The film they said they went with, checked against the list it must be in.
+ * Merge statements into the offers, one film at a time.
  *
- * Takes the offer list rather than the episode, because the list to check
- * against is the *corrected* one — the evening the correction is producing, not
- * the one it started from.
+ * `additive` is `record_episode`'s: fill what is unknown, restate what is known,
+ * and refuse anything that would change or remove a stored value. `correct` is
+ * `correct_episode`'s: set, change, or take back with `null`.
  */
-function choiceAmong(
-  offered: readonly Offer[],
-  chosen: Offer | null | undefined,
-): Established<Offer> {
-  if (chosen === null || chosen === undefined) return UNKNOWN;
-  const among = offered.find(
-    (offer) => offer.title === chosen.title && offer.year === chosen.year,
-  );
-  if (!among) {
-    throw new EpisodeError(
-      `Tonight did not offer ${chosen.title} (${String(chosen.year)}) that evening.`,
-    );
+function applyStatements(offers: Offer[], statements: readonly OfferStatement[], mode: Mode): Offer[] {
+  const result = offers.map((offer) => ({ ...offer }));
+  for (const statement of statements) {
+    const at = result.findIndex((offer) => same(offer, statement));
+    const isNew = at === -1;
+    if (isNew) {
+      const states = FACTS.some((fact) => statement[fact] !== undefined && statement[fact] !== null);
+      if (!states) {
+        throw new EpisodeError(
+          `${describe(statement)} is not in that evening; to add it, say what they said about it.`,
+        );
+      }
+    }
+    const was: Offer = isNew ? offerFrom(statement, false) : result[at]!;
+    const next = merge(was, statement, mode);
+    if (isNew) result.push(next);
+    else result[at] = next;
   }
-  return stated(among);
+  return result;
 }
 
-function establishFlag(value: boolean | null | undefined, what: string): Established<boolean> {
-  if (value === null || value === undefined) return UNKNOWN;
-  if (typeof value !== "boolean") {
-    throw new EpisodeError(`Whether they ${what} it is yes or no, or left unsaid.`);
+function merge(was: Offer, statement: OfferStatement, mode: Mode): Offer {
+  const next: Offer = { ...was };
+
+  for (const fact of FACTS) {
+    const value = statement[fact];
+    if (value === undefined) continue;
+    if (mode === "additive") {
+      if (value === null) {
+        throw new EpisodeError(
+          `Taking something back is a correction — use correct_episode for ${describe(statement)}.`,
+        );
+      }
+      if (was[fact].known && was[fact].value !== value) {
+        throw new EpisodeError(
+          `${describe(statement)} already has ${fact}: ${String(was[fact].value)}. Changing it is a correction — use correct_episode.`,
+        );
+      }
+    }
+    next[fact] = value === null ? UNKNOWN : stated(value);
   }
-  return stated(value);
+
+  // F2, exactly. Explicit statements take precedence over the entailment.
+  if (isTrue(next.finished)) {
+    if (statement.started === false || statement.started === null) {
+      throw new EpisodeError(
+        `They finished ${describe(statement)} — that says they started it. Take the finish back too, or say started.`,
+      );
+    }
+    if (next.started.known && next.started.value === false) {
+      throw new EpisodeError(
+        `${describe(statement)} is recorded as not started. If they finished it after all, say started: true in the same call.`,
+      );
+    }
+    if (!next.started.known) next.started = stated(true);
+  }
+
+  // F4: the reason follows the pass.
+  if (statement.passReason !== undefined) {
+    if (statement.passReason === null) {
+      if (mode === "additive") {
+        throw new EpisodeError(
+          `Taking a reason back is a correction — use correct_episode for ${describe(statement)}.`,
+        );
+      }
+      delete next.passReason;
+    } else {
+      const reason = checkReason(statement.passReason);
+      if (mode === "additive" && was.passReason !== undefined && was.passReason !== reason) {
+        throw new EpisodeError(
+          `${describe(statement)} already has a reason for the pass. Changing it is a correction — use correct_episode.`,
+        );
+      }
+      next.passReason = reason;
+    }
+  }
+  if (!isTrue(next.passed) && statement.passReason === undefined) delete next.passReason;
+
+  return next;
 }
+
+/* ------------------------------------------------------------ validation */
 
 function checkRequest(value: unknown): string {
   if (typeof value !== "string" || value.trim() === "") {
-    throw new EpisodeError("An episode records what they asked for, in their words.");
+    throw new EpisodeError("An evening records what they asked for, in their words.");
   }
   const request = value.trim();
   if (request.length > MAX_REQUEST_LENGTH) {
@@ -294,42 +435,147 @@ function checkRequest(value: unknown): string {
   return request;
 }
 
-function checkOffered(value: unknown): readonly Offer[] {
+function checkReason(value: unknown): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new EpisodeError("A reason is their words, or left out.");
+  }
+  const reason = value.trim();
+  if ([...reason].length > MAX_PASS_REASON_LENGTH) {
+    throw new EpisodeError(`A reason is at most ${String(MAX_PASS_REASON_LENGTH)} characters.`);
+  }
+  return reason;
+}
+
+function checkOffered(value: unknown, limits: { max: number; oneLead: boolean }): OfferedFilm[] {
   if (!Array.isArray(value)) {
     throw new EpisodeError("The films offered are a list, empty if none were.");
   }
-  if (value.length > MAX_OFFERED) {
-    throw new EpisodeError(`At most ${String(MAX_OFFERED)} films were offered.`);
+  if (value.length > limits.max) {
+    throw new EpisodeError(`At most ${String(limits.max)} films were offered.`);
   }
-  const offered = value.map(checkOffer);
-  const leads = offered.filter((offer) => offer.lead);
-  if (leads.length > 1) {
+  const offered = value.map(checkOfferedFilm);
+  if (limits.oneLead && offered.filter((film) => film.lead).length > 1) {
     throw new EpisodeError("An answer has one lead, not several.");
   }
-  // The same film twice is not an answer anybody gives, and allowing it would
-  // make "which one did they choose" a question with two right answers — the
-  // choice is recorded against the film, so two identical offers are two rows
-  // nothing could tell apart afterwards.
-  const seen = new Set(offered.map((offer) => `${offer.title}\u0000${String(offer.year)}`));
-  if (seen.size !== offered.length) {
-    throw new EpisodeError("The same film was offered twice.");
-  }
+  noDuplicates(offered, "offered");
   return offered;
 }
 
-function checkOffer(value: unknown): Offer {
-  const offer = value as Partial<Offer> | null;
-  if (typeof offer !== "object" || offer === null) {
+function checkOfferedFilm(value: unknown): OfferedFilm {
+  const film = value as Partial<OfferedFilm> | null;
+  if (typeof film !== "object" || film === null) {
     throw new EpisodeError("Each film offered has a title, a year and whether it led.");
   }
-  if (typeof offer.title !== "string" || offer.title.trim() === "") {
-    throw new EpisodeError("A film offered has a title.");
-  }
-  if (typeof offer.year !== "number" || !Number.isInteger(offer.year)) {
-    throw new EpisodeError("A film offered has a year.");
-  }
-  if (typeof offer.lead !== "boolean") {
+  const { title, year } = checkFilm(film);
+  if (typeof film.lead !== "boolean") {
     throw new EpisodeError("Say whether the film led or was a direction.");
   }
-  return { title: offer.title.trim(), year: offer.year, lead: offer.lead };
+  return { title, year, lead: film.lead };
+}
+
+function checkStatements(value: unknown): OfferStatement[] {
+  if (!Array.isArray(value)) {
+    throw new EpisodeError("What they said is a list, one entry per film.");
+  }
+  if (value.length > MAX_OFFERS_PER_EVENING) {
+    throw new EpisodeError(`At most ${String(MAX_OFFERS_PER_EVENING)} films in one call.`);
+  }
+  const statements = value.map(checkStatement);
+  noDuplicates(statements, "offers");
+  return statements;
+}
+
+function checkStatement(value: unknown): OfferStatement {
+  const raw = value as Record<string, unknown> | null;
+  if (typeof raw !== "object" || raw === null) {
+    throw new EpisodeError("Each statement names a film by title and year.");
+  }
+  const allowed = new Set(["title", "year", ...FACTS, "passReason"]);
+  for (const key of Object.keys(raw)) {
+    if (!allowed.has(key)) {
+      throw new EpisodeError(
+        `Not a fact about an offer: ${key}. The facts are chosen, started, finished and passed (with passReason).`,
+      );
+    }
+  }
+  const statement: OfferStatement = checkFilm(raw);
+  for (const fact of FACTS) {
+    const said = raw[fact];
+    if (said === undefined) continue;
+    if (said !== null && typeof said !== "boolean") {
+      throw new EpisodeError(`Whether they ${fact} it is yes or no, or null to take it back.`);
+    }
+    statement[fact] = said;
+  }
+  if (raw.passReason !== undefined) {
+    statement.passReason = raw.passReason === null ? null : checkReason(raw.passReason);
+  }
+  return statement;
+}
+
+function checkFilm(value: { title?: unknown; year?: unknown }): { title: string; year: number } {
+  if (typeof value.title !== "string" || value.title.trim() === "") {
+    throw new EpisodeError("A film has a title.");
+  }
+  if (typeof value.year !== "number" || !Number.isInteger(value.year)) {
+    throw new EpisodeError("A film has a year.");
+  }
+  return { title: value.title.trim(), year: value.year };
+}
+
+/** F7: the same film twice in one array is refused. */
+function noDuplicates(films: readonly { title: string; year: number }[], where: string): void {
+  const seen = new Set<string>();
+  for (const film of films) {
+    const key = identity(film);
+    if (seen.has(key)) {
+      throw new EpisodeError(`${describe(film)} is named twice in ${where}; say each film once.`);
+    }
+    seen.add(key);
+  }
+}
+
+/* ---------------------------------------------------------------- helpers */
+
+function offerFrom(film: { title: string; year: number; lead?: boolean }, offered: boolean): Offer {
+  return {
+    title: film.title,
+    year: film.year,
+    offered,
+    lead: offered ? (film.lead ?? false) : false,
+    chosen: UNKNOWN,
+    started: UNKNOWN,
+    finished: UNKNOWN,
+    passed: UNKNOWN,
+  };
+}
+
+/** Identity inside one evening: the exact title and the year. */
+function identity(film: { title: string; year: number }): string {
+  return `${film.title}\u0000${String(film.year)}`;
+}
+
+function same(one: { title: string; year: number }, other: { title: string; year: number }): boolean {
+  return one.title === other.title && one.year === other.year;
+}
+
+function isTrue(fact: Said): boolean {
+  return fact.known && fact.value;
+}
+
+function describe(film: { title: string; year: number }): string {
+  return `${film.title} (${String(film.year)})`;
+}
+
+/**
+ * An evening as it is shown: `requestSource` only where there is a request.
+ *
+ * The one projection every surface uses — `get_episodes`, the write answers and
+ * `get_memory` — so the shape cannot differ between them.
+ */
+export function shown<T extends Episode>(episode: T): Omit<T, "requestSource"> & { requestSource?: Source } {
+  if (episode.request !== null) return episode;
+  const { requestSource: _unused, ...rest } = episode;
+  void _unused;
+  return rest;
 }

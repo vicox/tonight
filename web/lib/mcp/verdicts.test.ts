@@ -498,9 +498,9 @@ describe("the verdict tools", () => {
     });
     const episodes = (await said(ana, "get_episodes")) as unknown as { episodes: { id: string }[] };
     const id = episodes.episodes[episodes.episodes.length - 1]!.id;
-    await said(ana, "correct_episode", { episode: id, chosen: { title: f.title, year: f.year } });
-    await said(ana, "correct_episode", { episode: id, watched: true });
-    await said(ana, "correct_episode", { episode: id, finished: true });
+    await said(ana, "correct_episode", { episode: id, offers: [{ title: f.title, year: f.year, chosen: true }] });
+    await said(ana, "correct_episode", { episode: id, offers: [{ title: f.title, year: f.year, started: true }] });
+    await said(ana, "correct_episode", { episode: id, offers: [{ title: f.title, year: f.year, finished: true }] });
 
     assert.deepEqual((await standing(ana, f)).history, [], "finishing a film wrote a verdict");
     assert.equal((await standing(ana, f)).current, null);
@@ -551,11 +551,13 @@ describe("the verdict tools", () => {
     assert.match(text, /finishing one is not liking it/u);
     assert.match(text, /Silence is not a verdict/u);
     // A verdict is a judgement about the film, and a turn-down is routed rather
-    // than recorded: where the film stands, or nothing at all.
+    // than recorded as one: where the film stands, or at most a pass on that
+    // evening — never a viewing or a verdict.
     assert.match(text, /A verdict is a judgement — liked, loved or disliked — about the film/u);
     assert.match(text, /\*\*Turning a film down is not a verdict\.\*\*/u);
     assert.match(text, /say where the film stands on their list: dont-want-to-see/u);
-    assert.match(text, /offer something else and write nothing/u);
+    assert.match(text, /offer something else; never a viewing or a verdict, at most\s+a pass on that evening/u);
+    assert.doesNotMatch(text, /write nothing/u, "a verdict tool still says a turn-down for tonight writes nothing");
     assert.doesNotMatch(text, /not-tonight|not-ever|occasion/u, "a verdict tool still describes a refusal or an evening");
     // Withdrawal.
     assert.match(text, /not a neutral one, and certainly not a dislike/u);

@@ -132,7 +132,7 @@ describe("the memory composer", () => {
 
   test("evenings and everything no longer standing are remembered", async () => {
     const her = someone();
-    await her.episodes.record(beginEpisode("something tense", [{ ...HEAT_1995, lead: true }]));
+    await her.episodes.record(beginEpisode({ request: "something tense", offered: [{ ...HEAT_1995, lead: true }] }));
     await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-02T20:00:00.000Z"));
     await her.verdicts.say(withdrawVerdict(BLACK_BAG, "2026-01-03T20:00:00.000Z"));
@@ -170,7 +170,7 @@ describe("the memory composer", () => {
     await her.verdicts.say(judged(HEAT_1995, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
     await her.verdicts.say(judged(BLACK_BAG, "liked", "2026-01-02T20:00:00.000Z"));
-    await her.episodes.record(beginEpisode("something tense", [{ ...HEAT_1995, lead: true }]));
+    await her.episodes.record(beginEpisode({ request: "something tense", offered: [{ ...HEAT_1995, lead: true }] }));
 
     const { held, remembered } = await her.memory();
     const name = (root: Root) => JSON.stringify(root.handle);
@@ -183,15 +183,39 @@ describe("the memory composer", () => {
 
   test("an evening is remembered and is never held, whatever became of it", async () => {
     const her = someone();
-    const offers = [{ ...HEAT_1995, lead: true }];
-    const written = await her.episodes.record(beginEpisode("something tense", offers));
-    // Chosen, watched and finished — the whole chain, which still teaches nothing.
-    await her.episodes.correct(written.id, { chosen: offers[0], watched: true, finished: true });
+    const written = await her.episodes.record(
+      beginEpisode({ request: "something tense", offered: [{ ...HEAT_1995, lead: true }] }),
+    );
+    // Chosen, started and finished — the whole chain, which still teaches nothing.
+    await her.episodes.correct(written.id, { offers: [{ ...HEAT_1995, chosen: true, started: true, finished: true }] });
 
     const { held, remembered } = await her.memory();
     assert.equal(of(held, "evening").length, 0, "an evening reached held");
     assert.equal(of(remembered, "evening").length, 1);
     assert.equal(held.length, 0, "a finished evening produced something held");
+  });
+
+  test("an evening they started themselves is remembered with no request and no request source", async () => {
+    const her = someone();
+    const written = await her.episodes.record(beginEpisode({ offers: [{ ...HEAT_1995, started: true }] }));
+
+    const [root] = of((await her.memory()).remembered, "evening");
+    assert.ok(root && root.of === "evening");
+    assert.equal(root.request, null);
+    assert.equal("requestSource" in root, false, "an evening with no request says where its request came from");
+    assert.deepEqual(
+      root.offers.map((offer) => [offer.title, offer.offered, offer.started.known && offer.started.value]),
+      [["Heat", false, true]],
+    );
+    assert.deepEqual(root.handle, { by: "id", id: written.id });
+  });
+
+  test("an evening deleted when its last film was taken back is gone from memory", async () => {
+    const her = someone();
+    const written = await her.episodes.record(beginEpisode({ offers: [{ ...HEAT_1995, started: true }] }));
+    const done = await her.episodes.correct(written.id, { offers: [{ ...HEAT_1995, started: null }] });
+    assert.deepEqual(done, { forgotten: written.id });
+    assert.equal(of((await her.memory()).remembered, "evening").length, 0, "an emptied evening is still remembered");
   });
 
   /* ------------------------------------------------------ one film, one history */
@@ -252,7 +276,7 @@ describe("the memory composer", () => {
 
   test("an evening says when Tonight wrote it down, and where each fact came from", async () => {
     const her = someone();
-    const written = await her.episodes.record(beginEpisode("something tense", [{ ...HEAT_1995, lead: true }]));
+    const written = await her.episodes.record(beginEpisode({ request: "something tense", offered: [{ ...HEAT_1995, lead: true }] }));
     await her.episodes.correct(written.id, { request: "something quiet, actually" });
 
     const [root] = of((await her.memory()).remembered, "evening");
@@ -261,7 +285,9 @@ describe("the memory composer", () => {
     assert.equal(root.request, "something quiet, actually");
     assert.equal(root.requestSource, "stated", "a corrected request still claims Tonight heard it");
     assert.equal(root.offeredSource, "observed");
-    assert.equal(root.watched.known, false, "an unstated outcome acquired a value");
+    for (const fact of ["chosen", "started", "finished", "passed"] as const) {
+      assert.equal(root.offers[0]?.[fact].known, false, `an unstated ${fact} acquired a value`);
+    }
     assert.deepEqual(root.handle, { by: "id", id: written.id });
     for (const invented of ["when", "saidAt", "savedAt"]) {
       assert.equal(invented in root.basis, false, `an evening claims ${invented}`);
@@ -272,7 +298,7 @@ describe("the memory composer", () => {
     const her = someone();
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
     await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
-    await her.episodes.record(beginEpisode("something tense", [{ ...HEAT_1995, lead: true }]));
+    await her.episodes.record(beginEpisode({ request: "something tense", offered: [{ ...HEAT_1995, lead: true }] }));
 
     const memory = await her.memory();
     const payload = JSON.stringify(memory);
@@ -287,7 +313,7 @@ describe("the memory composer", () => {
     const her = someone();
     await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
-    await her.episodes.record(beginEpisode("something tense", [{ ...HEAT_1995, lead: true }]));
+    await her.episodes.record(beginEpisode({ request: "something tense", offered: [{ ...HEAT_1995, lead: true }] }));
 
     const payload = JSON.stringify(await her.memory()).toLowerCase();
     for (const invention of [
@@ -304,7 +330,7 @@ describe("the memory composer", () => {
     const her = someone();
     await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
-    await her.episodes.record(beginEpisode("something tense", [{ ...HEAT_1995, lead: true }]));
+    await her.episodes.record(beginEpisode({ request: "something tense", offered: [{ ...HEAT_1995, lead: true }] }));
 
     const before = {
       taste: await her.taste.taste(),
@@ -324,7 +350,7 @@ describe("the memory composer", () => {
     const him = someone("theirs");
     await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
-    await her.episodes.record(beginEpisode("hers alone", [{ ...HEAT_1995, lead: true }]));
+    await her.episodes.record(beginEpisode({ request: "hers alone", offered: [{ ...HEAT_1995, lead: true }] }));
 
     const his = await him.memory();
     assert.deepEqual(his, { held: [], remembered: [] });
@@ -381,8 +407,10 @@ describe("the memory composer", () => {
 
   test("correcting an evening changes how it is remembered, and nothing else", async () => {
     const her = someone();
-    const offers = [{ ...HEAT_1995, lead: true }, { ...BLACK_BAG, lead: false }];
-    const written = await her.episodes.record(correctEpisode(beginEpisode("something tense", offers), { chosen: offers[0] }));
+    const offered = [{ ...HEAT_1995, lead: true }, { ...BLACK_BAG, lead: false }];
+    const written = await her.episodes.record(
+      correctEpisode(beginEpisode({ request: "something tense", offered }), { offers: [{ ...HEAT_1995, chosen: true }] }),
+    );
     const before = await her.memory();
 
     await her.episodes.correct(written.id, { offered: [{ ...HEAT_1995, lead: false }, { ...BLACK_BAG, lead: true }] });
@@ -391,7 +419,9 @@ describe("the memory composer", () => {
     const evening = of(after.remembered, "evening")[0];
     assert.ok(evening && evening.of === "evening");
     assert.equal(evening.offeredSource, "stated");
-    assert.deepEqual(evening.chosen.known ? evening.chosen.value : null, { ...HEAT_1995, lead: false });
+    const heat = evening.offers.find((offer) => offer.title === HEAT_1995.title);
+    assert.equal(heat?.lead, false, "the corrected lead did not take");
+    assert.deepEqual(heat?.chosen, { known: true, value: true, source: "stated" }, "the choice did not stay on its film");
     assert.deepEqual(after.held, before.held, "correcting an evening changed what is held");
     assert.equal(of(after.held, "verdict").length, 0, "correcting an evening said something");
   });

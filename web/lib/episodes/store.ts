@@ -2,31 +2,41 @@ import { database } from "../db.ts";
 import type { SqlDriver } from "../db/driver.ts";
 import { prepareSchema } from "../db/migrate.ts";
 import type { AuthenticatedUser } from "../identity.ts";
-import type { Episode, Correction, Recorded } from "./model.ts";
+import type { Correction, Episode, Recorded, Round } from "./model.ts";
 
 /**
- * What Slice 2 of M1 needs from persistence, and nothing beyond it.
+ * An evening that a correction emptied, and that is therefore gone (F6).
  *
- * Three operations. Write an evening down, read one back, list them. There is
- * deliberately no update and no delete here: correction and forgetting are
- * Slice 3 of the same milestone, and the plan is explicit that a memory type
- * ships with them — but shipping them in the slice that introduces the table
- * would mean writing their behaviour before the slice that defines it.
+ * Only an evening with no request can end up here: one the user started
+ * themselves, whose last film they took back. It is deleted exactly as
+ * `forget` deletes one.
+ */
+export type Forgotten = { forgotten: string };
+
+/**
+ * One user's evenings, and every operation on them.
  *
- * There is also no query that derives anything. No "what do they usually ask
- * for", no counting, no grouping by film. Episodes are evidence a later
- * milestone may propose from; a store that answered questions about taste would
- * be the second, invisible model the taste schema warned about.
+ * There is no query that derives anything — no "what do they usually pick", no
+ * counting, no grouping by film. Evenings are history; a store that answered
+ * questions about taste would be the second, invisible model the taste schema
+ * warns about.
+ *
+ * Every write that touches an existing evening takes its row lock, assembles
+ * it, hands it to the pure model and writes back the model's answer whole. The
+ * model is the one place every rule — identity included — is enforced.
  */
 export type EpisodeStore = {
   /**
-   * Writes one evening down.
-   *
-   * Inserts. Never updates and never upserts: recording an episode that already
-   * exists is an error, because the alternative is a caller silently rewriting
-   * what was recorded the first time.
+   * Writes a new evening down. Inserts, never upserts: the evening is checked
+   * whole by the model before anything is written.
    */
   record(episode: Episode): Promise<Recorded<Episode>>;
+
+  /**
+   * Adds a later round to an evening this user has: films Tonight offered, and
+   * what was said in the same breath. Additive only — see `addRound`.
+   */
+  addRound(id: string, round: Round): Promise<Recorded<Episode>>;
 
   /** One episode of this user's, by id. Refused for anybody else's. */
   episode(id: string): Promise<Recorded<Episode>>;
@@ -35,28 +45,17 @@ export type EpisodeStore = {
   episodes(): Promise<Recorded<Episode>[]>;
 
   /**
-   * Corrects what the user said happened.
-   *
-   * Takes the same statement shape as `stateOutcome`, and for the same reason:
-   * each outcome is independent, `null` takes one back to unknown, and a field
-   * left out is untouched. There is no general `update` here on purpose — a
-   * method that took arbitrary fields could express corrections this milestone
-   * has no meaning for, and would put the "chosen was offered" check somewhere a
-   * caller could route around.
-   *
-   * What it cannot change is what was asked and what was offered. Those are what
-   * Tonight observed, they were true when they happened, and an evening whose
-   * offer could be rewritten afterwards would be a record of nothing.
+   * Puts an evening right: its request, the films Tonight offered, and what the
+   * user said about any film of it. Answers `{ forgotten }` when the correction
+   * leaves an evening with no request and no film, which is then deleted (F6).
    */
-  correct(id: string, statement: Correction): Promise<Recorded<Episode>>;
+  correct(id: string, correction: Correction): Promise<Recorded<Episode> | Forgotten>;
 
   /**
    * Forgets an episode: it and its offers, gone.
    *
    * A hard delete rather than a flag, because the promise made to the user is
-   * forgetting and not hiding. A row that still exists but is filtered from one
-   * read is a thing that can be forgotten to filter somewhere else, and the
-   * difference is invisible until it matters.
+   * forgetting and not hiding.
    */
   forget(id: string): Promise<Recorded<Episode>>;
 };
@@ -80,9 +79,7 @@ export async function episodeStore(user: AuthenticatedUser): Promise<EpisodeStor
  * process, cached as a promise so concurrent first requests wait for one run.
  *
  * A failure is forgotten rather than cached, so an instance that could not reach
- * the database on its first request is not broken for the rest of its life. The
- * taste store does the same for its own module; the two migrate independently,
- * which is the point of a migration being identified by module and version.
+ * the database on its first request is not broken for the rest of its life.
  */
 let preparing: Promise<SqlDriver> | undefined;
 

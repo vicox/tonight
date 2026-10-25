@@ -13,8 +13,12 @@ import {
 import {
   beginEpisode,
   EpisodeError,
+  FACTS_ARE_PER_OFFER,
   MAX_OFFERED,
+  MAX_OFFERS_PER_EVENING,
+  MAX_PASS_REASON_LENGTH,
   MAX_REQUEST_LENGTH,
+  shown,
   type Correction,
 } from "../episodes/model.ts";
 import type { EpisodeStore } from "../episodes/store.ts";
@@ -110,33 +114,69 @@ const episodeRequest = z
   .max(MAX_REQUEST_LENGTH)
   .describe("What they asked for, in their own words. Not a paraphrase and not a summary.");
 
-const episodeOffers = z
-  .array(
-    z.object({
-      title: z.string().min(1).describe("The film's title, as you named it."),
-      year: z.number().int().describe("Its release year."),
-      lead: z.boolean().describe("Whether this was the one you led with, or one of the others."),
-    }),
-  )
-  .max(MAX_OFFERED)
-  .describe(
-    "The films you put forward, in the order you put them. Empty if you named none. The same " +
-      "film is not offered twice, and only one of them leads.",
-  );
+/** One film as Tonight put it forward: an element of `offered`. */
+const offeredFilm = z.object({
+  title: z.string().min(1).describe("The film's title, as you named it."),
+  year: z.number().int().describe("Its release year."),
+  lead: z.boolean().describe("Whether this was the one you led with, or one of the others."),
+});
 
-const episodeChosen = z
-  .object({
-    title: z.string().min(1).describe("The film's title."),
+/**
+ * What the user said about one film of the evening: an element of `offers`.
+ *
+ * Strict, so a key from the old shape — `watched` above all — is an error that
+ * writes nothing rather than a word silently dropped.
+ */
+const offerFact = (what: string) => z.boolean().nullable().optional().describe(what);
+
+const offerStatement = z.strictObject(
+  {
+    title: z.string().min(1).describe("The film's title, spelled as the evening holds it if it is there."),
     year: z.number().int().describe("Its release year."),
-  })
-  .nullable()
-  .optional()
-  .describe(
-    "The film they said they went with, which has to be one that evening offered. Null takes " +
-      "the choice back to not known. Leave out to keep what is recorded.",
-  );
+    chosen: offerFact(
+      "They intend to watch it — \"I'll go with X\", \"let's do X\". false: they said they are not " +
+        "going with it after all. Not implied by anything else.",
+    ),
+    started: offerFact(
+      "They actually began it — \"we're watching X\", \"we started X\". May be true without chosen. " +
+        "false: they said they did not watch it.",
+    ),
+    finished: offerFact(
+      "They completed it. true also records started, since it says they began it — refused if " +
+        "they said they did not start it, unless started: true is said in the same call. false " +
+        "(\"turned it off halfway\") implies nothing about started.",
+    ),
+    passed: offerFact(
+      "An explicit turn-down for that evening — \"not tonight\", \"not in the mood\", \"nah, not " +
+        "that one\". Never dont-want-to-see and never a verdict. A passed film cannot also be " +
+        "chosen or started; if they changed their mind, take the pass back (null).",
+    ),
+    passReason: z
+      .string()
+      .min(1)
+      .max(MAX_PASS_REASON_LENGTH)
+      .nullable()
+      .optional()
+      .describe("Their words for passing, if they gave any. Only with a pass. Never your words."),
+  },
+  {
+    error: (issue) =>
+      issue.code === "unrecognized_keys"
+        ? `Not a fact about an offer: ${issue.keys.join(", ")}. The facts are chosen, started, ` +
+          "finished and passed (with passReason) — \"watched it\" is started."
+        : undefined,
+  },
+);
 
-const episodeFlag = z.boolean().nullable().optional();
+/**
+ * The three names around an evening's films, said once so both tools say it the
+ * same way: `offered` is Tonight's recommendations, input `offers` is what the
+ * user said, and the answer's `offers` is the evening's entries.
+ */
+const OFFERED_VS_OFFERS =
+  "`offered` lists the films Tonight recommended; `offers` (input) says what the user said about " +
+  "films of the evening; the answer's `offers` is the evening's list of films, each with " +
+  "`offered` true (Tonight recommended it) or false (they brought it up).";
 
 const verdictFilm = z
   .object({
@@ -286,7 +326,8 @@ const movieViewing = z
       "it again\" / \"stop suggesting it\" / \"not interested\" / \"never again\" -> " +
       "dont-want-to-see — the one way to keep a film from being recommended, and that film " +
       "only. \"Not tonight\" is none of these: it is about the evening, so it is used tonight " +
-      "and written nowhere. A film saved without one is want-to-see, so say seen whenever " +
+      "and is never a viewing or a verdict — at most a pass on that evening. A film saved " +
+      "without one is want-to-see, so say seen whenever " +
       "they told you they watched it.\n\n" +
       "**Say what you stored.** After the write, tell them in one short sentence where the film " +
       "now stands — *\"saved Arrival as want to see\"* — so that a status they did not mean is " +
@@ -709,33 +750,88 @@ export function tonightMcpServer(session: McpSession): McpServer {
 
   // --- episodes ------------------------------------------------------------
   //
-  // What happened on an evening, which is not what the user likes. These tools
-  // write history and never taste: nothing below reads a genre, a vibe or a movie
-  // state, and nothing below writes one. A film recorded as offered is a film
-  // Tonight mentioned once, not a film the user has told Tonight about.
+  // What happened on a film evening, which is not what the user likes. These
+  // tools write history and never taste: nothing below reads a genre, a vibe, a
+  // movie or a verdict, and nothing below writes one. A film in an evening is an
+  // offer — Tonight's, or one they brought up — never a saved Movie.
 
   server.registerTool(
     "record_episode",
     {
       title: "Record an evening",
       description:
-        "Write down an evening Tonight was part of: what they asked for, in their own words, " +
-        "and the films that were put forward. Record only what you actually observed — the " +
-        "request as they phrased it and the films you named. What they went on to do is not " +
-        "something you saw, so leave it out here and record it later if they say. Offering a " +
-        "film is not the same as them choosing it.\n\n" +
+        "Write down a film evening: after a reply that recommends films, what they asked for — " +
+        "in their own words — and the films you put forward (`offered`). Record only what you " +
+        "actually observed. What they went on to do is not something you saw: record it when " +
+        "they say, with `offers`. Offering a film is not the same as them choosing it.\n\n" +
         "**Writing this down does not answer them, and it never finishes a request for a " +
         "film.** Nothing here is shown to the user: this is Tonight's own record of an evening, " +
         "and a reply that reports having saved it — *\"logged this evening's recommendation\"* " +
         "— has told them nothing they can act on. Every film in `offered` must already be in " +
         "the reply they can read, named there and said in full. **A film that exists only in " +
         "this call was never recommended.** If the reply does not carry them, do not repair it " +
-        "by calling this: write the recommendation first, then record it.",
-      inputSchema: z.object({ request: episodeRequest, offered: episodeOffers }),
+        "by calling this: write the recommendation first, then record it.\n\n" +
+        "**Another round of the same evening** — they asked for something else and you " +
+        "recommended again, in this conversation — is this call with `episode`: the id this " +
+        "conversation was given when the evening was recorded. Never look up a recent evening " +
+        "to append to. A film already in the evening keeps its place and what was said about " +
+        "it, and gains the lead if it leads this round. The request stays the evening's first; " +
+        "`request` is refused together with `episode`.\n\n" +
+        "**An evening they tell you about without asking you anything** — *\"I'm watching Heat " +
+        "tonight\"*, *\"we watched Heat last night\"*, naming no evening you recorded — is this " +
+        "call with `offers` and no `request`: a new evening of their own. It never attaches to " +
+        "an existing one. *\"I've seen Heat\"* is a viewing, never an evening.\n\n" +
+        "**This call only adds.** `offers` here may fill a fact that is not known yet; " +
+        "restating a stored value changes nothing; taking something back (null), changing a " +
+        "known fact or replacing a reason is a correction and is refused — use " +
+        "`correct_episode`.\n\n" +
+        OFFERED_VS_OFFERS,
+      inputSchema: z.object({
+        episode: episodeId
+          .optional()
+          .describe(
+            "Another round of an evening recorded in this conversation, by the id you were given. " +
+              "Leave out to record a new evening.",
+          ),
+        request: episodeRequest
+          .optional()
+          .describe(
+            "What they asked for, in their own words. Required for a new evening you " +
+              "recommended films for; left out for an evening of their own; refused with `episode`.",
+          ),
+        offered: z
+          .array(offeredFilm)
+          .max(MAX_OFFERED)
+          .optional()
+          .describe(
+            "The films you recommended in this reply, in the order you put them, at most one " +
+              "leading. Leave out or empty if you named none. These are Tonight's offers.",
+          ),
+        offers: z
+          .array(offerStatement)
+          .max(MAX_OFFERS_PER_EVENING)
+          .optional()
+          .describe(
+            "What they said about films of this evening, in the same breath — one entry per " +
+              "film. A film not offered by you is added as theirs. Values only: no null here.",
+          ),
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
-    async ({ request, offered }) =>
-      attempt(async () => ({ episode: await episodes.record(beginEpisode(request, offered)) })),
+    async ({ episode, request, offered, offers }) =>
+      attempt(async () => {
+        if (episode !== undefined) {
+          if (request !== undefined) {
+            throw new EpisodeError(
+              "An evening keeps the request it was recorded with; a later round adds films, not a new request.",
+            );
+          }
+          return {
+            episode: shown(await episodes.addRound(episode, { offered: offered ?? [], offers: offers ?? [] })),
+          };
+        }
+        return { episode: shown(await episodes.record(beginEpisode({ request, offered, offers }))) };
+      }),
   );
 
   server.registerTool(
@@ -743,12 +839,17 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Read the evenings",
       description:
-        "Every evening recorded for this user, oldest first, with what was asked, what was " +
-        "offered, and whatever they said happened. Each of chosen, watched and finished is " +
-        "either known — with the value they stated — or not known at all. Not known means " +
-        "nobody ever said, and it is a complete answer rather than a gap: do not read it as no, " +
-        "and do not fill it in from what seems likely.\n\n" +
-        "`requestSource` and `offeredSource` say where those two came from. `observed` means " +
+        "Every evening recorded for this user, oldest first: what was asked (`request`, null for " +
+        "an evening they told you about without asking anything), and `offers` — every film of " +
+        "the evening, in the order it first appeared. Each offer says whether Tonight recommended " +
+        "it (`offered`) or they brought it up, whether it led a round (`lead`), and four facts: " +
+        "`chosen` (they intend to watch it), `started` (they began it), `finished` (they " +
+        "completed it) and `passed` (\"not tonight\", with `passReason` if they gave one). Each " +
+        "fact is either known — with the value they stated — or not known at all. Not known " +
+        "means nobody ever said, and it is a complete answer rather than a gap: do not read it " +
+        "as no, and do not fill it in from what seems likely — not from a verdict, not from a " +
+        "viewing, not from another evening.\n\n" +
+        "`requestSource` and `offeredSource` say where those came from. `observed` means " +
         "Tonight received that request itself, or itself put those films forward, at the time. " +
         "`stated` means the user later corrected it, so what the field now says is theirs " +
         "rather than yours. Both are about the record and never about the film: a corrected " +
@@ -757,7 +858,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
-    async () => attempt(async () => ({ episodes: await episodes.episodes() })),
+    async () => attempt(async () => ({ episodes: (await episodes.episodes()).map(shown) })),
   );
 
   server.registerTool(
@@ -765,60 +866,80 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Record or correct what happened",
       description:
-        "Put an evening right. Two kinds of thing are correctable here and they are not the " +
-        "same: what the user told you happened, and what you yourself wrote down at the time. " +
-        "Correcting the request or the films offered marks that fact as theirs rather than " +
-        "yours, because a record you had to be corrected on is no longer something you " +
-        "witnessed.\n\n" +
-        "Say what the user told you about an evening: which film they went with, whether they " +
-        "watched it, whether they finished it. Only ever from what they said. Choosing is not " +
-        "watching, watching is not finishing, and finishing is not liking — a later one is never " +
-        "implied by an earlier one, so pass only the ones they actually told you about. Pass " +
-        "null to take something back to not known, which is what a correction to silence is. " +
-        "Leave a field out to keep it as it is. The film they chose has to be one of the films " +
-        "that evening offered.",
-      inputSchema: z.object({
-        episode: episodeId,
-        request: episodeRequest
-          .optional()
-          .describe(
-            "What they actually asked for, if you wrote it down wrongly. Replaces it, in their " +
-              "own words. It cannot be blank: an evening without a request is not an evening.",
-          ),
-        offered: episodeOffers
-          .optional()
-          .describe(
-            "The films you actually put forward, if the list is wrong. Replaces it whole rather " +
-              "than adding to it. An empty list is allowed and means you named no film — but " +
-              "not while they are still recorded as having chosen one, so correct what they " +
-              "chose in the same call if you are taking that film away.",
-          ),
-        chosen: episodeChosen,
-        watched: episodeFlag.describe(
-          "True or false as they said it, or null to take it back to not known. Leave out to " +
-            "keep what is recorded.",
-        ),
-        finished: episodeFlag.describe(
-          "True or false as they said it, or null to take it back to not known. Leave out to " +
-            "keep what is recorded. Never inferred from watching.",
-        ),
-      }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+        "Put an evening right, and say what the user told you happened with its films. Two " +
+        "kinds of thing are correctable here and they are not the same: what the user told " +
+        "you, and what you yourself wrote down at the time. Correcting the request or the " +
+        "films offered marks that fact as theirs rather than yours, because a record you had " +
+        "to be corrected on is no longer something you witnessed.\n\n" +
+        "**Only an evening they unambiguously referred to.** Update an evening only from " +
+        "something they said about that evening: a reply to that recommendation in the " +
+        "conversation that recorded it, or their naming it (*\"the ones you suggested Friday\"*). " +
+        "A title that matches one of its films is never the reference, and neither is the " +
+        "evening being the latest or recent. If they did not say which evening, write to no " +
+        "evening — and do not ask a question in order to file it. **A verdict is not a watch on " +
+        "an evening:** *\"loved Arrival\"* says what they thought of the film and writes no " +
+        "evening, even one that offered Arrival; nothing here is inferred from a verdict or from " +
+        "a film being marked seen.\n\n" +
+        "**Facts are per film, and they merge.** `offers` says what they said about films of " +
+        "the evening, one entry per film; facts left out keep what is recorded, and null takes " +
+        "one back to not known. A film not in the evening is added as theirs (`offered` " +
+        "false). Each fact stands alone: chosen is not started, started is not chosen, and " +
+        "finishing is not liking — the one exception is that `finished: true` records " +
+        "`started: true` as well, because it says they began it. A passed film cannot also be " +
+        "chosen or started. A film they brought up stays only while something they said about " +
+        "it stands; take back the last of it and it leaves the evening — and an evening with " +
+        "no request that loses its last film is deleted, answered as `forgotten`.\n\n" +
+        "`chosen`, `watched` and `finished` at the top level are no longer taken: an evening " +
+        "can hold several chosen films, so each fact belongs to its film in `offers` " +
+        "(\"watched it\" is `started`).\n\n" +
+        OFFERED_VS_OFFERS,
+      inputSchema: z.strictObject(
+        {
+          episode: episodeId,
+          request: episodeRequest
+            .optional()
+            .describe(
+              "What they actually asked for, if you wrote it down wrongly — or the request an " +
+                "evening of their own never had. Replaces it, in their own words. Cannot be removed.",
+            ),
+          offered: z
+            .array(offeredFilm)
+            .max(MAX_OFFERS_PER_EVENING)
+            .optional()
+            .describe(
+              "The films you actually recommended that evening, every round, if the record is " +
+                "wrong. Replaces Tonight's set whole, with leads as given. A film leaving the set " +
+                "stays as theirs while something they said about it stands; otherwise it goes.",
+            ),
+          offers: z
+            .array(offerStatement)
+            .max(MAX_OFFERS_PER_EVENING)
+            .optional()
+            .describe(
+              "What they said about films of the evening — one entry per film, merged into what " +
+                "is recorded. null takes a fact back to not known.",
+            ),
+        },
+        {
+          error: (issue) => {
+            if (issue.code !== "unrecognized_keys") return undefined;
+            const retired = issue.keys.some((key) => ["chosen", "watched", "finished"].includes(key));
+            return `Not taken here: ${issue.keys.join(", ")}.` + (retired ? ` ${FACTS_ARE_PER_OFFER}` : "");
+          },
+        },
+      ),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
-    async ({ episode, request, offered, chosen, watched, finished }) =>
+    async ({ episode, request, offered, offers }) =>
       attempt(async () => {
         // Each key is forwarded only when the caller sent it, because an absent
         // field means "leave it alone" and a present null means "take it back".
-        // Collapsing the two here would make retraction unsayable.
         const statement: Correction = {};
         if (request !== undefined) statement.request = request;
         if (offered !== undefined) statement.offered = offered;
-        if (chosen !== undefined) {
-          statement.chosen = chosen === null ? null : { ...chosen, lead: false };
-        }
-        if (watched !== undefined) statement.watched = watched;
-        if (finished !== undefined) statement.finished = finished;
-        return { episode: await episodes.correct(episode, statement) };
+        if (offers !== undefined) statement.offers = offers;
+        const done = await episodes.correct(episode, statement);
+        return "forgotten" in done ? { episode: null, forgotten: done.forgotten } : { episode: shown(done) };
       }),
   );
 
@@ -832,7 +953,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
       inputSchema: z.object({ episode: episodeId }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
-    async ({ episode }) => attempt(async () => ({ forgotten: await episodes.forget(episode) })),
+    async ({ episode }) =>
+      attempt(async () => ({ forgotten: shown(await episodes.forget(episode)) })),
   );
 
   // --- verdicts ------------------------------------------------------------
@@ -855,7 +977,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "**Turning a film down is not a verdict.** *\"Not interested\"*, *\"stop suggesting it\"*, " +
         "*\"don't recommend it again\"* say where the film stands on their list: dont-want-to-see, " +
         "with `create_movie` or `update_movie`. *\"Not tonight\"* and *\"not in the mood for " +
-        "it\"* are about the evening — offer something else and write nothing. Neither is ever " +
+        "it\"* are about the evening — offer something else; never a viewing or a verdict, at most " +
+        "a pass on that evening (`correct_episode`). Neither is ever " +
         "`disliked`, which says they watched it, and neither is a question asking them to say " +
         "more than they did.\n\n" +
         "Changed their mind? Record the new verdict; it supersedes the old one and the old one " +
@@ -977,9 +1100,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "Every entry carries where it came from and, where one exists, the handle you correct " +
         "it by: a genre or vibe by its name, a film by title and year, an evening by its id, and " +
         "one thing they said by its `ref`. A verdict's `ref` is what `forget_verdict` takes. An " +
-        "evening also says where its own record came from: `requestSource` and `offeredSource` " +
-        "are `observed` where Tonight received the request or put the films forward itself, and " +
-        "`stated` where the user later corrected it.\n\n" +
+        "evening carries `offers` — every film of it, as `get_episodes` shows them, each with " +
+        "`offered` (Tonight's or theirs) and its own chosen, started, finished and passed — and " +
+        "says where its own record came from: `requestSource` and `offeredSource` are `observed` " +
+        "where Tonight received the request or put the films forward itself, and `stated` where " +
+        "the user later corrected it. An evening they told you about without asking anything has " +
+        "`request` null and no `requestSource`.\n\n" +
         "`coverage` says what this read answers for, and it answers for all of it: `held` " +
         "and `remembered` are the whole of Memory, and nothing is held back from this " +
         "answer.\n\n" +

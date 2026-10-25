@@ -1,3 +1,4 @@
+import type { Transaction } from "../../db/driver.ts";
 import type { SchemaModule } from "../../db/migrate.ts";
 
 /**
@@ -39,6 +40,15 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * film Tonight never mentioned. The partial unique index below allows at most
  * one, and no chosen row at all is the unknown — which is exactly right, because
  * the model has no way to state "I chose nothing".
+ *
+ * ## Since v3: an evening, offer by offer
+ *
+ * The paragraphs above describe v1 and v2 and are kept as their record. v3
+ * (`offerByOffer` below) makes each offer row one film of the evening, with its
+ * own `offered` flag and its own nullable `chosen`, `started`, `finished` and
+ * `passed` — several of an evening's films may be chosen, started or finished, a
+ * film the user brought up is a row with `offered = false`, and the evening-level
+ * `watched` / `finished` are gone. NULL is still the whole design, per offer now.
  */
 export const EPISODES_SCHEMA: SchemaModule = {
   module: "episodes",
@@ -130,5 +140,204 @@ export const EPISODES_SCHEMA: SchemaModule = {
             CHECK (offered_source IN ('observed', 'stated'));
       `,
     },
+    {
+      version: 3,
+      run: offerByOffer,
+    },
   ],
 };
+
+/**
+ * CONVERT, then CONTRACT. An evening is its offers, each with its own facts.
+ *
+ * Every row of `tonight_episode_offers` becomes one film of the evening:
+ *
+ *     offered      true for every existing row — each was put forward by Tonight
+ *     chosen       true stays true; false, which meant "not said", becomes NULL
+ *     started      the evening's `watched`, on the chosen offer (D1)
+ *     finished     the evening's `finished`, on the chosen offer
+ *     passed       NULL — nothing was ever recorded about a pass
+ *
+ * and where `finished` was true with `watched` unknown, `started` becomes true:
+ * saying they finished it said they began it (F2). The evening-level `watched`
+ * and `finished` are then dropped, and `request` may be NULL for an evening the
+ * user started themselves.
+ *
+ * ## What is refused, and why nothing is guessed
+ *
+ * `classifyEpisodes` lists three cases, and any of them stops the whole step,
+ * naming the account and the evening, with nothing changed:
+ *
+ *   - **unattributable** — `watched` or `finished` known and no chosen offer:
+ *     which film it was said about was never said (D2);
+ *   - **contradiction** — `finished` true and `watched` false, which F2 cannot
+ *     hold;
+ *   - **duplicate** — one evening offering the exact same title and year twice,
+ *     which the old model refused and the old schema never forbade.
+ *
+ * Each is resolved with the build before this one: set the outcomes to null,
+ * set the chosen film if the user says which, or correct the offer list. The
+ * pre-flight (`npm run db:preflight-m9`) asks exactly this question first.
+ *
+ * ## Order of the release
+ *
+ * Roll-forward only. Stop the application, back up, migrate, deploy. The build
+ * before this one selects the dropped columns and inserts offers without the
+ * now-required `offered`, so it fails loudly rather than misreading anything.
+ * Rollback is the backup.
+ */
+async function offerByOffer(tx: Transaction): Promise<void> {
+  const found = await classifyEpisodes(tx);
+  const blocking = episodeBlockers(found);
+  if (blocking.length) {
+    throw new Error(
+      [...blocking, "Resolve these with the build before this one, then run the migration again. Nothing has been changed."].join(" "),
+    );
+  }
+
+  await tx.exec(`
+    ALTER TABLE tonight_episode_offers
+      ADD COLUMN offered     boolean,
+      ADD COLUMN started     boolean,
+      ADD COLUMN finished    boolean,
+      ADD COLUMN passed      boolean,
+      ADD COLUMN pass_reason text;
+
+    -- Every existing row was put forward by Tonight.
+    UPDATE tonight_episode_offers SET offered = true;
+    ALTER TABLE tonight_episode_offers ALTER COLUMN offered SET NOT NULL;
+
+    -- false meant "nobody said"; from here on it means "they said no".
+    ALTER TABLE tonight_episode_offers ALTER COLUMN chosen DROP DEFAULT;
+    ALTER TABLE tonight_episode_offers ALTER COLUMN chosen DROP NOT NULL;
+    UPDATE tonight_episode_offers SET chosen = NULL WHERE chosen = false;
+
+    -- The evening's outcomes move onto the film they were about (D1).
+    UPDATE tonight_episode_offers AS o
+       SET started = CASE
+                       WHEN e.watched IS NOT NULL THEN e.watched
+                       WHEN e.finished IS TRUE THEN true
+                       ELSE NULL
+                     END,
+           finished = e.finished
+      FROM tonight_episodes AS e
+     WHERE o.user_id = e.user_id AND o.episode = e.id AND o.chosen IS TRUE;
+
+    -- Several leads (one per round) and several chosen films per evening.
+    DROP INDEX tonight_episode_offers_lead;
+    DROP INDEX tonight_episode_offers_chosen;
+
+    ALTER TABLE tonight_episode_offers
+      ADD CONSTRAINT tonight_episode_offers_lead_offered
+        CHECK (NOT lead OR offered),
+      ADD CONSTRAINT tonight_episode_offers_finished_started
+        CHECK (finished IS NOT TRUE OR started IS TRUE),
+      ADD CONSTRAINT tonight_episode_offers_passed_not_taken
+        CHECK (passed IS NOT TRUE OR (chosen IS NOT TRUE AND started IS NOT TRUE)),
+      ADD CONSTRAINT tonight_episode_offers_pass_reason
+        CHECK (pass_reason IS NULL
+               OR (passed IS TRUE AND btrim(pass_reason) <> '' AND char_length(pass_reason) <= 2000)),
+      -- A film they brought up is here only while something they said about it stands.
+      ADD CONSTRAINT tonight_episode_offers_present
+        CHECK (offered OR chosen IS NOT NULL OR started IS NOT NULL
+               OR finished IS NOT NULL OR passed IS NOT NULL);
+
+    ALTER TABLE tonight_episodes DROP COLUMN watched, DROP COLUMN finished;
+    -- NULL only for an evening they started themselves. The existing CHECK
+    -- (btrim(request) <> '') still holds every request that is there.
+    ALTER TABLE tonight_episodes ALTER COLUMN request DROP NOT NULL;
+  `);
+  // Identity inside an evening is the exact title and year, enforced by the
+  // model on the single write path under the evening's row lock — as M8's
+  // duplicate rule was. There is deliberately no unique index on the title: a
+  // raw-title index cannot hold the long titles M8 accepted, and a digest index
+  // would refuse two different titles that happened to collide.
+}
+
+/** One evening in one account, as an operator needs it named. */
+export type EpisodeNamed = { userId: string; episode: string };
+
+/** What v3 would refuse, worked out without writing. */
+export type EpisodeClassification = {
+  /** Outcomes known, and no chosen offer to put them on (D2). */
+  unattributable: EpisodeNamed[];
+  /** finished true with watched false: F2 cannot hold it. */
+  contradiction: EpisodeNamed[];
+  /** The exact same title and year offered twice in one evening. */
+  duplicate: (EpisodeNamed & { title: string; year: number })[];
+  /** Evenings whose outcomes v3 will move onto their chosen offer. */
+  attributable: number;
+};
+
+/**
+ * Which evenings v3 would refuse — read, never written.
+ *
+ * Shared by the migration and `npm run db:preflight-m9`, so the two cannot
+ * disagree. Every comparison is exact, as identity inside an evening is.
+ */
+export async function classifyEpisodes(sql: Transaction): Promise<EpisodeClassification> {
+  const unattributable = await sql.query<{ user_id: string; id: string }>(
+    `SELECT e.user_id, e.id FROM tonight_episodes AS e
+      WHERE (e.watched IS NOT NULL OR e.finished IS NOT NULL)
+        AND NOT EXISTS (SELECT 1 FROM tonight_episode_offers AS o
+                         WHERE o.user_id = e.user_id AND o.episode = e.id AND o.chosen)
+      ORDER BY e.user_id, e.recorded_at, e.id`,
+  );
+  const contradiction = await sql.query<{ user_id: string; id: string }>(
+    `SELECT user_id, id FROM tonight_episodes
+      WHERE finished IS TRUE AND watched IS FALSE
+      ORDER BY user_id, recorded_at, id`,
+  );
+  const duplicate = await sql.query<{ user_id: string; episode: string; title: string; year: number }>(
+    `SELECT user_id, episode, title, year FROM tonight_episode_offers
+      GROUP BY user_id, episode, title, year
+     HAVING count(*) > 1
+      ORDER BY user_id, episode, title, year`,
+  );
+  const [attributable] = await sql.query<{ n: number | string }>(
+    `SELECT count(*) AS n FROM tonight_episodes AS e
+      WHERE (e.watched IS NOT NULL OR e.finished IS NOT NULL)
+        AND EXISTS (SELECT 1 FROM tonight_episode_offers AS o
+                     WHERE o.user_id = e.user_id AND o.episode = e.id AND o.chosen)`,
+  );
+  return {
+    unattributable: unattributable.map((row) => ({ userId: row.user_id, episode: row.id })),
+    contradiction: contradiction.map((row) => ({ userId: row.user_id, episode: row.id })),
+    duplicate: duplicate.map((row) => ({
+      userId: row.user_id,
+      episode: row.episode,
+      title: row.title,
+      year: row.year,
+    })),
+    attributable: Number(attributable?.n ?? 0),
+  };
+}
+
+/** What stops v3, as sentences an operator can act on — empty when nothing does. */
+export function episodeBlockers(found: EpisodeClassification): string[] {
+  const evening = (one: EpisodeNamed) => `${one.userId} ${one.episode}`;
+  return [
+    ...(found.unattributable.length
+      ? [
+          "Evenings that say they watched or finished something without saying which film, so " +
+            `Tonight cannot put it on one: ${found.unattributable.map(evening).join("; ")}. Set watched ` +
+            "and finished to null, or set the film they chose if they say which.",
+        ]
+      : []),
+    ...(found.contradiction.length
+      ? [
+          "Evenings recorded as finished but not watched, which cannot both stand: " +
+            `${found.contradiction.map(evening).join("; ")}. Correct one of the two.`,
+        ]
+      : []),
+    ...(found.duplicate.length
+      ? [
+          "Evenings offering the same film twice: " +
+            found.duplicate
+              .map((one) => `${evening(one)} ${JSON.stringify(one.title)} (${String(one.year)})`)
+              .join("; ") +
+            ". Correct that evening's offer list so each film is offered once.",
+        ]
+      : []),
+  ];
+}

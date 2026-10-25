@@ -121,6 +121,9 @@ test("turning a film down is not a verdict, and the refusal says where it goes i
     );
   }
   assert.match(NOT_A_VERDICT, /dont-want-to-see/u, "the refusal does not say where a turn-down goes");
+  // "Not tonight" is never a viewing or a verdict — at most a pass on that evening.
+  assert.match(NOT_A_VERDICT, /"not tonight" is never a viewing or a verdict, at most a pass on that evening/u);
+  assert.doesNotMatch(NOT_A_VERDICT, /not recorded/u, "the refusal still says not tonight is recorded nowhere");
 });
 
 /* ------------------------------------------------- an evening is not a scope */

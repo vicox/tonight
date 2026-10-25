@@ -197,24 +197,25 @@ export type SaidRoot = {
 };
 
 /**
- * One evening, exactly as the episode store holds it.
+ * One evening, exactly as `get_episodes` shows it.
  *
- * Always remembered, never held. An evening is something Tonight was part of,
- * not something the user told it about themselves — and the whole of M1 rests
- * on the difference: offering is not choosing, choosing is not watching,
- * watching is not finishing, and finishing is not liking. A memory view that let
+ * Always remembered, never held. An evening is a record of what happened, not
+ * something the user told Tonight about their taste — and the whole of M1 rests
+ * on the difference: offering is not choosing, choosing is not starting,
+ * starting is not finishing, and finishing is not liking. A memory view that let
  * an evening into `held` would make the last of those true by presentation.
+ *
+ * `requestSource` is present only where there is a request, as in
+ * `get_episodes`: an evening they told Tonight about without asking anything
+ * has neither.
  */
 export type EveningRoot = {
   placement: "remembered";
   of: "evening";
-  request: string;
-  requestSource: Episode["requestSource"];
-  offered: Episode["offered"];
+  request: Episode["request"];
+  requestSource?: Episode["requestSource"];
+  offers: Episode["offers"];
   offeredSource: Episode["offeredSource"];
-  chosen: Episode["chosen"];
-  watched: Episode["watched"];
-  finished: Episode["finished"];
   basis: Evening;
   handle: Handle;
 };
@@ -299,12 +300,9 @@ export function compose({ taste, acts, episodes }: Roots): Memory {
       placement: "remembered",
       of: "evening",
       request: episode.request,
-      requestSource: episode.requestSource,
-      offered: episode.offered,
+      ...(episode.request === null ? {} : { requestSource: episode.requestSource }),
+      offers: episode.offers,
       offeredSource: episode.offeredSource,
-      chosen: episode.chosen,
-      watched: episode.watched,
-      finished: episode.finished,
       basis: { kind: "evening", recordedAt: episode.recordedAt },
       handle: { by: "id", id: episode.id },
     });

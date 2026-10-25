@@ -38,7 +38,19 @@
 export type Film = { title: string; year: number };
 export type Viewing = "seen" | "want-to-see" | "dont-want-to-see";
 export type Told = "volunteered" | "confirmed";
+/** A film as Tonight put it forward: an element of `offered`. */
 export type Offer = { title: string; year: number; lead: boolean };
+
+/** What they said about one film of an evening: an element of `offers`. */
+export type OfferStatement = {
+  title: string;
+  year: number;
+  chosen?: boolean | null;
+  started?: boolean | null;
+  finished?: boolean | null;
+  passed?: boolean | null;
+  passReason?: string | null;
+};
 
 /** Which act a forgetting step means, since it cannot name a reference. */
 export type Which = "first" | "last" | "withdrawal" | "all";
@@ -77,15 +89,15 @@ export type Step =
   | { act: "withdraw"; film: Film }
   /** An evening Tonight was part of. */
   | { act: "evening"; request: string; offered: Offer[] }
-  /** What became of the most recent evening. Never a verdict. */
-  | { act: "outcome"; chosen?: Offer | null; watched?: boolean | null; finished?: boolean | null }
+  /** What became of the films of the most recent evening, film by film. Never a verdict. */
+  | { act: "outcome"; offers: OfferStatement[] }
   /**
    * Putting the most recent evening right.
    *
    * `refused` declares that this correction is not a legal one and that the
    * evening must come through it untouched. The replay works out refusal for
-   * itself from the same rule the product states — that a choice they made has
-   * to stay inside the list of films Tonight offered — and a contract holds the
+   * itself from the same rules the product states — a passed film is not also
+   * chosen or started, and a finished one was started — and a contract holds the
    * two answers against each other, so neither the flag nor the replay can drift
    * alone.
    */
@@ -93,9 +105,7 @@ export type Step =
       act: "amend";
       request?: string;
       offered?: Offer[];
-      chosen?: Offer | null;
-      watched?: boolean | null;
-      finished?: boolean | null;
+      offers?: OfferStatement[];
       refused?: true;
     }
   /** Removing one thing they said, or all of it, about a film. */
@@ -150,7 +160,7 @@ export const TRAJECTORIES: readonly Trajectory[] = [
       { act: "movie", film: heat95, viewing: "seen", imdbId: "tt0113277", vibes: ["Long Nights"] },
       { act: "movie", film: zodiac, viewing: "seen" },
       { act: "evening", request: "something tense", offered: [offer(heat95, true), offer(zodiac)] },
-      { act: "outcome", chosen: offer(heat95, true), watched: true },
+      { act: "outcome", offers: [{ ...heat95, chosen: true, started: true }] },
     ],
   },
   {
@@ -167,12 +177,12 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     proves: "every evening is remembered, however many there are and however they went",
     steps: [
       { act: "evening", request: "first night", offered: [offer(heat95, true)] },
-      { act: "outcome", chosen: offer(heat95, true), watched: true, finished: true },
+      { act: "outcome", offers: [{ ...heat95, chosen: true, started: true, finished: true }] },
       { act: "evening", request: "second night", offered: [offer(zodiac, true)] },
-      { act: "outcome", watched: false },
+      { act: "outcome", offers: [{ ...zodiac, started: false }] },
       { act: "evening", request: "third night", offered: [] },
       { act: "evening", request: "fourth night", offered: [offer(prisoners, true), offer(blackBag)] },
-      { act: "outcome", chosen: offer(prisoners, true) },
+      { act: "outcome", offers: [{ ...prisoners, chosen: true }, { ...blackBag, passed: true, passReason: "too bleak tonight" }] },
     ],
   },
 
@@ -262,17 +272,22 @@ export const TRAJECTORIES: readonly Trajectory[] = [
     proves: "a misrecorded evening can be put right whole, and what was corrected becomes theirs",
     steps: [
       { act: "evening", request: "something tense", offered: [offer(heat95, true)] },
-      { act: "outcome", chosen: offer(heat95, true), watched: true },
-      { act: "amend", request: "something quiet, actually", offered: [offer(zodiac, true)], chosen: offer(zodiac, true) },
+      { act: "outcome", offers: [{ ...heat95, chosen: true, started: true }] },
+      {
+        act: "amend",
+        request: "something quiet, actually",
+        offered: [offer(zodiac, true)],
+        offers: [{ ...heat95, chosen: null, started: null }, { ...zodiac, chosen: true }],
+      },
     ],
   },
   {
     name: "nothing-was-offered",
-    proves: "an evening can be corrected to having named no film, once nothing is left chosen",
+    proves: "an evening can be corrected to having named no film, once nothing they said about one stands",
     steps: [
       { act: "evening", request: "something tense", offered: [offer(heat95, true)] },
-      { act: "outcome", chosen: offer(heat95, true), watched: true },
-      { act: "amend", offered: [], chosen: null },
+      { act: "outcome", offers: [{ ...heat95, chosen: true, started: true }] },
+      { act: "amend", offered: [], offers: [{ ...heat95, chosen: null, started: null }] },
     ],
   },
 
@@ -286,11 +301,11 @@ export const TRAJECTORIES: readonly Trajectory[] = [
       { act: "movie", film: zodiac, viewing: "seen" },
       { act: "movie", film: prisoners, viewing: "seen" },
       { act: "evening", request: "something tense", offered: [offer(heat95, true)] },
-      { act: "outcome", chosen: offer(heat95, true), watched: true, finished: true },
+      { act: "outcome", offers: [{ ...heat95, chosen: true, started: true, finished: true }] },
       { act: "evening", request: "something tense again", offered: [offer(zodiac, true)] },
-      { act: "outcome", chosen: offer(zodiac, true), watched: true, finished: true },
+      { act: "outcome", offers: [{ ...zodiac, chosen: true, started: true, finished: true }] },
       { act: "evening", request: "more of the same", offered: [offer(prisoners, true)] },
-      { act: "outcome", chosen: offer(prisoners, true), watched: true, finished: true },
+      { act: "outcome", offers: [{ ...prisoners, chosen: true, started: true, finished: true }] },
     ],
   },
   {
@@ -350,7 +365,8 @@ export const TRAJECTORIES: readonly Trajectory[] = [
 
       // Evenings, one of them misrecorded and put right.
       { act: "evening", request: "something quiet", offered: [offer(zodiac, true), offer(heat95)] },
-      { act: "outcome", chosen: offer(zodiac, true), watched: true, finished: true },
+      // Finished alone: the start it says is recorded with it.
+      { act: "outcome", offers: [{ ...zodiac, chosen: true, finished: true }] },
       { act: "evening", request: "somethign tense", offered: [offer(prisoners, true)] },
       { act: "amend", request: "something tense" },
     ],
@@ -363,22 +379,30 @@ export const TRAJECTORIES: readonly Trajectory[] = [
 
   {
     name: "the-correction-was-refused",
-    proves: "a correction that would leave them having chosen a film nobody offered is refused whole, and the evening is not half-changed",
+    proves: "a correction that would leave a film both passed and chosen is refused whole, and the evening is not half-changed",
     steps: [
       { act: "evening", request: "something tense", offered: [offer(heat95, true)] },
-      { act: "outcome", chosen: offer(heat95, true) },
-      { act: "amend", offered: [], refused: true },
+      { act: "outcome", offers: [{ ...heat95, chosen: true }] },
+      // A new request, an emptied offer list and a pass on the film they chose:
+      // the pass cannot stand beside the choice, so none of it may take.
+      {
+        act: "amend",
+        request: "something else entirely",
+        offered: [],
+        offers: [{ ...heat95, passed: true }],
+        refused: true,
+      },
     ],
   },
 
   {
     name: "the-offer-changed-under-the-choice",
-    proves: "a choice they kept across a corrected offer list is the entry in the new list, not the one it was made against",
+    proves: "a choice they kept across a corrected offer list stays on its film, which reads as the new list says",
     steps: [
       // They chose Heat when it led. The list is then corrected — same two
       // films, the other one leading — and nothing is said about the choice.
       { act: "evening", request: "something tense", offered: [offer(heat95, true), offer(zodiac)] },
-      { act: "outcome", chosen: offer(heat95, true), watched: true },
+      { act: "outcome", offers: [{ ...heat95, chosen: true, started: true }] },
       { act: "amend", offered: [offer(heat95), offer(zodiac, true)] },
     ],
   },
@@ -431,6 +455,11 @@ export function filmsIn(trajectory: Trajectory): Film[] {
     if ("film" in step) seen.set(`${step.film.title} ${String(step.film.year)}`, step.film);
     if (step.act === "evening") {
       for (const one of step.offered) seen.set(`${one.title} ${String(one.year)}`, { title: one.title, year: one.year });
+    }
+    if (step.act === "outcome" || step.act === "amend") {
+      for (const one of [...(step.act === "amend" ? (step.offered ?? []) : []), ...(step.offers ?? [])]) {
+        seen.set(`${one.title} ${String(one.year)}`, { title: one.title, year: one.year });
+      }
     }
   }
   return [...seen.values()];
