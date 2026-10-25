@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import { CHIP } from "./chip";
-import { Manage } from "./manage";
 import { Films } from "./movie-row";
 import { sectionFallback } from "./section";
 import { WayOut } from "./way-out";
@@ -33,14 +32,14 @@ import { fallbackTo, rescueTo, returnTo } from "@/lib/web/refocus";
  * The cost is that this is client code where the disclosure was the browser's
  * own. It is the same trade the summary tiles already make, and the same
  * `<dialog>`: `showModal()` for the top layer, the page's inertness and Escape —
- * see `manage.tsx` for why none of that is written out here. Focus on the
+ * see `chosen.tsx` for why none of that is written out here. Focus on the
  * way out is this component's rather than the dialog's, because a dialog is
  * unmounted in the same commit that closes it and cannot be sure of putting
  * focus anywhere.
  *
  * Nothing about a genre has moved but where its instruction is read. The names
- * and the meanings are the store's, this renders them, and management is where
- * it was: at the foot of the page.
+ * and the meanings are the store's, this renders them, and changing either is
+ * said to an assistant.
  */
 export function GenreLabels({
   genres,
@@ -68,21 +67,12 @@ export function GenreLabels({
    * What focus was last handed back to, until it is known to have survived.
    *
    * A label can stop existing after it has been given focus: a genre deleted
-   * from another window, or from an assistant, takes its label away on the next
-   * render. Handing focus back and forgetting immediately left a reader on
-   * `<body>` when that render arrived second — see the effect below, and
-   * `lib/web/refocus.ts` for both halves of the race as rules.
+   * by an assistant takes its label away on the next render. Handing focus back
+   * and forgetting immediately left a reader on `<body>` when that render
+   * arrived second — see the effect below, and `lib/web/refocus.ts` for both
+   * halves of the race as rules.
    */
   const handedTo = useRef<HTMLElement | null>(null);
-  /**
-   * Whether the genre whose dialog is closing was deleted rather than dismissed.
-   *
-   * The page is a render behind at that moment: the deletion has landed in the
-   * store and the label is still on screen, so "is the invoker still in the
-   * document" answers yes about a control with one render left to live. This is
-   * what the answer should have been.
-   */
-  const removed = useRef(false);
 
   /**
    * Focus, once there is no dialog to hold it.
@@ -91,30 +81,28 @@ export function GenreLabels({
    * own restoration has no dialog left to restore from and leaves focus on the
    * document. This component is still mounted afterwards, which is what makes it
    * the place that can put focus back on the label that was pressed — and what
-   * was pressed can be gone by then, or be about to go: renaming a genre re-keys
-   * its label, and deleting one takes the label away with it. So the line is
-   * asked for what it has left, the section's heading is behind that, and the
-   * whole thing is checked twice: once when the dialog closes, and again if what
-   * took focus then disappears.
+   * was pressed can be gone by then: renaming a genre re-keys its label, and
+   * deleting one takes the label away with it. So the line is asked for what it
+   * has left, the section's heading is behind that, and the whole thing is
+   * checked twice: once when the dialog closes, and again if what took focus
+   * then disappears.
    *
    * What must not happen is focus on `<body>`, which is a reader at the top of
    * the page with no way back to where they were.
    */
   useEffect(() => {
     const labels = [...(line.current?.querySelectorAll<HTMLElement>("button") ?? [])];
-    // The deleted label last of all, and skipped: the section's own heading is a
-    // better place than a control that is one render from being removed. It is
-    // also all that is left when the genre deleted was the only one — the line
-    // and this component go with it.
+    // The pressed label is skipped as a fallback: it is the one being checked
+    // for. The section's own heading is behind the rest, and it is all that is
+    // left when the genre that went was the only one — the line and this
+    // component go with it.
     const stable = fallbackTo([...labels, sectionFallback(line.current)], invoker.current);
 
     if (open === null && invoker.current !== null) {
       const pressed = invoker.current;
-      const gone = removed.current;
       invoker.current = null;
-      removed.current = false;
 
-      const back = returnTo(gone ? null : pressed, document.contains(pressed), stable);
+      const back = returnTo(pressed, document.contains(pressed), stable);
       handedTo.current = back;
       back?.focus();
       return;
@@ -168,12 +156,6 @@ export function GenreLabels({
           genre={open}
           films={filmsUnder(open, vibes, movies)}
           onClose={() => setOpen(null)}
-          // Closed because the genre is gone, which is not the same as closed.
-          // See `removed`.
-          onRemoved={() => {
-            removed.current = true;
-            setOpen(null);
-          }}
         />
       )}
     </>
@@ -188,8 +170,8 @@ export function GenreLabels({
  * somebody meets it. They say which vibes they are filed in, since a genre
  * gathers films from several and the heading above them names none.
  *
- * Nothing else to press: a genre is renamed and rewritten at the foot of the
- * page, and a second place to do it would be a second set of rules about a name.
+ * Nothing else to press: a genre is renamed, rewritten and deleted through an
+ * assistant, and the website only shows what the store holds.
  *
  * No films is left as no films. A genre with vibes that are empty, or with no
  * vibes yet, is an ordinary state of a taste somebody is still building, and a
@@ -199,14 +181,11 @@ function Meaning({
   genre,
   films,
   onClose,
-  onRemoved,
 }: {
   genre: Genre;
-  /** Worked out by the caller each render, so a mark pressed here shows by the next. */
+  /** Worked out by the caller each render, never held here. */
   films: readonly Shown[];
   onClose: () => void;
-  /** Closed because the genre was deleted, which the line answers differently. */
-  onRemoved: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -237,17 +216,15 @@ function Meaning({
     >
       <div className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8">
         {/*
-          The name, what can be done to the genre, and the way out — in that
-          order, so the `×` is the last thing on the row and the rightmost.
-          `items-start` rather than a baseline: a name that wraps to three lines
-          must not carry the controls down with it.
+          The name, then the way out, so the `×` is the last thing on the row and
+          the rightmost. `items-start` rather than a baseline: a name that wraps
+          to three lines must not carry the control down with it.
         */}
         <header className="flex items-start justify-between gap-4">
           <h2 className="min-w-0 font-display text-[24px] leading-tight break-words">
             {genre.name}
           </h2>
           <div className="flex shrink-0 items-center gap-1">
-            <Manage kind="genre" name={genre.name} onRemoved={onRemoved} />
             <WayOut name={genre.name} onClose={onClose} />
           </div>
         </header>

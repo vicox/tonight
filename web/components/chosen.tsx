@@ -5,7 +5,6 @@ import { useEffect, useRef } from "react";
 import { Films } from "./movie-row";
 import { WayOut } from "./way-out";
 import type { Shown } from "@/lib/web/movie-summary";
-import { refocus } from "@/lib/web/refocus";
 
 /**
  * How a way into the collection is set, wherever one appears.
@@ -29,15 +28,6 @@ export const WAY_IN = [
 ].join(" ");
 
 /**
- * A row's state control, as the menu button it is.
- *
- * The dialog has to be able to find the marks in it without being handed a list
- * of them through every row, and this is what they are: the only menu buttons in
- * here. `movie-state.tsx` is where that semantic is declared and held to.
- */
-const MARK = '[aria-haspopup="menu"]';
-
-/**
  * One count, pressable.
  *
  * The words then the number, which is both how it is set and how it is said — so
@@ -59,6 +49,18 @@ const MARK = '[aria-haspopup="menu"]';
  * One dialog for all seven selections, and it knows nothing about which one it
  * is showing beyond the name and the films — the aggregate opens it exactly as a
  * single state does.
+ *
+ * ## The primitive is the browser's
+ *
+ * A `<dialog>` opened with `showModal()`, which is what every dialog on this
+ * page is and the reason none of them writes out what a modal needs. `showModal`
+ * puts the dialog in the top layer, makes everything behind it inert so Tab
+ * cannot reach the page underneath, and fires `cancel` for Escape. The
+ * alternative was a focus trap, an `inert` attribute on the rest of the page and
+ * a saved reference to the control that opened it — three things to keep
+ * correct, all of them already correct in the browser. Focus on the way out is
+ * the one exception, and it belongs to whatever opened the dialog: React
+ * unmounts a dialog in the same commit that closes it.
  */
 export function Chosen({
   title,
@@ -77,22 +79,12 @@ export function Chosen({
    * dialog for the odd one out would mean two of everything a dialog does.
    *
    * Still no copy anywhere: the caller derives them from its own props each
-   * render, so a mark pressed in here changes the list by the next one.
+   * render.
    */
   films: readonly Shown[];
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const exit = useRef<HTMLButtonElement>(null);
-  /**
-   * Which row's mark last had focus, by position.
-   *
-   * A number rather than the element, because the element is what a state change
-   * takes away — and rather than a film, because remembering one of those here
-   * would be the copy of the collection this component deliberately does not
-   * keep. See `lib/web/refocus.ts`.
-   */
-  const marked = useRef(-1);
 
   useEffect(() => {
     const element = dialog.current;
@@ -101,30 +93,6 @@ export function Chosen({
     element.showModal();
     return () => element.close();
   }, []);
-
-  /**
-   * Focus, after a mark pressed in here moved its film out of this list.
-   *
-   * Every render, and it does nothing on almost all of them: while focus is
-   * still on something inside the dialog there is nothing to put right. What it
-   * catches is the one case the element cannot — the focused row was removed by
-   * the re-render, and the browser has dropped focus out of the dialog and onto
-   * the document. The dialog stays open, so focus belongs back inside it.
-   *
-   * Focus on the dialog itself counts as lost: some browsers put it there when
-   * they take it off a removed child, and the point is to land on a control
-   * somebody can use rather than on the box around them.
-   */
-  useEffect(() => {
-    const element = dialog.current;
-    if (!element?.open) return;
-
-    const active = document.activeElement;
-    if (active !== element && active instanceof Node && element.contains(active)) return;
-
-    const marks = [...element.querySelectorAll<HTMLButtonElement>(MARK)];
-    refocus(marks, marked.current, exit.current)?.focus();
-  });
 
   return (
     <dialog
@@ -146,21 +114,8 @@ export function Chosen({
       }}
       className="m-0 h-dvh max-h-none w-dvw max-w-none overflow-y-auto bg-transparent px-5 py-[8vh] backdrop:bg-scrim"
     >
-      {/*
-        The card, and the dialog's only child. Where a mark taking focus is
-        noticed, too: capturing, because the control that takes it is several rows
-        down and this is the one node above all of them. Only the position is kept.
-      */}
-      <div
-        onFocusCapture={(event) => {
-          // As elements rather than as buttons: nothing here presses one, and it
-          // is the focused node that has to be found among them.
-          const marks: Element[] = [...(dialog.current?.querySelectorAll(MARK) ?? [])];
-          const at = marks.indexOf(event.target);
-          if (at >= 0) marked.current = at;
-        }}
-        className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8"
-      >
+      {/* The card, and the dialog's only child. */}
+      <div className="mx-auto w-full max-w-xl rounded-2xl border border-rule bg-screen p-6 text-ink sm:p-8">
         {/*
           What was opened, how many there are, and the way out on the right. The
           name and its number stay one phrase inside a box of their own, which is
@@ -171,13 +126,11 @@ export function Chosen({
             <h2 className="font-display text-[24px] leading-none">{title}</h2>
             <span className="text-[12px] text-ink-faint tabular-nums">{films.length}</span>
           </div>
-          <WayOut name={title} onClose={onClose} ref={exit} />
+          <WayOut name={title} onClose={onClose} />
         </header>
 
         {films.length === 0 ? (
-          // Reachable two ways: a known state can be empty and is still shown, and
-          // the last film under this selection can be given another mark while the
-          // list is open.
+          // Reachable when a known state is empty and is still shown.
           <p className="py-6 text-center text-[13px] text-ink-faint">Nothing here now.</p>
         ) : (
           <Films movies={films} filed className="mt-5" />

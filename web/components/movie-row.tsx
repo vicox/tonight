@@ -10,24 +10,24 @@ import { filedUnder, type Shown } from "@/lib/web/movie-summary";
  * title's own type for the same reason: it is half of the film's name here, not
  * metadata about it.
  *
- * A row is a line of text and two marks. They are the things on this page that
- * can be changed without an assistant, and they are two rather than one because
- * they answer two questions: whether the film was watched, and what the user
- * made of it. A film can be both seen and loved, and one control offering both
- * would make somebody choose which of two true things to record. See
- * `movie-mark.tsx` for what each offers.
+ * A row is a line of text and two marks. They show what the user has said about
+ * the film, and they are two rather than one because they answer two questions:
+ * whether the film was watched, and what the user made of it. A film can be both
+ * seen and loved, and one mark showing both would have to pick which of two true
+ * things to draw. Neither is changed here — that is said to an assistant. See
+ * `movie-mark.tsx` for what each shows.
  *
  * ## One list, in two places
  *
  * The overview renders it inside a vibe, where the vibe is the heading above it;
  * the summary tiles open it in a dialog, where the films come from every vibe
  * there is. That difference is `filed`, and it is the whole difference — the same
- * markup, the same marks and the same keyboard, because a film's row is the same
- * object wherever somebody meets it.
+ * markup and the same marks, because a film's row is the same object wherever
+ * somebody meets it.
  *
- * This file has no `"use client"` of its own. Rendered from the server page it
- * stays on the server, rendered from the dialog it goes to the browser, and
- * the marks are the client boundary either way round.
+ * This file has no `"use client"` of its own, and neither do the marks.
+ * Rendered from the server page it stays on the server, and rendered from a
+ * dialog it goes to the browser.
  */
 export function Films({
   movies,
@@ -52,8 +52,6 @@ export function Films({
       {movies.map((movie) => (
         <li
           key={`${movie.year} ${movie.title}`}
-          // Wrapping, so that the sentence a failed write puts under the row has
-          // somewhere to go. Nothing wraps while nothing is wrong.
           className="flex flex-wrap items-baseline gap-x-4 gap-y-1"
         >
           {/*

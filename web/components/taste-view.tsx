@@ -49,22 +49,21 @@ import { recentlyAdded } from "@/lib/web/movie-summary";
  *
  * The page is a Server Component that has already opened the signed-in user's
  * store. What is client code is what can be pressed: the counts, the genre
- * labels and the vibe cards, each with the dialog it opens; the copy button; and
- * the mark on a film's row. Nothing else here can change anything — what is on
- * show is a rendering of what the store holds, read on the server each time.
+ * labels and the vibe cards, each with the dialog it opens; and the copy button.
+ * None of it changes anything — what is on show is a rendering of what the store
+ * holds, read on the server each time.
  *
  * Those dialogs are the same `<dialog>` used the same way, and the one thing
  * none of them re-implements is focus: a dialog is unmounted in the same commit
  * that closes it, so whatever opened it is what puts focus back. See
  * `lib/web/refocus.ts`.
  *
- * ## Nothing here is created or renamed
+ * ## Nothing here is changed
  *
  * A genre is named and a vibe is composed in conversation, which is where a taste
- * model comes from — so there is no form on this page and no way to reach one.
- * The single exception is deleting, which lives inside the dialog for the thing
- * being deleted: a model you cannot take something out of yourself is not quite
- * yours. See `manage.tsx`.
+ * model comes from — and renaming, deleting and marking a film are said there
+ * too, through an assistant. So there is no form on this page, no control that
+ * writes, and no endpoint behind it that could.
  */
 export function TasteView({ taste, standing }: { taste: Taste; standing: readonly Standing[] }) {
   /**
