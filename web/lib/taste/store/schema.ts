@@ -89,8 +89,9 @@ import type { SchemaModule } from "../../db/migrate.ts";
  * a verdict names its film as text and there is no key here to cascade along.
  *
  * What a Movie does carry is **a fact, not a history**: `viewing` says where
- * the film stands on their list — seen, want to see, don't want to see — as one
- * column on one row that is overwritten. There is no `watched_at`, no ordering, no count, and no way to
+ * the film stands on their list — seen now, seen before, want to see, don't want
+ * to see — as one column on one row that is overwritten. "Now" and "before" are
+ * not dates. There is no `watched_at`, no ordering, no count, and no way to
  * ask what happened when, because none of that was ever written down. When
  * watching history does arrive it will be its own migration and its own tables,
  * referencing `(user_id, id)` so a rename costs it nothing. It will be evidence
@@ -1303,6 +1304,51 @@ export const TASTE_SCHEMA: SchemaModule = {
             CHECK (viewing IN ('seen', 'want-to-see', 'dont-want-to-see'));
         ALTER TABLE tonight_movies ALTER COLUMN viewing SET DEFAULT 'want-to-see';
         ALTER TABLE tonight_movies ALTER COLUMN viewing SET NOT NULL;
+      `,
+    },
+
+    /**
+     * Seen now and seen before. `seen` said they watched a film and never when;
+     * it is replaced by two answers that say which.
+     *
+     *     seen-now           watched recently — lately, an evening with Tonight,
+     *                        a film Tonight suggested and they then saw
+     *     seen-before        watched some time in the past, when not known
+     *     want-to-see        unchanged
+     *     dont-want-to-see   unchanged
+     *
+     * Every `seen` becomes `seen-now`, and nothing becomes `seen-before` — the
+     * user's decision for the films already saved: what was simply seen is
+     * carried over as the seen value a film is given by default. Nothing is
+     * inferred from anything: not from `updated_at` or `created_at`, which are
+     * when Tonight wrote the film and never when they watched it; not from a
+     * verdict's time; and not from an evening. The user moves a film to
+     * `seen-before` themselves, on its screen or through an assistant.
+     *
+     * The trigger comes off for the conversion, as in v10 and v14: the rows are
+     * relabelled, not touched by the user, and `updated_at` is on the read.
+     *
+     * No preflight: v14's `CHECK` holds every row to three values, and this maps
+     * all three.
+     *
+     * ## Order of the release
+     *
+     * Stop the application, migrate, deploy. The build serving v14 writes
+     * `seen`, which the new `CHECK` refuses — so it cannot serve against this
+     * schema.
+     */
+    {
+      version: 15,
+      sql: `
+        ALTER TABLE tonight_movies DROP CONSTRAINT tonight_movies_viewing;
+
+        ALTER TABLE tonight_movies DISABLE TRIGGER tonight_movies_written_at;
+        UPDATE tonight_movies SET viewing = 'seen-now' WHERE viewing = 'seen';
+        ALTER TABLE tonight_movies ENABLE TRIGGER tonight_movies_written_at;
+
+        ALTER TABLE tonight_movies
+          ADD CONSTRAINT tonight_movies_viewing
+            CHECK (viewing IN ('seen-now', 'seen-before', 'want-to-see', 'dont-want-to-see'));
       `,
     },
   ],

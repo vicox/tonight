@@ -446,7 +446,7 @@ test("a film they have seen or judged is not offered as a new one", () => {
   for (const [what, rule] of [
     ["what the target is", "Lead with what they have not seen or judged"],
     ["what rules a film out",
-     "`viewing` of `seen` rules a Movie out as new,\nand so does a standing judgement"],
+     "`viewing` of `seen-now` or `seen-before` rules a\nMovie out as new, and so does a standing judgement"],
     ["why a judgement does", "**nobody likes a film they have not seen**"],
     ["that want-to-see does not", "`want-to-see`\ndoes not rule it out"],
     ["that a film on the list stays eligible", "so it stays on the table"],
@@ -465,7 +465,7 @@ test("a film they have seen or judged is not offered as a new one", () => {
   // or implied by a standing judgement. `want-to-see` joining that would silently
   // turn "put it on my list" into a reason to withhold the film, which is the
   // precise inversion of the rule.
-  const ruledOut = flat.slice(flat.indexOf("`viewing` of `seen`"), flat.indexOf("`want-to-see` does not"));
+  const ruledOut = flat.slice(flat.indexOf("`viewing` of `seen-now`"), flat.indexOf("`want-to-see` does not"));
   assert.ok(ruledOut.length > 0 && ruledOut.length < 300, "the sentence that rules a film out moved");
   assert.doesNotMatch(ruledOut, /`want-to-see`/);
 
@@ -1619,7 +1619,9 @@ test("the films put forward are checked immediately before they are presented, a
     ["which films", /with every film you put forward — the lead and each direction, by title and year, with an IMDb id where you have one/],
     ["not a film named as a reason", /A film you name only as the reason for one — \*"you loved Sleuth"\* — is not put forward: it is not checked and not replaced/],
     ["it supplies none", /The tool checks films you chose; it never supplies one/],
-    ["what is replaced", /Replace a film it marks `neverRecommend`, one whose own standing verdict is `disliked`, and one that is `seen` unless they asked for a rewatch — then say it is one/],
+    // `seen` here is the check's yes-or-no answer — true for either seen value and
+    // for a film a standing judgement says they watched — never the stored viewing.
+    ["what is replaced", /Replace a film it marks `neverRecommend`, one whose own standing verdict is `disliked`, and one whose `seen` is `true` unless they asked for a rewatch — then say it is one/],
     ["replacements are checked", /Check each replacement the same way before it is presented/],
     ["another year or name", /Where `otherYears` or `imdbHeldBy` says Tonight may hold the film under another year or name, settle which film you mean before naming it/],
     ["the list, not the text", /the films you put forward are the ones you checked/],
@@ -1636,6 +1638,9 @@ test("the films put forward are checked immediately before they are presented, a
   );
   // And it does not restate what an answer means: that lives on the tool.
   assert.doesNotMatch(paragraph, /`nothing`|`null`|unseen/u, "the skill restates the tool's reading of an answer");
+  // And it reads the answer's `seen`, not a viewing value, which would miss a
+  // film watched only by a standing judgement.
+  assert.doesNotMatch(paragraph, /seen-now|seen-before/u, "the check reads a viewing value instead of the answer");
 
   // A failed check changes nothing about whether an answer is owed, and sits
   // after the write branch so neither `get_taste` branch moves.
@@ -1646,4 +1651,76 @@ test("the films put forward are checked immediately before they are presented, a
   const bullet = failing.slice(checked, failing.indexOf("A failure should cost"));
   assert.match(bullet, /nothing about the answer changes: it is owed or not as the branches above decide, and where it is owed, present the films you chose and never say they were checked/);
   assert.doesNotMatch(bullet, /retry/iu, "the failed check carries a retry of its own");
+});
+
+test("a watched film is seen now or seen before, read from what they said, and never dated", () => {
+  /**
+   * Seen now and seen before (docs/work/seen-now-before/PLAN.md). Which of the two
+   * is read from what they said: recent, an evening with Tonight, or a film
+   * suggested and then watched is now; placed some time ago is before; a watch
+   * with no when is one short question — folded into one already being put —
+   * and seen-before if they still do not say. Neither is a date, and setting one
+   * manufactures nothing; a reason they gave is still theirs, verbatim.
+   */
+  const flat = flatSkill();
+  const start = flat.indexOf("**Where a film stands on their list is its viewing.**");
+  const end = flat.indexOf("What follows a verdict");
+  assert.ok(start >= 0 && end > start, "the viewing rule is not where films they tell you about are");
+  const rule = flat.slice(start, end);
+
+  let at = 0;
+  for (const [what, marker] of [
+    ["the two seen values", "A film they watched is `seen-now` or `seen-before`"],
+    ["recent is now", "**`seen-now`** — they watched it recently"],
+    ["an evening with Tonight is now", "a film of an evening with Tonight that they started or finished"],
+    ["a suggestion watched is now", "one you suggested that they then watched"],
+    ["a rewatch is now", "A rewatch they have just done is `seen-now` too"],
+    ["long ago is before", "**`seen-before`** — they place it some time ago"],
+    ["no when is a question", "**When they did not say when**"],
+    ["asked once, briefly, in their own words", "ask once, briefly and in your own words, whether it was recent"],
+    ["folded into a question already put", "Fold it into a question you are already putting"],
+    ["never its own round", "it is never a round of its own"],
+    ["unanswered is before", "If they still do not say, `seen-before`"],
+    ["what was stored is said", "*\"saved Heat as seen before\"*"],
+    ["no date", "**Neither seen value is a date.** Never state or guess when they watched a film"],
+    ["Tonight's times are not a watch time", "`createdAt`, `updatedAt`, when an evening was recorded"],
+    ["their own timing may be said back", "Saying back the timing they gave you is fine"],
+    ["nothing manufactured", "**Setting a viewing writes the viewing and nothing else** — no verdict, no `because`, no pass reason, and no quote of what they said about when"],
+    ["a reason they gave is kept, timing and all", "A reason they did give is still recorded as it always is, in their words and unedited, timing included"],
+  ] as [string, string][]) {
+    const found = rule.indexOf(marker, at);
+    assert.ok(found >= 0, `the viewing rule lost, or reordered: ${what}`);
+    at = found;
+  }
+
+  // The question is an intent, not a line to recite.
+  const asking = rule.slice(rule.indexOf("**When they did not say when**"), rule.indexOf("*\"Put it on my list\"*"));
+  assert.doesNotMatch(asking, /"[^"]*\?"/u, "the now-or-before question is scripted in quotation marks");
+
+  // And no sentence of the skill tells an agent to write the old single value.
+  assert.doesNotMatch(flat, /`seen`(?! is `true`)/u, "the skill still writes a bare seen");
+  assert.match(flat, /give `seen-now` or `seen-before`, by the viewing rule, whenever they told you they watched it/);
+});
+
+test("the vibes skill files a watched film by the same rule, and asks when inside the Vibe's question", () => {
+  const vibes = readFileSync(new URL("../../skills/tonight-vibes/SKILL.md", import.meta.url), "utf8").replace(
+    /\s+/g,
+    " ",
+  );
+  for (const [what, marker] of [
+    ["the core guard", "**A film whose saved viewing is neither `seen-now` nor `seen-before` is refused as a core.**"],
+    ["a new core's viewing", "**A core that is not saved yet is saved as its `core.viewing`**"],
+    ["by the recommend skill's rule", "read from what they said by the viewing rule in **tonight-recommend**"],
+    ["when, asked inside the Vibe's question", "a question about when folded into the one you are putting about the Vibe"],
+    ["left out, before", "Left out, it is `seen-before`"],
+    ["a saved film keeps its own", "A saved film keeps its own viewing whatever `core.viewing` says"],
+    ["a contradiction asks once, with when", "ask once whether they have seen it and, if so, recently or a while ago — one question"],
+    ["filing a liked film: not when", "liking it says they watched it, not when"],
+    ["the table: last night is now", "*\"I watched it last night.\"* | a viewing, `seen-now`"],
+  ] as [string, string][]) {
+    assert.ok(vibes.includes(marker), `the vibes skill lost: ${what}`);
+  }
+  assert.doesNotMatch(vibes, /`seen`|viewing: seen\b/u, "the vibes skill still writes a bare seen");
+  // Their words for a verdict are still theirs, unedited — timing and all.
+  assert.ok(vibes.includes("**Their words go in `because`, unedited**"), "a verdict's own words lost their rule");
 });

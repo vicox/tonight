@@ -92,7 +92,8 @@ tools and then migrated, once **per run**:
    `TONIGHT_ORIGIN=http://localhost:3001 node skills/tonight-recommend/evaluation/m3/seed.mjs
    m5-03-legacy --fixtures skills/tonight-recommend/evaluation/m5/fixtures`
 3. Stop it, and start this build against the same database on the usual port: it migrates to
-   v13, and every Vibe reads `core: null`.
+   the current schema, every Vibe reads `core: null`, and every `seen` becomes `seen-now`
+   (taste v15) — which is why the fixture still says `seen`.
 4. Run exactly one scenario, once:
    `node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills --legacy-seeded
    --runs 1 --only m5-03-legacy__go-through` (or `m5-03-legacy__loved-machete`). The runner
@@ -107,15 +108,16 @@ tools and then migrated, once **per run**:
 `record_verdict` keeps a liked or loved only for a film in a Vibe, so today's tools cannot write
 that state: it exists only as data written before the rule.
 The fixture says `"seed": "pre-vibe-rule"`, and is seeded the way the legacy fixture is, with no
-migration:
+migration but taste v15's relabelling:
 
 1. Start a build from before the rule — `tonight` main `f3912b0`, its own checkout — against an
    empty database, on another port, with the same `web/.env.local`.
 2. From **this** checkout, seed through that server:
    `TONIGHT_ORIGIN=http://localhost:3001 node skills/tonight-recommend/evaluation/m3/seed.mjs
    m5-01-anchored --fixtures skills/tonight-recommend/evaluation/m5/fixtures`
-3. Stop it, and start this build against the same database on the usual port. Nothing migrates:
-   Hit Man stays loved and in no Vibe.
+3. Stop it, and start this build against the same database on the usual port. It migrates taste
+   v15 only — every `seen` becomes `seen-now`, so the fixture still says `seen` — and Hit Man
+   stays loved and in no Vibe.
 4. Run exactly one scenario, once: `--legacy-seeded --runs 1 --only m5-01-anchored__<prompt>`.
 5. For the next run, empty the database and start again at step 1.
 

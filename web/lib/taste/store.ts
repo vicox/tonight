@@ -2,7 +2,7 @@ import { database } from "../db.ts";
 import type { SqlDriver } from "../db/driver.ts";
 import { prepareSchema } from "../db/migrate.ts";
 import type { AuthenticatedUser } from "../identity.ts";
-import type { Act, Identified, Verdict } from "../verdicts/model.ts";
+import type { Act, Identified, Judgement, Verdict } from "../verdicts/model.ts";
 import type { Genre, Vibe, Movie, MovieHandle, Viewing, Taste } from "./model.ts";
 
 /**
@@ -50,7 +50,9 @@ export type GenreChanges = { name?: unknown; instruction?: unknown };
  * What creating a vibe is given. Every field is the caller's, as a genre's are.
  *
  * `core` is required: the film that best embodies the vibe, by title and year. It
- * is filed in the vibe by the same write, and saved first if it is not saved yet.
+ * is filed in the vibe by the same write, and saved first if it is not saved yet —
+ * as its optional `viewing`, `seen-now` or `seen-before`, and `seen-before`
+ * without one. A saved film keeps its own viewing.
  */
 export type VibeDraft = { name: unknown; instruction: unknown; genres: unknown; core: unknown };
 
@@ -190,6 +192,50 @@ export type TasteStore = {
    * `sayFiled`.
    */
   saySaved(act: Act): Promise<Identified<Act>>;
+
+  /**
+   * One press on a saved film's own screen (`lib/web/choose.ts`), decided and
+   * written whole while the film is held.
+   *
+   * One transaction, holding the film `FOR UPDATE` before anything is read: its
+   * viewing, the judgement that stands about it, whether it is filed and whether
+   * it is a core are read under that lock and handed to `decide`, which answers
+   * with what to write or throws a refusal. So what a press does is decided from
+   * the film as it is, never from the page somebody loaded earlier.
+   *
+   * The act is stamped after the lock, `told: confirmed` — an answer to the
+   * question the page puts. One that would sort before an act already said about
+   * the film is refused (`TasteError`), because it could not change what stands.
+   * Then the act — a verdict, or a withdrawal only if a judgement stands — and
+   * then the viewing, if it changes: a liked or loved needs the film filed
+   * (`VibeRequired`), and a core is never moved off seen (`TasteError`). Any
+   * refusal or failure leaves both as they were.
+   */
+  choose(film: MovieHandle, decide: (held: HeldFilm) => FilmWrite): Promise<void>;
+};
+
+/** A saved film as a press on its screen finds it: read under the film's lock. */
+export type HeldFilm = {
+  viewing: Viewing;
+  /** The standing judgement, or `null` when nothing stands. */
+  judgement: Judgement | null;
+  /** Whether it is in at least one vibe. */
+  filed: boolean;
+  /** Whether a vibe is anchored on it. */
+  core: boolean;
+};
+
+/**
+ * What one press writes. Any of the three — a verdict and a viewing, or a
+ * withdrawal and a viewing, are one press — and none of them is nothing.
+ */
+export type FilmWrite = {
+  /** A verdict to say. */
+  judgement?: Judgement;
+  /** Take back the judgement that stands, if one does. */
+  withdraw?: boolean;
+  /** Where the film stands from now, if that is a change. */
+  viewing?: Viewing;
 };
 
 /** Re-exported so a caller needs one import to work with what these return. */

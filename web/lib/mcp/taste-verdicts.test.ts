@@ -89,7 +89,7 @@ describe("what recommendation work is handed", () => {
   const filed = async (tools: Record<string, Tool>) => {
     const f = film();
     if (shelved.has(tools)) {
-      await said(tools, "create_movie", { ...f, viewing: "seen", vibes: ["Kept Close"] });
+      await said(tools, "create_movie", { ...f, viewing: "seen-before", vibes: ["Kept Close"] });
     } else {
       await said(tools, "create_genre", { name: "Kept", instruction: "Films I stand behind." });
       await said(tools, "create_vibe", {
@@ -194,13 +194,13 @@ describe("what recommendation work is handed", () => {
 
   test("a verdict and the film it is about are both visible, and distinct", async () => {
     const f = film();
-    await said(ana, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
+    await said(ana, "create_movie", { title: f.title, year: f.year, viewing: "seen-before" });
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "disliked" } });
 
     const model = await taste();
     assert.equal(
       model.movies?.find((m) => m.title === f.title)?.viewing,
-      "seen",
+      "seen-before",
       "recording a verdict rewrote the film",
     );
     assert.equal((await about(f))[0]?.judgement, "disliked", "the verdict did not reach the answer");
@@ -208,14 +208,14 @@ describe("what recommendation work is handed", () => {
 
   test("taking the verdict back leaves the film exactly as it was", async () => {
     const f = film();
-    await said(ana, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
+    await said(ana, "create_movie", { title: f.title, year: f.year, viewing: "seen-before" });
     await said(ana, "record_verdict", { film: f, told: "volunteered", said: { about: "judgement", judgement: "disliked" } });
     await said(ana, "withdraw_verdict", { film: f });
 
     assert.deepEqual(await about(f), [], "a withdrawn verdict still reached recommendation work");
     assert.equal(
       (await taste()).movies?.find((m) => m.title === f.title)?.viewing,
-      "seen",
+      "seen-before",
       "withdrawing a verdict changed the film",
     );
   });
@@ -234,12 +234,12 @@ describe("what recommendation work is handed", () => {
   test("a film they do not want recommended is where it stands, and says nothing about any other film", async () => {
     const refused = film();
     const other = film();
-    await said(ana, "create_movie", { title: other.title, year: other.year, viewing: "seen" });
+    await said(ana, "create_movie", { title: other.title, year: other.year, viewing: "seen-before" });
     await said(ana, "create_movie", { title: refused.title, year: refused.year, viewing: "dont-want-to-see" });
     assert.deepEqual(await about(refused), [], "not wanting a film became a verdict");
     assert.deepEqual(await about(other), [], "not wanting one film reached another");
     assert.equal((await taste()).movies?.find((m) => m.title === refused.title)?.viewing, "dont-want-to-see");
-    assert.equal((await taste()).movies?.find((m) => m.title === other.title)?.viewing, "seen");
+    assert.equal((await taste()).movies?.find((m) => m.title === other.title)?.viewing, "seen-before");
     // Nothing categorical is derived anywhere: no genre, no vibe, no rule.
     const model = await taste();
     assert.equal(
@@ -263,7 +263,7 @@ describe("what recommendation work is handed", () => {
     const withHistory = toolsFor("google:with-history");
     const without = toolsFor("google:without-history");
     for (const tools of [withHistory, without]) {
-      await said(tools, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
+      await said(tools, "create_movie", { title: f.title, year: f.year, viewing: "seen-before" });
     }
 
     const written = await said(withHistory, "record_episode", {
@@ -294,7 +294,7 @@ describe("what recommendation work is handed", () => {
     const asked = toolsFor("google:asked-about-it");
     const quiet = toolsFor("google:quiet-too");
     for (const tools of [asked, quiet]) {
-      await said(tools, "create_movie", { title: f.title, year: f.year, viewing: "seen" });
+      await said(tools, "create_movie", { title: f.title, year: f.year, viewing: "seen-before" });
     }
     // Everything Tonight can do around an asking: offer the film, and hear that
     // they watched it. Neither is an answer, and the asking itself has no call.
@@ -339,7 +339,7 @@ describe("what recommendation work is handed", () => {
         instruction: "The ones I keep coming back to.",
         core: f,
       });
-      await said(tools, "create_movie", { title: other.title, year: other.year, viewing: "seen", vibes: ["Kept Close"] });
+      await said(tools, "create_movie", { title: other.title, year: other.year, viewing: "seen-before", vibes: ["Kept Close"] });
       await said(tools, "record_verdict", {
         film: f,
         told: "volunteered",

@@ -277,6 +277,16 @@ const upTo = (version: number): SchemaModule => ({
 const BEFORE_MY_LIST = upTo(13);
 
 /**
+ * Every migration before seen now and seen before, v15.
+ *
+ * Production as the builds that wrote `seen` left it. A contract about one of
+ * those steps — v14's relabelling, verdicts v3 against taste v14 — is checked
+ * here, with `seen` still a value; an upgrade the whole way is checked against
+ * `TASTE_SCHEMA`, where it has become `seen-now`.
+ */
+const BEFORE_SEEN_NOW = upTo(14);
+
+/**
  * The verdict store before refusals left it, v3.
  *
  * v3 needs taste v14, so migrating the whole verdict schema brings taste up to
@@ -927,7 +937,7 @@ test("the taste store requires its own migrations before it can serve", async ()
   // serves a user a wrong answer because a column is missing.
   const early = sqlTasteStore(sql, { id: ALICE });
   await assert.rejects(
-    () => early.createMovie({ title: "Arrival", year: 2016, viewing: "seen" }),
+    () => early.createMovie({ title: "Arrival", year: 2016, viewing: "seen-before" }),
     (error: unknown) => {
       assert.match(String((error as Error).message), /canonical_title/u);
       return true;
@@ -940,10 +950,10 @@ test("the taste store requires its own migrations before it can serve", async ()
   assert.equal(await migrate(sql, TASTE_SCHEMA), remaining);
 
   const store = sqlTasteStore(sql, { id: ALICE });
-  await store.createMovie({ title: "Arrival", year: 2016, viewing: "seen" });
+  await store.createMovie({ title: "Arrival", year: 2016, viewing: "seen-before" });
   assert.deepEqual(
     (await store.taste()).movies.map((movie) => [movie.title, movie.viewing]),
-    [["Arrival", "seen"]],
+    [["Arrival", "seen-before"]],
   );
 });
 
@@ -1099,7 +1109,7 @@ test("a viewing is still written and read after the contract migration", async (
   await migrate(sql, TASTE_SCHEMA);
 
   const store = sqlTasteStore(sql, { id: ALICE });
-  await store.createMovie({ title: "Arrival", year: 2016, viewing: "seen" });
+  await store.createMovie({ title: "Arrival", year: 2016, viewing: "seen-before" });
   await store.updateMovie("Arrival", 2016, { viewing: "dont-want-to-see" });
   await store.createMovie({ title: "Moon", year: 2009 });
 
@@ -1112,10 +1122,11 @@ test("a viewing is still written and read after the contract migration", async (
     ],
   );
 
-  // The check refuses anything that is not one of the three — an opinion
+  // The check refuses anything that is not one of the four — an opinion
   // included, which is what the column used to accept and must never accept
-  // again, and the two spellings of "not seen" it has held before.
-  for (const wrong of ["neutral", "liked", "loved", "disliked", "not_seen", "unseen"]) {
+  // again, the two spellings of "not seen" it has held before, and the single
+  // `seen` that seen now and seen before replaced.
+  for (const wrong of ["neutral", "liked", "loved", "disliked", "not_seen", "unseen", "seen"]) {
     await assert.rejects(
       sql.query(
         `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing)
@@ -1138,7 +1149,7 @@ test("a caller cannot set either stamp, in any build", async () => {
   // Named outright, which no build does and the schema has no reason to allow.
   await sql.query(
     `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing, created_at, updated_at)
-     VALUES ($1, 'Arrival', 'arrival', 2016, 'seen', '1999-01-01Z', '1999-01-01Z')`,
+     VALUES ($1, 'Arrival', 'arrival', 2016, 'seen-before', '1999-01-01Z', '1999-01-01Z')`,
     [ALICE],
   );
   const [fresh1] = await sql.query<{ old: boolean }>(
@@ -1320,10 +1331,11 @@ test("a film's vibes and its IMDb id are untouched by the conversion", async () 
 
   await migrate(sql, TASTE_SCHEMA);
 
+  // Loved became seen (v10), and seen became seen-now (v15): the whole way up.
   const { movies } = await sqlTasteStore(sql, { id: ALICE }).taste();
   assert.deepEqual(
     movies.map((one) => [one.title, one.year, one.imdbId, one.viewing, one.vibes]),
-    [["Heat", 1995, "tt0113277", "seen", ["Long Nights"]]],
+    [["Heat", 1995, "tt0113277", "seen-now", ["Long Nights"]]],
   );
 });
 
@@ -1878,7 +1890,7 @@ test("v14 turns unseen into want-to-see, keeps seen, and moves nothing else", as
                    FROM tonight_movies WHERE user_id = $1 ORDER BY title`;
   const before = await sql.query(shape, [ALICE]);
 
-  await migrate(sql, TASTE_SCHEMA);
+  await migrate(sql, BEFORE_SEEN_NOW);
 
   assert.deepEqual(
     await sql.query(`SELECT title, viewing FROM tonight_movies WHERE user_id = $1 ORDER BY title`, [
@@ -1890,6 +1902,18 @@ test("v14 turns unseen into want-to-see, keeps seen, and moves nothing else", as
     ],
   );
   assert.deepEqual(await sql.query(shape, [ALICE]), before, "the relabelling moved something else");
+
+  // And on up to today: the seen it kept is seen-now (v15).
+  await migrate(sql, TASTE_SCHEMA);
+  assert.deepEqual(
+    await sql.query(`SELECT title, viewing FROM tonight_movies WHERE user_id = $1 ORDER BY title`, [
+      ALICE,
+    ]),
+    [
+      { title: "Arrival", viewing: "seen-now" },
+      { title: "Moon", viewing: "want-to-see" },
+    ],
+  );
 });
 
 test("v14 refuses to run over a NULL viewing rather than guess one, and changes nothing", async () => {
@@ -1941,6 +1965,118 @@ test("after v14 a viewing is never NULL, and a film written without one is want-
   );
 });
 
+/* ------------------------------------------- v15: seen now and seen before */
+
+/** Films as a v14 build left them, as raw rows: viewing, and when each was written. */
+async function v14Films(
+  sql: SqlDriver,
+  films: [title: string, viewing: string, createdAt: string | null][],
+): Promise<void> {
+  await migrate(sql, BEFORE_SEEN_NOW);
+  // As the rows were written: the trigger would stamp its own times.
+  await sql.exec("ALTER TABLE tonight_movies DISABLE TRIGGER tonight_movies_written_at;");
+  for (const [title, viewing, createdAt] of films) {
+    await sql.query(
+      `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing, created_at, updated_at)
+       VALUES ($1, $2, lower($2), 2016, $3, $4, '2026-06-01T12:00:00Z')`,
+      [ALICE, title, viewing, createdAt],
+    );
+  }
+  await sql.exec("ALTER TABLE tonight_movies ENABLE TRIGGER tonight_movies_written_at;");
+}
+
+test("v15 turns every seen into seen-now, makes nothing seen-before, and moves nothing else", async () => {
+  const sql = await fresh();
+  await v14Films(sql, [
+    ["Arrival", "seen", "2026-01-01T12:00:00Z"],
+    ["Legacy", "seen", null],
+    ["Moon", "want-to-see", "2026-02-01T12:00:00Z"],
+    ["Thief", "dont-want-to-see", "2026-03-01T12:00:00Z"],
+  ]);
+
+  // The whole row but the viewing, stamps included — a NULL creation time too:
+  // the rows are relabelled, not touched by the user, and both stamps are read.
+  const shape = `SELECT title, canonical_title, year, imdb_id, created_at, updated_at
+                   FROM tonight_movies WHERE user_id = $1 ORDER BY title`;
+  const before = await sql.query(shape, [ALICE]);
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  assert.deepEqual(
+    await sql.query(`SELECT title, viewing FROM tonight_movies WHERE user_id = $1 ORDER BY title`, [
+      ALICE,
+    ]),
+    [
+      { title: "Arrival", viewing: "seen-now" },
+      { title: "Legacy", viewing: "seen-now" },
+      { title: "Moon", viewing: "want-to-see" },
+      { title: "Thief", viewing: "dont-want-to-see" },
+    ],
+  );
+  assert.deepEqual(await sql.query(shape, [ALICE]), before, "the relabelling moved something else");
+  const [legacy] = await sql.query<{ created_at: string | null }>(
+    `SELECT created_at FROM tonight_movies WHERE user_id = $1 AND title = 'Legacy'`,
+    [ALICE],
+  );
+  assert.equal(legacy!.created_at, null, "an undated film was given a date");
+  const [beforeCount] = await sql.query<{ count: string }>(
+    `SELECT count(*) AS count FROM tonight_movies WHERE viewing = 'seen-before'`,
+  );
+  assert.equal(Number(beforeCount!.count), 0, "the migration made something seen before");
+});
+
+test("after v15 seen is refused, both new values are kept, and a write is stamped again", async () => {
+  const sql = await fresh();
+  await v14Films(sql, [["Arrival", "seen", "2026-01-01T12:00:00Z"]]);
+  await migrate(sql, TASTE_SCHEMA);
+
+  await assert.rejects(
+    sql.query(
+      `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing) VALUES ($1, 'Moon', 'moon', 2009, 'seen')`,
+      [ALICE],
+    ),
+    (error: unknown) => (error as { code?: string }).code === "23514",
+    "seen was accepted after v15",
+  );
+  for (const [title, viewing] of [
+    ["Heat", "seen-now"],
+    ["Dune", "seen-before"],
+  ]) {
+    await sql.query(
+      `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing) VALUES ($1, $2, lower($2), 2000, $3)`,
+      [ALICE, title, viewing],
+    );
+  }
+
+  // The default is still want-to-see.
+  await sql.query(
+    `INSERT INTO tonight_movies (user_id, title, canonical_title, year) VALUES ($1, 'Solaris', 'solaris', 1972)`,
+    [ALICE],
+  );
+  assert.deepEqual(
+    await sql.query(`SELECT title, viewing FROM tonight_movies WHERE user_id = $1 ORDER BY title`, [ALICE]),
+    [
+      { title: "Arrival", viewing: "seen-now" },
+      { title: "Dune", viewing: "seen-before" },
+      { title: "Heat", viewing: "seen-now" },
+      { title: "Solaris", viewing: "want-to-see" },
+    ],
+  );
+
+  // The trigger is back on: an ordinary update moves updated_at and keeps created_at.
+  const [was] = await sql.query<{ created_at: string; updated_at: string }>(
+    `SELECT created_at::text, updated_at::text FROM tonight_movies WHERE user_id = $1 AND title = 'Arrival'`,
+    [ALICE],
+  );
+  await sql.query(`UPDATE tonight_movies SET viewing = 'seen-now' WHERE user_id = $1 AND title = 'Arrival'`, [ALICE]);
+  const [now] = await sql.query<{ created_at: string; updated_at: string }>(
+    `SELECT created_at::text, updated_at::text FROM tonight_movies WHERE user_id = $1 AND title = 'Arrival'`,
+    [ALICE],
+  );
+  assert.equal(now!.created_at, was!.created_at, "an update moved created_at");
+  assert.notEqual(now!.updated_at, was!.updated_at, "an update after v15 was not stamped");
+});
+
 /* ---------------------------------- verdicts v3: refusals leave the verdicts */
 
 const BOB = "google:bob";
@@ -1948,7 +2084,10 @@ const T1 = "2026-01-01T20:00:00.000Z";
 const T2 = "2026-02-01T20:00:00.000Z";
 const T3 = "2026-03-01T20:00:00.000Z";
 
-/** Taste at v14 and the verdict store at v2: what production holds before v3. */
+/**
+ * Taste at its latest and the verdict store at v2: what production holds before
+ * v3, with today's taste build writing beside it.
+ */
 async function beforeRefusalsWent(): Promise<SqlDriver> {
   const sql = await fresh();
   await migrate(sql, TASTE_SCHEMA);
@@ -2035,10 +2174,10 @@ test("a need brings the other module through the version it names and no further
 
 test("v3 marks each film a current not-ever stands on as dont-want-to-see, and moves nothing else", async () => {
   const sql = await beforeRefusalsWent();
-  await saved(sql, "Heat", 1995, "seen");
+  await saved(sql, "Heat", 1995, "seen-before");
   await saved(sql, "Moon", 2009, "want-to-see");
   await saved(sql, "Arrival", 2016, "want-to-see");
-  await saved(sql, "Heat", 1995, "seen", BOB);
+  await saved(sql, "Heat", 1995, "seen-before", BOB);
   // Named the way the domain names films: another spelling is the same film.
   await before3(sql, { title: "  HEAT ", year: 1995, at: T1, reach: "not-ever" });
   await before3(sql, { title: "Moon", year: 2009, at: T1, reach: "not-ever" });
@@ -2055,7 +2194,7 @@ test("v3 marks each film a current not-ever stands on as dont-want-to-see, and m
     "Heat 1995": "dont-want-to-see",
     "Moon 2009": "dont-want-to-see",
   });
-  assert.deepEqual(await viewings(sql, BOB), { "Heat 1995": "seen" }, "another account's film was marked");
+  assert.deepEqual(await viewings(sql, BOB), { "Heat 1995": "seen-before" }, "another account's film was marked");
   assert.deepEqual(await sql.query(stamps), stamped, "the conversion moved a stamp");
   assert.deepEqual(await everyAct(sql), [], "a refusal survived");
 });
@@ -2113,7 +2252,7 @@ test("every not-tonight goes, with the takings-back that named an evening, and n
 
 test("v3 will not invent a film for a refusal that has none, says whose, and changes nothing", async () => {
   const sql = await beforeRefusalsWent();
-  await saved(sql, "Heat", 1995, "seen");
+  await saved(sql, "Heat", 1995, "seen-before");
   await before3(sql, { title: "Heat", year: 1995, at: T1, reach: "not-ever" });
   await before3(sql, { title: "The Dry", year: 2020, at: T1, reach: "not-ever" });
   const acts = await everyAct(sql);
@@ -2131,7 +2270,7 @@ test("v3 will not invent a film for a refusal that has none, says whose, and cha
 
   // Rolled back whole: not recorded, no film marked, no act removed.
   assert.deepEqual(await versions(sql, "verdicts"), [1, 2]);
-  assert.deepEqual(await viewings(sql), { "Heat 1995": "seen" });
+  assert.deepEqual(await viewings(sql), { "Heat 1995": "seen-before" });
   assert.deepEqual(await sql.query("SELECT count(*)::int AS n FROM tonight_movies"), [{ n: 1 }], "a film was invented");
   assert.deepEqual(await everyAct(sql), acts);
 });
@@ -2154,7 +2293,7 @@ test("v3 will not mark a vibe's core, and changes nothing", async () => {
     /google:alice "Arrival" \(2016\), the core of "Space Tension"/u,
   );
   assert.deepEqual(await versions(sql, "verdicts"), [1, 2]);
-  assert.deepEqual(await viewings(sql), { "Arrival 2016": "seen" });
+  assert.deepEqual(await viewings(sql), { "Arrival 2016": "seen-before" });
   assert.deepEqual(await everyAct(sql), acts);
 });
 
@@ -2182,7 +2321,7 @@ test("two acts at one instant that nothing ordered are not guessed between", asy
 test("the pre-flight reports what v3 then does, by the same rules, and writes nothing", async () => {
   const sql = await beforeRefusalsWent();
   await saved(sql, "Black Bag", 2025, "want-to-see");
-  await saved(sql, "Heat", 1995, "seen");
+  await saved(sql, "Heat", 1995, "seen-before");
   // One film under two spellings: an older refusal, then a judgement. Folded
   // with lower() alone these would be two histories, and the refusal would look
   // current; named as the domain names films, it is not.

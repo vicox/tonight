@@ -84,7 +84,7 @@ describe("the verdict tools", () => {
   const filed = async (tools: Record<string, Tool>) => {
     const f = film();
     if (shelved.has(tools)) {
-      await said(tools, "create_movie", { ...f, viewing: "seen", vibes: ["Kept Close"] });
+      await said(tools, "create_movie", { ...f, viewing: "seen-before", vibes: ["Kept Close"] });
     } else {
       await said(tools, "create_genre", { name: "Kept", instruction: "Films I stand behind." });
       await said(tools, "create_vibe", {
@@ -707,7 +707,7 @@ describe("the verdict tools", () => {
       told: "volunteered",
       said: { about: "judgement", judgement: "disliked" },
     });
-    await said(ana, "create_movie", { ...clashing, viewing: "seen" });
+    await said(ana, "create_movie", { ...clashing, viewing: "seen-before" });
 
     // (D) And a film nobody has said anything about at all.
     const silent = film();
@@ -752,7 +752,7 @@ describe("the verdict tools", () => {
     assert.deepEqual(read.superseded, []);
     const payload = JSON.stringify(answer);
     assert.equal(payload.includes("viewing"), false, "the saved viewing field reached this read");
-    assert.equal(payload.includes('"seen"'), false, "the saved viewing value reached this read");
+    assert.equal(payload.includes('"seen-before"'), false, "the saved viewing value reached this read");
   });
 
   test("asking for two things still gets two things", async () => {
@@ -768,7 +768,7 @@ describe("the verdict tools", () => {
       told: "volunteered",
       said: { about: "judgement", judgement: "disliked" },
     })) as unknown as { verdict: { ref: string } };
-    await said(ana, "create_movie", { ...f, viewing: "seen" });
+    await said(ana, "create_movie", { ...f, viewing: "seen-before" });
 
     // "Forget my verdict, and put the film back on my list."
     await said(ana, "forget_verdict", { ref: stated.verdict.ref });
@@ -899,7 +899,7 @@ describe("the verdict tools", () => {
 
       // And a further film, filed by update_movie, spelled differently.
       const g = named();
-      await said(cleo, "create_movie", { ...g, viewing: "seen" });
+      await said(cleo, "create_movie", { ...g, viewing: "seen-before" });
       assert.equal((await call(cleo, "record_verdict", loved(g))).isError, true);
       await said(cleo, "update_movie", { ...g, vibes: ["Patient Light"] });
       await said(cleo, "record_verdict", loved({ title: `  ${g.title.toUpperCase()}  `, year: g.year }));
@@ -924,7 +924,7 @@ describe("the verdict tools", () => {
         instruction: "The one place this film lives.",
         core: named(),
       });
-      await said(cleo, "create_movie", { ...f, viewing: "seen", vibes: ["Last Shelf"] });
+      await said(cleo, "create_movie", { ...f, viewing: "seen-before", vibes: ["Last Shelf"] });
       await said(cleo, "record_verdict", loved(f));
       const before = JSON.stringify(await said(cleo, "get_taste"));
 
@@ -956,7 +956,7 @@ describe("the verdict tools", () => {
         instruction: "Somewhere to keep it for a moment.",
         core: named(),
       });
-      await said(cleo, "create_movie", { ...f, viewing: "seen", vibes: ["Brief Stay"] });
+      await said(cleo, "create_movie", { ...f, viewing: "seen-before", vibes: ["Brief Stay"] });
       await said(cleo, "record_verdict", loved(f));
       const taken = (await said(cleo, "withdraw_verdict", { film: f })) as unknown as { withdrawal: { ref: string } };
       await said(cleo, "update_movie", { ...f, vibes: [] });

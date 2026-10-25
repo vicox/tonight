@@ -111,7 +111,8 @@ test("the order does not depend on the order the films arrived in", () => {
 
 test("every film is there exactly once, whatever it is or is in", () => {
   const movies = [
-    film("Seen", "2026-01-01T00:00:00.000000Z", { viewing: "seen" }),
+    film("Seen", "2026-01-01T00:00:00.000000Z", { viewing: "seen-before" }),
+    film("Just seen", "2025-01-01T00:00:00.000000Z", { viewing: "seen-now" }),
     film("Listed", "2026-01-02T00:00:00.000000Z"),
     film("Refused", "2026-01-03T00:00:00.000000Z", { viewing: "dont-want-to-see" }),
     film("Loved", "2026-01-04T00:00:00.000000Z", { judgement: "loved", vibes: ["A", "B"] }),
@@ -120,6 +121,34 @@ test("every film is there exactly once, whatever it is or is in", () => {
   const out = stream(movies);
   assert.equal(out.length, movies.length);
   assert.deepEqual(new Set(out), new Set(movies));
+});
+
+test("every viewing is one list by when it was saved, and hiding seen-before keeps the rest in order", () => {
+  // The order is the Stream's own: newest saved first, whatever each stands at.
+  const movies = [
+    film("Seen before, newest", "2026-10-25T00:00:00.000000Z", { viewing: "seen-before" }),
+    film("Seen now, last week", "2026-10-18T00:00:00.000000Z", { viewing: "seen-now" }),
+    film("Listed yesterday", "2026-10-24T00:00:00.000000Z"),
+    film("Seen before, older", "2026-10-20T00:00:00.000000Z", { viewing: "seen-before" }),
+    film("Refused", "2026-10-22T00:00:00.000000Z", { viewing: "dont-want-to-see" }),
+  ];
+  const all = stream(movies);
+  assert.deepEqual(titles(all), [
+    "Seen before, newest 2000",
+    "Listed yesterday 2000",
+    "Refused 2000",
+    "Seen before, older 2000",
+    "Seen now, last week 2000",
+  ]);
+
+  // With *Include previously seen* unticked the page draws the same list without
+  // the films seen before: the rest exactly as they were, nothing moved up.
+  const shown = all.filter((movie) => movie.viewing !== "seen-before");
+  assert.deepEqual(
+    titles(shown),
+    titles(stream(movies.filter((movie) => movie.viewing !== "seen-before"))),
+  );
+  assert.deepEqual(titles(shown), ["Listed yesterday 2000", "Refused 2000", "Seen now, last week 2000"]);
 });
 
 test("what was said about a film never moves its card", () => {
@@ -150,7 +179,7 @@ test("nothing is an empty stream, and the films given are left as they were", ()
 });
 
 test("a card's status: the verdict when one stands, the viewing when none does", () => {
-  const VIEWINGS: Viewing[] = ["want-to-see", "seen", "dont-want-to-see"];
+  const VIEWINGS: Viewing[] = ["want-to-see", "seen-now", "seen-before", "dont-want-to-see"];
   const expected: Record<Viewing, Record<string, string[]>> = {
     "want-to-see": {
       none: ["want-to-see"],
@@ -158,7 +187,8 @@ test("a card's status: the verdict when one stands, the viewing when none does",
       loved: ["loved"],
       disliked: ["disliked"],
     },
-    seen: { none: ["seen"], liked: ["liked"], loved: ["loved"], disliked: ["disliked"] },
+    "seen-now": { none: ["seen-now"], liked: ["liked"], loved: ["loved"], disliked: ["disliked"] },
+    "seen-before": { none: ["seen-before"], liked: ["liked"], loved: ["loved"], disliked: ["disliked"] },
     "dont-want-to-see": {
       none: ["dont-want-to-see"],
       liked: ["liked", "dont-want-to-see"],

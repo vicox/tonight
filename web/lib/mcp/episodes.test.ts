@@ -778,11 +778,11 @@ describe("an evening beside the rest of the model", () => {
       async (tools: Record<string, Tool>, made: Record<string, unknown> | undefined) =>
         ok(tools, "forget_verdict", { ref: (made as { verdict: { ref: string } }).verdict.ref }),
     ],
-    ["create_movie", async () => {}, async (tools: Record<string, Tool>) => ok(tools, "create_movie", { ...ARRIVAL, viewing: "seen" })],
+    ["create_movie", async () => {}, async (tools: Record<string, Tool>) => ok(tools, "create_movie", { ...ARRIVAL, viewing: "seen-before" })],
     [
       "update_movie (seen)",
       async (tools: Record<string, Tool>) => ok(tools, "create_movie", { ...ARRIVAL, viewing: "want-to-see" }),
-      async (tools: Record<string, Tool>) => ok(tools, "update_movie", { ...ARRIVAL, viewing: "seen" }),
+      async (tools: Record<string, Tool>) => ok(tools, "update_movie", { ...ARRIVAL, viewing: "seen-before" }),
     ],
     [
       "create_vibe (core)",
@@ -798,7 +798,7 @@ describe("an evening beside the rest of the model", () => {
     ],
     [
       "delete_movie",
-      async (tools: Record<string, Tool>) => ok(tools, "create_movie", { ...ARRIVAL, viewing: "seen" }),
+      async (tools: Record<string, Tool>) => ok(tools, "create_movie", { ...ARRIVAL, viewing: "seen-before" }),
       async (tools: Record<string, Tool>) => ok(tools, "delete_movie", ARRIVAL),
     ],
   ] as const) {

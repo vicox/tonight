@@ -31,9 +31,10 @@
  * stored as what the user said. Two users who both saw the same film have two
  * Movies, because what is kept is not the film.
  *
- * Where it stands is one field with three answers and no fourth: they have seen
- * it, it is on their list to see, or they do not want to see it. A film saved
- * without being told which is on their list — see `DEFAULT_VIEWING`.
+ * Where it stands is one field with four answers and no fifth: they saw it
+ * recently, they saw it some time before, it is on their list to see, or they do
+ * not want to see it. A film saved without being told which is on their list —
+ * see `DEFAULT_VIEWING`.
  *
  * What they *thought* of a film is not in this file at all. An opinion is a
  * Verdict — `lib/verdicts/model.ts` — with a scope, a provenance, an instant and
@@ -122,9 +123,11 @@ export type Vibe = {
    * What a core may be — a film they have seen and stand behind, never one only
    * offered as an illustration — is mostly a judgement about what they said, and
    * most of what they said is in another root. The one part this root holds is
-   * the film's own `viewing`: a core is `seen`. So the store refuses a saved film
-   * that is anything else as a core, saves a new core as `seen`, and refuses to
-   * mark a core anything else. It reads that raw fact only — a standing judgement
+   * the film's own `viewing`: a core is seen — `seen-now` or `seen-before`. So the
+   * store refuses a saved film that is anything else as a core, saves a new core
+   * as whichever of the two the caller said (`seen-before` when it said neither),
+   * and refuses to mark a core anything but one of the two. It reads that raw
+   * fact only — a standing judgement
    * implies watching (`lib/seen.ts`), but judgements are verdicts and the store
    * does not read them. The store checks the shape, the membership and that one
    * fact; the skill and the tool descriptions carry the rest.
@@ -151,9 +154,11 @@ export type Vibe = {
 export type MovieHandle = { title: string; year: number };
 
 /**
- * Where a film stands on their list: always exactly one of three.
+ * Where a film stands on their list: always exactly one of four.
  *
- *     seen               they have watched it — "I've seen it"
+ *     seen-now           watched recently — "I just watched it", an evening with
+ *                        Tonight, a film Tonight suggested and they then saw
+ *     seen-before        watched some time in the past — "I saw it years ago"
  *     want-to-see        on their list to see — "Put it on my list"
  *     dont-want-to-see   not to be recommended — "Don't recommend it again"
  *
@@ -163,7 +168,12 @@ export type MovieHandle = { title: string; year: number };
  * in the conversation that wrote it.
  *
  * `want-to-see` may be recommended — it is new to them. `dont-want-to-see` is
- * never recommended. `seen` is no longer new.
+ * never recommended. Neither seen value is new any more.
+ *
+ * Neither seen value is a date, and nothing here holds one. Every film saved as
+ * the single `seen` before taste v15 became `seen-now`, the user's choice for the
+ * films already saved. When Tonight wrote the film down (`Written`) is never when
+ * they watched it.
  *
  * Not an opinion. It says nothing about whether they liked it — that is a
  * Verdict, it is the only thing that carries an opinion, and there is
@@ -171,9 +181,14 @@ export type MovieHandle = { title: string; year: number };
  * seen, but the loving lives in `lib/verdicts` and what is left here is the
  * watching.
  */
-export const VIEWINGS = ["seen", "want-to-see", "dont-want-to-see"] as const;
+export const VIEWINGS = ["seen-now", "seen-before", "want-to-see", "dont-want-to-see"] as const;
 
 export type Viewing = (typeof VIEWINGS)[number];
+
+/** The two that say they watched it; `isSeen` in `lib/seen.ts` asks the question. */
+export const SEEN_VIEWINGS = ["seen-now", "seen-before"] as const satisfies readonly Viewing[];
+
+export type SeenViewing = (typeof SEEN_VIEWINGS)[number];
 
 /** What a film saved without a viewing is: on their list to see. */
 export const DEFAULT_VIEWING: Viewing = "want-to-see";
@@ -190,7 +205,7 @@ export type Movie = {
   year: number;
   /** An outbound pointer, or nothing. Never verified, never fetched. */
   imdbId: string | null;
-  /** Seen, want to see, or don't want to see. Never empty. */
+  /** Seen now, seen before, want to see, or don't want to see. Never empty. */
   viewing: Viewing;
   /** The vibes it is in, by name. May be empty. */
   vibes: string[];
@@ -519,11 +534,27 @@ export function checkImdbId(value: unknown): string | null {
 }
 
 /**
+ * Which of the two seen values a watch is, as one clause.
+ *
+ * The rule every agent-facing sentence that writes a seen value states or
+ * points to: the tool descriptions, the refusals below, and both skills. A
+ * watch date is never part of it — none is asked for and none is kept.
+ */
+export const SEEN_RULE =
+  "seen-now when they watched it recently — lately, in an evening with Tonight, or after " +
+  "Tonight suggested it — and seen-before when they place it some time ago; when they did not " +
+  "say when, ask them once, briefly, and use seen-before if they still do not say";
+
+/**
  * Checks where a film stands on their list.
  *
- * One of the three and nothing else — `null` included, because a film on the
+ * One of the four and nothing else — `null` included, because a film on the
  * list always stands somewhere. An omitted field never reaches here: the store
  * keeps what it had, or saves a new film as `DEFAULT_VIEWING`.
+ *
+ * `seen`, the single value before taste v15, is refused like any other unknown
+ * spelling, with the rule for choosing between the two that replaced it: a
+ * caller still holding the old vocabulary is told how to choose, not given one.
  */
 export function checkViewing(value: unknown): Viewing {
   if (typeof value === "string" && (VIEWINGS as readonly string[]).includes(value)) {
@@ -533,7 +564,25 @@ export function checkViewing(value: unknown): Viewing {
   throw new TasteError(
     `a movie's viewing must be one of ${VIEWINGS.join(", ")} — ` +
       `not ${typeof value === "string" ? `"${value}"` : kindOf(value)}. ` +
+      (value === "seen" ? `A watched film is ${SEEN_RULE}. ` : "") +
       "What they thought of the film is a verdict, not a viewing.",
+  );
+}
+
+/**
+ * Checks which seen value a core not saved yet is saved as.
+ *
+ * Only the two seen values — a core is a film they have seen — and only when one
+ * was given: an omitted one is the store's to fill in, as `seen-before`.
+ */
+function checkCoreViewing(value: unknown): SeenViewing {
+  if (typeof value === "string" && (SEEN_VIEWINGS as readonly string[]).includes(value)) {
+    return value as SeenViewing;
+  }
+  throw new TasteError(
+    `a core's viewing must be ${SEEN_VIEWINGS.join(" or ")} — ` +
+      `not ${typeof value === "string" ? `"${value}"` : kindOf(value)}: a core is a film they ` +
+      `have seen, and it is ${SEEN_RULE}`,
   );
 }
 
@@ -571,16 +620,24 @@ export function checkMovieVibes(value: unknown): string[] {
 }
 
 /**
+ * A vibe's core as a caller names it: the film, and — for a film not saved yet —
+ * which seen value to save it as.
+ */
+export type NamedCore = MovieHandle & { viewing?: SeenViewing };
+
+/**
  * Reads the film a vibe is anchored on, returning its handle normalised.
  *
- * A handle and nothing more: whether the film is saved yet is the store's
- * question, and a core that is not is saved by the write that names it. Required
- * on create, and on update it may be replaced but not cleared — `null` is refused
- * here rather than read as "no core", because an anchorless vibe written today
- * would be the one state this field exists to end. `doing` only picks the words:
- * on create there is nothing to clear, so a null core is a missing one.
+ * A handle, and the seen value to save it as if it is not saved yet: whether it
+ * is saved is the store's question, and a core that is not is saved by the write
+ * that names it. A saved film keeps its own viewing whatever `viewing` says —
+ * that changes only through `update_movie`. Required on create, and on update it
+ * may be replaced but not cleared — `null` is refused here rather than read as
+ * "no core", because an anchorless vibe written today would be the one state
+ * this field exists to end. `doing` only picks the words: on create there is
+ * nothing to clear, so a null core is a missing one.
  */
-export function checkCore(value: unknown, doing: "create" | "update"): MovieHandle {
+export function checkCore(value: unknown, doing: "create" | "update"): NamedCore {
   if (value === undefined || value === null) {
     throw new TasteError(
       value === null && doing === "update"
@@ -591,8 +648,9 @@ export function checkCore(value: unknown, doing: "create" | "update"): MovieHand
   if (typeof value !== "object" || Array.isArray(value)) {
     throw new TasteError(`a vibe's core must be a film, by title and year — not ${kindOf(value)}`);
   }
-  const film = value as { title?: unknown; year?: unknown };
-  return { title: checkMovieTitle(film.title), year: checkYear(film.year) };
+  const film = value as { title?: unknown; year?: unknown; viewing?: unknown };
+  const handle = { title: checkMovieTitle(film.title), year: checkYear(film.year) };
+  return film.viewing === undefined ? handle : { ...handle, viewing: checkCoreViewing(film.viewing) };
 }
 
 // --- shape -----------------------------------------------------------------
@@ -788,8 +846,8 @@ export function movieAnchorsVibe(
     delete: `cannot delete ${handleOf(title, year)}: it is the core of ${which}`,
     unfile: `cannot take ${handleOf(title, year)} out of ${which}: it is the core there`,
     unsee:
-      `cannot mark ${handleOf(title, year)} anything but seen: it is the core of ${which}, ` +
-      "and a core is a film they have seen",
+      `cannot mark ${handleOf(title, year)} anything but seen-now or seen-before: it is the ` +
+      `core of ${which}, and a core is a film they have seen`,
   }[doing];
   return new TasteError(
     why + " — make another film the core with update_vibe first, or delete the vibe",
@@ -856,17 +914,18 @@ export function vibeHoldsPositive(
 }
 
 /**
- * A saved film whose viewing is not `seen`, named as a core.
+ * A saved film whose viewing is neither seen value, named as a core.
  *
  * The raw `viewing` only, and on purpose: a standing liked or loved implies they
  * watched it, but that is a verdict, and the store does not read verdicts. So the
- * way through is their word — never a viewing written to get past this.
+ * way through is their word — never a viewing written to get past this. A
+ * `viewing` passed with the core does not change a saved film either.
  */
 export function coreNotSeen(title: string, year: number, viewing: Viewing): TasteError {
   return new TasteError(
     `cannot make ${handleOf(title, year)} a core: it is saved as ${viewing}, and a core is a ` +
       "film they have seen. Change the viewing only if they tell you they have watched it — " +
-      "then record seen with update_movie and try again",
+      `then record it with update_movie, ${SEEN_RULE}, and try again`,
   );
 }
 

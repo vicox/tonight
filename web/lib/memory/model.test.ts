@@ -84,7 +84,7 @@ describe("the memory composer", () => {
     const her = someone();
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
     await her.taste.createGenre({ name: "Heist", instruction: "a crew and a plan" });
-    await her.taste.createMovie({ ...HEAT_1995, viewing: "seen" });
+    await her.taste.createMovie({ ...HEAT_1995, viewing: "seen-before" });
     await her.taste.createVibe({
       name: "Long Nights",
       genres: ["Slow Burn"],
@@ -110,8 +110,8 @@ describe("the memory composer", () => {
     // and the membership are two things the view has to carry, not one.
     const her = someone();
     await her.taste.createGenre({ name: "Slow Burn", instruction: "takes its time" });
-    await her.taste.createMovie({ ...HEAT_1995, viewing: "seen" });
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createMovie({ ...HEAT_1995, viewing: "seen-before" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before" });
     await her.taste.createVibe({
       name: "Long Nights",
       genres: ["Slow Burn"],
@@ -166,7 +166,7 @@ describe("the memory composer", () => {
 
   test("no root is in two places at once", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...HEAT_1995, viewing: "seen" });
+    await her.taste.createMovie({ ...HEAT_1995, viewing: "seen-before" });
     await her.verdicts.say(judged(HEAT_1995, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
     await her.verdicts.say(judged(BLACK_BAG, "liked", "2026-01-02T20:00:00.000Z"));
@@ -225,7 +225,7 @@ describe("the memory composer", () => {
     // holds the title as the user spelled it. They describe one film, and the
     // memory view must show one film rather than two roots that look unrelated.
     const her = someone();
-    await her.taste.createMovie({ title: "black bag", year: 2025, viewing: "seen" });
+    await her.taste.createMovie({ title: "black bag", year: 2025, viewing: "seen-before" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
 
     const held = (await her.memory()).held;
@@ -235,7 +235,7 @@ describe("the memory composer", () => {
 
   test("a superseded verdict is remembered and never held", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.verdicts.say(judged(BLACK_BAG, "liked", "2026-01-02T20:00:00.000Z"));
 
@@ -311,7 +311,7 @@ describe("the memory composer", () => {
 
   test("nothing derived, scored or inferred appears anywhere", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.episodes.record(beginEpisode({ request: "something tense", offered: [{ ...HEAT_1995, lead: true }] }));
 
@@ -328,7 +328,7 @@ describe("the memory composer", () => {
 
   test("composing writes nothing and moves nothing", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.episodes.record(beginEpisode({ request: "something tense", offered: [{ ...HEAT_1995, lead: true }] }));
 
@@ -348,7 +348,7 @@ describe("the memory composer", () => {
   test("one person's memory holds nothing of another's", async () => {
     const her = someone("mine");
     const him = someone("theirs");
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     await her.episodes.record(beginEpisode({ request: "hers alone", offered: [{ ...HEAT_1995, lead: true }] }));
 
@@ -362,7 +362,7 @@ describe("the memory composer", () => {
 
   test("forgetting the standing verdict leaves nothing evaluative, and no hidden opinion", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen", vibes: [] });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before", vibes: [] });
     const act = await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     assert.equal(of((await her.memory()).held, "verdict").length, 1);
 
@@ -374,7 +374,7 @@ describe("the memory composer", () => {
     // The film is untouched, and there is no second place for an opinion to be
     // left behind: the Movie carries a viewing fact and nothing evaluative.
     const [movie] = of(after.held, "movie");
-    assert.equal(movie?.of === "movie" && movie.viewing, "seen");
+    assert.equal(movie?.of === "movie" && movie.viewing, "seen-before");
     assert.equal(
       /liked|loved|disliked/.test(JSON.stringify(after)),
       false,
@@ -384,7 +384,7 @@ describe("the memory composer", () => {
 
   test("forgetting a withdrawal brings the verdict it silenced back to held", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before" });
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-01T20:00:00.000Z"));
     const taken = await her.verdicts.say(withdrawVerdict(BLACK_BAG, "2026-01-02T20:00:00.000Z"));
 
@@ -430,7 +430,7 @@ describe("the memory composer", () => {
     // Held and remembered alike: what stands, what it replaced and the
     // taking-back all go, so nothing about a film they removed is left to show.
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before" });
     await her.verdicts.say(judged(BLACK_BAG, "loved", "2026-01-01T20:00:00.000Z"));
     await her.verdicts.say(judged(BLACK_BAG, "disliked", "2026-01-02T20:00:00.000Z"));
     assert.equal(of((await her.memory()).held, "verdict").length, 1);
@@ -462,7 +462,7 @@ describe("the memory composer", () => {
    */
   test("case variants are one film's history, with one governor", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before" });
     const first = await her.verdicts.say(judged(BLACK_BAG, "liked", "2026-01-01T20:00:00.000Z"));
     const second = await her.verdicts.say(
       judged({ title: "black bag", year: 2025 }, "disliked", "2026-01-02T20:00:00.000Z"),
@@ -499,7 +499,7 @@ describe("the memory composer", () => {
    */
   test("acts spelled differently are one history, and forgetting reaches the right one", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before" });
     const v1 = await her.verdicts.say(judged(BLACK_BAG, "liked", "2026-01-01T20:00:00.000Z"));
     const v2 = await her.verdicts.say(
       stateVerdict(
@@ -636,11 +636,11 @@ describe("the memory composer", () => {
 
   test("a movie root carries whether they watched it, and nothing evaluative", async () => {
     const her = someone();
-    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen" });
+    await her.taste.createMovie({ ...BLACK_BAG, viewing: "seen-before" });
 
     const [movie] = of((await her.memory()).held, "movie");
     assert.ok(movie && movie.of === "movie");
-    assert.equal(movie.viewing, "seen");
+    assert.equal(movie.viewing, "seen-before");
     for (const gone of ["state", "judgement", "liked", "loved", "disliked"]) {
       assert.equal(gone in movie, false, `a movie root carries ${gone}`);
     }

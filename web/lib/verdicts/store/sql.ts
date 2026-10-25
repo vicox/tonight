@@ -210,6 +210,31 @@ export async function standingWithin(
   return [...byFilm.values()].flatMap((acts) => standing(acts));
 }
 
+/**
+ * When the last thing said about a film was said, on whatever connection it is
+ * handed — or nothing, when nothing was. Matched by `filmKey`, exactly as
+ * `standingWithin` matches, so every spelling of the film counts.
+ *
+ * For a caller about to say something more in the same transaction: an act
+ * stamped earlier than this would sort before it (time first, then sequence —
+ * the model's order) and could not change what stands.
+ */
+export async function lastSaidWithin(sql: Transaction, owner: string, film: Film): Promise<string | null> {
+  const rows = await sql.query<ActRow>(
+    `SELECT id, said, title, year, occasion, said_at,
+            told, about, judgement, because, seq
+       FROM tonight_verdict_acts
+      WHERE user_id = $1 AND year = $2`,
+    [owner, film.year],
+  );
+  const key = filmKey(film);
+  let last: string | null = null;
+  for (const act of rows.map(assemble)) {
+    if (filmKey(act.film) === key && (last === null || act.at > last)) last = act.at;
+  }
+  return last;
+}
+
 type ActRow = {
   /** The row's own identity, and the reference a caller forgets an act by. */
   id: string;

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test, { after, describe } from "node:test";
+import test, { after, describe, mock } from "node:test";
 
 import type { SqlDriver } from "../db/driver.ts";
 import { migrate } from "../db/migrate.ts";
@@ -8,6 +8,7 @@ import {
   orderGenre,
   orderVibe,
   orderMovie,
+  SEEN_RULE,
   TasteError,
   VibeRequired,
   type Genre,
@@ -429,7 +430,7 @@ for (const driver of drivers) {
           },
         ],
         movies: [
-          { title: "Moon", year: 2009, imdbId: null, viewing: "seen", vibes: ["Space Tension"] },
+          { title: "Moon", year: 2009, imdbId: null, viewing: "seen-before", vibes: ["Space Tension"] },
         ],
       });
       assert.equal(await touchedAt(sql, "tonight_genres", "Sci-Fi"), genreAt);
@@ -928,7 +929,7 @@ for (const driver of drivers) {
       assert.deepEqual(content(await alice.taste()), {
         genres: [],
         vibes: [],
-        movies: [{ title: "Moon", year: 2009, imdbId: null, viewing: "seen", vibes: [] }],
+        movies: [{ title: "Moon", year: 2009, imdbId: null, viewing: "seen-before", vibes: [] }],
       });
     });
 
@@ -1127,14 +1128,14 @@ for (const driver of drivers) {
       assert.match(await refusal(alice.createMovie({ title: "ⱟ", year: 2000 })), /already exists/);
       assert.equal((await alice.taste()).movies.length, 1);
       // And it is reachable under either spelling, being one film.
-      assert.equal((await alice.updateMovie("ⱟ", 2000, { viewing: "seen" })).viewing, "seen");
+      assert.equal((await alice.updateMovie("ⱟ", 2000, { viewing: "seen-before" })).viewing, "seen-before");
     });
 
     test("whitespace is not part of a film's name", async () => {
       const { alice } = await fresh();
       await alice.createMovie({ title: "Black Bag", year: 2025 });
       assert.match(await refusal(alice.createMovie({ title: " black   bag ", year: 2025 })), /already exists/);
-      assert.equal((await alice.updateMovie("  BLACK  bag ", 2025, { viewing: "seen" })).viewing, "seen");
+      assert.equal((await alice.updateMovie("  BLACK  bag ", 2025, { viewing: "seen-before" })).viewing, "seen-before");
       // The stored title is still what they typed.
       assert.equal((await alice.taste()).movies[0]?.title, "Black Bag");
     });
@@ -1153,7 +1154,7 @@ for (const driver of drivers) {
       // `lower(title)` while the lookups canonicalise in JavaScript brings the
       // trap straight back, and this is what catches it.
       assert.match(await refusal(alice.createMovie({ title, year: 2000 })), /already exists/);
-      assert.equal((await alice.updateMovie(title, 2000, { viewing: "seen" })).viewing, "seen");
+      assert.equal((await alice.updateMovie(title, 2000, { viewing: "seen-before" })).viewing, "seen-before");
       await alice.deleteMovie(title, 2000);
       assert.deepEqual((await alice.taste()).movies, []);
     });
@@ -1256,7 +1257,7 @@ for (const driver of drivers) {
       assert.equal(await identity(), was, "retitling made a different movie");
       assert.deepEqual(await filings(), before, "retitling rewrote a filing row");
 
-      await alice.updateMovie("Dune: Part One", 2021, { viewing: "seen" });
+      await alice.updateMovie("Dune: Part One", 2021, { viewing: "seen-before" });
       assert.deepEqual(await filings(), before, "a state change rewrote a filing row");
 
       assert.deepEqual((await movieOf(alice, "Dune: Part One", 2021))?.vibes, ["Space Tension"]);
@@ -1335,7 +1336,7 @@ for (const driver of drivers) {
       const { alice } = await fresh();
       await alice.createMovie({ title: "Shawshank", year: 1994, imdbId: "tt0111161" });
 
-      const kept = await alice.updateMovie("Shawshank", 1994, { viewing: "seen" });
+      const kept = await alice.updateMovie("Shawshank", 1994, { viewing: "seen-before" });
       assert.equal(kept.imdbId, "tt0111161", "an update that did not mention the id dropped it");
 
       assert.equal((await alice.updateMovie("Shawshank", 1994, { imdbId: null })).imdbId, null);
@@ -1366,33 +1367,38 @@ for (const driver of drivers) {
       assert.deepEqual((await alice.taste()).movies.length, 1, "the refused create left a movie");
     });
 
-    test("viewing holds three answers, and a film saved without one is on the list", async () => {
+    test("viewing holds four answers, and a film saved without one is on the list", async () => {
       const { alice } = await fresh();
 
       const created = await alice.createMovie({ title: "Arrival", year: 2016 });
       assert.equal(created.viewing, "want-to-see", "a new film is not on the list to see");
 
-      // All three persist and read back as themselves.
-      for (const viewing of ["seen", "dont-want-to-see", "want-to-see"] as const) {
+      // All four persist and read back as themselves.
+      for (const viewing of ["seen-now", "seen-before", "dont-want-to-see", "want-to-see"] as const) {
         assert.equal((await alice.updateMovie("Arrival", 2016, { viewing })).viewing, viewing);
         assert.equal((await movieOf(alice, "Arrival", 2016))?.viewing, viewing);
       }
 
       // Omitted is not a value either — an unrelated change leaves it standing.
-      await alice.updateMovie("Arrival", 2016, { viewing: "seen" });
+      await alice.updateMovie("Arrival", 2016, { viewing: "seen-before" });
       const untouched = await alice.updateMovie("Arrival", 2016, { imdbId: "tt0000001" });
-      assert.equal(untouched.viewing, "seen", "an unrelated update rewrote the viewing");
+      assert.equal(untouched.viewing, "seen-before", "an unrelated update rewrote the viewing");
 
       // There is no clearing it, an opinion is not a viewing, and the old
-      // spellings are refused in the same words as anything else that is not one.
-      for (const wrong of [null, "unseen", "yes", "watched", "liked", "loved", "disliked", true, 1, {}]) {
+      // spellings are refused in the same words as anything else that is not one
+      // — the single `seen` included, which is also told how to choose.
+      for (const wrong of [null, "unseen", "seen", "yes", "watched", "liked", "loved", "disliked", true, 1, {}]) {
         assert.match(
           await refusal(alice.updateMovie("Arrival", 2016, { viewing: wrong })),
-          /must be one of seen, want-to-see, dont-want-to-see/,
+          /must be one of seen-now, seen-before, want-to-see, dont-want-to-see/,
           JSON.stringify(wrong),
         );
       }
-      assert.equal((await movieOf(alice, "Arrival", 2016))?.viewing, "seen", "a refusal wrote");
+      assert.match(
+        await refusal(alice.updateMovie("Arrival", 2016, { viewing: "seen" })),
+        /A watched film is seen-now when they watched it recently/,
+      );
+      assert.equal((await movieOf(alice, "Arrival", 2016))?.viewing, "seen-before", "a refusal wrote");
     });
 
     test("a saved film is want-to-see, a core it saves is seen, and filing changes neither", async () => {
@@ -1414,7 +1420,7 @@ for (const driver of drivers) {
       );
       assert.deepEqual(rows, [
         { title: "Arrival", viewing: "want-to-see" },
-        { title: coreOf("Space Tension").title, viewing: "seen" },
+        { title: coreOf("Space Tension").title, viewing: "seen-before" },
       ]);
     });
 
@@ -1503,13 +1509,13 @@ for (const driver of drivers) {
       await alice.createMovie({
         title: "Under the Skin",
         year: 2013,
-        viewing: "seen",
+        viewing: "seen-before",
         vibes: ["Space Tension", "Quiet Dread"],
       });
 
       await alice.deleteVibe("Space Tension");
       const survivor = await movieOf(alice, "Under the Skin", 2013);
-      assert.equal(survivor?.viewing, "seen", "the movie went with the vibe");
+      assert.equal(survivor?.viewing, "seen-before", "the movie went with the vibe");
       assert.deepEqual(survivor?.vibes, ["Quiet Dread"], "it kept a filing that no longer exists");
 
       const removed = await alice.deleteMovie("Under the Skin", 2013);
@@ -1522,8 +1528,8 @@ for (const driver of drivers) {
       // The two cores are what is left: one still anchoring its vibe, and one
       // whose vibe went, which a vibe's deletion never takes with it.
       assert.deepEqual(content(await alice.taste()).movies, [
-        { ...coreOf("Quiet Dread"), imdbId: null, viewing: "seen", vibes: ["Quiet Dread"] },
-        { ...coreOf("Space Tension"), imdbId: null, viewing: "seen", vibes: [] },
+        { ...coreOf("Quiet Dread"), imdbId: null, viewing: "seen-before", vibes: ["Quiet Dread"] },
+        { ...coreOf("Space Tension"), imdbId: null, viewing: "seen-before", vibes: [] },
       ]);
 
       assert.match(await refusal(alice.deleteMovie("Under the Skin", 2013)), /no movie/);
@@ -1554,7 +1560,7 @@ for (const driver of drivers) {
 
     test("deleting a film forgets everything said about it, and nothing said about another", async () => {
       const { alice, sql } = await fresh();
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-before" });
 
       // What stands, what it replaced, the taking-back, and a later word under
       // another spelling of the same film.
@@ -1588,7 +1594,7 @@ for (const driver of drivers) {
     test("a deletion that fails after the film has gone takes nothing with it", async () => {
       const { alice, sql } = await fresh();
       await vibe(alice, "Space Tension");
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-before", vibes: ["Space Tension"] });
       await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "loved");
       const intact = content(await alice.taste());
 
@@ -1618,7 +1624,7 @@ for (const driver of drivers) {
       // them: that is the same as being said a moment after the film went — a
       // verdict needs no saved film — so it stays, and everything read goes.
       const { alice, sql } = await fresh();
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-before" });
       await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "loved");
 
       const late: SqlDriver = {
@@ -1684,7 +1690,7 @@ for (const driver of drivers) {
     test("filed as a member, as a core, or under another spelling, a liked or loved is written", async () => {
       const { alice, sql } = await fresh();
       await vibe(alice, "Space Tension");
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-before", vibes: ["Space Tension"] });
 
       await alice.sayFiled(positive({ title: "Heat", year: 1995 }));
       await alice.sayFiled(positive(coreOf("Space Tension"), "liked"));
@@ -1708,7 +1714,7 @@ for (const driver of drivers) {
       }
 
       await vibe(bob, "Space Tension");
-      await bob.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+      await bob.createMovie({ title: "Heat", year: 1995, viewing: "seen-before", vibes: ["Space Tension"] });
       assert.deepEqual(await vibeRequired(alice.sayFiled(positive({ title: "Heat", year: 1995 }))), {
         film: { title: "Heat", year: 1995 },
         movie: null,
@@ -1725,7 +1731,7 @@ for (const driver of drivers) {
 
     test("saySaved writes a disliked or a taking-back about a saved film, filed or not, under any spelling", async () => {
       const { alice, sql } = await fresh();
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-before" });
 
       await alice.saySaved(disliked({ title: "  heat ", year: 1995 }));
       await alice.saySaved(takenBack({ title: "Heat", year: 1995 }));
@@ -1735,7 +1741,7 @@ for (const driver of drivers) {
 
     test("saySaved refuses a film that is not saved, or saved only by another account, with nothing written", async () => {
       const { alice, bob, sql } = await fresh();
-      await bob.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+      await bob.createMovie({ title: "Heat", year: 1995, viewing: "seen-before" });
 
       for (const act of [disliked({ title: "Heat", year: 1995 }), takenBack({ title: "Heat", year: 1995 })]) {
         assert.match(await refusal(alice.saySaved(act)), /no movie "Heat" \(1995\)/);
@@ -1746,7 +1752,7 @@ for (const driver of drivers) {
     test("saySaved leaves a liked or loved to sayFiled", async () => {
       const { alice, sql } = await fresh();
       await vibe(alice, "Space Tension");
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-before", vibes: ["Space Tension"] });
       for (const judgement of ["liked", "loved"] as const) {
         assert.match(
           await refusal(alice.saySaved(positive({ title: "Heat", year: 1995 }, judgement))),
@@ -1760,7 +1766,7 @@ for (const driver of drivers) {
       // The window a film's screen has: it read the film, the film was deleted
       // through an assistant, and then the press arrives.
       const { alice, sql } = await fresh();
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-before" });
       await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "disliked");
       assert.ok(await movieOf(alice, "Heat", 1995), "the caller read the film");
 
@@ -1773,18 +1779,209 @@ for (const driver of drivers) {
 
     test("what saySaved wrote goes with its film", async () => {
       const { alice, sql } = await fresh();
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen" });
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-before" });
       await alice.saySaved(disliked({ title: "Heat", year: 1995 }));
 
       await alice.deleteMovie("Heat", 1995);
       assert.deepEqual(await actsOf(sql, ALICE), []);
     });
 
+    // --- an opinion and its seen value, a listing and its take-back --------
+
+    /** The film's own verdict, as the verdict store reads what stands. */
+    const standingOf = async (sql: SqlDriver, film: { title: string; year: number }) =>
+      (await sqlVerdictStore(sql, ALICE as never).standing()).find(
+        (one) => one.title.toLowerCase() === film.title.toLowerCase() && one.year === film.year,
+      )?.judgement ?? null;
+
+    test("choose writes a verdict and the viewing together", async () => {
+      const { alice, sql } = await fresh();
+      await vibe(alice, "Space Tension");
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "want-to-see", vibes: ["Space Tension"] });
+
+      await alice.choose({ title: "heat", year: 1995 }, () => ({ judgement: "liked", viewing: "seen-now" }));
+      assert.equal((await movieOf(alice, "Heat", 1995))?.viewing, "seen-now");
+      assert.equal(await standingOf(sql, { title: "Heat", year: 1995 }), "liked");
+      // Written about the film as it is stored, told as the answer to the page's question.
+      const [act] = await sqlVerdictStore(sql, ALICE as never).acts();
+      assert.deepEqual(
+        act?.said === "verdict" && [act.film, act.told],
+        [{ title: "Heat", year: 1995 }, "confirmed"],
+      );
+
+      // The same viewing again moves nothing on the film.
+      const before = (await movieOf(alice, "Heat", 1995))!.updatedAt;
+      await alice.choose({ title: "Heat", year: 1995 }, () => ({ judgement: "loved", viewing: "seen-now" }));
+      assert.equal((await movieOf(alice, "Heat", 1995))!.updatedAt, before, "an unchanged viewing was rewritten");
+      assert.equal(await standingOf(sql, { title: "Heat", year: 1995 }), "loved");
+    });
+
+    test("choose decides on the film as it is held, not as a page read it", async () => {
+      const { alice, sql } = await fresh();
+      await vibe(alice, "Space Tension");
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "want-to-see", vibes: ["Space Tension"] });
+
+      // The page reads the film; then, before the press is decided, it changes:
+      // seen before, and liked, through another way in.
+      const page = await movieOf(alice, "Heat", 1995);
+      assert.equal(page?.viewing, "want-to-see");
+      await alice.updateMovie("Heat", 1995, { viewing: "seen-before" });
+      await alice.sayFiled(positive({ title: "Heat", year: 1995 }, "liked"));
+
+      let seen: unknown;
+      await alice.choose({ title: "Heat", year: 1995 }, (held) => {
+        seen = held;
+        return {};
+      });
+      assert.deepEqual(seen, { viewing: "seen-before", judgement: "liked", filed: true, core: false });
+
+      // A core is seen as one, under the lock too.
+      let core: unknown;
+      await alice.choose(coreOf("Space Tension"), (held) => {
+        core = held;
+        return {};
+      });
+      assert.deepEqual(core, { viewing: "seen-before", judgement: null, filed: true, core: true });
+      assert.deepEqual(await actsOf(sql, ALICE), ["Heat 1995 verdict liked"], "deciding wrote something");
+    });
+
+    test("a withdrawal is written only when a judgement stands under the lock", async () => {
+      const { alice, sql } = await fresh();
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-now" });
+
+      // Nothing stands: the listing moves the viewing and takes nothing back.
+      await alice.choose({ title: "Heat", year: 1995 }, () => ({ withdraw: true, viewing: "want-to-see" }));
+      assert.equal((await movieOf(alice, "Heat", 1995))?.viewing, "want-to-see");
+      assert.deepEqual(await actsOf(sql, ALICE), [], "a withdrawal of nothing");
+
+      // Something stands: it is taken back, and the viewing set, together.
+      await alice.choose({ title: "Heat", year: 1995 }, () => ({ judgement: "disliked", viewing: "seen-now" }));
+      await alice.choose({ title: "Heat", year: 1995 }, () => ({ withdraw: true, viewing: "dont-want-to-see" }));
+      assert.equal((await movieOf(alice, "Heat", 1995))?.viewing, "dont-want-to-see");
+      assert.equal(await standingOf(sql, { title: "Heat", year: 1995 }), null);
+      assert.deepEqual(await actsOf(sql, ALICE), ["Heat 1995 verdict disliked", "Heat 1995 withdrawal"]);
+    });
+
+    test("a refused or thrown choose writes neither the verdict nor the viewing", async () => {
+      const { alice, sql } = await fresh();
+      await vibe(alice, "Space Tension");
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "want-to-see" });
+      await alice.choose(coreOf("Space Tension"), () => ({ judgement: "loved", viewing: "seen-before" }));
+      const intact = content(await alice.taste());
+      const acts = await actsOf(sql, ALICE);
+
+      // A liked or loved for a film in no vibe, as `sayFiled` refuses it.
+      assert.deepEqual(
+        await vibeRequired(alice.choose({ title: "Heat", year: 1995 }, () => ({ judgement: "liked", viewing: "seen-now" }))),
+        { film: { title: "Heat", year: 1995 }, movie: { title: "Heat", year: 1995, viewing: "want-to-see" } },
+      );
+      // A core moved off seen, its opinion with it.
+      for (const viewing of ["want-to-see", "dont-want-to-see"] as const) {
+        assert.match(
+          await refusal(alice.choose(coreOf("Space Tension"), () => ({ withdraw: true, viewing }))),
+          /anything but seen-now or seen-before: it is the core of the vibe "Space Tension"/,
+        );
+      }
+      // A refusal thrown by the decision itself.
+      await assert.rejects(
+        alice.choose({ title: "Heat", year: 1995 }, () => {
+          throw new Error("refused by the page");
+        }),
+        /refused by the page/,
+      );
+      // Not one press of both kinds, nor a viewing that is not one, nor a film not saved.
+      assert.match(
+        await refusal(alice.choose({ title: "Heat", year: 1995 }, () => ({ judgement: "disliked", withdraw: true }))),
+        /one press says an opinion or takes one back, not both/,
+      );
+      assert.match(
+        await refusal(alice.choose({ title: "Heat", year: 1995 }, () => ({ viewing: "seen" as never }))),
+        /must be one of/,
+      );
+      assert.match(await refusal(alice.choose({ title: "Gone", year: 1922 }, () => ({}))), /no movie "Gone"/);
+
+      assert.deepEqual(content(await alice.taste()), intact, "a refusal changed a film");
+      assert.deepEqual(await actsOf(sql, ALICE), acts, "a refusal wrote or took back a verdict");
+    });
+
+    test("a press dated before something already said about the film is refused whole", async () => {
+      const { alice, sql } = await fresh();
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-now" });
+      const later = new Date(Date.now() + 60 * 60_000).toISOString();
+
+      // A verdict said, as far as the table knows, an hour from now.
+      await sqlVerdictStore(sql, ALICE as never).say(
+        stateVerdict({ title: "Heat", year: 1995 }, { about: "judgement", judgement: "liked" }, "volunteered", later),
+      );
+      for (const write of [{ judgement: "disliked" as const }, { withdraw: true, viewing: "want-to-see" as const }]) {
+        assert.match(await refusal(alice.choose({ title: "Heat", year: 1995 }, () => write)), /was said after this/);
+      }
+      assert.equal(await standingOf(sql, { title: "Heat", year: 1995 }), "liked");
+      assert.equal((await movieOf(alice, "Heat", 1995))?.viewing, "seen-now", "a refused press moved the viewing");
+
+      // A withdrawal dated later counts as well: it is history, not only what stands.
+      await sqlVerdictStore(sql, ALICE as never).say(
+        withdrawVerdict({ title: "HEAT", year: 1995 }, new Date(Date.now() + 2 * 60 * 60_000).toISOString()),
+      );
+      assert.equal(await standingOf(sql, { title: "Heat", year: 1995 }), null);
+      assert.match(
+        await refusal(alice.choose({ title: "Heat", year: 1995 }, () => ({ judgement: "disliked", viewing: "seen-now" }))),
+        /was said after this/,
+      );
+      assert.equal(await standingOf(sql, { title: "Heat", year: 1995 }), null);
+
+      // A press that writes no act is not held to it: when they saw it still changes.
+      await alice.choose({ title: "Heat", year: 1995 }, () => ({ viewing: "seen-before" }));
+      assert.equal((await movieOf(alice, "Heat", 1995))?.viewing, "seen-before");
+    });
+
+    test("a press at the same instant as the last act still lands, by sequence", async () => {
+      const { alice, sql } = await fresh();
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-now" });
+
+      // The clock the store stamps with, held at the instant the last act carries.
+      const instant = "2026-01-01T21:00:00.000Z";
+      await sqlVerdictStore(sql, ALICE as never).say(
+        stateVerdict({ title: "Heat", year: 1995 }, { about: "judgement", judgement: "liked" }, "volunteered", instant),
+      );
+      mock.timers.enable({ apis: ["Date"], now: Date.parse(instant) });
+      try {
+        await alice.choose({ title: "Heat", year: 1995 }, () => ({ judgement: "disliked" }));
+      } finally {
+        mock.timers.reset();
+      }
+      assert.equal(await standingOf(sql, { title: "Heat", year: 1995 }), "disliked", "an equal instant did not land");
+    });
+
+    test("a write that fails after the verdict takes the verdict back with it", async () => {
+      const { alice, sql } = await fresh();
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "want-to-see" });
+
+      const failing: SqlDriver = {
+        ...sql,
+        transaction: (work) =>
+          sql.transaction((tx) =>
+            work({
+              query: (text, params) =>
+                /UPDATE tonight_movies SET viewing/u.test(text) ? Promise.reject(new Error("injected")) : tx.query(text, params),
+              exec: (text) => tx.exec(text),
+            }),
+          ),
+      };
+      await assert.rejects(
+        sqlTasteStore(failing, ALICE).choose({ title: "Heat", year: 1995 }, () => ({ judgement: "disliked", viewing: "seen-now" })),
+        /injected/,
+      );
+
+      assert.equal((await movieOf(alice, "Heat", 1995))?.viewing, "want-to-see");
+      assert.deepEqual(await actsOf(sql, ALICE), [], "half a choice was kept");
+    });
+
     test("with the rule, a film they like or love cannot leave its last vibe — and without it, it can", async () => {
       const { alice, sql } = await fresh();
       await vibe(alice, "Space Tension");
       await vibe(alice, "Quiet Dread");
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-before", vibes: ["Space Tension"] });
       await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "loved");
       const before = content(await alice.taste());
       const rule = { positiveNeedsVibe: true };
@@ -1827,14 +2024,14 @@ for (const driver of drivers) {
       ];
       for (const [index, [what, said]] of cases.entries()) {
         const film = { title: `Case ${String(index)}`, year: 2001 };
-        await alice.createMovie({ ...film, viewing: "seen", vibes: ["Space Tension"] });
+        await alice.createMovie({ ...film, viewing: "seen-before", vibes: ["Space Tension"] });
         await said(film);
         await alice.updateMovie(film.title, film.year, { vibes: [] }, rule);
         assert.deepEqual((await movieOf(alice, film.title, film.year))?.vibes, [], `${what}: refused`);
       }
 
       // And a liked said under another spelling is the same film's.
-      await alice.createMovie({ title: "Moon", year: 2009, viewing: "seen", vibes: ["Space Tension"] });
+      await alice.createMovie({ title: "Moon", year: 2009, viewing: "seen-before", vibes: ["Space Tension"] });
       await say(sql, ALICE, { title: " MOON ", year: 2009 }, 1, "liked");
       assert.match(await refusal(alice.updateMovie("Moon", 2009, { vibes: [] }, rule)), /"Moon" \(2009\) is liked/);
     });
@@ -1843,8 +2040,8 @@ for (const driver of drivers) {
       const { alice, sql } = await fresh();
       await vibe(alice, "Space Tension");
       await vibe(alice, "Quiet Dread");
-      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen", vibes: ["Space Tension"] });
-      await alice.createMovie({ title: "Moon", year: 2009, viewing: "seen", vibes: ["Space Tension", "Quiet Dread"] });
+      await alice.createMovie({ title: "Heat", year: 1995, viewing: "seen-before", vibes: ["Space Tension"] });
+      await alice.createMovie({ title: "Moon", year: 2009, viewing: "seen-before", vibes: ["Space Tension", "Quiet Dread"] });
       await say(sql, ALICE, { title: "Heat", year: 1995 }, 1, "loved");
       await say(sql, ALICE, { title: "Moon", year: 2009 }, 2, "liked");
       const before = content(await alice.taste());
@@ -1943,7 +2140,7 @@ for (const driver of drivers) {
       assert.equal((await movieOf(alice, "DUNE", 1985))?.title, "DUNE");
 
       // The same for every other field that is not the title.
-      await alice.updateMovie("dune", 1985, { viewing: "seen" });
+      await alice.updateMovie("dune", 1985, { viewing: "seen-before" });
       await alice.updateMovie("DuNe", 1985, { imdbId: "tt0087182" });
       assert.equal((await movieOf(alice, "DUNE", 1985))?.title, "DUNE");
 
@@ -1958,7 +2155,7 @@ for (const driver of drivers) {
       await alice.createMovie({ title: "Arrival", year: 2016 });
 
       assert.match(await refusal(alice.updateMovie("Arrival", 2016, {})), /nothing to update/);
-      assert.match(await refusal(alice.updateMovie("Nowhere", 1999, { viewing: "seen" })), /no movie/);
+      assert.match(await refusal(alice.updateMovie("Nowhere", 1999, { viewing: "seen-before" })), /no movie/);
     });
 
     test("the database refuses a filing that crosses users, from either side", async () => {
@@ -2171,13 +2368,13 @@ for (const driver of drivers) {
       await alice.createMovie({
         title: "Dune",
         year: 1984,
-        viewing: "seen",
+        viewing: "seen-before",
         vibes: ["Space Tension"],
       });
       await alice.createMovie({
         title: "Dune",
         year: 2021,
-        viewing: "seen",
+        viewing: "seen-before",
         imdbId: "tt1160419",
         vibes: ["Space Tension", "Quiet Dread"],
       });
@@ -2191,19 +2388,19 @@ for (const driver of drivers) {
           title: "Dune",
           year: 1984,
           imdbId: null,
-          viewing: "seen",
+          viewing: "seen-before",
           vibes: ["Space Tension"],
         },
         {
           title: "Dune",
           year: 2021,
           imdbId: "tt1160419",
-          viewing: "seen",
+          viewing: "seen-before",
           vibes: ["Quiet Dread", "Space Tension"],
         },
         // Each vibe's core is a film in the model like any other, listed once.
-        { ...coreOf("Quiet Dread"), imdbId: null, viewing: "seen", vibes: ["Quiet Dread"] },
-        { ...coreOf("Space Tension"), imdbId: null, viewing: "seen", vibes: ["Space Tension"] },
+        { ...coreOf("Quiet Dread"), imdbId: null, viewing: "seen-before", vibes: ["Quiet Dread"] },
+        { ...coreOf("Space Tension"), imdbId: null, viewing: "seen-before", vibes: ["Space Tension"] },
       ]);
 
       // A vibe names the whole handle. A title alone could not tell one Dune from
@@ -2290,7 +2487,7 @@ for (const driver of drivers) {
       const { vibes, movies } = content(await alice.taste());
       assert.deepEqual(vibes, [created]);
       assert.deepEqual(movies, [
-        { title: "Arrival", year: 2016, imdbId: null, viewing: "seen", vibes: ["Space Tension"] },
+        { title: "Arrival", year: 2016, imdbId: null, viewing: "seen-before", vibes: ["Space Tension"] },
       ]);
     });
 
@@ -2400,7 +2597,7 @@ for (const driver of drivers) {
 
       // A film already in the vibe can be made its core, and is not filed twice.
       // Reached in any case, it is the stored film that becomes the core.
-      await alice.createMovie({ title: "Alien", year: 1979, viewing: "seen", vibes: ["Space Tension"] });
+      await alice.createMovie({ title: "Alien", year: 1979, viewing: "seen-before", vibes: ["Space Tension"] });
       const promoted = await alice.updateVibe("Space Tension", {
         core: { title: "ALIEN", year: 1979 },
       });
@@ -2438,7 +2635,7 @@ for (const driver of drivers) {
       // Refused whole: a change riding along in the same call is not written
       // either, so nobody is left guessing which half went through.
       assert.match(
-        await refusal(alice.updateMovie("Arrival", 2016, { viewing: "seen", vibes: [] })),
+        await refusal(alice.updateMovie("Arrival", 2016, { viewing: "seen-before", vibes: [] })),
         /it is the core there/,
       );
 
@@ -2546,7 +2743,7 @@ for (const driver of drivers) {
           title: "Arrival",
           year: 2016,
           imdbId: null,
-          viewing: "seen",
+          viewing: "seen-before",
           vibes: ["Quiet Dread", "Space Tension"],
         },
       ]);
@@ -2568,7 +2765,7 @@ for (const driver of drivers) {
       assert.deepEqual(await alice.taste(), before);
     });
 
-    test("a core that is not saved yet is saved for the vibe, as seen and nothing more", async () => {
+    test("a core that is not saved yet is saved for the vibe, as seen-before and nothing more", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await alice.createVibe({
@@ -2578,15 +2775,15 @@ for (const driver of drivers) {
         core: { title: "  Arrival  ", year: 2016 },
       });
 
-      // Its title, normalised as any film's is, its year, and seen — a core is a
-      // film they have seen. Anchoring a vibe on a film says nothing about where
-      // to look it up, so there is no IMDb id.
+      // Its title, normalised as any film's is, its year, and seen-before — a
+      // core is a film they have seen, and nobody said when. Anchoring a vibe on
+      // a film says nothing about where to look it up, so there is no IMDb id.
       const arrival = (await movieOf(alice, "Arrival", 2016))!;
       assert.deepEqual(orderMovie(arrival), {
         title: "Arrival",
         year: 2016,
         imdbId: null,
-        viewing: "seen",
+        viewing: "seen-before",
         vibes: ["Space Tension"],
       });
       // Created with its filing, which is still only being created.
@@ -2600,7 +2797,7 @@ for (const driver of drivers) {
         title: "Moon",
         year: 2009,
         imdbId: null,
-        viewing: "seen",
+        viewing: "seen-before",
         vibes: ["Space Tension"],
       });
       assert.equal(moon.updatedAt, moon.createdAt);
@@ -2614,13 +2811,78 @@ for (const driver of drivers) {
       assert.equal(await movieOf(alice, "Alien", 1979), undefined, "a refused anchoring saved a film");
     });
 
+    test("a core not saved yet is saved as the seen value it names, through either write", async () => {
+      const { alice } = await fresh();
+      await genre(alice, "Sci-Fi");
+
+      // Named on create: saved as it, and the vibe's core is still only a handle.
+      const made = await alice.createVibe({
+        name: "Space Tension",
+        genres: ["Sci-Fi"],
+        instruction: "Tense.",
+        core: { title: "Arrival", year: 2016, viewing: "seen-now" },
+      });
+      assert.deepEqual(made.core, { title: "Arrival", year: 2016 });
+      assert.equal((await movieOf(alice, "Arrival", 2016))?.viewing, "seen-now");
+
+      // And on update.
+      const moved = await alice.updateVibe("Space Tension", {
+        core: { title: "Moon", year: 2009, viewing: "seen-before" },
+      });
+      assert.deepEqual(moved.core, { title: "Moon", year: 2009 });
+      assert.equal((await movieOf(alice, "Moon", 2009))?.viewing, "seen-before");
+      await alice.updateVibe("Space Tension", { core: { title: "Alien", year: 1979, viewing: "seen-now" } });
+      assert.equal((await movieOf(alice, "Alien", 1979))?.viewing, "seen-now");
+
+      // A value that is not seen is refused before anything is written.
+      const before = await alice.taste();
+      for (const wrong of ["want-to-see", "seen"]) {
+        assert.match(
+          await refusal(
+            alice.createVibe({
+              name: "Quiet Dread",
+              genres: ["Sci-Fi"],
+              instruction: "Dread.",
+              core: { title: "Solaris", year: 1972, viewing: wrong },
+            }),
+          ),
+          /^a core's viewing must be seen-now or seen-before/,
+        );
+      }
+      assert.deepEqual(await alice.taste(), before, "a refused core viewing wrote something");
+    });
+
+    test("a saved core keeps its own viewing, whatever the anchoring says", async () => {
+      const { alice } = await fresh();
+      await genre(alice, "Sci-Fi");
+      await alice.createMovie({ title: "Arrival", year: 2016, viewing: "seen-before" });
+      await alice.createMovie({ title: "Moon", year: 2009 });
+
+      await alice.createVibe({
+        name: "Space Tension",
+        genres: ["Sci-Fi"],
+        instruction: "Tense.",
+        core: { title: "Arrival", year: 2016, viewing: "seen-now" },
+      });
+      assert.equal((await movieOf(alice, "Arrival", 2016))?.viewing, "seen-before", "anchoring moved a saved film");
+
+      // A saved want-to-see film is not made seen by naming a seen value with it.
+      const before = await alice.taste();
+      assert.match(
+        await refusal(alice.updateVibe("Space Tension", { core: { title: "Moon", year: 2009, viewing: "seen-now" } })),
+        /^cannot make "Moon" \(2009\) a core: it is saved as want-to-see/,
+      );
+      assert.deepEqual(await alice.taste(), before, "a refused core wrote something");
+      assert.equal((await movieOf(alice, "Moon", 2009))?.viewing, "want-to-see");
+    });
+
     test("a core that is already saved is filed by the vibe, and the film is dated", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await alice.createMovie({
         title: "Arrival",
         year: 2016,
-        viewing: "seen",
+        viewing: "seen-before",
         imdbId: "tt2543164",
       });
       const was = (await movieOf(alice, "Arrival", 2016))!;
@@ -2644,7 +2906,7 @@ for (const driver of drivers) {
         title: "Arrival",
         year: 2016,
         imdbId: "tt2543164",
-        viewing: "seen",
+        viewing: "seen-before",
         vibes: ["Space Tension"],
       });
       later(now.updatedAt, was.updatedAt, "filed as a core");
@@ -2664,7 +2926,7 @@ for (const driver of drivers) {
         instruction: "Tense.",
         core: { title: "Arrival", year: 2016 },
       });
-      await alice.createMovie({ title: "Moon", year: 2009, viewing: "seen" });
+      await alice.createMovie({ title: "Moon", year: 2009, viewing: "seen-before" });
 
       // An ordinary film filed: the film is dated and the vibe is not. That is
       // v4's asymmetry, and a vibe having a core does not change it for any
@@ -2721,7 +2983,7 @@ for (const driver of drivers) {
         [ALICE.id, legacy!.id, sciFi!.id],
       );
       // A film filed in it the ordinary way, which nothing about it prevents.
-      await alice.createMovie({ title: "Arrival", year: 2016, viewing: "seen", vibes: ["Old Vibe"] });
+      await alice.createMovie({ title: "Arrival", year: 2016, viewing: "seen-before", vibes: ["Old Vibe"] });
 
       // Read as it is: complete, with no core, rather than refused or filled in.
       assert.deepEqual(content(await alice.taste()).vibes, [
@@ -2790,7 +3052,7 @@ for (const driver of drivers) {
       // Bob has an Arrival of his own now, saved for his vibe as seen — not with
       // Alice's viewing, which is hers.
       assert.deepEqual(content(await bob.taste()).movies, [
-        { title: "Arrival", year: 2016, imdbId: null, viewing: "seen", vibes: ["Space Tension"] },
+        { title: "Arrival", year: 2016, imdbId: null, viewing: "seen-before", vibes: ["Space Tension"] },
       ]);
       // Alice's is exactly as it was: not filed, not dated.
       assert.deepEqual(await movieOf(alice, "Arrival", 2016), hers);
@@ -2825,7 +3087,7 @@ for (const driver of drivers) {
         core: { title: "Arrival", year: 2016 },
       });
       await alice.updateMovie("Arrival", 2016, {
-        viewing: "seen",
+        viewing: "seen-before",
         vibes: ["Space Tension", "Quiet Dread"],
       });
 
@@ -2841,7 +3103,7 @@ for (const driver of drivers) {
         title: "Arrival",
         year: 2016,
         imdbId: null,
-        viewing: "seen",
+        viewing: "seen-before",
         vibes: ["Quiet Dread"],
       });
 
@@ -2873,7 +3135,7 @@ for (const driver of drivers) {
         ),
         `cannot make "Heat" (1995) a core: it is saved as want-to-see, and a core is a film ` +
           "they have seen. Change the viewing only if they tell you they have watched it — " +
-          "then record seen with update_movie and try again",
+          `then record it with update_movie, ${SEEN_RULE}, and try again`,
       );
       assert.match(
         await refusal(
@@ -2904,12 +3166,12 @@ for (const driver of drivers) {
       assert.deepEqual(await alice.taste(), anchored, "a refused core change wrote something");
 
       // Their word is the way through: once they say they watched it, it may anchor.
-      await alice.updateMovie("Heat", 1995, { viewing: "seen" });
+      await alice.updateMovie("Heat", 1995, { viewing: "seen-before" });
       const now = await alice.updateVibe("Night Shift", { core: { title: "Heat", year: 1995 } });
       assert.deepEqual(now.core, { title: "Heat", year: 1995 });
     });
 
-    test("a core is never marked anything but seen, and every other film stays free", async () => {
+    test("a core is never marked anything but seen now or before, and every other film stays free", async () => {
       const { alice } = await fresh();
       await genre(alice, "Sci-Fi");
       await alice.createVibe({
@@ -2922,9 +3184,9 @@ for (const driver of drivers) {
 
       assert.equal(
         await refusal(alice.updateMovie("ARRIVAL", 2016, { viewing: "want-to-see" })),
-        `cannot mark "Arrival" (2016) anything but seen: it is the core of the vibe "Space ` +
-          'Tension", and a core is a film they have seen — make another film the core with ' +
-          "update_vibe first, or delete the vibe",
+        `cannot mark "Arrival" (2016) anything but seen-now or seen-before: it is the core of the ` +
+          'vibe "Space Tension", and a core is a film they have seen — make another film the core ' +
+          "with update_vibe first, or delete the vibe",
       );
       // Refused whole: a retitle riding along is not written either.
       assert.match(
@@ -2935,8 +3197,15 @@ for (const driver of drivers) {
       );
       assert.deepEqual(await alice.taste(), before, "a refused viewing changed something");
 
-      // Seen is a core's natural state, and saying it again is no change.
-      assert.equal((await alice.updateMovie("Arrival", 2016, { viewing: "seen" })).viewing, "seen");
+      // Seen is a core's natural state, and saying it again is no change; between
+      // now and before it moves freely, in either direction.
+      assert.equal((await alice.updateMovie("Arrival", 2016, { viewing: "seen-before" })).viewing, "seen-before");
+      assert.equal((await alice.updateMovie("Arrival", 2016, { viewing: "seen-now" })).viewing, "seen-now");
+      assert.equal((await alice.updateMovie("Arrival", 2016, { viewing: "seen-before" })).viewing, "seen-before");
+      assert.match(
+        await refusal(alice.updateMovie("Arrival", 2016, { viewing: "want-to-see" })),
+        /^cannot mark "Arrival" \(2016\) anything but seen-now or seen-before/,
+      );
 
       // A film they have not seen may sit in a vibe: a candidate for that evening.
       const heat = await alice.createMovie({ title: "Heat", year: 1995, vibes: ["Space Tension"] });
@@ -3231,7 +3500,7 @@ for (const driver of drivers) {
 
         await alice.updateGenre("Sci-Fi", { instruction: "Ideas over spectacle." });
         await alice.updateVibe("Space Tension", { instruction: "The danger is in the room." });
-        await alice.updateMovie("Arrival", 2016, { viewing: "seen" });
+        await alice.updateMovie("Arrival", 2016, { viewing: "seen-before" });
 
         const genreNow = await genreStamps(alice, "Sci-Fi");
         const vibeNow = await vibeStamps(alice, "Space Tension");
@@ -3327,7 +3596,7 @@ for (const driver of drivers) {
         await alice.createMovie({
           title: "Arrival",
           year: 2016,
-          viewing: "seen",
+          viewing: "seen-before",
           vibes: ["Space Tension"],
         });
         await alice.createMovie({ title: "Moon", year: 2009 });
@@ -3350,7 +3619,7 @@ for (const driver of drivers) {
           title: "Arrival",
           year: 2016,
           imdbId: null,
-          viewing: "seen",
+          viewing: "seen-before",
           vibes: [],
         });
         after(filedNow.updatedAt, filedWas.updatedAt, "movie unfiled by a deletion");
@@ -3500,8 +3769,8 @@ describe("upgrading films that were saved before they had a canonical name", () 
     assert.deepEqual(
       read.movies.map((movie) => ({ title: movie.title, year: movie.year, viewing: movie.viewing })),
       [
-        { title: "Black Bag", year: 2025, viewing: "seen" },
-        { title: "Heat", year: 1995, viewing: "seen" },
+        { title: "Black Bag", year: 2025, viewing: "seen-before" },
+        { title: "Heat", year: 1995, viewing: "seen-before" },
       ],
     );
     await sql.close();
@@ -3513,9 +3782,9 @@ describe("upgrading films that were saved before they had a canonical name", () 
     const alice = sqlTasteStore(sql, ALICE);
 
     // The same film under another spelling is the same film, through the store.
-    await alice.updateMovie("  BLACK   bag ", 2025, { viewing: "seen" });
+    await alice.updateMovie("  BLACK   bag ", 2025, { viewing: "seen-before" });
     const [movie] = (await alice.taste()).movies;
-    assert.equal(movie?.viewing, "seen", "a spelling variant did not reach the film");
+    assert.equal(movie?.viewing, "seen-before", "a spelling variant did not reach the film");
     assert.equal(movie?.title, "Black Bag", "the stored title was overwritten by a lookup spelling");
     assert.equal((await alice.taste()).movies.length, 1, "a variant created a second film");
     await sql.close();

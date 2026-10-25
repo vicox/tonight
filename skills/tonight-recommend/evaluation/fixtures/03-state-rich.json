@@ -69,7 +69,7 @@
         "vibes": [
           "Quiet Dread"
         ],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "Under the Skin",
@@ -77,7 +77,7 @@
         "vibes": [
           "Quiet Dread"
         ],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "The Vanishing",
@@ -85,7 +85,7 @@
         "vibes": [
           "Quiet Dread"
         ],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "Solaris",
@@ -93,7 +93,7 @@
         "vibes": [
           "Quiet Dread"
         ],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "Memories of Murder",
@@ -101,7 +101,7 @@
         "vibes": [
           "Small Town Secrets"
         ],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "Wind River",
@@ -109,7 +109,7 @@
         "vibes": [
           "Small Town Secrets"
         ],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "Prisoners",
@@ -117,7 +117,7 @@
         "vibes": [
           "Small Town Secrets"
         ],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "Zodiac",
@@ -126,7 +126,7 @@
           "Quiet Dread",
           "Small Town Secrets"
         ],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "Game Night",
@@ -134,7 +134,7 @@
         "vibes": [
           "Friday Nonsense"
         ],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "Bullet Train",
@@ -142,13 +142,13 @@
         "vibes": [
           "Friday Nonsense"
         ],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "Moon",
         "year": 2009,
         "vibes": [],
-        "viewing": "seen"
+        "viewing": "seen-before"
       },
       {
         "title": "Past Lives",

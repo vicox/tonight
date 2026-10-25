@@ -151,7 +151,10 @@ export function watchedTitles(snapshot) {
   const found = [];
   for (const movie of snapshot.movies ?? []) {
     const judgement = judged.get(`${String(movie.title).trim().toLowerCase()}\u0000${String(movie.year)}`);
-    if (movie.viewing === "seen") found.push({ title: movie.title, why: "viewing: seen" });
+    // Both seen values, and `seen` itself for a snapshot taken before taste v15.
+    if (["seen-now", "seen-before", "seen"].includes(movie.viewing)) {
+      found.push({ title: movie.title, why: `viewing: ${movie.viewing}` });
+    }
     else if (judgement !== undefined) found.push({ title: movie.title, why: `verdict: ${judgement}` });
   }
 

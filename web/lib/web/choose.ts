@@ -4,20 +4,21 @@ import { wrongOrigin } from "../oauth/origin.ts";
 import { configurationFault, errorPage } from "../oauth/responses.ts";
 import { TasteError, VibeRequired, checkMovieTitle, checkYear } from "../taste/model.ts";
 import { tasteStore } from "../taste/store.ts";
-import { VerdictError, isPositive, stateVerdict, withdrawVerdict } from "../verdicts/model.ts";
-import { verdictStore } from "../verdicts/store.ts";
-import { choiceFor, decide, type Refusal } from "./choices.ts";
+import { VerdictError } from "../verdicts/model.ts";
+import { choiceFor, decide, writeFor, type Refusal } from "./choices.ts";
 import { sessionOf } from "./cookies.ts";
 import { contextOf, movieHref } from "./screens.ts";
 import { signedInVisitor } from "./session.ts";
 import { crossSite } from "./signin.ts";
 
 /**
- * `POST /movie/choose`: one of a film's five choices, pressed on its screen.
+ * `POST /movie/choose`: one of a film's answers, pressed on its screen — the five
+ * of *What do you think?* or the two of *When did you see it?*.
  *
  * The website's one write, and as narrow as it can be. It takes a film the user
- * has saved and one of the five choices in `choices.ts`, and writes only what
- * that choice already means in the model — a verdict, a withdrawal, or the film's
+ * has saved and one of the answers in `choices.ts`, and writes only what that
+ * answer already means in the model — a verdict with the seen value that goes
+ * with it, a listing with the opinion taken back, a withdrawal, or the film's
  * viewing — through the same stores and the same rules the MCP tools use. It
  * creates nothing, deletes nothing, files nothing and renames nothing: those are
  * said to an assistant.
@@ -26,15 +27,17 @@ import { crossSite } from "./signin.ts";
  *        ↓  served at this deployment's own origin?      404 if not
  *        ↓  came from a page of ours (Origin)?           403 if not
  *        ↓  a live session?                              back to / if not
- *        ↓  a film this user has saved, one of five?     400, or the film's page
+ *        ↓  a film this user has saved, one of the seven? 400, or the film's page
  *        ↓  decide → write → back to the film's page     303
  *
  * Whose film it is comes from the session and from nowhere else: the stores are
  * opened for the session's user, and the form only names which of their saved
  * films, by the identity the store keeps. A film somebody else saved is a film
- * this user does not have. Every act is written by the taste store while it holds
- * that film (`sayFiled`, `saySaved`, `updateMovie`), so a press that races the
- * film's deletion either finds it gone or is deleted with it.
+ * this user does not have. Every press is decided and written by the taste store
+ * while it holds that film (`TasteStore.choose`): decided on the film as it is
+ * then, not as this request read it, so a press that races the film's deletion
+ * either finds it gone or is deleted with it, and a verdict and the viewing that
+ * goes with it land together or not at all.
  *
  * No reason is asked for and none is written: a press has no words in it, and an
  * invented one would be the agent-authored explanation the verdict model leaves
@@ -90,8 +93,8 @@ export async function handleChoice(request: Request): Promise<Response> {
   }
 
   try {
-    const [taste, verdicts] = await Promise.all([tasteStore(visitor.user), verdictStore(visitor.user)]);
-    const [model, standing] = await Promise.all([taste.taste(), verdicts.standing()]);
+    const taste = await tasteStore(visitor.user);
+    const model = await taste.taste();
 
     // A film this user has saved, by the identity the store keeps — never a film
     // the form made up, and never somebody else's. Missing is the film's own
@@ -101,41 +104,20 @@ export async function handleChoice(request: Request): Promise<Response> {
     if (!movie) return seeOther(movieHref(named));
 
     const back = movieHref(movie, contextOf(movie, typeof from === "string" ? from : null));
-    const film = { title: movie.title, year: movie.year };
-    const outcome = decide(choice, {
-      viewing: movie.viewing,
-      judgement: standing.find((one) => filmKey(one) === key)?.judgement ?? null,
-      filed: movie.vibes.length > 0,
-      core: model.vibes.some((vibe) => vibe.core !== null && filmKey(vibe.core) === key),
-    });
-
-    if ("refused" in outcome) return seeOther(refused(back, outcome.refused));
-
-    const now = new Date().toISOString();
     try {
-      switch (outcome.write) {
-        case "nothing":
-          break;
-        case "viewing":
-          await taste.updateMovie(movie.title, movie.year, { viewing: outcome.viewing });
-          break;
-        case "withdrawal":
-          await taste.saySaved(withdrawVerdict(film, now));
-          break;
-        case "judgement": {
-          const verdict = stateVerdict(film, { about: "judgement", judgement: outcome.judgement }, "confirmed", now);
-          // A liked or loved is kept only for a film in at least one vibe; a
-          // disliked only for a film still saved. Each checked in one
-          // transaction with the write.
-          if (isPositive(outcome.judgement)) await taste.sayFiled(verdict);
-          else await taste.saySaved(verdict);
-          break;
-        }
-      }
+      // Decided on the film as the store holds it under its lock — its viewing,
+      // the judgement that stands, its filing and whether it is a core — not on
+      // the read above, and written in that same transaction.
+      await taste.choose(movie, (held) => {
+        const outcome = decide(choice, held);
+        if ("refused" in outcome) throw new Refused(outcome.refused);
+        return writeFor(outcome);
+      });
     } catch (error) {
-      // The store decided against it after the check above — the film taken out
-      // of its last vibe, anchored, or removed in between. Its own rule, kept,
-      // and nothing written.
+      // Refused, by this page's rule or the store's own — a film taken out of its
+      // last vibe, anchored, removed, or spoken about later in between. Nothing
+      // written.
+      if (error instanceof Refused) return seeOther(refused(back, error.refusal));
       if (error instanceof VibeRequired) return seeOther(refused(back, "vibe-required"));
       if (error instanceof TasteError || error instanceof VerdictError) {
         return seeOther(refused(back, "failed"));
@@ -147,6 +129,16 @@ export async function handleChoice(request: Request): Promise<Response> {
   } catch (error) {
     report("could not keep a choice", error);
     return seeOther(refused(movieHref(named), "failed"));
+  }
+}
+
+/** A press `decide` turned down, thrown out of the store's transaction so nothing is written. */
+class Refused extends Error {
+  readonly refusal: Refusal;
+
+  constructor(refusal: Refusal) {
+    super(refusal);
+    this.refusal = refusal;
   }
 }
 

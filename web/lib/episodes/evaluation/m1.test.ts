@@ -87,7 +87,7 @@ describe("M1 — remembers the evening, offer by offer", () => {
     // tools, so what gate 7 compares is what Tonight would actually answer.
     const setup = tools("google:ana");
     await setup.create_genre!.handler({ name: "Slow Burn", instruction: "takes its time" });
-    await setup.create_movie!.handler({ title: "Zodiac", year: 2007, viewing: "seen" });
+    await setup.create_movie!.handler({ title: "Zodiac", year: 2007, viewing: "seen-before" });
 
     results = [];
     for (const trajectory of TRAJECTORIES) {
@@ -269,7 +269,7 @@ describe("M1 — remembers the evening, offer by offer", () => {
     for (const result of results) {
       const after = result.tasteAfter as { movies?: { title: string; viewing: string | null }[] };
       const zodiac = after.movies?.find((movie) => movie.title === "Zodiac");
-      assert.equal(zodiac?.viewing, "seen", `${result.trajectory.name} moved a movie's viewing`);
+      assert.equal(zodiac?.viewing, "seen-before", `${result.trajectory.name} moved a movie's viewing`);
       assert.equal(after.movies?.length, 1, `${result.trajectory.name} added a movie`);
     }
   });

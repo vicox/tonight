@@ -70,9 +70,10 @@ export type StatusKey = Viewing | Judgement;
  * What a card's status shows, in order. Never empty.
  *
  * The standing judgement when there is one, and where the film stands otherwise.
- * A judgement already means watched (`lib/seen.ts`), so `seen` beside it would
- * say the same thing twice, and `want-to-see` beside it is a contradiction that
- * `lib/seen.ts` already resolves as seen.
+ * A judgement already means watched (`lib/seen.ts`), so seen now or seen before
+ * beside it would mostly say the same thing twice — when is on the film's own
+ * screen — and `want-to-see` beside it is a contradiction that `lib/seen.ts`
+ * already resolves as seen.
  *
  * `dont-want-to-see` is the exception, and is always shown: no judgement implies
  * it, and it is the one fact that keeps a film out of every recommendation.

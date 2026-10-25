@@ -127,7 +127,7 @@ describe("the memory tools", () => {
     // the loved is about that film, since a loved is kept only for a filed one.
     const her = someone();
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
-    await said(her, "create_movie", { ...HEAT, viewing: "seen" });
+    await said(her, "create_movie", { ...HEAT, viewing: "seen-before" });
     await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room", core: HEAT });
     await said(her, "record_verdict", judged(HEAT, "loved"));
     await said(her, "record_episode", { request: "something tense", offered: [{ ...HEAT, lead: true }] });
@@ -150,7 +150,7 @@ describe("the memory tools", () => {
     // if nothing is decided on the way out.
     const her = someone("delegation");
     const who = asUser("google:delegation");
-    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen-before" });
     await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
     await said(her, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
     await shelve(her, HEAT);
@@ -180,12 +180,12 @@ describe("the memory tools", () => {
     // carries a viewing fact now and no opinion at all, so there is nothing to
     // rank: both roots are simply held, saying different things about the film.
     const her = someone();
-    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen-before" });
     await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
 
     const { held } = await memory(her);
     const [movie] = of(held, "movie");
-    assert.equal(movie?.viewing, "seen", "the saved film was rewritten");
+    assert.equal(movie?.viewing, "seen-before", "the saved film was rewritten");
     assert.deepEqual(movie?.handle, { by: "film", title: "Black Bag", year: 2025 });
     assert.equal(of(held, "verdict").length, 1);
   });
@@ -304,7 +304,7 @@ describe("the memory tools", () => {
   test("every held and remembered root carries a handle a tool actually takes", async () => {
     const her = someone();
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
-    await said(her, "create_movie", { ...HEAT, viewing: "seen" });
+    await said(her, "create_movie", { ...HEAT, viewing: "seen-before" });
     await said(her, "create_vibe", { name: "Long Nights", genres: ["Slow Burn"], instruction: "room", core: HEAT });
     await said(her, "record_verdict", judged(HEAT, "loved"));
     await said(her, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
@@ -326,7 +326,7 @@ describe("the memory tools", () => {
 
   test("reading memory writes nothing and moves nothing", async () => {
     const her = someone();
-    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen-before" });
     await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
     await said(her, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
 
@@ -357,7 +357,7 @@ describe("the memory tools", () => {
 
   test("forgetting the standing verdict removes it, and leaves no opinion behind", async () => {
     const her = someone();
-    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen-before" });
     await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
 
     const before = await memory(her);
@@ -372,7 +372,7 @@ describe("the memory tools", () => {
 
     // The film is untouched, and there is no second place an opinion could be
     // left: what is left is the viewing fact and nothing evaluative.
-    assert.equal((of(after.held, "movie")[0] as unknown as { viewing: string }).viewing, "seen");
+    assert.equal((of(after.held, "movie")[0] as unknown as { viewing: string }).viewing, "seen-before");
     assert.equal(
       /liked|loved|disliked/.test(JSON.stringify(after)),
       false,
@@ -417,7 +417,7 @@ describe("the memory tools", () => {
 
   test("forgetting everything leaves the saved film to speak for itself", async () => {
     const her = someone();
-    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen-before" });
     await shelve(her, BLACK_BAG);
     await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
     await said(her, "record_verdict", judged(BLACK_BAG, "loved"));
@@ -428,7 +428,7 @@ describe("the memory tools", () => {
     const after = await memory(her);
     assert.equal(of(after.held, "verdict").length, 0);
     assert.equal(of(after.remembered, "verdict").length, 0);
-    assert.equal((of(after.held, "movie")[0] as unknown as { viewing: string }).viewing, "seen");
+    assert.equal((of(after.held, "movie")[0] as unknown as { viewing: string }).viewing, "seen-before");
     // And the taste model says the same: nothing stands about that film.
     assert.equal(((await said(her, "get_taste")) as { verdicts?: unknown[] }).verdicts, undefined);
   });
@@ -593,7 +593,7 @@ describe("the memory tools", () => {
   test("the recommendation read has no disagreement projection at all", async () => {
     const her = someone("x4-none");
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
-    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await said(her, "create_movie", { ...BLACK_BAG, viewing: "seen-before" });
     await said(her, "record_verdict", judged(BLACK_BAG, "disliked"));
 
     const payload = (await said(her, "get_taste")) as Record<string, unknown>;
@@ -603,7 +603,7 @@ describe("the memory tools", () => {
     // Both facts are there, separately and unresolved: the film says they
     // watched it, the verdict says what they thought.
     const movies = payload.movies as { title: string; viewing: string | null }[];
-    assert.equal(movies.find((one) => one.title === BLACK_BAG.title)?.viewing, "seen");
+    assert.equal(movies.find((one) => one.title === BLACK_BAG.title)?.viewing, "seen-before");
     const verdicts = payload.verdicts as { judgement?: string }[];
     assert.equal(verdicts[0]?.judgement, "disliked");
   });
@@ -611,7 +611,7 @@ describe("the memory tools", () => {
   test("a user with no verdicts reads exactly as they did before verdicts existed", async () => {
     const her = someone("x4-bytes");
     await said(her, "create_genre", { name: "Slow Burn", instruction: "takes its time" });
-    await said(her, "create_movie", { ...HEAT, viewing: "seen" });
+    await said(her, "create_movie", { ...HEAT, viewing: "seen-before" });
 
     const payload = (await said(her, "get_taste")) as Record<string, unknown>;
     assert.deepEqual(Object.keys(payload).sort(), ["genres", "movies", "vibes"]);
@@ -629,7 +629,7 @@ describe("the memory tools", () => {
     // of finding out what they have.
     const empty = someone("coverage-empty");
     const full = someone("coverage-full");
-    await said(full, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await said(full, "create_movie", { ...BLACK_BAG, viewing: "seen-before" });
     await shelve(full, BLACK_BAG);
     await said(full, "record_verdict", judged(BLACK_BAG, "loved"));
     await said(full, "record_episode", { request: "tense", offered: [{ ...HEAT, lead: true }] });
@@ -659,7 +659,7 @@ describe("the memory tools", () => {
   test("one person's memory holds nothing of another's", async () => {
     const hers = someone("memory-mine");
     const his = someone("memory-theirs");
-    await said(hers, "create_movie", { ...BLACK_BAG, viewing: "seen" });
+    await said(hers, "create_movie", { ...BLACK_BAG, viewing: "seen-before" });
     await said(hers, "record_verdict", judged(BLACK_BAG, "disliked"));
     await said(hers, "record_episode", { request: "hers alone", offered: [{ ...HEAT, lead: true }] });
 

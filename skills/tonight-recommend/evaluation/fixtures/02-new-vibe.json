@@ -21,7 +21,7 @@
       }
     ],
     "movies": [
-      { "title": "Paterson", "year": 2016, "vibes": ["Reading Room"], "viewing": "seen" }
+      { "title": "Paterson", "year": 2016, "vibes": ["Reading Room"], "viewing": "seen-before" }
     ]
   }
 }

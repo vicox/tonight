@@ -42,17 +42,22 @@ Whether a film qualifies is a judgement about what they said, and what they said
 root from the Vibe, so nothing in Tonight checks it — with the one exception below. The tools take
 any other film you name; choosing the right one is yours.
 
-**A film whose saved viewing is not `seen` is refused as a core.** That is the one part of what
-they said that the Vibe's own side holds, so the store checks it — and it checks that saved fact
-alone:
+**A film whose saved viewing is neither `seen-now` nor `seen-before` is refused as a core.** That
+is the one part of what they said that the Vibe's own side holds, so the store checks it — and it
+checks that saved fact alone:
 
 - A film they have not seen may still sit in a Vibe — a candidate for that kind of evening — and
   never anchors it.
-- **A core that is not saved yet is saved as `seen`** by the call that anchors on it.
+- **A core that is not saved yet is saved as its `core.viewing`** by the call that anchors on it —
+  `seen-now` or `seen-before`, read from what they said by the viewing rule in
+  **tonight-recommend**, with a question about when folded into the one you are putting about the
+  Vibe. Left out, it is `seen-before`. A saved film keeps its own viewing whatever
+  `core.viewing` says.
 - **A standing `liked` or `loved` does not override `want-to-see` or `dont-want-to-see`.** An
   opinion says they watched it, the saved viewing says otherwise, and only they can settle two
-  things they said that disagree. Say how it is saved and ask once whether they have seen it. On
-  a yes, record `seen` with `update_movie`, then anchor. On a no, or no answer, write nothing.
+  things they said that disagree. Say how it is saved and ask once whether they have seen it and,
+  if so, recently or a while ago — one question. On a yes, record `seen-now` or `seen-before` with
+  `update_movie`, as their answer says, then anchor. On a no, or no answer, write nothing.
 - **Never change a viewing to get past the refusal** — not on the strength of a verdict, and not
   because they asked for the anchor. A viewing is written only when they said it.
 
@@ -192,9 +197,10 @@ Then, in this conversation, one offer:
 
 On their yes, write exactly what they agreed, as *Writing what they agreed* says, then call
 `record_verdict` again with `retry.arguments`, then say in one short sentence what was saved. A
-film not saved yet is filed by `create_vibe` with it as core, or by `create_movie` with `viewing:
-seen` and its Vibes — liking it says they watched it; a saved one by `update_movie` with its
-Vibes. On a no, or a change of subject, the liked or loved stays unsaved: say so once, and write
+film not saved yet is filed by `create_vibe` with it as core and its `core.viewing`, or by
+`create_movie` with `viewing` `seen-now` or `seen-before` and its Vibes — liking it says they
+watched it, not when, so when they did not say, that question goes into the one you put about the
+Vibe; a saved one by `update_movie` with its Vibes. On a no, or a change of subject, the liked or loved stays unsaved: say so once, and write
 nothing in its place — no `disliked`, no viewing they did not state, and no record that you asked.
 
 This is the one place a bare *"loved it"* may lead to new Vibes: the alternatives are how you
@@ -275,7 +281,7 @@ membership or a core without their yes; any record that a Vibe offer was made or
 | *"Stop suggesting it."* | `dont-want-to-see` on the film — never `disliked`, which says they watched it | nothing about Vibes |
 | *"Don't recommend it again."* | `dont-want-to-see` on the film — a viewing, not a verdict | nothing about Vibes |
 | *"Not tonight — too long."* | at most a pass on that evening, *"too long"* as its reason — it is about an evening, not the film | nothing about Vibes |
-| *"I watched it last night."* | a viewing; `started` on a recorded evening only when they referred to it, a new evening of their own when they named none you recorded, and no evening when it is unclear | nothing — watching is not an opinion |
+| *"I watched it last night."* | a viewing, `seen-now`; `started` on a recorded evening only when they referred to it, a new evening of their own when they named none you recorded, and no evening when it is unclear | nothing — watching is not an opinion |
 
 ## Keeping a film: which Vibe, and proposing one
 
@@ -360,7 +366,7 @@ Then, Vibe by Vibe, each item an offer and nothing written without a yes:
    best embodies the instruction, and name the runner-up. With no candidate, ask which film
    embodies it: a film they name becomes the core — `update_vibe` saves and files it — and
    whatever they say about that film is its own verdict. A Vibe whose core reads anything
-   but `seen` is anchored again in the same way, as one with no core.
+   but `seen-now` or `seen-before` is anchored again in the same way, as one with no core.
 2. **Weak** — no films, or none they spoke for. Say so plainly, and offer: anchor it on a film they
    name, merge it, delete it, or leave it as it is for now.
 3. **Overlap** — two Vibes whose instructions, Genres and cores describe one evening. A merge is an

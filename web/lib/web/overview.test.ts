@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 
+import { statusOf } from "./stream.ts";
+
 /**
  * The signed-in screens, held to the decisions that make them reading pages.
  *
@@ -21,7 +23,7 @@ import test from "node:test";
  *
  * Many sources, because the signed-in screens are that many files: the Stream
  * and the cards it shares with a vibe's screen, a card's status and its vibe
- * links, a vibe's screen and a film's with its five choices, the pages and the
+ * links, a vibe's screen and a film's with its answers, the pages and the
  * frame behind them, the section every heading is drawn by, the genre labels,
  * the type a name is set in, and the icons and words a film's answers are drawn
  * with. What can be tested for real is kept out of here
@@ -181,7 +183,8 @@ test("the IMDb link says IMDb, and is absent when there is no id", () => {
 test("each answer has its Lucide icon, and nothing-said has its own", () => {
   assert.match(marks, /from "lucide-react"/);
   for (const [value, icon] of [
-    ["seen", "Eye"],
+    ["seen-now", "Eye"],
+    ["seen-before", "Eye"],
     ["want-to-see", "Bookmark"],
     ["dont-want-to-see", "EyeOff"],
     ["liked", "ThumbsUp"],
@@ -197,15 +200,40 @@ test("each answer has its Lucide icon, and nothing-said has its own", () => {
   assert.match(marks, /value: null, label: "Nothing said", icon: MessageCircleOff/);
 });
 
-test("the viewing mark shows the three answers and no empty one", () => {
+test("the viewing mark shows the four answers and no empty one", () => {
   // A film on the list always stands somewhere, so there is no silence to draw.
   const viewing = marks.slice(marks.indexOf("export const VIEWING"), marks.indexOf("export const JUDGEMENT"));
   assert.deepEqual(
     [...viewing.matchAll(/value: "([a-z-]+)"/g)].map((match) => match[1]),
-    ["want-to-see", "seen", "dont-want-to-see"],
-    "the viewing mark no longer reads want to see then seen, the direction a film moves",
+    ["want-to-see", "seen-now", "seen-before", "dont-want-to-see"],
+    "the viewing mark no longer reads want to see, seen now, seen before — the direction a film moves",
+  );
+  assert.deepEqual(
+    [...viewing.matchAll(/label: "([^"]+)"/g)].map((match) => match[1]),
+    ["Want to see", "Seen", "Seen", "Don't want to see"],
   );
   assert.equal(/value: null/.test(viewing), false, "the viewing mark has an answer for silence");
+});
+
+test("a card says Seen with the eye for a film seen now or seen before, and a verdict wins over it", () => {
+  // The card's status draws the mark's own entry for the key `statusOf` gives it.
+  // Both seen values are drawn as the original one — the eye and *Seen* — and no
+  // clock: when they saw it is said on the film's screen, not on a card.
+  const viewing = marks.slice(marks.indexOf("export const VIEWING"), marks.indexOf("export const JUDGEMENT"));
+  for (const value of ["seen-now", "seen-before"]) {
+    assert.match(viewing, new RegExp(`\\{ value: "${value}", label: "Seen", icon: Eye \\}`), `${value} is not drawn as Seen`);
+  }
+  assert.doesNotMatch(marks, /\bHistory\b|"Seen now"|"Seen before"/, "a card can still say when they saw it");
+  assert.match(status, /VIEWING\.choices\.find\(\(choice\) => choice\.value === key\)/, "a card draws its status some other way");
+  assert.match(status, /statusOf\(viewing, judgement\)/);
+
+  // With no verdict the card shows the viewing; with one, only the verdict.
+  for (const seen of ["seen-now", "seen-before"] as const) {
+    assert.deepEqual(statusOf(seen, null), [seen]);
+    for (const judgement of ["liked", "loved", "disliked"] as const) {
+      assert.deepEqual(statusOf(seen, judgement), [judgement], `${seen} + ${judgement}`);
+    }
+  }
 });
 
 test("the judgement mark shows the three, and silence as its own answer", () => {
@@ -220,8 +248,8 @@ test("the judgement mark shows the three, and silence as its own answer", () => 
 });
 
 test("the marks' vocabulary is how an answer looks, and nothing to press or send", () => {
-  // Where a film stands and what they made of it are written by a film's five
-  // choices, through their own route, and otherwise said to an assistant. This
+  // Where a film stands and what they made of it are written by a film's
+  // answers, through their own route, and otherwise said to an assistant. This
   // is only how each answer is drawn: no control, no request, no state.
   for (const [what, pattern] of [
     ["a button", /<button\b/],
@@ -410,7 +438,7 @@ test("a name is set one way, on whichever surface it is read", () => {
   assert.doesNotMatch(label, /bg-night/, "a genre label is cut into the page");
 });
 
-test("no screen manages anything, and the one form is a film's five choices", () => {
+test("no screen manages anything, and the only forms are a film's two questions", () => {
   const everywhere = [source, labels, marks, ...NEW.map(([, file]) => file)].join("\n");
   assert.equal(/Advanced/.test(everywhere), false, "the Advanced section is still here");
   assert.equal(/<details|<summary/.test(source), false, "the Stream carries a collapsed section of its own");
@@ -422,10 +450,13 @@ test("no screen manages anything, and the one form is a film's five choices", ()
     "a screen can edit a genre, a vibe or a film's name",
   );
 
-  // One form, and the one kind of field it needs: which film it is about.
-  assert.deepEqual(everywhere.match(/<form\b[^>]*>/g), [
-    '<form method="post" action="/movie/choose" className="mt-4 flex flex-wrap gap-2">',
-  ]);
+  // Two forms — *What do you think?* and *When did you see it?* — both posting to
+  // the one write route, and the one kind of field they need: which film it is
+  // about, written once and put in both.
+  const forms = everywhere.match(/<form\b[^>]*>/g) ?? [];
+  assert.equal(forms.length, 2, `unexpected forms:\n${forms.join("\n")}`);
+  for (const form of forms) assert.match(form, /method="post"\s+action="\/movie\/choose"/);
+  assert.equal((choices.match(/\{film\}/g) ?? []).length, 2, "a form does not say which film it is about");
   assert.deepEqual(
     [...choices.matchAll(/<input type="(\w+)" name="(\w+)"/g)].map((match) => `${match[1]} ${match[2]}`),
     ["hidden title", "hidden year", "hidden from"],
@@ -516,8 +547,8 @@ test("a film's card is its year, how it stands, its title and its vibes, and not
 
   // A dark card of its own: the screen's surface, an edge and rounded corners —
   // a thing of its own, not a line in a table.
-  const li = drawn.match(/<li className="([^"]*)"/);
-  assert.ok(li, "a card is not a list item with a class list of its own");
+  const li = drawn.match(/<li\s+data-viewing=\{movie\.viewing\}\s+className="([^"]*)"/);
+  assert.ok(li, "a card is not a list item with a class list of its own, saying where its film stands");
   for (const rule of ["relative", "rounded-xl", "border", "border-rule", "bg-screen"]) {
     assert.ok(li[1].split(/\s+/).includes(rule), `a card has no ${rule}`);
   }
@@ -728,23 +759,59 @@ test("a film's screen is its year, its title, its vibes, then what do you think"
   }
 });
 
-test("what do you think is five buttons in one form, posting to the one write route", () => {
+test("what do you think is five buttons, and when did you see it two, each in a form posting to the one write route", () => {
   const drawn = bodyOf("MovieChoices", choices);
 
   assert.match(drawn, /<h3 id="what-do-you-think"[^>]*>\s*What do you think\?\s*<\/h3>/);
   assert.match(drawn, /<form method="post" action="\/movie\/choose"/, "the choices post somewhere else");
 
-  // Every button is one of the five, in their order, each sending its own key,
+  // The five at the top: each one of them, in their order, sending its own key,
   // and pressed when its fact is what the film stands at.
   assert.match(drawn, /\{CHOICES\.map\(\(choice\) => \{/);
-  assert.equal((drawn.match(/<button\b/g) ?? []).length, 1, "a button is drawn outside the five");
+  assert.equal((drawn.match(/<button\b/g) ?? []).length, 2, "a button is drawn outside the two questions");
+  assert.equal(/<details\b|<select\b|role="menu"|aria-haspopup/.test(choices), false, "an answer is hidden behind a menu");
   assert.match(drawn, /type="submit"\s+name="choice"\s+value=\{choice\.key\}\s+aria-pressed=\{pressed\}/);
   assert.match(drawn, /const pressed = isPressed\(choice, viewing, judgement\);/);
 
-  // The icons are the marks' own; loved and liked carry their colours when pressed.
+  // The two below: asked only while the film is seen, under their own heading,
+  // in their own form; each sends its own key and is pressed by the viewing.
+  const below = drawn.slice(drawn.indexOf("{asksWhen(viewing) && ("));
+  assert.ok(below.length > 0 && below.indexOf("{WHEN.map(") > 0, "the second question is not asked only while seen");
+  assert.match(below, /<h3 id="when-did-you-see-it"[^>]*>\s*When did you see it\?\s*<\/h3>/);
+  assert.match(below, /<form\s+method="post"\s+action="\/movie\/choose"/);
+  assert.match(below, /\{WHEN\.map\(\(choice\) => \{/);
+
+  // The icons at the top are the marks' own; loved and liked carry their colours
+  // when pressed. Below, the one that stands is green with a check — the only
+  // icon there — and the other has none: no eye, no clock.
   assert.match(choices, /JUDGEMENT\.choices\.find/);
   assert.match(choices, /VIEWING\.choices\.find/);
-  assert.equal(/from "lucide-react"/.test(choices), false, "the choices draw icons of their own");
+  assert.match(choices, /^import \{ Check \} from "lucide-react";$/m, "the choices draw icons of their own");
+  assert.equal(/\b(Eye|EyeOff|History)\b/.test(choices), false, "the choices draw an eye or a clock of their own");
+  assert.match(below, /\{pressed && <Check aria-hidden="true"[^>]*\/>\}/, "the pressed answer below is not checked");
+  assert.equal((below.match(/<Check\b/g) ?? []).length, 1, "more than the check is drawn below");
+  assert.equal(/<Icon\b/.test(below), false, "an answer below draws a mark's icon");
+  assert.match(choices, /const SEEN = "border-seen bg-seen\/10 text-seen";/);
+  assert.match(below, /pressed \? SEEN : UNPRESSED/);
+
+  // The five above are drawn as they always were; the two below, and their
+  // heading, a step smaller and quieter — a follow-up, not a second equal question.
+  assert.match(
+    choices,
+    /const PILL = \[\s*"inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-\[13\.5px\]",/,
+    "the five above changed size",
+  );
+  assert.match(drawn.slice(0, drawn.indexOf("{asksWhen(")), /\[\s*PILL,\s*pressed \? PRESSED\[choice\.key\]/, "the five above are not the top pill");
+  assert.match(below, /className=\{\[SMALL_PILL, pressed \? SEEN : UNPRESSED\]\.join\(" "\)\}/, "the two below are not the smaller pill");
+  assert.match(below, /<Check aria-hidden="true" size=\{12\}/, "the check is not drawn smaller");
+  const small = choices.slice(choices.indexOf("const SMALL_PILL"), choices.indexOf("].join", choices.indexOf("const SMALL_PILL")));
+  assert.match(small, /px-\[13px\] py-\[6\.5px\] text-\[11px\]/, "the two below are not about a fifth smaller");
+  // A smaller drawing, and the same reach: an invisible ring around each, half the gap.
+  assert.match(small, /\brelative\b/);
+  assert.match(small, /after:absolute after:-inset-1 after:rounded-full/, "the smaller pill lost its press area");
+  assert.match(small, /focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam/);
+  assert.match(drawn, /<h3 id="what-do-you-think" className="font-display text-\[20px\] leading-tight text-ink">/);
+  assert.match(below, /<h3 id="when-did-you-see-it" className="mt-8 font-display text-\[17px\] leading-tight text-ink-soft">/);
   assert.match(choices, /love: "border-loved bg-loved\/10 text-loved"/);
   assert.match(choices, /like: "border-liked bg-liked\/10 text-liked"/);
 
@@ -764,11 +831,54 @@ test("what do you think is five buttons in one form, posting to the one write ro
   }
 });
 
-test("the new screens have nothing to press but links, and a film's five choices", () => {
-  for (const [name, file] of NEW) {
-    // Its form and its five buttons are the choices, pinned above; what it must
+test("the Stream's one filter: include previously seen, ticked, under the heading, and drawing only", () => {
+  // Inside the Stream's own list of films, before the cards: the first thing under
+  // *Your movies* and its count, right-aligned, then the cards.
+  const films = source.slice(source.indexOf('<div className="stream-films">'), source.indexOf("</Section>"));
+  assert.ok(films.length > 0, "the films are not wrapped for the filter");
+  const row = films.indexOf('<div className="-mt-4 mb-1 flex justify-end">');
+  const box = films.indexOf("<input");
+  const cards = films.indexOf("<MovieCards");
+  assert.ok(row >= 0 && row < box && box < cards, "the filter is not right-aligned under the heading, above the first card");
+
+  // The label in the user's words, small and quiet, and a press area of 36px.
+  assert.match(films, /<label className="inline-flex min-h-9 cursor-pointer items-center gap-2 px-1 text-\[12px\] text-ink-soft">/);
+  assert.match(films, /\/>\s*Include previously seen\s*<\/label>/);
+
+  // Ticked on every load, and nothing else: no name, no form, no handler, no
+  // request, no saved preference, no client code.
+  const input = films.slice(box, films.indexOf("/>", box) + 2);
+  assert.match(input, /id="include-previously-seen"/);
+  assert.match(input, /type="checkbox"/);
+  assert.match(input, /\bdefaultChecked\b/, "the filter is not ticked by default");
+  assert.doesNotMatch(input, /\bname=|\bchecked=|\bon[A-Z]\w*=|\bform=/, "the filter reaches beyond what is drawn");
+  assert.equal((source.match(/<input\b/g) ?? []).length, 1, "the Stream has another field");
+  assert.doesNotMatch(source, /<form\b|^"use client";|\buse(State|Effect)\b|localStorage|document\.cookie/m);
+
+  // Every film is still handed over, in the order `stream` gives — the filter
+  // draws less, it never orders or fetches anything.
+  assert.match(films, /<MovieCards movies=\{stream\(movies\)\} label="Your movies, most recently saved first" \/>/);
+  assert.match(card, /<li\s+data-viewing=\{movie\.viewing\}/, "a card does not say where its film stands");
+
+  // Unticked, exactly the films seen before are not drawn — on the Stream only.
+  const css = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
+  const rule = css.match(/([^{}]*#include-previously-seen[^{}]*)\{([^}]*)\}/);
+  assert.ok(rule, "nothing hides a film when the filter is unticked");
+  assert.equal(
+    rule[1].replace(/\/\*[\s\S]*?\*\//g, "").trim(),
+    '.stream-films:has(#include-previously-seen:not(:checked)) [data-viewing="seen-before"]',
+  );
+  assert.equal(rule[2].trim(), "display: none;", "the filter does more than hide");
+});
+
+test("the new screens have nothing to press but links, and a film's answers", () => {
+  for (const [name, original] of NEW) {
+    // Its forms and their buttons are the answers, pinned above; what it must
     // not have is pinned there too.
     if (name === "movie-choices.tsx") continue;
+    // The Stream's one filter is the field it may have, pinned above.
+    const file =
+      name === "stream-view.tsx" ? original.replace(/<input\s+id="include-previously-seen"[\s\S]*?\/>/, "") : original;
     for (const [what, pattern] of [
       ["a button", /<button\b/],
       ["a menu", /role="menu"|aria-haspopup="menu"/],

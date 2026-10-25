@@ -339,7 +339,7 @@ echo "--- the list stays eligible, and a stretch is anchored ---"
 # whether they watched the film.
 check "the target is what they have not seen or judged" \
     "$(order_check 'Lead with what they have not seen or judged' \
-        '`viewing` of `seen` rules a Movie out as new' \
+        '`viewing` of `seen-now` or `seen-before` rules a Movie out as new' \
         'so does a standing judgement' \
         'nobody likes a film they have not seen')" "True"
 check "and never restated as whatever Tonight has not heard of" \
@@ -771,11 +771,49 @@ check "keeping a film and saying something about one are different requests" \
 # M7, My List. Three sentences set where a film stands, the assistant says what it
 # stored so a default they did not mean is corrected, and the third sentence is a
 # viewing rather than the verdict it used to be.
-check "the three list sentences set the viewing, and what was stored is said" \
-    "$(order_check '**Where a film stands on their list is its viewing**' \
-        'is `seen`; *"put it on my list"* is `want-to-see`' \
+check "the list sentences set the viewing, and what was stored is said" \
+    "$(order_check '**Where a film stands on their list is its viewing.**' \
+        'A film they watched is `seen-now` or `seen-before`' \
+        '*"Put it on my list"* is `want-to-see`' \
         'recommend it again"* is `dont-want-to-see` — not a verdict' \
         'Then say in one sentence' 'what you stored' 'so they can correct it')" "True"
+# Seen now and seen before. Which one is read from what they said: recent, an
+# evening with Tonight or a film suggested and then watched is now; placed some
+# time ago is before; and a watch with no when is one short question — folded into
+# one already being put — before it is ever a value, and seen-before after it if
+# they still do not say.
+viewing_rule="$(slice_of '**Where a film stands on their list is its viewing.**' \
+    '**Neither seen value is a date.**')"
+check "recent, an evening with Tonight and a suggestion watched are seen-now" \
+    "$(order_check '**`seen-now`** — they watched it recently' \
+        '*"just watched it"*' '*"saw it last night"*' \
+        'a film of an evening with Tonight that they started or finished' \
+        'one you suggested that they then watched' \
+        'A rewatch they have just done is `seen-now` too')" "True"
+check "a watch placed some time ago is seen-before" \
+    "$(order_check '**`seen-before`** — they place it some time ago' '*"years ago"*' '*"as a kid"*')" "True"
+check "a watch with no when is one short question, folded in, then seen-before" \
+    "$(order_check '**When they did not say when**' 'a bare *"I'"'"'ve seen it"*' \
+        'ask once, briefly and in your own words, whether it was recent' \
+        'Fold it into a question you are already putting' \
+        'it is never a round of its own' \
+        'If they still do not say, `seen-before`')" "True"
+check "the now-or-before question is described, never scripted in quotation marks" \
+    "$(in_slice "$(slice_of '**When they did not say when**' '*"Put it on my list"*')" '"[^"]*\?"')" "0"
+check "neither seen value is a date, and Tonight's own times are never a watch time" \
+    "$(order_check '**Neither seen value is a date.**' \
+        'Never state or guess when they watched a film' \
+        '`createdAt`, `updatedAt`, when an evening was recorded' \
+        'Saying back the timing they gave you is fine')" "True"
+check "setting a viewing manufactures no quote, verdict or reason" \
+    "$(order_check '**Setting a viewing writes the viewing and nothing else**' \
+        'no verdict, no `because`, no pass reason, and no quote of what they said about when')" "True"
+check "and a reason they gave is kept verbatim, timing words included" \
+    "$(order_check 'A reason they did give is still recorded as it always is' \
+        'in their words and unedited, timing included' \
+        '*"pass, I just watched it last night"* is a pass with that reason')" "True"
+check "the rule names no bare seen to write" \
+    "$(printf '%s' "$viewing_rule" | grep -cE '`seen`')" "0"
 check "a film the user asks to keep goes into a Vibe, and they need not know that" \
     "$(order_check 'Keeping a film goes into a Vibe' \
         'Never write a Movie this way without at least one Vibe')" "True"
@@ -1093,6 +1131,14 @@ check "and it is method for recommending, after what being in the model is evide
 # What `nothing` and `null` mean lives on the tool, read where the answer is read.
 check "the paragraph does not restate what an answer means" \
     "$(in_slice "$check_paragraph" '`nothing`|`null`|unseen')" "0"
+# The `seen` read here is the check's yes-or-no answer — true for either seen value
+# and for a film watched only by a standing judgement — never the stored viewing.
+# Named by the list's values, it would miss the films a judgement says they watched.
+check "a watched candidate is the answer's seen, not a viewing value" \
+    "$(order_check '**Check the films before you present them.**' \
+        'one whose `seen` is `true` unless they asked for a rewatch')" "True"
+check "and the paragraph names no viewing value for it" \
+    "$(in_slice "$check_paragraph" 'seen-now|seen-before')" "0"
 check "a failed check changes nothing about the answer, after a failed write" \
     "$(order_check '## When something fails' '**A write fails**' \
         '**`check_candidates` fails** — nothing about the answer changes' \

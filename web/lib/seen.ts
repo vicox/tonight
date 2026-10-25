@@ -5,8 +5,8 @@ import type { Judgement } from "./verdicts/model.ts";
  * Whether the user has watched a film, from both places that can say so.
  *
  * Two roots know something about it and neither is the whole answer. The Movie
- * carries where the film stands on their list — `seen`, `want-to-see` or
- * `dont-want-to-see`. A standing Verdict carries what they thought, and an
+ * carries where the film stands on their list — `seen-now`, `seen-before`,
+ * `want-to-see` or `dont-want-to-see`. A standing Verdict carries what they thought, and an
  * opinion is something somebody can only have after watching, so a film they
  * liked is a film they have seen whether or not anybody ever filed it that way.
  *
@@ -30,11 +30,22 @@ import type { Judgement } from "./verdicts/model.ts";
 export type Standing = { judgement: Judgement };
 
 /**
+ * Whether their list says they watched it: `seen-now` or `seen-before`.
+ *
+ * The one place the two seen values are told apart from the rest, so a third
+ * way of saying "seen" cannot be missed by one comparison and not another. When
+ * they watched it is not part of the answer.
+ */
+export function isSeen(viewing: Viewing | null): boolean {
+  return viewing === "seen-now" || viewing === "seen-before";
+}
+
+/**
  * Whether the user has watched the film, as far as anything here can tell.
  *
  * `viewing` is where the film stands on their list and `standing` is what
  * currently stands about liking, which may be absent. True when the list says
- * `seen` outright, or when an opinion implies it. `viewing` is `null` for a film
+ * seen outright — now or before — or when an opinion implies it. `viewing` is `null` for a film
  * that is not on their list at all, where only an opinion can say they watched it.
  *
  * `want-to-see` or `dont-want-to-see` plus a standing judgement is a
@@ -45,6 +56,6 @@ export type Standing = { judgement: Judgement };
  * records is not worth a machinery of its own.
  */
 export function effectivelySeen(viewing: Viewing | null, standing: Standing | null): boolean {
-  if (viewing === "seen") return true;
+  if (isSeen(viewing)) return true;
   return standing !== null && "judgement" in standing;
 }

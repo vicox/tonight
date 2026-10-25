@@ -14,4 +14,4 @@ export const SERVER_NAME = "Tonight";
  * A client reads it from `get_server_info`, which makes it a value to check a
  * connection against — an answer nobody can give without having called the tool.
  */
-export const SERVER_VERSION = "0.3.0";
+export const SERVER_VERSION = "0.4.0";

@@ -154,7 +154,7 @@ describe("M2 — only what they said", () => {
       const saved = held.get(filmKey(film));
       if (saved?.vibes.length) continue;
       if (saved) await call("update_movie", { ...film, vibes: [shelf] });
-      else await call("create_movie", { ...film, viewing: "seen", vibes: [shelf] });
+      else await call("create_movie", { ...film, viewing: "seen-before", vibes: [shelf] });
     }
     const before = await taste();
     const checkpoints: Taste[] = [before];

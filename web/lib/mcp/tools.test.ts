@@ -18,6 +18,7 @@ process.env.OAUTH_SIGNING_SECRET = "test-signing-secret-of-at-least-32-bytes";
 const { handleMcpRequest } = await import("./endpoint.ts");
 const { deployment, signingKey } = await import("../oauth/config.ts");
 const { mintAccessToken } = await import("../oauth/tokens.ts");
+const { SEEN_RULE } = await import("../taste/model.ts");
 
 const ENDPOINT = "http://localhost:3000/mcp";
 const PROTOCOL_VERSION = "2026-07-28";
@@ -281,7 +282,7 @@ test("deleting a genre a vibe needs is refused, and names the vibe", async () =>
   const left = await ok(token, "get_taste");
   assert.deepEqual({ genres: left.genres, vibes: left.vibes }, { genres: [], vibes: [] });
   assert.deepEqual(left.movies.map(content), [
-    { title: "Solaris", year: 1972, imdbId: null, viewing: "seen", vibes: [] },
+    { title: "Solaris", year: 1972, imdbId: null, viewing: "seen-before", vibes: [] },
   ]);
 });
 
@@ -606,9 +607,18 @@ test("the write tools carry the rules that apply at the moment they are called",
     const described = fieldOf(tools, name, "viewing");
     assert.ok(described.length > 0, `${name} has no description for viewing`);
 
+    // Longest first and on word boundaries, so `want-to-see` is not matched
+    // inside `dont-want-to-see` and the reading pointed at is the one that
+    // follows the phrase.
+    const VALUE = /\b(dont-want-to-see|want-to-see|seen-now|seen-before)\b/;
+
     for (const [phrase, viewing] of [
-      [`"I've seen it"`, "seen"],
-      [`"watched it years ago"`, "seen"],
+      [`"just watched it"`, "seen-now"],
+      [`"saw it last night"`, "seen-now"],
+      ["in an evening with Tonight", "seen-now"],
+      ["one you suggested that they then watched", "seen-now"],
+      [`"watched it years ago"`, "seen-before"],
+      [`"saw it as a kid"`, "seen-before"],
       [`"put it on my list"`, "want-to-see"],
       [`"want to watch it"`, "want-to-see"],
       [`"haven't seen it"`, "want-to-see"],
@@ -616,15 +626,20 @@ test("the write tools carry the rules that apply at the moment they are called",
     ] as [string, string][]) {
       const at = described.indexOf(phrase);
       assert.notEqual(at, -1, `${name}: nothing reads ${phrase} into a viewing`);
-
-      // Longest first and on word boundaries, so `want-to-see` is not matched
-      // inside `dont-want-to-see` and the reading pointed at is the one that
-      // follows the phrase.
-      const next = described
-        .slice(at + phrase.length)
-        .match(/\b(dont-want-to-see|want-to-see|seen)\b/)?.[1];
+      const next = described.slice(at + phrase.length).match(VALUE)?.[1];
       assert.equal(next, viewing, `${name}: ${phrase} does not read as ${viewing}`);
     }
+
+    // A bare "I've seen it" says they watched it and not when, so it reads as a
+    // question before it reads as a value — and the value it falls back on is
+    // the one that claims nothing about when.
+    const bare = described.indexOf(`"I've seen it" with nothing about when`);
+    assert.notEqual(bare, -1, `${name}: nothing reads a bare "I've seen it"`);
+    const after = described.slice(bare);
+    const value = after.match(VALUE);
+    assert.ok(value && value.index !== undefined, `${name}: a bare "I've seen it" leads nowhere`);
+    assert.match(after.slice(0, value.index), /\bask them once, briefly and in your own words\b/u, `${name}: ask first`);
+    assert.equal(value[1], "seen-before", `${name}: unanswered, a bare "I've seen it" is not seen-before`);
 
     // And an opinion is explicitly routed away, because a field that took one
     // was where the two subjects got mixed up in the first place.
@@ -638,12 +653,48 @@ test("the write tools carry the rules that apply at the moment they are called",
     const from = described.indexOf("Take it from what they said");
     const to = described.indexOf(`"don't recommend it again"`);
     assert.ok(from >= 0 && to > from, `${name}: the mapping is not one thought`);
-    assert.ok(to - from < 500, `${name}: the mapping has been spread out`);
+    // Wider than it was (500) by the readings of the two seen values and the
+    // ask-once — still one passage, not sentences that drifted apart.
+    assert.ok(to - from < 800, `${name}: the mapping has been spread out`);
 
     // And the rules about this field that are not a reading.
     assert.match(described, /saved without one is want-to-see/, `${name}: the default`);
     assert.match(described, /Say what you stored/, `${name}: the confirmation`);
     assert.match(described, /never a score or star rating/, `${name}: a state is not a rating`);
+
+    // No watch date: none invented, and Tonight's own times never offered as one.
+    assert.match(described, /Neither seen value is a date/u, `${name}: a seen value is not a date`);
+    assert.match(
+      described,
+      /Never state or estimate when they watched a film, and never present Tonight's createdAt or updatedAt/u,
+      `${name}: no invented watch date, and the timestamps are not one`,
+    );
+    assert.match(described, /Saying back the timing they gave you is fine/u, `${name}: their own timing may be said`);
+
+    // Setting a viewing manufactures nothing — and a reason they did give is
+    // still theirs, where it belongs.
+    assert.match(
+      described,
+      /Setting a viewing writes the viewing and nothing else\*\* — no verdict, no `because`, no pass reason, and no quote of what they said about when/u,
+      `${name}: nothing manufactured from a viewing`,
+    );
+    assert.match(described, /A reason they did give is recorded where it belongs, in their words/u, `${name}: their reasons stand`);
+
+    // The clarification is an intent, not a line: no question in quotation marks
+    // inside the passage that asks it.
+    const asking = described.slice(bare, described.indexOf(`"haven't`));
+    assert.doesNotMatch(asking, /"[^"]*\?"/u, `${name}: the now-or-before question is scripted`);
+  }
+
+  // The old single value is gone from every description that writes a viewing:
+  // nothing tells an agent to write `seen`.
+  for (const tool of tools) {
+    const text = JSON.stringify(tool);
+    assert.doesNotMatch(
+      text,
+      /\b(?:say|give|record|write|with viewing|as) `?seen\b(?!-now|-before| now| before)/u,
+      `${tool.name}: still writes seen`,
+    );
   }
 
   // The user's sentence is not the agent's to adjust. What Step 2 relocated is the
@@ -732,14 +783,14 @@ test("a movie is saved with what the user said, and appears once in the model", 
     title: "Arrival",
     year: 2016,
     imdb_id: "tt2543164",
-    viewing: "seen",
+    viewing: "seen-before",
     vibes: ["Space Tension"],
   });
   assert.deepEqual(created.movie, {
     title: "Arrival",
     year: 2016,
     imdbId: "tt2543164",
-    viewing: "seen",
+    viewing: "seen-before",
     vibes: ["Space Tension"],
   });
 
@@ -825,8 +876,8 @@ test("omitted keeps a viewing, and a new film omitted is on the list to see", as
   const saved = await ok(token, "create_movie", { title: "Arrival", year: 2016 });
   assert.equal(saved.movie.viewing, "want-to-see", "a new film is not on the list to see");
 
-  const said = await ok(token, "update_movie", { title: "Arrival", year: 2016, viewing: "seen" });
-  assert.equal(said.movie.viewing, "seen");
+  const said = await ok(token, "update_movie", { title: "Arrival", year: 2016, viewing: "seen-before" });
+  assert.equal(said.movie.viewing, "seen-before");
 
   // Omitting leaves the answer standing.
   const kept = await ok(token, "update_movie", {
@@ -834,23 +885,38 @@ test("omitted keeps a viewing, and a new film omitted is on the list to see", as
     year: 2016,
     imdb_id: "tt2543164",
   });
-  assert.equal(kept.movie.viewing, "seen", "an unrelated change withdrew a stated answer");
+  assert.equal(kept.movie.viewing, "seen-before", "an unrelated change withdrew a stated answer");
 
-  // And there is no clearing it: null and the old spelling are refused by the
+  // And there is no clearing it: null and the old spellings are refused by the
   // schema, before the store is asked.
-  for (const wrong of [null, "unseen"]) {
+  for (const wrong of [null, "unseen", "seen"]) {
     assert.match(
       await refused(token, "update_movie", { title: "Arrival", year: 2016, viewing: wrong }),
       /viewing/,
       String(wrong),
     );
   }
-  assert.equal((await ok(token, "get_taste")).movies[0].viewing, "seen");
+  assert.equal((await ok(token, "get_taste")).movies[0].viewing, "seen-before");
 });
 
-test("each list sentence is its own answer, and all three are stored as said", async () => {
+test("a client still sending seen is refused, and told how to choose between the two", async () => {
   const token = await tokenFor(someone());
-  for (const viewing of ["seen", "want-to-see", "dont-want-to-see"]) {
+
+  for (const tool of ["create_movie", "update_movie"]) {
+    if (tool === "update_movie") await ok(token, "create_movie", { title: "Heat", year: 1995 });
+    const message = await refused(token, tool, { title: "Heat", year: 1995, viewing: "seen" });
+    assert.match(message, /seen-now/u, `${tool}: the refusal does not name seen-now`);
+    assert.match(message, /seen-before/u, `${tool}: the refusal does not name seen-before`);
+    assert.match(message, /watched it recently/u, `${tool}: the refusal does not say how to choose`);
+  }
+
+  // Nothing was written by either refusal.
+  assert.equal((await ok(token, "get_taste")).movies[0].viewing, "want-to-see");
+});
+
+test("each list sentence is its own answer, and all four are stored as said", async () => {
+  const token = await tokenFor(someone());
+  for (const viewing of ["seen-now", "seen-before", "want-to-see", "dont-want-to-see"]) {
     const said = await ok(token, "create_movie", { title: `Film ${viewing}`, year: 2016, viewing });
     assert.equal(said.movie.viewing, viewing);
   }
@@ -920,7 +986,7 @@ test("a valid IMDb id survives the boundary, spaces and all", async () => {
 
   // Null still clears it, and omitting it still leaves it alone.
   assert.equal(
-    (await ok(token, "update_movie", { title: "Shawshank", year: 1994, viewing: "seen" })).movie
+    (await ok(token, "update_movie", { title: "Shawshank", year: 1994, viewing: "seen-before" })).movie
       .imdbId,
     "tt0111161",
   );
@@ -945,7 +1011,7 @@ test("retitling a movie keeps it the same film, filed where it was", async () =>
   await ok(token, "create_movie", {
     title: "Dune",
     year: 1984,
-    viewing: "seen",
+    viewing: "seen-before",
     vibes: ["Space Tension"],
   });
 
@@ -959,7 +1025,7 @@ test("retitling a movie keeps it the same film, filed where it was", async () =>
     title: "Dune (Lynch)",
     year: 1985,
     imdbId: null,
-    viewing: "seen",
+    viewing: "seen-before",
     vibes: ["Space Tension"],
   });
 
@@ -1029,7 +1095,7 @@ test("create_vibe requires a core, and a call without one writes nothing", async
   assert.deepEqual(created.vibe.core, ARRIVAL);
   assert.deepEqual(created.vibe.movies, [ARRIVAL]);
   assert.deepEqual((await ok(token, "get_taste")).movies.map(content), [
-    { ...ARRIVAL, imdbId: null, viewing: "seen", vibes: ["Space Tension"] },
+    { ...ARRIVAL, imdbId: null, viewing: "seen-before", vibes: ["Space Tension"] },
   ]);
 });
 
@@ -1072,7 +1138,7 @@ test("update_vibe takes a core that replaces the old one, and never one that cle
 test("a core can neither leave its vibe nor be deleted, and the refusal names the vibe", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });
-  await ok(token, "create_movie", { ...ARRIVAL, viewing: "seen" });
+  await ok(token, "create_movie", { ...ARRIVAL, viewing: "seen-before" });
   await ok(token, "create_vibe", {
     name: "Space Tension",
     genres: ["Sci-Fi"],
@@ -1141,7 +1207,13 @@ test("a film not saved as seen is never a core, and a standing liked does not ma
     await refused(token, "create_vibe", { ...vibe, core: COLLATERAL }),
     'cannot make "Collateral" (2004) a core: it is saved as want-to-see, and a core is a film ' +
       "they have seen. Change the viewing only if they tell you they have watched it — then " +
-      "record seen with update_movie and try again",
+      `record it with update_movie, ${SEEN_RULE}, and try again`,
+  );
+  // A `viewing` sent with the core does not change a saved film: it is refused
+  // the same way, and its viewing stays what they said.
+  assert.equal(
+    await refused(token, "create_vibe", { ...vibe, core: { ...COLLATERAL, viewing: "seen-now" } }),
+    await refused(token, "create_vibe", { ...vibe, core: COLLATERAL }),
   );
   assert.deepEqual(await ok(token, "get_taste"), before, "a refused core wrote something");
   // Both raw facts stay where they are, each still saying what it said.
@@ -1156,16 +1228,22 @@ test("a film not saved as seen is never a core, and a standing liked does not ma
   );
   assert.equal(
     await refused(token, "update_movie", { ...SOLARIS, viewing: "dont-want-to-see" }),
-    'cannot mark "Solaris" (1972) anything but seen: it is the core of the vibe "Night Shift", ' +
-      "and a core is a film they have seen — make another film the core with update_vibe " +
-      "first, or delete the vibe",
+    'cannot mark "Solaris" (1972) anything but seen-now or seen-before: it is the core of the ' +
+      'vibe "Night Shift", and a core is a film they have seen — make another film the core ' +
+      "with update_vibe first, or delete the vibe",
   );
-  // A core the vibe saved itself is saved as seen.
-  assert.equal(
-    (await ok(token, "get_taste")).movies.find((one: { title: string }) => one.title === "Solaris")
-      .viewing,
-    "seen",
-  );
+  // A core the vibe saved itself, told nothing about when, is saved as seen-before.
+  const solaris = () =>
+    ok(token, "get_taste").then(
+      (taste) => taste.movies.find((one: { title: string }) => one.title === "Solaris").viewing,
+    );
+  assert.equal(await solaris(), "seen-before");
+  // Between the two seen values a core moves freely.
+  assert.equal((await ok(token, "update_movie", { ...SOLARIS, viewing: "seen-now" })).movie.viewing, "seen-now");
+  assert.equal((await ok(token, "update_movie", { ...SOLARIS, viewing: "seen-before" })).movie.viewing, "seen-before");
+  // And naming it again as a core with another viewing does not move it.
+  await ok(token, "update_vibe", { name: "Night Shift", core: { ...SOLARIS, viewing: "seen-now" } });
+  assert.equal(await solaris(), "seen-before", "a viewing sent with a saved core changed the film");
 
   // Where a client meets it: the core argument on both writes, and update_movie.
   const tools = await listTools(token);
@@ -1175,17 +1253,78 @@ test("a film not saved as seen is never a core, and a standing liked does not ma
     };
     assert.match(
       core.description ?? "",
-      /Refused when the saved film's viewing is anything but `seen`/u,
+      /Refused when the saved film's viewing is anything but `seen-now` or `seen-before`/u,
       `${name}: no guard`,
     );
-    assert.match(core.description ?? "", /a liked or loved does\s+not override it/u, `${name}: liked overrides`);
-    assert.match(core.description ?? "", /never to get past this/u, `${name}: a bypass is allowed`);
-    assert.match(core.description ?? "", /saved first if it is not saved yet, as seen/u, `${name}: saved how`);
+    assert.match(core.description ?? "", /a\s+liked or loved does not override it/u, `${name}: liked overrides`);
+    assert.match(core.description ?? "", /never\s+to get past this/u, `${name}: a bypass is allowed`);
+    assert.match(
+      core.description ?? "",
+      /saved first if it is not saved yet — as `viewing` says, seen-now or seen-before, or as seen-before without one/u,
+      `${name}: saved how`,
+    );
+
+    // Its own `viewing`: the two seen values only, by the rule, and only for a
+    // film not saved yet.
+    const viewing = (core as { properties?: Record<string, { enum?: string[]; description?: string }> })
+      .properties?.viewing;
+    assert.deepEqual(viewing?.enum, ["seen-now", "seen-before"], `${name}: core.viewing's values`);
+    assert.ok(viewing?.description?.includes(SEEN_RULE), `${name}: core.viewing does not state the rule`);
+    assert.match(viewing?.description ?? "", /^Only for a film not saved yet/u, `${name}: core.viewing's reach`);
+    assert.match(viewing?.description ?? "", /Left out, it is saved as seen-before/u, `${name}: the default`);
+    assert.match(viewing?.description ?? "", /A saved film keeps its own viewing/u, `${name}: a saved core`);
   }
   assert.match(
     tools.find((tool) => tool.name === "update_movie")?.description ?? "",
-    /nor marked anything but seen\s+while it is a core/u,
+    /nor marked anything but\s+seen-now or seen-before while it is a core — between those two it may move/u,
   );
+});
+
+test("a core not saved yet is saved as the seen value given, and seen-before without one", async () => {
+  const token = await tokenFor(someone());
+  await ok(token, "create_genre", { name: "Crime", instruction: "Clever, never cruel." });
+
+  // Through create_vibe, with a viewing: saved as it, and the vibe's core is
+  // still only a handle.
+  const made = await ok(token, "create_vibe", {
+    name: "Night Shift",
+    genres: ["Crime"],
+    instruction: "Long nights, one job.",
+    core: { title: "Thief", year: 1981, viewing: "seen-now" },
+  });
+  assert.deepEqual(made.vibe.core, { title: "Thief", year: 1981 });
+
+  // Through update_vibe, with the other one.
+  await ok(token, "update_vibe", { name: "Night Shift", core: { title: "Heat", year: 1995, viewing: "seen-before" } });
+
+  // And without one: seen-before, the value that claims nothing about when.
+  await ok(token, "create_vibe", {
+    name: "Errands",
+    genres: ["Crime"],
+    instruction: "Small jobs that go wrong.",
+    core: { title: "Collateral", year: 2004 },
+  });
+
+  const viewings = Object.fromEntries(
+    (await ok(token, "get_taste")).movies.map((one: { title: string; viewing: string }) => [one.title, one.viewing]),
+  );
+  assert.deepEqual(viewings, { Collateral: "seen-before", Heat: "seen-before", Thief: "seen-now" });
+
+  // A core's viewing is one of the two seen values, refused by the schema
+  // before anything is written.
+  for (const wrong of ["want-to-see", "dont-want-to-see", "seen"]) {
+    assert.match(
+      await refused(token, "create_vibe", {
+        name: "Elsewhere",
+        genres: ["Crime"],
+        instruction: "Somewhere else.",
+        core: { title: "Ronin", year: 1998, viewing: wrong },
+      }),
+      /viewing/u,
+      wrong,
+    );
+  }
+  assert.equal((await ok(token, "get_taste")).vibes.length, 2, "a refused core wrote a vibe");
 });
 
 test("an old client's evening or refusal is refused at the protocol, and writes nothing", async () => {
@@ -1276,7 +1415,7 @@ test("delete_movie forgets every verdict about that film, and nothing about anot
   // the core, so Heat is an ordinary member and can be deleted.
   await ok(token, "create_genre", { name: "Night", instruction: "Films that happen after dark." });
   await ok(token, "create_vibe", { name: "After Hours", genres: ["Night"], instruction: "Lonely and lit.", core: MOON });
-  await ok(token, "create_movie", { ...HEAT, viewing: "seen", vibes: ["After Hours"] });
+  await ok(token, "create_movie", { ...HEAT, viewing: "seen-before", vibes: ["After Hours"] });
   for (const judgement of ["loved", "disliked"]) {
     await ok(token, "record_verdict", { film: HEAT, told: "volunteered", said: { about: "judgement", judgement } });
   }

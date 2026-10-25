@@ -285,7 +285,7 @@ describe("upgrading the database production actually has", () => {
       for (const schema of ALL_SCHEMAS) await migrate(driver, schema);
 
       // The schema moved the whole way.
-      assert.deepEqual(await applied("taste"), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+      assert.deepEqual(await applied("taste"), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
       assert.deepEqual(await applied("episodes"), [1, 2, 3]);
       assert.deepEqual(await applied("verdicts"), [1, 2, 3]);
       // The retirements run here too, and record nothing but themselves: this
@@ -321,10 +321,11 @@ describe("upgrading the database production actually has", () => {
         "the legacy opinions did not convert, or something that was not an opinion did",
       );
 
-      // (6) And the watching facts survived the split, on the films that had one.
+      // (6) And the watching facts survived the split, on the films that had one —
+      // as seen-now, which every seen became (taste v15).
       const viewingOf = (title: string) => model.movies.find((one) => one.title === title)?.viewing;
-      assert.equal(viewingOf("Prisoners"), "seen");
-      assert.equal(viewingOf("Heat"), "seen", "a film they loved is a film they watched");
+      assert.equal(viewingOf("Prisoners"), "seen-now");
+      assert.equal(viewingOf("Heat"), "seen-now", "a film they loved is a film they watched");
       assert.equal(viewingOf("Dune"), "want-to-see", "a film they had not seen is not on their list");
     } finally {
       await driver.close();
@@ -339,13 +340,16 @@ describe("upgrading the database production actually has", () => {
     const driver = await embeddedDriver();
     try {
       // Everything this release's catalog holds but verdicts v3, which is the
-      // whole of what M8 adds to it.
+      // whole of what M8 adds to it — and taste v15, which came after M8, so
+      // `seen` is still a viewing here.
       for (const schema of ALL_SCHEMAS) {
         await migrate(
           driver,
           schema.module === "verdicts"
             ? { ...schema, migrations: schema.migrations.filter((one) => one.version <= 2) }
-            : schema,
+            : schema.module === "taste"
+              ? { ...schema, migrations: schema.migrations.filter((one) => one.version <= 14) }
+              : schema,
         );
       }
 

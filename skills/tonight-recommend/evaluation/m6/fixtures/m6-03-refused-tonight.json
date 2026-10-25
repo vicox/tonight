@@ -26,9 +26,9 @@
       }
     ],
     "movies": [
-      { "title": "Kiss Kiss Bang Bang", "year": 2005, "vibes": ["Two Idiots, One Case"], "viewing": "seen" },
-      { "title": "21 Jump Street", "year": 2012, "vibes": ["Two Idiots, One Case"], "viewing": "seen" },
-      { "title": "Logan Lucky", "year": 2017, "vibes": ["Plan Goes Sideways"], "viewing": "seen" }
+      { "title": "Kiss Kiss Bang Bang", "year": 2005, "vibes": ["Two Idiots, One Case"], "viewing": "seen-before" },
+      { "title": "21 Jump Street", "year": 2012, "vibes": ["Two Idiots, One Case"], "viewing": "seen-before" },
+      { "title": "Logan Lucky", "year": 2017, "vibes": ["Plan Goes Sideways"], "viewing": "seen-before" }
     ]
   },
   "acts": [

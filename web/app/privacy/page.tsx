@@ -146,12 +146,17 @@ export default function Privacy() {
           <strong>Films you tell it about.</strong> A film is in Tonight only because you or an
           assistant acting for you put it there. For each one: the title and release year you gave,
           an optional IMDb title id, which of your vibes it is in, and where it stands on your
-          list: whether you have watched it, want to see it, or do not want it recommended. That
-          last one is a fact and not an opinion, and it always has one of three answers:{" "}
-          <em>seen</em>, <em>want to see</em> and <em>don&rsquo;t want to see</em>. A film saved
-          without one is <em>want to see</em>, and the assistant says what it saved so you can
-          correct it; a film saved as the heart of one of your vibes is <em>seen</em>. Being
-          recommended a film never says you watched it.
+          list: whether you have watched it — recently, or some time ago — want to see it, or do
+          not want it recommended. That last one is a fact and not an opinion, and it always has
+          one of four answers: <em>seen now</em>, <em>seen before</em>, <em>want to see</em> and{" "}
+          <em>don&rsquo;t want to see</em>. Neither seen answer is a date: Tonight keeps no record
+          of when you watched a film, and when a film was saved is never shown as when you watched
+          it. A film saved without one is <em>want to see</em>, and the assistant says what it
+          saved so you can correct it. A film you say you have seen, without saying when, is{" "}
+          <em>seen before</em> unless you tell the assistant it was recent; so is a film saved as
+          the heart of one of your vibes, unless you said you watched it recently. Every film that
+          was saved as <em>seen</em> before the two answers existed is <em>seen now</em>, until you
+          change it. Being recommended a film never says you watched it.
         </p>
         <p>
           <strong>What you thought of a film.</strong> Kept separately from the film itself,
@@ -511,9 +516,12 @@ export default function Privacy() {
           or delete the vibe, and the genre can go. For a film, adding one, changing its title or
           year, and removing it are done through your assistant, which does each there and then.
           Where it stands on your list and what you thought of it can be said through your assistant
-          too, or with the five choices on the film&rsquo;s own page — <em>Love it</em>, <em>Like
-          it</em>, <em>Dislike</em>, <em>Want to see</em> and <em>Not interested</em> — where pressing
-          an opinion again takes it back. Removing a film removes everything you said about it as
+          too, or with the choices on the film&rsquo;s own page — <em>Love it</em>, <em>Like
+          it</em>, <em>Dislike</em>, <em>Want to see</em> and <em>Not interested</em>, and, for a
+          film you have seen, <em>Seen now</em> and <em>Seen before</em> — where pressing an opinion
+          again takes it back. Choosing an opinion there also records that you have seen the film
+          (<em>seen now</em>, unless it was already recorded as seen), and choosing <em>Want to
+          see</em> or <em>Not interested</em> also takes back your opinion of it. Removing a film removes everything you said about it as
           well — every
           verdict, including ones you replaced or took back. To have your account and everything belonging to it removed, write
           to{" "}

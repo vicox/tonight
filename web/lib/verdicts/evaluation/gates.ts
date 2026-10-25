@@ -347,8 +347,8 @@ export function withdrawal(world: World): Failure[] {
   // change a fact about watching, and there is no opinion left underneath for it
   // to reveal — a withdrawal leaves silence.
   const movie = took.after.movies.find((held) => held.title === "Prisoners");
-  if (movie?.viewing !== "seen") {
-    fail(`withdrawing a verdict changed the saved film: viewing is ${String(movie?.viewing)}, not "seen"`);
+  if (movie?.viewing !== "seen-before") {
+    fail(`withdrawing a verdict changed the saved film: viewing is ${String(movie?.viewing)}, not "seen-before"`);
   }
   return fail.failures;
 }
