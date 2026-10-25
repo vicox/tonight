@@ -111,8 +111,9 @@ export type MovieChanges = {
  * With `positiveNeedsVibe`, `updateMovie` refuses to take a film with a standing
  * liked or loved out of its last vibe, and `deleteVibe` refuses to delete the
  * last vibe of one. Decided inside the write's transaction, while the films are
- * held. Only the MCP server passes it — the website writes nothing — and a caller
- * that leaves it out gets these writes exactly as they always were.
+ * held. Only the MCP server passes it — the website's one write never files,
+ * unfiles or deletes — and a caller that leaves it out gets these writes exactly
+ * as they always were.
  */
 export type KeepFiled = { positiveNeedsVibe?: boolean };
 
@@ -172,9 +173,23 @@ export type TasteStore = {
    * vibe either committed first and is seen, or waits and then sees the verdict.
    * The act itself is written by the verdict module, exactly as `say` writes
    * one. Anything but a liked or loved is refused: those need no vibe and go to
-   * the verdict store. Only the MCP server calls this.
+   * the verdict store. The MCP server calls this, and so does the website's one
+   * write — a film's *Love it* and *Like it* (`lib/web/choose.ts`).
    */
   sayFiled(verdict: Verdict): Promise<Identified<Act>>;
+
+  /**
+   * Writes any other act — a disliked, or a taking-back — only while its film is
+   * saved; otherwise refuses as for a missing movie and writes nothing.
+   *
+   * A verdict needs no saved film, and the verdict store's `say` writes one
+   * either way. This is for a caller that only ever speaks about the user's saved
+   * films — a film's *Dislike*, and pressing a standing opinion again
+   * (`lib/web/choose.ts`) — so a press cannot land after the film was deleted and
+   * outlive it. Held as `sayFiled` holds it. A liked or loved is refused: that is
+   * `sayFiled`.
+   */
+  saySaved(act: Act): Promise<Identified<Act>>;
 };
 
 /** Re-exported so a caller needs one import to work with what these return. */

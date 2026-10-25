@@ -1,6 +1,6 @@
 import { filmKey } from "../films/identity.ts";
 import { effectivelySeen } from "../seen.ts";
-import type { Movie, Viewing } from "../taste/model.ts";
+import type { Movie, Viewing, Written } from "../taste/model.ts";
 import type { Judgement, Standing } from "../verdicts/model.ts";
 
 /**
@@ -67,6 +67,9 @@ export function seen(
 
 /** Every film the user has saved, with what stands about it. */
 export type Positioned<T extends Movie> = T & { position: Position | undefined };
+
+/** A film as the website shows one: what is saved, when, and what stands about it. */
+export type Shown = Positioned<Written<Movie>>;
 
 /** The collection, each film carrying its standing position. */
 export function withPositions<T extends Movie>(

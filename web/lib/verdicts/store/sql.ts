@@ -133,7 +133,9 @@ export function sqlVerdictStore(driver: SqlDriver, user: AuthenticatedUser): Ver
  *
  * What `say` does, and exported for the one caller that has to do it inside a
  * transaction of its own: the taste store, which writes a liked or loved in the
- * same transaction as it confirms the film is filed. Everything about the act
+ * same transaction as it confirms the film is filed (`sayFiled`), and any other
+ * act in the same transaction as it confirms the film is saved (`saySaved`).
+ * Everything about the act
  * is still decided here — it is rebuilt through the model's constructors, and
  * inserted the one way this module inserts — so a second writer adds no second
  * definition of what may be written.

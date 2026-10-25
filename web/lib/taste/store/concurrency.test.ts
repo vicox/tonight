@@ -1205,4 +1205,89 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     assert.ok(save.state.error instanceof VibeRequired, "the loved was written for a film in no vibe");
     assert.deepEqual(await outcome(saying, owner), { vibes: [], standing: [] });
   });
+
+  /* ------------------------------------- anything else, only about a saved film */
+
+  // A film's screen says a disliked, or takes an opinion back, through
+  // `saySaved`; an assistant can delete or retitle the film at the same moment.
+  // Whichever commits first, nothing said about the film outlives it.
+
+  const disliked = () =>
+    stateVerdict(ARRIVAL, { about: "judgement", judgement: "disliked" }, "confirmed", new Date().toISOString());
+
+  /** Every act about Arrival, under any title, and whether the film is saved. */
+  async function left(driver: SqlDriver, owner: { id: string }) {
+    const acts = await sqlVerdictStore(driver, owner as never).acts();
+    const saved = (await sqlTasteStore(driver, owner).taste()).movies.map((one) => one.title).sort();
+    return { acts: acts.length, saved };
+  }
+
+  test("a disliked said first, then its film deleted: the deletion takes it with the film", async (t) => {
+    const saying = await connection();
+    const deleting = await connection();
+    const owner = await lastVibe(saying, "disliked-then-deleted");
+
+    // Stopped after it has held the film, before it writes.
+    const paused = pausingAfter(t, saying, /\bFOR SHARE\b/);
+    const save = watch(sqlTasteStore(paused.driver, owner).saySaved(disliked()));
+    await paused.arrived;
+
+    const deletion = watch(sqlTasteStore(deleting, owner).deleteMovie(ARRIVAL.title, ARRIVAL.year));
+    await pause(SETTLE);
+    assert.equal(deletion.state.settled, false, "the deletion did not wait for the save; this proves nothing");
+
+    paused.release();
+    await save.done;
+    await deletion.done;
+    assert.equal(save.state.error, undefined);
+    assert.equal(deletion.state.error, undefined);
+    assert.deepEqual(await left(deleting, owner), { acts: 0, saved: ["Moon"] });
+  });
+
+  test("a film deleted first, then a disliked said: the disliked is refused", async (t) => {
+    const deleting = await connection();
+    const saying = await connection();
+    const owner = await lastVibe(deleting, "deleted-then-disliked");
+
+    // Stopped after it has removed the film and is about to forget its acts.
+    const paused = pausingAfter(t, deleting, /\btonight_verdict_acts\b/);
+    const deletion = watch(sqlTasteStore(paused.driver, owner).deleteMovie(ARRIVAL.title, ARRIVAL.year));
+    await paused.arrived;
+
+    const save = watch(sqlTasteStore(saying, owner).saySaved(disliked()));
+    await pause(SETTLE);
+    assert.equal(save.state.settled, false, "the save did not wait for the deletion; this proves nothing");
+
+    paused.release();
+    await deletion.done;
+    await save.done;
+    assert.equal(deletion.state.error, undefined);
+    assert.ok(save.state.error instanceof TasteError, "a disliked was written about a deleted film");
+    assert.match((save.state.error as Error).message, /no movie "Arrival" \(2016\)/);
+    assert.deepEqual(await left(saying, owner), { acts: 0, saved: ["Moon"] });
+  });
+
+  test("a film retitled first, then a disliked said under its old title: the disliked is refused", async (t) => {
+    const retitling = await connection();
+    const saying = await connection();
+    const owner = await lastVibe(retitling, "retitled-then-disliked");
+
+    // Stopped after it has renamed the row, before it commits.
+    const paused = pausingAfter(t, retitling, /UPDATE tonight_movies\s+SET title/);
+    const retitle = watch(
+      sqlTasteStore(paused.driver, owner).updateMovie(ARRIVAL.title, ARRIVAL.year, { title: "Story of Your Life" }),
+    );
+    await paused.arrived;
+
+    const save = watch(sqlTasteStore(saying, owner).saySaved(disliked()));
+    await pause(SETTLE);
+    assert.equal(save.state.settled, false, "the save did not wait for the retitle; this proves nothing");
+
+    paused.release();
+    await retitle.done;
+    await save.done;
+    assert.equal(retitle.state.error, undefined);
+    assert.ok(save.state.error instanceof TasteError, "a disliked was written under a title no film has");
+    assert.deepEqual(await left(saying, owner), { acts: 0, saved: ["Moon", "Story of Your Life"] });
+  });
 });

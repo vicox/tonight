@@ -590,7 +590,7 @@ check "the skill explains why they are two reads, not one" \
         '`get_taste` is what a recommendation stands on' \
         'history rather than belief')" "True"
 check "nobody is sent to the website for something the conversation can do" \
-    "$(order_check 'is *a* management surface, not *the* one' \
+    "$(order_check 'it is not *the* place to manage anything' \
         'Do not send somebody to the website for something you can do in the')" "True"
 check "a read-back is answered by describing the model, which is otherwise discouraged" \
     "$(order_check 'while recommending' \

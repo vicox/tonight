@@ -23,15 +23,24 @@ import type { SqlDriver } from "./db/driver.ts";
  * where this deployment's configuration lives; the error means the same thing
  * here — something the operator has to fix, answered as a server fault rather
  * than blamed on the client.
+ *
+ * Kept on `globalThis` rather than in this module, because `next dev` loads a
+ * module once per bundle: a route and a page each had their own copy, and with
+ * the embedded database each opened the data directory on its own, so a film
+ * chosen on its screen did not show when the page came back until a restart.
+ * One process, one connection — whichever bundle asks first.
  */
-let opening: Promise<SqlDriver> | undefined;
+const OPENING = Symbol.for("tonight.database");
+
+type Holder = { [OPENING]?: Promise<SqlDriver> };
 
 export function database(): Promise<SqlDriver> {
-  opening ??= open().catch((error: unknown) => {
-    opening = undefined;
+  const holder = globalThis as Holder;
+  holder[OPENING] ??= open().catch((error: unknown) => {
+    holder[OPENING] = undefined;
     throw error;
   });
-  return opening;
+  return holder[OPENING];
 }
 
 /**

@@ -237,20 +237,26 @@ addressed from outside, and there is no id in any tool schema or any answer.
 
 ## The website
 
-[`web/`](web) is a Next.js application. One address serves two pages: a landing page for anyone,
-and — for whoever is signed in — their own taste model, read through the same store the MCP
-tools use. There is no second surface and no second copy of the rules.
+[`web/`](web) is a Next.js application. Its home address serves a landing page for anyone and, for
+whoever is signed in, the Stream of their films — with a screen for each Vibe and one for each film
+beside it — all read through the same store the MCP tools use. There is no second surface and no
+second copy of the rules.
 
-The website shows a Vibe-oriented view of the model and changes none of it: it has no write
-endpoint, and every change — a Genre or Vibe created, renamed or deleted, where a film stands on
-the user's list, what they thought of it — is made through an assistant, which uses the MCP
-tools and does it there and then. It does not recommend, and it has no model inside it to
+The website shows a film-centred view of the model, with a page for each Vibe, and changes almost
+none of it. Its one write endpoint is a film's page asking *What do you think?*: *Love it*, *Like
+it* and *Dislike* say a verdict, *Want to see* and *Not interested* set where the film stands on
+the user's list, and pressing an opinion that stands takes it back — the same verdicts and the same
+viewing the MCP tools write, under the same rules, and nothing else. A film they like or love stays
+in at least one Vibe, and a Vibe's core stays a film they watched. Every other change — a film
+added, retitled, refiled or removed, a Genre or Vibe created, renamed or deleted — is made through
+an assistant, which uses the MCP tools and does it there and then. It does not recommend, and it has no model inside it to
 recommend with: the panel at the foot of the page names the sentence to take to your assistant.
 
-The page is organised around Vibes, and a Movie in no Vibe is listed under *Other movies* beneath
-them — recording that somebody watched a film makes one, and so does deleting the last Vibe it was
-in. `get_taste` returns the same model in one piece: the website is a view of it, not the
-definition of it.
+Every Movie is listed, newest first, with the Vibes it is in — a Movie in no Vibe is listed too,
+and recording that somebody watched a film makes one, as does deleting the last Vibe it was in. A
+Vibe's screen shows what it means, the Genres it is built from and its films; a film's screen
+shows its Vibes and its five choices. `get_taste` returns the same model in one piece: the website
+is a view of it, not the definition of it.
 
 ## Running it
 

@@ -669,17 +669,56 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         return writeAct(tx, owner, verdict);
       });
     },
+
+    /**
+     * Any other act — a disliked, or a taking-back — written only while its film
+     * is saved, for a caller that only ever speaks about saved films.
+     *
+     * The film is held `FOR SHARE` as `sayFiled` holds it, so a deletion either
+     * committed first and the film is not here, or waits and then forgets this
+     * act with the rest. A verdict needs no saved film; this caller does.
+     */
+    async saySaved(act) {
+      if (act.said === "verdict" && isPositive(act.assertion.judgement)) {
+        throw new TasteError("a liked or loved is held to a vibe — that is sayFiled");
+      }
+      return driver.transaction(async (tx) => {
+        if (!(await holdSaved(tx, owner, act.film))) throw movieNotFound(act.film.title, act.film.year);
+        return writeAct(tx, owner, act);
+      });
+    },
   };
+}
+
+/**
+ * The saved film a verdict is about, held `FOR SHARE` for the rest of the
+ * transaction — or nothing, when it is not saved.
+ *
+ * Matched by the identity a verdict is grouped by: the canonical title and the
+ * year, which is exactly what the column stores. Every write that removes or
+ * retitles a film holds its row `FOR UPDATE` first, so it cannot interleave with
+ * a hold taken here: one commits before the other decides.
+ */
+async function holdSaved(
+  sql: Transaction,
+  owner: string,
+  film: MovieHandle,
+): Promise<{ id: string; title: string; year: number; viewing: Viewing } | undefined> {
+  const [movie] = await sql.query<{ id: string; title: string; year: number; viewing: Viewing }>(
+    `SELECT id, title, year, viewing FROM tonight_movies
+      WHERE user_id = $1 AND canonical_title = $2 AND year = $3
+      FOR SHARE`,
+    [owner, canonicalTitle(film.title), film.year],
+  );
+  return movie;
 }
 
 /**
  * Refuses unless the film is saved and filed in at least one vibe.
  *
- * The saved film is matched by the identity a verdict is grouped by — the
- * canonical title and the year, which is exactly what the column stores — and
- * held `FOR SHARE` for the rest of the transaction. Every write that can take a
- * film out of its last vibe holds that row `FOR UPDATE` first, so the two
- * cannot interleave: one commits before the other decides.
+ * The saved film is held by `holdSaved` for the rest of the transaction. Every
+ * write that can take a film out of its last vibe holds that row `FOR UPDATE`
+ * first, so the two cannot interleave: one commits before the other decides.
  *
  * The filing is read by a **second** statement, on purpose. Under READ
  * COMMITTED a statement keeps the snapshot it started with even after waiting
@@ -690,12 +729,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
  * A core is always one of its vibe's members, so membership alone answers.
  */
 async function requireFiled(sql: Transaction, owner: string, film: MovieHandle): Promise<void> {
-  const [movie] = await sql.query<{ id: string; title: string; year: number; viewing: Viewing }>(
-    `SELECT id, title, year, viewing FROM tonight_movies
-      WHERE user_id = $1 AND canonical_title = $2 AND year = $3
-      FOR SHARE`,
-    [owner, canonicalTitle(film.title), film.year],
-  );
+  const movie = await holdSaved(sql, owner, film);
   if (!movie) throw new VibeRequired({ title: film.title, year: film.year }, null);
 
   const [filing] = await sql.query<{ filed: boolean }>(
@@ -1165,8 +1199,8 @@ async function fileCore(
  * Removes every verdict act about one film: what stands, what was replaced, and
  * every taking-back.
  *
- * One of the two places this store writes outside the taste model — the other is
- * `sayFiled` — and this one only ever deletes. Deleting a film is the user
+ * One of the places this store writes outside the taste model — the others are
+ * `sayFiled` and `saySaved` — and this one only ever deletes. Deleting a film is the user
  * removing it from Tonight, and an opinion
  * about a film they removed is something Tonight would otherwise go on holding
  * about it — so it goes in the same transaction as the film, never left for a

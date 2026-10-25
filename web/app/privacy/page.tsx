@@ -41,7 +41,8 @@ export default function Privacy() {
         <p>
           This policy covers the hosted service at tonight.movie — its web pages including the
           signed-in view of your taste model at <code>/</code>, the website&rsquo;s own sign-in
-          endpoints under <code>/auth</code>,
+          endpoints under <code>/auth</code>, the one endpoint a film&rsquo;s page saves your choice
+          through at <code>/movie/choose</code>,
           the endpoints an MCP client is authorized through under <code>/oauth</code>, and the MCP
           endpoint at <code>/mcp</code>.
         </p>
@@ -62,9 +63,9 @@ export default function Privacy() {
         <p>
           <strong>This website shows you less than that, and is a view of your data rather than
           the same answer rearranged.</strong> The signed-in page is built for reading a
-          collection: it groups your films under the vibes they are in, lists the rest under
-          &ldquo;Other movies&rdquo;, and keeps each instruction one click away rather than on the
-          page. What you said about a film is shown <em>against the film it is about</em>, so
+          collection: it lists every film you saved, each with the vibes it is in, and keeps what
+          each vibe means a click away rather than on the page; what a genre means is not on it at
+          all. What you said about a film is shown <em>against the film it is about</em>, so
           two things stored about you are not on it: a verdict about a film you never saved,
           because there is no film there to show it against; and a verdict you replaced or took
           back, because the page shows what stands. The evenings Tonight recorded are not on it either.
@@ -507,10 +508,13 @@ export default function Privacy() {
         <p>
           You can delete any vibe at any time through your assistant, and any genre no vibe is built
           from. A genre a vibe does refer to stays until that vibe does not: take it out of the vibe,
-          or delete the vibe, and the genre can go. For a film, saying where it stands on your list
-          and what you thought of it, adding one, changing its title or year, and removing it are
-          done through your assistant, which does each there and then; the signed-in page only shows
-          them. Removing a film removes everything you said about it as well — every
+          or delete the vibe, and the genre can go. For a film, adding one, changing its title or
+          year, and removing it are done through your assistant, which does each there and then.
+          Where it stands on your list and what you thought of it can be said through your assistant
+          too, or with the five choices on the film&rsquo;s own page — <em>Love it</em>, <em>Like
+          it</em>, <em>Dislike</em>, <em>Want to see</em> and <em>Not interested</em> — where pressing
+          an opinion again takes it back. Removing a film removes everything you said about it as
+          well — every
           verdict, including ones you replaced or took back. To have your account and everything belonging to it removed, write
           to{" "}
           <a href={`mailto:${op.email}`}>{op.email}</a>. During this beta, deleting an account is
