@@ -399,29 +399,39 @@ test("the answer has one lead, and the rest are directions from it", () => {
   assert.doesNotMatch(flat, /three to six|six films|\b3 to 6\b/i);
 });
 
-test("how many Genres to create stays guidance", () => {
+test("how many Genres stays guidance: two is the usual shape, a third is conditional", () => {
   /**
-   * The rule is *"often two or three strong, complementary ones, never filler to
-   * hit a number"*. Both halves matter and they pull against each other: the
-   * numbers say what usually works, the hedge says it is not a quota, and `never
-   * filler` stops the numbers being hit for their own sake.
+   * The rule is *"usually two meaningful, distinct ones in all, a third only when
+   * it holds a part the two do not, never filler to hit a number"*. The parts pull
+   * against each other: the number says what usually works, the hedge says it is
+   * not a quota, the condition keeps a third from being as ordinary as two, and
+   * `never filler` stops any of it being hit for its own sake.
    *
-   * A wording that keeps the numbers and drops the hedge reads as "create two or
-   * three Genres", which is a rule the skill does not have — and the failure is
-   * invisible, because every word in it came from the sentence it replaced.
+   * A wording that keeps the number and drops the hedge reads as "create two
+   * Genres", which is a rule the skill does not have — a Vibe on one Genre is
+   * still a Vibe — and the failure is invisible, because every word in it came
+   * from the sentence it replaced. The earlier "often two or three" made a third
+   * the same default as a second; it is checked gone so the two cannot stand side
+   * by side.
    */
   const flat = flatSkill();
-  const at = flat.search(/two or three strong, complementary ones/);
+  const at = flat.search(/two meaningful, distinct ones/);
   assert.ok(at >= 0, "the guidance on how many Genres could not be found");
 
-  // The hedge sits with the numbers, not somewhere else in the document.
-  const clause = flat.slice(Math.max(0, at - 60), at + 80);
+  // The hedge sits with the number, not somewhere else in the document.
+  const clause = flat.slice(Math.max(0, at - 60), at + 140);
   assert.match(clause, /\b(often|usually|commonly|typically|tend|can be|may be)\b/,
-    "the skill states two or three as a requirement rather than the usual shape");
+    "the skill states two as a requirement rather than the usual shape");
 
-  // And padding to reach them is still forbidden.
+  // A third is allowed, and only on a condition.
+  assert.match(clause, /a third only when/, "a third Genre is no longer conditional");
+
+  // And padding to reach any of it is still forbidden.
   assert.match(clause, /never filler to hit a number/,
     "the skill names a count without forbidding padding to reach it");
+
+  assert.doesNotMatch(flat, /two or three strong, complementary ones/,
+    "the old two-or-three wording is back beside the new one");
 });
 
 test("a film they have seen or judged is not offered as a new one", () => {
@@ -606,7 +616,7 @@ test("saving a film classifies it, and may grow the model rather than bend it", 
     ["to reuse a Genre that fits", /Reuse the Genres that (genuinely )?fit/],
     ["to create one when none covers it", /create one for anything (no Genre covers|uncovered)/],
     ["how many, as guidance rather than a quota",
-      /\b(often|usually|commonly|typically)\b[^.—]{0,30}two or three strong, complementary ones/],
+      /\b(often|usually|commonly|typically)\b[^.—]{0,30}two meaningful, distinct ones/],
     ["and never to pad", /never filler to hit a number/],
     ["not to stretch a Vibe", /Never stretch a Vibe to avoid making one/],
   ] as [string, RegExp][]) {
@@ -640,6 +650,11 @@ test("a proposed Vibe is made tangible before it is agreed to", () => {
     // than the one being kept — so two films are saved, and still no illustration.
     ["what is actually being saved", /only the kept film and the core are saved/i],
     ["that the proposal names its core", /name its core/],
+    // A yes covers only the meaning they were shown, and a new Genre is part of
+    // what they are agreeing to, so the proposal names the Genres and says what a
+    // new one would mean.
+    ["that the proposal names its Genres, and what a new one would mean",
+      /name its\s+Genres with what any new one would mean/],
     ["and the Vibe is written with it", /then the Vibe with its core/],
     ["that a fitting Vibe skips all of it", /a Vibe that (genuinely )?fits needs none of this/],
   ] as [string, RegExp][]) {
@@ -1143,9 +1158,10 @@ test("the write flow is stated whole: what may be written, where, and on whose y
     ["none fitting means not yet", /do not save the film yet/],
     ["reuse what fits", /Reuse the Genres that fit/],
     ["create for what is uncovered", /create one for anything uncovered/],
-    // "Two or three" is guidance, not a quota: the numbers without the hedge read
-    // as a requirement, which is a different rule.
-    ["two or three is the usual shape, not a requirement", /often two or three strong, complementary ones/],
+    // "Two" is guidance, not a quota: the number without the hedge reads as a
+    // requirement, which is a different rule. A third is allowed on a condition.
+    ["two is the usual shape, not a requirement", /usually two meaningful, distinct ones/],
+    ["a third only when it is needed", /a third only when it holds a part the two do not/],
     ["and padding is still forbidden", /never filler to hit a number/],
     ["the Vibe choice is yours", /Never ask which they want; that judgement is yours/],
     ["a proposal is made concrete", /make\s+it concrete/],
