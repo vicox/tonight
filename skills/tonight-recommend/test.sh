@@ -204,13 +204,35 @@ check "a non-binding exclusion is not mentioned either" \
 check "and the positive preference that shaped it is recognisable in the answer" \
     "$(order_check 'the positive preference that shaped' \
         'the answer is recognisable in it')" "True"
-# Recognisable, not named: a proper name is one technique, and a paraphrase the
-# user would recognise is enough. A closed list would forbid the paraphrase and
-# would also have omitted `liked`.
-check "naming a stored object is offered as one way, not required" \
-    "$(order_check 'Naming the Vibe, the Genre or a film they liked or loved is one' \
-        'way to do that and not the only one' \
-        'a paraphrase they would recognise as their own is enough')" "True"
+# Recognisable in their words, never in Tonight's. A Vibe's or Genre's name in a
+# recommendation is the taxonomy talking, so the reason is what the Vibe says, the
+# film's verdict says whether they liked it, and where the film sits says how far
+# its reason may go. Names stay where the model itself is the subject.
+check "the preference is recognisable in their words, never in Tonight's labels" \
+    "$(order_check 'the answer is recognisable in it** — in what they wrote and said' \
+        'never in what Tonight files it under' '**Saying why** below is how')" "True"
+check "a Vibe or Genre is never named in a recommendation, and keeps its name for the model" \
+    "$(order_check '**Saying why.**' \
+        '**A Vibe or a Genre is never named in a recommendation**' \
+        'Their names are for the model itself: a read-back, a rename, a film saved, a Vibe proposed')" "True"
+check "what they like is the Vibe's instruction; whether they liked a film is its verdict" \
+    "$(order_check '**Saying why.**' \
+        "**What they like** is the Vibe's own instruction" \
+        '**Whether they liked a film** is its standing verdict and nothing else' \
+        '**No verdict, no *"you liked"* or *"you loved"***')" "True"
+check "a liked or loved core carries its Vibe's qualities only; any other film sits beside it" \
+    "$(order_check '**How a film they liked or loved connects** is where it sits in the Vibe' \
+        '**Its core** is the film the Vibe was written from' \
+        "that instruction's and no other, never what they said of another film beside it" \
+        '**Any other film in it** gets the verdict and the Vibe side by side' \
+        'never a reason for that film they did not give')" "True"
+check "a film's own because comes first, never contradicted or made stronger" \
+    "$(order_check "**A film's own \`because\` comes first.**" \
+        'never contradicted, never made stronger' 'never in their place')" "True"
+check "and the reason stays positive and specific" \
+    "$(order_check 'Positive and specific' "never a bare *\"fits your taste\"*")" "True"
+check "the permission to name a Vibe or Genre as the reason is gone" \
+    "$(grep -ciE 'Naming the Vibe, the Genre|a Vibe is named only as the reason' "$SKILL")" "0"
 check "and the visibility rule is about positive evidence, not any mention" \
     "$(order_check 'the positive preference that shaped')" "True"
 check "the two failures are named as one rule, from opposite ends" \
@@ -1052,6 +1074,7 @@ check "no mood given is answered, led as a surprise, never claimed as their mood
         '**No mood given is not an exception either**' 'With their model' 'read and not empty' \
         '**say it is a' 'surprise**' 'never that it is what they are in the mood for' \
         'Their Vibes are never listed, summarised or counted' \
+        'and never named: what one says may be the reason for a film, its name never is' \
         'An empty model and a failed read are their own cases')" "True"
 
 echo
