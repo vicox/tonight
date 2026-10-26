@@ -198,13 +198,13 @@ test("both kinds of request read the model; only an exclusion is mode-dependent"
     "positive evidence need not be visible in the answer");
 
   // The visibility rule is about a *positive* preference, and about it being
-  // recognisable rather than named. Dropping "positive" would let an exclusion
-  // narrated in passing satisfy it — the very run the candidate recorded — and
-  // mandating a name would rule out a paraphrase the user would recognise as
-  // their own, which the approved behaviour allows.
+  // recognisable in their words rather than in Tonight's. Dropping "positive"
+  // would let an exclusion narrated in passing satisfy it — the very run the
+  // candidate recorded — and a Vibe's or Genre's name is the taxonomy talking,
+  // never something they would recognise as their own.
   assert.match(exclusion, /positive/i, "the visibility rule does not require positive evidence");
-  assert.match(exclusion, /is one\s+way to do that and not the only one/,
-    "naming a stored object is no longer one way among others");
+  assert.match(exclusion, /in what they wrote and said, never in what Tonight files it under/,
+    "the preference may again be shown by the label Tonight keeps it under");
   assert.doesNotMatch(exclusion, /\b(must|always) name\b|\bname (the|a) (Vibe|Genre)\b/i,
     "the skill makes literal naming mandatory");
 
@@ -1221,7 +1221,8 @@ test("the taste model is evidence, and the skill says how strong", () => {
     ["a non-binding exclusion is not mentioned", /one that does not bind is \*\*not mentioned either\*\*/],
     ["the positive preference used is recognisable in the answer",
       /the positive preference that shaped\s+the answer is recognisable in it/],
-    ["and naming it is one way rather than the only one", /is one\s+way to do that and not the only one/],
+    ["and in their words, never Tonight's labels",
+      /in what they wrote and said, never in what Tonight files it under/],
     ["and is the only thing that is", /Everything else in the model is evidence either way/],
     ["discovery explores from what they wrote", /what they have written is where you explore from/],
     ["taste-aware makes the model the brief", /Now the model is the brief, and its exclusions hold/],
@@ -1539,12 +1540,57 @@ test("M6: with taste read and no mood, the answer still comes first, led as a su
   );
   assert.match(flat, /let the one question, if there is one, ask the mood/);
   assert.match(flat, /Their Vibes are never listed, summarised or counted/);
+  assert.match(flat, /and never named: what one says may be the reason for a film, its name never is/,
+    "a moodless pick may name the Vibe it came from again");
   assert.match(flat, /An empty model and a failed read are their own cases, and nothing here changes them/);
   // The empty model keeps its own question, and asks it alone when nothing was asked.
   assert.match(
     flat,
     /With an empty model the question is \*"what are two or three films you love\?"\* — and somebody new who has asked for nothing yet is asked it on its own, in one sentence/,
   );
+});
+
+test("a recommendation says why in their words, and never names a Vibe or a Genre", () => {
+  /**
+   * The landing page's reply — "You loved Arrival for its quiet tension…" — names
+   * no Vibe, and a recommendation must not either: the name is where Tonight files
+   * a preference, never the preference. Each part of the model says one thing: the
+   * Vibe's instruction what they like, the verdict whether they liked a film, and
+   * where the film sits how far its reason may go. A core with a standing positive
+   * verdict may carry its own Vibe's qualities and no other film's; any other film
+   * only sits beside the Vibe. A film's own `because` comes first.
+   */
+  const flat = flatSkill();
+  const why = flat.slice(flat.indexOf("**Saying why.**"), flat.indexOf("Either way, **they asked for a film"));
+  assert.ok(why.length > 200, "the Saying why rule could not be found");
+  assert.ok(
+    flat.indexOf("**Saying why.**") > flat.indexOf("What the model is evidence *of*:"),
+    "Saying why is not read after what the model is evidence of",
+  );
+
+  for (const [what, rule] of [
+    ["no Vibe or Genre named in a recommendation", /\*\*A Vibe or a Genre is never named in a recommendation\*\*/],
+    ["names kept for the model itself",
+      /Their names are for the model itself: a read-back, a rename, a film saved, a Vibe proposed/],
+    ["what they like is the Vibe's instruction", /\*\*What they like\*\* is the Vibe's own instruction, said back to them/],
+    ["whether they liked a film is its verdict",
+      /\*\*Whether they liked a film\*\* is its standing verdict and nothing else/],
+    ["no verdict, no liked or loved", /\*\*No verdict, no \*"you liked"\* or \*"you loved"\*\*\*/],
+    ["the core carries its Vibe's qualities", /\*\*Its core\*\* is the film the Vibe was written from, so it may carry that Vibe's qualities/],
+    ["and no other film's", /that instruction's and no other, never what they said of another film beside it/],
+    ["any other film sits beside the Vibe",
+      /\*\*Any other film in it\*\* gets the verdict and the Vibe side by side/],
+    ["with no reason they did not give", /never a reason for that film they did not give/],
+    ["a film's own because first", /\*\*A film's own `because` comes first\.\*\*/],
+    ["never contradicted or made stronger", /never contradicted, never made stronger; the Vibe's may sit beside them, never in their place/],
+    ["positive and specific", /Positive and specific: a quality they would recognise as theirs, never a bare \*"fits your taste"\*/],
+  ] as [string, RegExp][]) {
+    assert.match(why, rule, `Saying why no longer says ${what}`);
+  }
+
+  // The permission it replaced must not survive beside it.
+  assert.doesNotMatch(flat, /Naming the Vibe, the Genre|a Vibe is named only as the reason/,
+    "naming a Vibe or Genre as the reason is allowed again");
 });
 
 /**
