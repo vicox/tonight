@@ -15,20 +15,25 @@ import { fileURLToPath } from "node:url";
  * signed-in user has saved, and nothing else. Every other change —
  * a film added, retitled, refiled or removed, a genre or a vibe, an evening — is
  * made through an assistant, over `/mcp`, by the tools in `lib/mcp/server.ts`.
+ * Beside the model, the Stream keeps one setting of its own — whether *Include
+ * previously seen* is ticked — posted to `/stream/include-seen` and kept by
+ * `lib/web/stream-settings.ts`, which writes that one value and nothing else.
  *
  * So the guard is structural rather than a refusal at runtime. Next.js routes by
  * file: a path with no handler answers 404 to every method, so a write route
  * that does not exist cannot be called by a browser, a script or anyone else.
  * What has to be kept true is that no other comes, and these tests fail the
  * moment one does — a route that accepts a mutating method, a server action, a
- * client `fetch`, a form posting anywhere but sign-in, sign-out and the choices,
- * a page or component calling a store operation that writes, or the choice route
- * writing anything beyond its three kinds of write.
+ * client `fetch` other than the Stream setting's, a form posting anywhere but
+ * sign-in, sign-out and the choices, a page or component calling a store
+ * operation that writes, or the choice route writing anything beyond its three
+ * kinds of write.
  *
  * What is mutable is listed, and nothing else may join it: the website's own
  * sign-in and sign-out, which write a browser session and nothing of the user's
- * taste; a film's choices; and the shared MCP and OAuth routes, which are the
- * assistant's surface and are deliberately not the website's to limit.
+ * taste; a film's choices; the Stream setting; and the shared MCP and OAuth
+ * routes, which are the assistant's surface and are deliberately not the
+ * website's to limit.
  */
 
 const WEB = fileURLToPath(new URL("../../", import.meta.url));
@@ -73,7 +78,8 @@ function mutatingRoutes(): string[] {
  *
  * `auth/*` writes a browser session, a parked sign-in and a rate-limit counter —
  * authentication, without which the signed-in screens cannot be reached.
- * `movie/choose` is a film's answers, and only those — see the last test.
+ * `movie/choose` is a film's answers, and only those — see the choice route's test.
+ * `stream/include-seen` is the Stream's one setting, and only that — see the last test.
  * `mcp` and `oauth/*` are the assistant's surface: MCP sessions, client
  * registrations, authorization codes, and every write an assistant makes on the
  * user's behalf.
@@ -87,6 +93,7 @@ const ALLOWED = [
   "oauth/authorize POST",
   "oauth/register POST",
   "oauth/token POST",
+  "stream/include-seen POST",
 ].sort();
 
 test("the website's write routes are gone, not guarded", () => {
@@ -98,11 +105,11 @@ test("the website's write routes are gone, not guarded", () => {
   }
 });
 
-test("the only routes that accept a write are sign-in, sign-out, a film's choices and the assistant's", () => {
+test("the only routes that accept a write are sign-in, sign-out, a film's choices, the Stream setting and the assistant's", () => {
   assert.deepEqual(
     mutatingRoutes(),
     ALLOWED,
-    "a route accepts a mutating method that is not authentication, a film's choices or MCP",
+    "a route accepts a mutating method that is not authentication, a film's choices, the Stream setting or MCP",
   );
 });
 
@@ -125,7 +132,18 @@ test("there are no server actions anywhere", () => {
   }
 });
 
-test("no component sends a request or re-reads the page after one", () => {
+test("no component sends a request but the Stream setting, or re-reads the page after one", () => {
+  // The one request: *Include previously seen* posting its own answer to the
+  // route kept for it, pinned in the last test — through the one sender in
+  // `lib/web/stream-settings/browser.ts`, which nothing else on the page uses.
+  const sender = read(join("lib", "web", "stream-settings", "browser.ts"));
+  assert.equal((sender.match(/\bfetch\s*\(/g) ?? []).length, 1, "the Stream setting sends more than one request");
+  assert.match(sender, /\bfetch\("\/stream\/include-seen", \{\s*method: "POST",/, "the Stream setting posts elsewhere");
+  const users = [...files(APP), ...files(COMPONENTS)]
+    .filter(shipped)
+    .filter((path) => /stream-settings\/browser/.test(read(path)));
+  assert.deepEqual(users, [join("components", "include-previously-seen.tsx")], "something else sends through the Stream setting");
+
   for (const path of files(COMPONENTS).filter(shipped)) {
     const source = read(path);
     assert.doesNotMatch(source, /\bfetch\s*\(/, `${path} sends a request`);
@@ -251,4 +269,31 @@ test("no page or component calls a store operation that writes", () => {
   for (const one of ["createGenre", "deleteVibe", "updateMovie", "say", "record"]) {
     assert.match(server, new RegExp(`\\.${one}\\(`), `the MCP server no longer calls ${one}`);
   }
+});
+
+test("the Stream setting route keeps one yes-or-no for the session's user, and nothing else", () => {
+  // The route file hands the request over and does nothing of its own.
+  const route = read(join("app", "stream", "include-seen", "route.ts"));
+  assert.match(route, /return handleIncludeSeen\(request\);/);
+
+  // Behind the same three checks as a film's answers, and writing through one
+  // operation, for the session's user, with a value that is only ever a boolean.
+  const handler = read(join("lib", "web", "stream-settings.ts"));
+  for (const [check, name] of [
+    [/wrongOrigin\(request, config/, "the canonical origin"],
+    [/crossSite\(request, config\)/, "a page of ours"],
+    [/signedInVisitor\(sessionOf\(request, config\)\)/, "a session"],
+  ] as [RegExp, string][]) {
+    assert.match(handler, check, `the Stream setting route does not check ${name}`);
+  }
+  assert.match(handler, /if \(value !== "true" && value !== "false"\)/);
+  assert.match(handler, /streamSettings\(visitor\.user\)\)\.keepIncludeSeen\(value === "true"\)/);
+  const code = handler.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+  assert.doesNotMatch(code, /\b(tasteStore|verdictStore|episodeStore|webStore)\s*\(/, "the Stream setting reaches another store");
+
+  // And the one statement that writes touches its own table and no other.
+  const sql = read(join("lib", "web", "stream-settings", "sql.ts"));
+  // `DO UPDATE` is the upsert's own conflict clause, on the table it inserts into.
+  const writes = [...sql.matchAll(/\b(INSERT INTO|(?<!DO )UPDATE|DELETE FROM)\s+(\w+)/g)].map((match) => match[2]);
+  assert.deepEqual(writes, ["stream_settings"], "the Stream setting writes somewhere else");
 });

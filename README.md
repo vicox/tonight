@@ -247,7 +247,7 @@ beside it — all read through the same store the MCP tools use. There is no sec
 second copy of the rules.
 
 The website shows a film-centred view of the model, with a page for each Vibe, and changes almost
-none of it. Its one write endpoint is a film's page asking *What do you think?*: *Love it*, *Like
+none of it. Its one write endpoint into the model is a film's page asking *What do you think?*: *Love it*, *Like
 it* and *Dislike* say a verdict and, with it, that they saw the film — *Seen now*, unless it was
 already seen — and then ask *When did you see it?*, whose *Seen now* and *Seen before* change only
 that; *Want to see* and *Not interested* set where the film stands on the user's list and take back
@@ -257,7 +257,9 @@ under the same rules, and nothing else. A film they like or love stays in at lea
 Vibe's core stays a film they watched, moving only between *Seen now* and *Seen before*. Every
 other change — a film
 added, retitled, refiled or removed, a Genre or Vibe created, renamed or deleted — is made through
-an assistant, which uses the MCP tools and does it there and then. It does not recommend, and it has no model inside it to
+an assistant, which uses the MCP tools and does it there and then. Outside the model, the Stream
+keeps one setting per user — whether *Include previously seen* is ticked — so the box opens as it
+was left, in any browser. It does not recommend, and it has no model inside it to
 recommend with: the panel at the foot of the page names the sentence to take to your assistant.
 
 Every Movie is listed, newest first, with the Vibes it is in — a Movie in no Vibe is listed too,

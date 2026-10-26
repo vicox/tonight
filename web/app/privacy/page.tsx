@@ -42,7 +42,8 @@ export default function Privacy() {
           This policy covers the hosted service at tonight.movie — its web pages including the
           signed-in view of your taste model at <code>/</code>, the website&rsquo;s own sign-in
           endpoints under <code>/auth</code>, the one endpoint a film&rsquo;s page saves your choice
-          through at <code>/movie/choose</code>,
+          through at <code>/movie/choose</code>, the one the Stream keeps its setting through at{" "}
+          <code>/stream/include-seen</code>,
           the endpoints an MCP client is authorized through under <code>/oauth</code>, and the MCP
           endpoint at <code>/mcp</code>.
         </p>
@@ -223,8 +224,9 @@ export default function Privacy() {
         <p>
           <strong>What is still deliberately not stored.</strong> Tonight keeps no scored or star ratings,
           and no profile built from how you use it: nothing is recorded from what you click, when
-          you visit or how often, and nothing Tonight works out on its own becomes part of what it
-          recommends without your say-so. Nor does it keep a film catalogue: no film exists here
+          you visit or how often — the one setting described below keeps whether a box is ticked,
+          never when or how often you changed it — and nothing Tonight works out on its own
+          becomes part of what it recommends without your say-so. Nor does it keep a film catalogue: no film exists here
           until you name one, and nothing about it — not a poster, not a runtime, not a cast — is
           ever looked up from a movie database. The IMDb id you may give a film is stored as a
           pointer and never followed.
@@ -266,6 +268,12 @@ export default function Privacy() {
           same kind of values.
         </p>
         <p>
+          <strong>Your Stream setting.</strong> Whether <em>Include previously seen</em> on your
+          Stream is ticked: one yes-or-no against your user key, so the box is as you left it in
+          every browser you sign in with. It is ticked until you untick it, only the latest answer is
+          kept, and it is not part of your taste model — nothing else reads it.
+        </p>
+        <p>
           Authorization codes, refresh tokens, session cookies and the browser bindings are stored{" "}
           <strong>only as hashes</strong>; the values themselves are held by your client or your
           browser, not by us. Tonight&rsquo;s own access tokens, which only MCP clients get, are signed
@@ -281,9 +289,9 @@ export default function Privacy() {
           not, the request is counted in a single shared counter and no address is involved at all.
         </p>
         <p>
-          Legal basis: the operator relies on Art. 6(1)(b) GDPR for the taste model and the sign-in
-          data, and on Art. 6(1)(f) GDPR for the rate-limit counters, the legitimate interest being to
-          keep the service available and to prevent abuse.
+          Legal basis: the operator relies on Art. 6(1)(b) GDPR for the taste model, your Stream
+          setting and the sign-in data, and on Art. 6(1)(f) GDPR for the rate-limit counters, the
+          legitimate interest being to keep the service available and to prevent abuse.
         </p>
       </section>
 
@@ -493,7 +501,7 @@ export default function Privacy() {
         <p>
           <strong>Everything Tonight holds about you</strong> — your genres, your vibes, the
           films you saved, everything you have said about a film whether or not that film is one
-          you saved, and the evenings Tonight recorded — is
+          you saved, the evenings Tonight recorded, and your Stream setting — is
           subject to a policy of the operator rather
           than a rule in the software: it is{" "}
           <strong>intended to be kept until the closed beta ends</strong>, and the operator will delete

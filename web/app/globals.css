@@ -49,9 +49,9 @@ html {
   color-scheme: dark;
 }
 
-/* The Stream's one filter (`components/stream-view.tsx`): with *Include
-   previously seen* unticked, a film saved as seen before is not drawn. Only
-   hidden — nothing is fetched or written, and the other cards keep their order. */
+/* The Stream's one filter (`components/include-previously-seen.tsx`): with
+   *Include previously seen* unticked, a film saved as seen before is not drawn.
+   Only hidden — nothing is fetched, and the other cards keep their order. */
 .stream-films:has(#include-previously-seen:not(:checked)) [data-viewing="seen-before"] {
   display: none;
 }
