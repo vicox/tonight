@@ -5,6 +5,7 @@ import { SignedIn, Unavailable } from "@/components/signed-in";
 import { SiteHeader, SignIn } from "@/components/site-header";
 import { StreamView } from "@/components/stream-view";
 import { readHeld, resolveVisitor } from "@/lib/web/held";
+import { readIncludeSeen } from "@/lib/web/stream-settings";
 import type { SignedInVisitor } from "@/lib/web/visitor";
 
 /**
@@ -154,14 +155,14 @@ function Landing() {
 
 /** The same address, signed in: this user's films, and nobody else's. */
 async function Yours({ visitor }: { visitor: SignedInVisitor }) {
-  const held = await readHeld(visitor);
+  const [held, includeSeen] = await Promise.all([readHeld(visitor), readIncludeSeen(visitor)]);
 
   return (
     <SignedIn email={visitor.email}>
       {held === "unavailable" ? (
         <Unavailable />
       ) : (
-        <StreamView taste={held.taste} standing={held.standing} />
+        <StreamView taste={held.taste} standing={held.standing} includeSeen={includeSeen} />
       )}
     </SignedIn>
   );

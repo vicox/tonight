@@ -332,11 +332,13 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
   assert.match(privacy, /choosing <em>Want to\s+see<\/em> or <em>Not interested<\/em> also takes back your opinion of it/);
   assert.match(privacy, /pressing an opinion again takes it back/);
   assert.match(privacy, /<code>\/movie\/choose<\/code>/, "the write endpoint is not in the policy's scope");
+  assert.match(privacy, /<code>\/stream\/include-seen<\/code>/, "the Stream setting's endpoint is not in the policy's scope");
+  assert.match(privacy, /<strong>Your Stream setting\.<\/strong> Whether <em>Include previously seen<\/em>/);
   assert.match(privacy, /what a genre means is not on it at all/, "the genre meaning the page no longer shows is not disclosed");
   assert.match(privacy, /delete any vibe at any time through your assistant/);
   assert.match(text("terms"), /For a film, adding one and removing one are done through your assistant/);
   assert.match(text("terms"), /or with the choices on the film&rsquo;s page on the website/);
-  assert.match(text("readme"), /Its one write endpoint is a film's page asking \*What do you think\?\*/);
+  assert.match(text("readme"), /Its one write endpoint into the model is a film's page asking \*What do you think\?\*/);
   assert.match(text("readme"), /is made through an assistant/);
 
   // The read-only claims, now untrue in their absolute form.
@@ -429,6 +431,7 @@ test("every durable root the application opens is named in the retention promise
     // missing.
     oauth: /Sign-in and connection data/,
     web: /Sign-in and connection data/,
+    stream_settings: /the evenings Tonight recorded, and your Stream setting/,
   };
 
   const terms = text("terms");

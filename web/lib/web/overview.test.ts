@@ -58,6 +58,8 @@ const BACK = new URL("../../components/back-to-stream.tsx", import.meta.url);
 const FRAME = new URL("../../components/signed-in.tsx", import.meta.url);
 const VIBE_PAGE = new URL("../../app/vibe/page.tsx", import.meta.url);
 const MOVIE_PAGE = new URL("../../app/movie/page.tsx", import.meta.url);
+const FILTER = new URL("../../components/include-previously-seen.tsx", import.meta.url);
+const HOME_PAGE = new URL("../../app/page.tsx", import.meta.url);
 
 const source = readFileSync(VIEW, "utf8");
 const section = readFileSync(SECTION, "utf8");
@@ -74,6 +76,8 @@ const back = readFileSync(BACK, "utf8");
 const frame = readFileSync(FRAME, "utf8");
 const vibePage = readFileSync(VIBE_PAGE, "utf8");
 const moviePage = readFileSync(MOVIE_PAGE, "utf8");
+const filter = readFileSync(FILTER, "utf8");
+const page = readFileSync(HOME_PAGE, "utf8");
 const globals = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
 
 /** Every file the redesigned screens added, by name, for the checks that hold all of them. */
@@ -831,32 +835,52 @@ test("what do you think is five buttons, and when did you see it two, each in a 
   }
 });
 
-test("the Stream's one filter: include previously seen, ticked, under the heading, and drawing only", () => {
+test("the Stream's one filter: include previously seen, under the heading, drawing only, and kept per user", () => {
   // Inside the Stream's own list of films, before the cards: the first thing under
   // *Your movies* and its count, right-aligned, then the cards.
   const films = source.slice(source.indexOf('<div className="stream-films">'), source.indexOf("</Section>"));
   assert.ok(films.length > 0, "the films are not wrapped for the filter");
   const row = films.indexOf('<div className="-mt-4 mb-1 flex justify-end">');
-  const box = films.indexOf("<input");
+  const box = films.indexOf("<IncludePreviouslySeen saved={includeSeen.saved} readAt={includeSeen.readAt} />");
   const cards = films.indexOf("<MovieCards");
   assert.ok(row >= 0 && row < box && box < cards, "the filter is not right-aligned under the heading, above the first card");
 
-  // The label in the user's words, small and quiet, and a press area of 36px.
-  assert.match(films, /<label className="inline-flex min-h-9 cursor-pointer items-center gap-2 px-1 text-\[12px\] text-ink-soft">/);
-  assert.match(films, /\/>\s*Include previously seen\s*<\/label>/);
+  // The Stream stays a server component with no field of its own: the box is
+  // the one piece of it that runs in the browser.
+  assert.equal((source.match(/<input\b/g) ?? []).length, 0, "the Stream has a field of its own");
+  assert.doesNotMatch(source, /<form\b|^"use client";|\buse(State|Effect)\b|localStorage|document\.cookie|\bfetch\s*\(/m);
 
-  // Ticked on every load, and nothing else: no name, no form, no handler, no
-  // request, no saved preference, no client code.
-  const input = films.slice(box, films.indexOf("/>", box) + 2);
+  // The label in the user's words, small and quiet, and a press area of 36px.
+  assert.match(filter, /<label className="inline-flex min-h-9 cursor-pointer items-center gap-2 px-1 text-\[12px\] text-ink-soft">/);
+  assert.match(filter, /\/>\s*Include previously seen\s*<\/label>/);
+
+  // Opens as this user left it — what the server read, unless this tab pressed
+  // it since — and a press keeps the new answer. Never controlled, and never a
+  // form. Which answer wins, and when a press is sent, is behaviour, tested in
+  // `stream-settings/browser.test.ts`.
+  const at = filter.indexOf("<input");
+  const input = filter.slice(at, filter.indexOf("/>", at) + 2);
   assert.match(input, /id="include-previously-seen"/);
   assert.match(input, /type="checkbox"/);
-  assert.match(input, /\bdefaultChecked\b/, "the filter is not ticked by default");
-  assert.doesNotMatch(input, /\bname=|\bchecked=|\bon[A-Z]\w*=|\bform=/, "the filter reaches beyond what is drawn");
-  assert.equal((source.match(/<input\b/g) ?? []).length, 1, "the Stream has another field");
-  assert.doesNotMatch(source, /<form\b|^"use client";|\buse(State|Effect)\b|localStorage|document\.cookie/m);
+  assert.match(input, /defaultChecked=\{box\.opening\(saved, readAt\)\}/, "the filter does not open as it was left");
+  // Drawn again in place from a new read, the box is a new element, or it would
+  // keep the old answer: a changed `defaultChecked` does not reach one already drawn.
+  assert.match(input, /\bkey=\{readAt\}/, "a Stream read again in place keeps the old answer");
+  assert.match(input, /onChange=\{\(event\) => box\.keep\(event\.currentTarget\.checked\)\}/);
+  assert.doesNotMatch(input, /\bname=|\bchecked=|\bform=/, "the filter is controlled, or posts as a form");
+  assert.equal((filter.match(/<input\b/g) ?? []).length, 1, "the filter has another field");
+  assert.match(page, /readIncludeSeen\(visitor\)/, "the Stream does not read the kept answer");
+  assert.match(page, /<StreamView taste=\{held\.taste\} standing=\{held\.standing\} includeSeen=\{includeSeen\} \/>/);
+
+  // What a press keeps is its answer, through the one sender for it — sent
+  // before the page goes when it is hidden — and nothing in the browser.
+  assert.match(filter, /^"use client";/m);
+  assert.match(filter, /const box = keeper\(post\);/);
+  assert.match(filter, /if \(document\.visibilityState === "hidden"\) box\.flush\(\);/, "a waiting press is lost when the page closes");
+  assert.doesNotMatch(filter, /\bfetch\s*\(|<form\b|localStorage|sessionStorage|document\.cookie|useRouter|router\./);
 
   // Every film is still handed over, in the order `stream` gives — the filter
-  // draws less, it never orders or fetches anything.
+  // draws less, it never orders or fetches a film.
   assert.match(films, /<MovieCards movies=\{stream\(movies\)\} label="Your movies, most recently saved first" \/>/);
   assert.match(card, /<li className="[^"]*" data-viewing=\{movie\.viewing\}>/, "a card does not say where its film stands");
 
@@ -872,13 +896,12 @@ test("the Stream's one filter: include previously seen, ticked, under the headin
 });
 
 test("the new screens have nothing to press but links, and a film's answers", () => {
-  for (const [name, original] of NEW) {
+  // The Stream's one filter is a component of its own, pinned above, and not
+  // one of these.
+  for (const [name, file] of NEW) {
     // Its forms and their buttons are the answers, pinned above; what it must
     // not have is pinned there too.
     if (name === "movie-choices.tsx") continue;
-    // The Stream's one filter is the field it may have, pinned above.
-    const file =
-      name === "stream-view.tsx" ? original.replace(/<input\s+id="include-previously-seen"[\s\S]*?\/>/, "") : original;
     for (const [what, pattern] of [
       ["a button", /<button\b/],
       ["a menu", /role="menu"|aria-haspopup="menu"/],

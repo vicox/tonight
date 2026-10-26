@@ -2,6 +2,7 @@ import { EPISODES_SCHEMA } from "../episodes/store/sql.ts";
 import { OAUTH_SCHEMA } from "../oauth/store/sql.ts";
 import { TASTE_SCHEMA } from "../taste/store/sql.ts";
 import { VERDICTS_SCHEMA } from "../verdicts/store/sql.ts";
+import { STREAM_SETTINGS_SCHEMA } from "../web/stream-settings/sql.ts";
 import { WEB_SCHEMA } from "../web/store/sql.ts";
 import type { SchemaModule } from "./migrate.ts";
 import { RETIRED_SCHEMAS } from "./retired.ts";
@@ -38,6 +39,7 @@ import { RETIRED_SCHEMAS } from "./retired.ts";
 export const ALL_SCHEMAS: readonly SchemaModule[] = [
   OAUTH_SCHEMA,
   WEB_SCHEMA,
+  STREAM_SETTINGS_SCHEMA,
   TASTE_SCHEMA,
   EPISODES_SCHEMA,
   VERDICTS_SCHEMA,

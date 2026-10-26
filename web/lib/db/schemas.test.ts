@@ -5,6 +5,7 @@ import { sqlEpisodeStore } from "../episodes/store/sql.ts";
 import type { AuthenticatedUser } from "../identity.ts";
 import { sqlTasteStore } from "../taste/store/sql.ts";
 import { sqlVerdictStore } from "../verdicts/store/sql.ts";
+import { sqlStreamSettings } from "../web/stream-settings/sql.ts";
 import { migrate, type SchemaModule } from "./migrate.ts";
 import { embeddedDriver } from "./pglite.ts";
 import { RETIRED_SCHEMAS } from "./retired.ts";
@@ -47,6 +48,8 @@ describe("the production migration catalog", () => {
       assert.deepEqual((await taste.taste()).genres, []);
       assert.deepEqual(await episodes.episodes(), []);
       assert.deepEqual(await verdicts.standing(), []);
+      // And the Stream's one setting, which the website opens beside them.
+      assert.equal(await sqlStreamSettings(driver, who).includeSeen(), true);
 
     } finally {
       await driver.close();
@@ -104,10 +107,15 @@ describe("the production migration catalog", () => {
       "tonight_verdict_acts",
     ];
 
+    // Nor is a setting of the website's own: whether the Stream's *Include
+    // previously seen* is ticked says how a page is drawn, not what somebody
+    // likes. Named for the same reason as the rest.
+    const SETTINGS = ["stream_settings"];
+
     assert.deepEqual(
       [...created].sort(),
-      [...INFRASTRUCTURE, ...PRODUCT_MEMORY].sort(),
-      "a table exists that is neither infrastructure nor one of the five product-memory roots",
+      [...INFRASTRUCTURE, ...PRODUCT_MEMORY, ...SETTINGS].sort(),
+      "a table exists that is neither infrastructure, one of the five product-memory roots nor the Stream setting",
     );
 
     // And the three that are gone stay gone. Named individually: the failure
@@ -146,8 +154,8 @@ describe("the production migration catalog", () => {
 
     assert.deepEqual(
       [...prepared].sort(),
-      ["EPISODES_SCHEMA", "OAUTH_SCHEMA", "TASTE_SCHEMA", "VERDICTS_SCHEMA", "WEB_SCHEMA"],
-      "the schemas the application opens at run time are not the five it should",
+      ["EPISODES_SCHEMA", "OAUTH_SCHEMA", "STREAM_SETTINGS_SCHEMA", "TASTE_SCHEMA", "VERDICTS_SCHEMA", "WEB_SCHEMA"],
+      "the schemas the application opens at run time are not the six it should",
     );
     // And the retirement is reachable from exactly one place. `retired.ts`
     // exists to be migrated and for nothing else, so a second importer would be
