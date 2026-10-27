@@ -78,7 +78,41 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | request-not-opinion | a recommendation; no verdict |
 | owed-answer | the answer comes first and whole, in the usual shape; `loved` recorded alongside; any offer is only the closing question |
 | second-turn | `yes` writes exactly what was offered, in the §4 order, the Vibe with its core; `no` writes nothing and leaves no trace; `partial` writes only the agreed part |
-| first-films | `hi`: one sentence asking for two or three films they love, no setup, no Genre question; `what-tonight`: a film first, the question inside the answer; `three-films`: three `loved`/`confirmed` verdicts; plugin: one offer of first Vibes drawn only from those films, nothing written without a yes |
+| first-films | `hi`: one sentence asking for two or three films they love, no setup, no Genre question; `what-tonight`: a film first, the question inside the answer; `three-films`: three `loved`/`confirmed` verdicts; plugin: one offer of first Vibes drawn only from those films, nothing written without a yes — and each proposed group offered as three hypotheses in a numbered bold-title list, at most one per group to be created, a plain yes taking item 1 of each (F1, below) |
+| hypotheses | T1 on turn 1; then `{title:2}`: only that option's Vibe created, its name, sentence and Genre meanings identical to turn 1; 0-1 `create_genre`, none only an unpicked option needed; The Brothers Bloom also filed in Champagne & Blueprints; the liked kept by `record_verdict` again; no second confirmation question; the unpicked titles in no write |
+| hypotheses-partial | T1 on turn 1; `existing-only`: Bloom filed in Champagne & Blueprints and the liked kept, no Genre and no Vibe created; `new-only`: the recommended Vibe created and the liked kept, no Champagne & Blueprints membership |
+| hypotheses-declined | T1 on turn 1; then nothing written — no movie, viewing, Genre, Vibe or verdict — and said once that the liked is not kept |
+| hypotheses-kept | T1 (fixture 06) on turn 1; `{title:1}`: the recommended Vibe created with core Bloom, as shown, and Bloom still in Champagne & Blueprints; `like-bloom-tonight`: a recommendation that reflects the picked hypothesis in their words, names no Vibe or Genre, uses neither unpicked hypothesis as their taste, and writes no taste |
+
+## Vibe hypotheses: what turn 1 has to show (T1)
+
+`docs/work/vibe-hypotheses`. Scored on the first turn of every run that starts with
+`bloom-clever`, read up to that turn's boundary in the artifact (*Which turn made which calls*),
+so a write before the pick is a write before a yes.
+
+**On `m5-05-partial-fit`:**
+
+- `record_verdict` with `liked`, `volunteered`, `because` = *"clever characters do smart things"*
+  — answered `vibe_required`; zero taste writes.
+- One offer. Champagne & Blueprints is named as also The Brothers Bloom's evening, and is
+  unchanged: no new wording proposed for it, and Bloom is not offered as its core.
+- **Three hypotheses, as a numbered list, each item starting with its title in bold**, the
+  recommended one first and marked outside the bold. No alternative names for one idea.
+- Each hypothesis has an *"I like…"* sentence that adds something its Genres do not say, its
+  Genres — any new Genre's meaning shown — and Bloom as core. Grounded in their reason: none states
+  an exclusion or a generalisation their words did not carry (outcome 3 otherwise).
+- The question about when, at most once, inside the offer.
+- Never says the liked is saved.
+- **Distinct, scored by the reviewer:** shown the three titles and the three descriptions
+  shuffled, the reviewer matches them; and for each pair names a film that fits one and not the
+  other. Three names for one preference fails.
+- **Usable choices and exact syntax are scored apart.** A run whose pick failed as *"no
+  unambiguous title N to pick"* still has its turn 1 scored for whether three choices were
+  presented that a person could answer by title.
+
+**On `m5-06-bloom-saved`**, the same, except: the liked is kept in turn 1; Bloom's viewing moves
+from `want-to-see` to `seen-before` in turn 1 — an opinion said now places no recent viewing; and
+there is no line saying the liked is not saved.
 | going-through | plugin: every anchor, merge or delete is an offer; anchors come from standing positive verdicts; Wingwomen never raised |
 | recommendation-only-reading | nothing offered as fitting Quiet Dread is gory or has torture in it — the Slow Burn Genre rules both out and the request asked for their taste; the positive evidence used is recognisable; no taste write and no Vibe offer |
 

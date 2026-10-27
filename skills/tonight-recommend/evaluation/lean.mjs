@@ -15,8 +15,54 @@
 /** The default cap, in model calls, for any invocation that does not name its own. */
 export const DEFAULT_BUDGET = 12;
 
-/** One `claude -p` per turn: a scenario with a second turn makes two calls a run. */
-export const callsPerRun = (scenario) => (scenario.then ? 2 : 1);
+/**
+ * A scenario's follow-up turns, in order, each a request key: none, one (`then: "yes"`),
+ * or a list (`then: ["pick-title-one", "like-bloom-tonight"]`) when a pick has to be
+ * followed by a request in the same conversation.
+ */
+export const followUps = (scenario) =>
+  scenario.then === undefined ? [] : Array.isArray(scenario.then) ? [...scenario.then] : [scenario.then];
+
+/** One `claude -p` per turn: the first, and one for every follow-up. */
+export const callsPerRun = (scenario) => 1 + followUps(scenario).length;
+
+/** The follow-ups as a run's name carries them: `__then-yes`, or `__then-a__then-b`. */
+const thenKey = (scenario) => followUps(scenario).map((one) => `__then-${one}`).join("");
+
+/**
+ * A follow-up that picks a title from the answer before it: `{title:N}`, the whole
+ * request. The user chooses from the title alone (docs/work/vibe-hypotheses), so the
+ * evaluation answers the way they would — with the title, as the agent wrote it.
+ */
+const TITLE_PICK = /^\{title:([1-9])\}$/;
+
+/**
+ * The title numbered `n` in an answer, or null.
+ *
+ * A title is a numbered list item whose line starts with the number and then a bold
+ * span, and the title is that span alone — a recommended marker sits after the bold,
+ * never inside it. Exactly one item numbered `n`, or nothing: two lists in one answer,
+ * or a number with no bold span, is not a choice anybody could answer by title.
+ */
+export function titleNumbered(answer, n) {
+  const item = new RegExp(`^[ \\t]*${n}[.)][ \\t]+\\*\\*([^*\\n]+)\\*\\*`, "gm");
+  const found = [...String(answer ?? "").matchAll(item)].map((match) => match[1].trim()).filter(Boolean);
+  return found.length === 1 ? found[0] : null;
+}
+
+/**
+ * What a follow-up sends: the request as written, or — for `{title:N}` — the title the
+ * answer before it numbered N. An ambiguous pick is a failure of that turn, decided
+ * before any model call is made.
+ */
+export function resolveTurn(request, previousAnswer) {
+  const pick = TITLE_PICK.exec(request);
+  if (pick === null) return { sent: request, failure: null };
+  const title = titleNumbered(previousAnswer, Number(pick[1]));
+  return title === null
+    ? { sent: null, failure: `no unambiguous title ${pick[1]} to pick` }
+    : { sent: title, failure: null };
+}
 
 /** The model calls a list of planned runs would make. */
 export const plannedCalls = (work) => work.reduce((sum, item) => sum + callsPerRun(item.scenario), 0);
@@ -36,7 +82,7 @@ export function checkBudget(planned, budget) {
 
 /** A scenario's run name — the stem every one of its files shares. */
 export const runName = (scenario, index) =>
-  `${scenario.fixture}__${scenario.prompt}${scenario.then ? `__then-${scenario.then}` : ""}__${String(index).padStart(2, "0")}`;
+  `${scenario.fixture}__${scenario.prompt}${thenKey(scenario)}__${String(index).padStart(2, "0")}`;
 
 /**
  * Which scenarios run: the source's own, then `--only`'s comma-separated list (each a
@@ -45,7 +91,7 @@ export const runName = (scenario, index) =>
  */
 export function select(scenarios, { source, only = null, smoke = false }) {
   const wanted = only === null ? null : only.split(",").map((one) => one.trim()).filter(Boolean);
-  const key = (one) => `${one.fixture}__${one.prompt}${one.then ? `__then-${one.then}` : ""}`;
+  const key = (one) => `${one.fixture}__${one.prompt}${thenKey(one)}`;
   return scenarios.filter(
     (one) =>
       one.sources.includes(source) &&

@@ -20,5 +20,10 @@
   { "fixture": "m5-02-empty", "prompt": "hi", "then": "three-films", "family": "first-films", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
   { "fixture": "m5-03-legacy", "prompt": "go-through", "family": "going-through", "considers": false, "sources": ["plugin-skills"] },
   { "fixture": "m5-03-legacy", "prompt": "loved-machete", "family": "going-through", "considers": true, "sources": ["plugin-skills"] },
-  { "fixture": "m5-04-reading", "prompt": "from-my-taste", "family": "recommendation-only-reading", "considers": false, "sources": ["recommend-only"] }
+  { "fixture": "m5-04-reading", "prompt": "from-my-taste", "family": "recommendation-only-reading", "considers": false, "sources": ["recommend-only"] },
+  { "fixture": "m5-05-partial-fit", "prompt": "bloom-clever", "then": "pick-title-two", "family": "hypotheses", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-05-partial-fit", "prompt": "bloom-clever", "then": "existing-only", "family": "hypotheses-partial", "considers": true, "sources": ["plugin-skills"] },
+  { "fixture": "m5-05-partial-fit", "prompt": "bloom-clever", "then": "new-only", "family": "hypotheses-partial", "considers": true, "sources": ["plugin-skills"] },
+  { "fixture": "m5-05-partial-fit", "prompt": "bloom-clever", "then": "no", "family": "hypotheses-declined", "considers": true, "sources": ["plugin-skills"] },
+  { "fixture": "m5-06-bloom-saved", "prompt": "bloom-clever", "then": ["pick-title-one", "like-bloom-tonight"], "family": "hypotheses-kept", "considers": true, "sources": ["plugin-skills"] }
 ]

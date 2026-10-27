@@ -7,10 +7,10 @@ reruns it (`docs/work/m5/M5-PLAN.md`, §10 and Revision 4).
 
 | file | what it is |
 | --- | --- |
-| `scenarios.json` | the matrix: fixture, request, an optional second turn, the family, whether it counts toward the missed-consideration metric, and the sources it runs on |
+| `scenarios.json` | the matrix: fixture, request, optional follow-up turns, the family, whether it counts toward the missed-consideration metric, and the sources it runs on |
 | `prompts.md` | every request, verbatim |
 | `rubric.md` | how a run is scored: the ten inadmissible outcomes, the per-run fields, the threshold |
-| `fixtures/` | the four models the scenarios start from |
+| `fixtures/` | the six models the scenarios start from |
 | `run.mjs` | the runner |
 
 ## Two sources, because the plugin may load either skill
@@ -53,9 +53,25 @@ films, then genres** are deleted — a film that anchors a vibe cannot be delete
 — and the fixture is written again, each vibe with its core before any other film. The state
 before and after is snapshotted and named in the artifact by digest.
 
-**Second turns** resume the recorded session with `claude -p --resume`. A run whose second turn
-came back in a different session is marked failed: it did not resume, and is not scored as though
-it had.
+**Follow-up turns** — `then`, one request key or a list of them — resume the recorded session
+with `claude -p --resume`. A run whose follow-up came back in a different session is marked
+failed: it did not resume, and is not scored as though it had. A failed turn stops the turns
+after it. A follow-up written `{title:N}` sends the title the answer before it numbered N, and
+fails before any call when that answer has no single such item. The artifact records what each
+turn sent and which Tonight calls it made.
+
+**The Vibe-hypotheses set** (`docs/work/vibe-hypotheses`, §7.2) is the `m5-05-partial-fit` and
+`m5-06-bloom-saved` scenarios, with the first-films offer re-scored. One pass:
+
+```bash
+node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only \
+  --only m5-05-partial-fit --runs 1 --budget 2
+node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills \
+  --only m5-05-partial-fit,m5-06-bloom-saved,m5-02-empty__hi__then-three-films --runs 1 --budget 13
+```
+
+Its baseline is recorded at the commit that added the set, where the instructions and the server
+are those of `5231b1d`, and never at a later commit.
 
 A normal sweep **skips the legacy fixture** and says so — and the fixture from before the vibe
 rule too; each runs one scenario at a time, below.

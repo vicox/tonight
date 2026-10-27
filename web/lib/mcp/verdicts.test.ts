@@ -906,6 +906,86 @@ describe("the verdict tools", () => {
       assert.equal((await standing(cleo, g)).current?.assertion?.judgement, "loved");
     });
 
+    test("a picked hypothesis anchors a new vibe, and the film stays in the one whose evening it also is", async () => {
+      // docs/work/vibe-hypotheses: the whole write sequence of a pick. Nothing in it
+      // is new to the tools — this pins that the composite was always possible, so
+      // the change around it is instructions only.
+      const dana = toolsFor("google:dana");
+      type Handle = { title: string; year: number };
+      type Taste = {
+        vibes: { name: string; instruction: string; genres: string[]; core: Handle | null; movies: Handle[] }[];
+        movies: (Handle & { viewing: string; vibes: string[] })[];
+      };
+      const taste = async () => (await said(dana, "get_taste")) as unknown as Taste;
+      const vibe = (model: Taste, name: string) => {
+        const found = model.vibes.find((one) => one.name === name);
+        assert.ok(found, `no vibe called ${name}`);
+        return found;
+      };
+      const meaning = ({ name, instruction, genres, core }: Taste["vibes"][number]) => ({ name, instruction, genres, core });
+
+      await said(dana, "create_genre", { name: "Heist", instruction: "I like a plan, a crew, and watching the job come together." });
+      await said(dana, "create_genre", { name: "Glamour", instruction: "I like beautiful places and people dressed for them." });
+      await said(dana, "create_vibe", {
+        name: "Champagne & Blueprints",
+        genres: ["Heist", "Glamour"],
+        instruction: "Glamorous capers, where I get to enjoy the plan as much as the places.",
+        core: { title: "Ocean's Eleven", year: 2001 },
+      });
+      const capers = meaning(vibe(await taste(), "Champagne & Blueprints"));
+
+      // What they said, captured the moment they said it — and refused, because
+      // the film is in no vibe yet.
+      const bloom = { title: "The Brothers Bloom", year: 2008 };
+      const refused = await call(dana, "record_verdict", {
+        film: bloom,
+        told: "volunteered",
+        said: { about: "judgement", judgement: "liked", because: "clever characters do smart things" },
+      });
+      assert.equal(refused.isError, true);
+      assert.equal(refused.structuredContent?.movie, null, "the film was saved before anybody picked anything");
+      const retry = (refused.structuredContent?.retry as { arguments: Record<string, unknown> }).arguments;
+
+      // Their pick, written as it was shown: the one Genre it needs, then the vibe
+      // anchored on the film, then the film's whole list — the new vibe and the one
+      // whose evening it also is — because the list replaces what was there.
+      await said(dana, "create_genre", {
+        name: "Clever characters",
+        instruction: "I like characters who are clever and do smart things.",
+      });
+      await said(dana, "create_vibe", {
+        name: "Masterminds & Misdirection",
+        genres: ["Heist", "Clever characters"],
+        instruction: "I want the clever ones running a game on everybody, me included, and to see at the end how they did it.",
+        core: bloom,
+      });
+      await said(dana, "update_movie", { ...bloom, vibes: ["Masterminds & Misdirection", "Champagne & Blueprints"] });
+      const kept = (await said(dana, "record_verdict", retry)) as unknown as {
+        verdict: { told: string; assertion: { judgement: string; because: string } };
+      };
+      assert.deepEqual(
+        { told: kept.verdict.told, judgement: kept.verdict.assertion.judgement, because: kept.verdict.assertion.because },
+        { told: "volunteered", judgement: "liked", because: "clever characters do smart things" },
+      );
+
+      const model = await taste();
+      assert.deepEqual(vibe(model, "Masterminds & Misdirection").core, bloom);
+      const saved = model.movies.find((one) => one.title === bloom.title && one.year === bloom.year);
+      assert.equal(saved?.viewing, "seen-before", "a liked film saved without a when is seen before");
+      assert.deepEqual([...(saved?.vibes ?? [])].sort(), ["Champagne & Blueprints", "Masterminds & Misdirection"]);
+      // The overlap is kept, and the vibe it overlaps keeps its own meaning: its
+      // films change, by design, and nothing else about it does.
+      assert.deepEqual(meaning(vibe(model, "Champagne & Blueprints")), capers);
+      assert.ok(vibe(model, "Champagne & Blueprints").movies.some((one) => one.title === bloom.title));
+
+      // A list that forgets the new vibe is refused — the film anchors it — and
+      // changes nothing at all.
+      const whole = JSON.stringify(await taste());
+      const dropped = await call(dana, "update_movie", { ...bloom, vibes: ["Champagne & Blueprints"] });
+      assert.equal(dropped.isError, true, "the film left the vibe it anchors");
+      assert.equal(JSON.stringify(await taste()), whole, "a refused write changed something");
+    });
+
     test("a dislike needs no vibe and no saved film", async () => {
       const f = named();
       await said(cleo, "record_verdict", {

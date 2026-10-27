@@ -26,7 +26,7 @@ const read = (path: string) => readFileSync(new URL(path, M5), "utf8");
 type Scenario = {
   fixture: string;
   prompt: string;
-  then?: string;
+  then?: string | string[];
   family: string;
   considers: boolean;
   sources: string[];
@@ -61,15 +61,18 @@ const fixtures = new Map(
 
 const SOURCES = ["plugin-skills", "recommend-only"];
 
+/** A scenario's follow-up turns, in order — the runner's `followUps`, read the same way. */
+const followUps = (one: Scenario) => (one.then === undefined ? [] : Array.isArray(one.then) ? one.then : [one.then]);
+
 test("every scenario resolves to a fixture and to requests that exist, and every request is used", () => {
   const used = new Set<string>();
   for (const one of scenarios) {
     assert.ok(fixtures.has(one.fixture), `${one.fixture} is named by a scenario and does not exist`);
     assert.ok(requests.has(one.prompt), `${one.prompt} is not in prompts.md`);
     used.add(one.prompt);
-    if (one.then !== undefined) {
-      assert.ok(requests.has(one.then), `${one.then} is not in prompts.md`);
-      used.add(one.then);
+    for (const then of followUps(one)) {
+      assert.ok(requests.has(then), `${then} is not in prompts.md`);
+      used.add(then);
     }
     assert.ok(one.sources.length > 0, `${one.fixture}__${one.prompt} runs nowhere`);
     for (const source of one.sources) assert.ok(SOURCES.includes(source), `${source} is not a source`);
@@ -133,7 +136,10 @@ test("what the retired projection covered runs on recommend alone, and the lifec
   // ran on the ChatGPT-project projection, which had one skill and no second. It moved
   // to `recommend-only`, the selection that likewise has recommend and nothing else, and
   // not onto `plugin-skills`, where the same scenario would be a lifecycle case.
-  const lifecycleOnly = ["second-turn", "going-through"];
+  // The hypotheses runs that only the lifecycle can finish — a partial answer, a
+  // decline, the kept path — are the plugin's too. The plain pick stays on both: on
+  // recommend alone the refusal's own `next` is all the guidance there is.
+  const lifecycleOnly = ["second-turn", "going-through", "hypotheses-partial", "hypotheses-declined", "hypotheses-kept"];
   for (const one of scenarios) {
     assert.ok(!one.sources.includes("projection"), `${one.fixture}__${one.prompt} still runs on the projection`);
     assert.equal(new Set(one.sources).size, one.sources.length, `${one.fixture}__${one.prompt} lists a source twice`);
@@ -155,8 +161,60 @@ test("the plan's routing rows, second turns and families are all in the matrix",
   ]) {
     assert.ok(families.has(family), `the matrix has no ${family} family`);
   }
-  const then = new Set(scenarios.flatMap((one) => (one.then ? [one.then] : [])));
+  const then = new Set(scenarios.flatMap(followUps));
   for (const answer of ["yes", "no", "partial"]) assert.ok(then.has(answer), `no second turn of ${answer}`);
+});
+
+test("the Vibe-hypotheses set: a pick by title, each partial answer, a decline, and the kept path to a recommendation", () => {
+  // docs/work/vibe-hypotheses §7.2. The offer itself (T1) is scored on the first turn
+  // of every run, so no run exists only to look at it.
+  const hypotheses = scenarios.filter((one) => one.prompt === "bloom-clever");
+  const shape = hypotheses.map((one) => [one.fixture, followUps(one).join(" → "), [...one.sources].sort().join(", ")]);
+  assert.deepEqual(shape, [
+    ["m5-05-partial-fit", "pick-title-two", "plugin-skills, recommend-only"],
+    ["m5-05-partial-fit", "existing-only", "plugin-skills"],
+    ["m5-05-partial-fit", "new-only", "plugin-skills"],
+    ["m5-05-partial-fit", "no", "plugin-skills"],
+    ["m5-06-bloom-saved", "pick-title-one → like-bloom-tonight", "plugin-skills"],
+  ]);
+  for (const one of hypotheses) assert.equal(one.considers, true, `${one.fixture}__${one.prompt} is positive and not counted`);
+
+  // A pick is the title alone, resolved by the runner — never a sentence about it.
+  assert.equal(requests.get("pick-title-one"), "{title:1}");
+  assert.equal(requests.get("pick-title-two"), "{title:2}");
+  assert.equal(requests.get("bloom-clever"), "I liked The Brothers Bloom because clever characters do smart things.");
+  assert.match(requests.get("like-bloom-tonight")!, /The Brothers Bloom/, "the follow-on request does not reach for the film");
+
+  // The models: The Brothers Bloom absent from one, want-to-see on Champagne &
+  // Blueprints in the other, and a second Vibe whose evening it is not in both.
+  const bloom = (id: string) => fixtures.get(id)!.model.movies.find((movie) => movie.title === "The Brothers Bloom");
+  assert.equal(bloom("m5-05-partial-fit"), undefined);
+  assert.deepEqual(bloom("m5-06-bloom-saved"), {
+    title: "The Brothers Bloom",
+    year: 2008,
+    vibes: ["Champagne & Blueprints"],
+    viewing: "want-to-see",
+  });
+  for (const id of ["m5-05-partial-fit", "m5-06-bloom-saved"]) {
+    const spec = fixtures.get(id)!;
+    assert.equal(spec.seed, undefined, `${id} must be reseeded through today's tools before every run`);
+    assert.deepEqual(spec.model.vibes.map((vibe) => vibe.name), ["Champagne & Blueprints", "Reading Room"]);
+    assert.equal(
+      spec.acts?.some((act) => act.film.title === "The Brothers Bloom"),
+      false,
+      `${id}: something is already said about the film the request is about`,
+    );
+  }
+
+  // The rubric scores the offer and every follow-up, and the README has the pass.
+  for (const family of ["hypotheses", "hypotheses-partial", "hypotheses-declined", "hypotheses-kept"]) {
+    assert.ok(rubric.includes(`| ${family} |`), `the rubric has no row for ${family}`);
+  }
+  assert.match(rubric, /## Vibe hypotheses: what turn 1 has to show \(T1\)/);
+  assert.match(rubric, /\*\*Usable choices and exact syntax are scored apart\.\*\*/);
+  assert.match(rubric, /each proposed group offered as three hypotheses/, "first films are not scored as hypotheses");
+  assert.match(readme, /--only m5-05-partial-fit,m5-06-bloom-saved,m5-02-empty__hi__then-three-films --runs 1 --budget 13/);
+  assert.match(readme, /--only m5-05-partial-fit --runs 1 --budget 2/);
 });
 
 test("the recommendation-only reading case runs on recommend alone (R3-1)", () => {

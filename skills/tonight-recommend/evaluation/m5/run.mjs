@@ -40,10 +40,14 @@
  * skills by description, and nothing on this side reproduces that choice. The
  * canonical plugin is evaluated by hand, against the same rubric.
  *
- * **It can give a second turn.** A scenario with `then` resumes the recorded session
- * (`claude -p --resume <session>`) with the second request. Whether the CLI resumed
- * is checked from its own answer — the session id it reports — and a run where it
- * did not is marked failed rather than scored as though it had.
+ * **It can give follow-up turns.** A scenario with `then` — one request key, or a list
+ * of them — resumes the recorded session (`claude -p --resume <session>`) with each in
+ * turn. Whether the CLI resumed is checked from its own answer — the session id it
+ * reports — and a run where it did not is marked failed rather than scored as though
+ * it had. A failed turn stops the turns after it. A follow-up written `{title:N}`
+ * sends the title the answer before it numbered N, as somebody choosing by title would
+ * (docs/work/vibe-hypotheses); a pick that is not unambiguous fails that turn before
+ * any call. The artifact records what each turn sent and which Tonight calls it made.
  *
  * **A legacy fixture is never reseeded here.** Vibes from before cores cannot be
  * written by a build that requires one, and they are never written by SQL; the
@@ -72,7 +76,19 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { agentHost } from "../host.mjs";
-import { DEFAULT_BUDGET, checkBudget, failureOf, pending, plannedCalls, recorded, runName, select, stopsTheRun } from "../lean.mjs";
+import {
+  DEFAULT_BUDGET,
+  checkBudget,
+  failureOf,
+  followUps,
+  pending,
+  plannedCalls,
+  recorded,
+  resolveTurn,
+  runName,
+  select,
+  stopsTheRun,
+} from "../lean.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const EVAL = join(here, "..");
@@ -286,6 +302,17 @@ function transcript(logFile) {
   return { mutations: called.filter((one) => MUTATING.has(one)), rendered, discovered: discovered ?? "unknown" };
 }
 
+/**
+ * How many Tonight tool calls the proxy has logged so far. Read between turns, it is
+ * each turn's boundary in the transcript — which calls came before a pick, and which
+ * after it.
+ */
+function loggedCalls(logFile) {
+  const file = join(OUT, logFile);
+  if (!existsSync(file)) return 0;
+  return readFileSync(file, "utf8").split("\n").filter((line) => line.trim() && JSON.parse(line).tool).length;
+}
+
 /** One `claude -p` turn, fresh or resumed. */
 function turn(said, config, resume) {
   try {
@@ -319,7 +346,7 @@ function turn(said, config, resume) {
   }
 }
 
-async function run(scenario, said, then, index) {
+async function run(scenario, requests, index) {
   const spec = fixture(scenario.fixture);
   const name = runName(scenario, index);
   const snapshotFile = `snapshots/${name}.json`;
@@ -359,21 +386,31 @@ async function run(scenario, said, then, index) {
     }),
   );
 
-  let first;
-  let second = null;
+  // Every turn in order, each resuming the first one's session. A failed turn stops
+  // the turns after it, and an unresolvable pick fails before any call is made.
+  const turns = [];
   try {
-    first = turn(said, config, null);
-    if (then !== null && first.failure === null) {
-      second = turn(then, config, first.session);
-      // A resume that started a different session did not resume.
-      if (second.failure === null && second.session !== first.session) {
-        second.failure = `did not resume: asked for ${first.session}, answered in ${second.session}`;
+    for (const { key, text } of requests) {
+      const previous = turns.at(-1);
+      if (previous !== undefined && previous.failure !== null) break;
+      const from = loggedCalls(logFile);
+      const { sent, failure } = previous === undefined ? { sent: text, failure: null } : resolveTurn(text, previous.answer);
+      if (failure !== null) {
+        turns.push({ key, sent, answer: "", session: turns[0].session, failure, calls: [from, from], called: false });
+        break;
       }
+      const done = turn(sent, config, previous === undefined ? null : turns[0].session);
+      // A resume that started a different session did not resume.
+      if (previous !== undefined && done.failure === null && done.session !== turns[0].session) {
+        done.failure = `did not resume: asked for ${turns[0].session}, answered in ${done.session}`;
+      }
+      turns.push({ key, sent, ...done, calls: [from, loggedCalls(logFile)], called: true });
     }
   } finally {
     rmSync(config, { force: true });
     await shutDown(proxy, PORT);
   }
+  const first = turns[0];
 
   // A run that crossed midnight was told one date and lived in two: void, not scored.
   const ended = localDate();
@@ -381,19 +418,41 @@ async function run(scenario, said, then, index) {
 
   const afterDigest = seed(scenario.fixture, "--snapshot", join(OUT, afterFile));
   return {
-    name, spec, snapshotFile, afterFile, logFile, digest, afterDigest, first, second,
+    name, spec, snapshotFile, afterFile, logFile, digest, afterDigest, first, turns,
     resolved: answeredBy(first.session), today, straddled,
-    calls: second === null ? 1 : 2,
+    calls: turns.filter((one) => one.called).length,
   };
 }
 
-function artifact(scenario, said, then, index, result, stamp) {
+/** The first failure among a run's turns, or null. */
+const failedTurn = (result) => result.turns.find((one) => one.failure !== null)?.failure ?? null;
+
+const ORDINAL = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"];
+
+/** Which numbered Tonight calls each turn made, so a write can be placed before or after a pick. */
+function boundaries(turns) {
+  return turns
+    .map((one, at) => {
+      const [from, to] = one.calls;
+      const made = to > from ? `calls ${from + 1}–${to}` : "no calls";
+      return `- ${ORDINAL[at]} turn: ${made}${one.failure ? ` (failed: ${one.failure})` : ""}`;
+    })
+    .join("\n");
+}
+
+function artifact(scenario, index, result, stamp) {
   const { rendered, discovered, mutations } = transcript(result.logFile);
-  const failure = result.straddled ?? result.first.failure ?? result.second?.failure ?? null;
+  const failure = result.straddled ?? failedTurn(result);
+  const later = result.turns.slice(1);
+  // What each follow-up sent — a picked title as it was sent — and what came back.
+  const asked = later
+    .map((one, at) => `\n## ${ORDINAL[at + 1]} turn — \`${one.key}\`\n\n> ${one.sent ?? `(not sent: ${one.failure})`}\n`)
+    .join("");
+  const answered = later.map((one, at) => `\n## ${ORDINAL[at + 1]} answer\n\n${one.answer}\n`).join("");
   return `---
 fixture: ${scenario.fixture}
 prompt: ${scenario.prompt}
-then: ${scenario.then ?? "none"}
+then: ${followUps(scenario).join(", ") || "none"}
 family: ${scenario.family}
 considers: ${scenario.considers ? "yes" : "no"}
 gate: ${scenario.gate ?? "m5 threshold"}
@@ -427,25 +486,29 @@ recorded: ${stamp}
 
 ## Prompt
 
-> ${said}
-${then === null ? "" : `\n## Second turn\n\n> ${then}\n`}
+> ${result.first.sent}
+${asked}
 ## Tonight MCP transcript
 
 Read from the proxy log named above; this is a reading of it, not a substitute for it.
 
 ${rendered}
 
+Which turn made which calls:
+
+${boundaries(result.turns)}
+
 ## Answer
 
 ${result.first.answer}
-${result.second === null ? "" : `\n## Second answer\n\n${result.second.answer}\n`}`;
+${answered}`;
 }
 
 /* ------------------------------------------------------------------ the run */
 
 refuseIfPromptsMoved();
 const said = prompts();
-const key = (one) => `${one.fixture}__${one.prompt}${one.then ? `__then-${one.then}` : ""}`;
+const key = (one) => `${one.fixture}__${one.prompt}${followUps(one).map((then) => `__then-${then}`).join("")}`;
 /** Seeded by its operator through an older build — any `seed` a fixture names. */
 const isLegacy = (one) => fixture(one.fixture).seed !== undefined;
 let chosen = select(scenarios, { source: SOURCE, only: ONLY, smoke: SMOKE });
@@ -477,8 +540,9 @@ if (LEGACY_SEEDED) {
 
 // Every request resolves before anything is spent.
 for (const one of chosen) {
-  if (!said.get(one.prompt)) throw new Error(`prompts.md has no request called ${one.prompt}`);
-  if (one.then && !said.get(one.then)) throw new Error(`prompts.md has no request called ${one.then}`);
+  for (const request of [one.prompt, ...followUps(one)]) {
+    if (!said.get(request)) throw new Error(`prompts.md has no request called ${request}`);
+  }
 }
 
 // The runs to make: all of them, or under --resume only those not recorded ok.
@@ -506,16 +570,15 @@ mkdirSync(join(OUT, "logs"), { recursive: true });
 let done = 0;
 let calls = 0;
 for (const { scenario, index } of work) {
-  const request = said.get(scenario.prompt);
-  const then = scenario.then ? said.get(scenario.then) : null;
-  const result = await run(scenario, request, then, index);
+  const requests = [scenario.prompt, ...followUps(scenario)].map((key) => ({ key, text: said.get(key) }));
+  const result = await run(scenario, requests, index);
   calls += result.calls;
-  writeFileSync(join(OUT, `${result.name}.md`), artifact(scenario, request, then, index, result, new Date().toISOString()));
+  writeFileSync(join(OUT, `${result.name}.md`), artifact(scenario, index, result, new Date().toISOString()));
   done += 1;
-  const failure = result.straddled ?? result.first.failure ?? result.second?.failure;
+  const failure = result.straddled ?? failedTurn(result);
   console.error(`[${String(done).padStart(3, " ")}/${String(work.length).padStart(3, " ")}] ${result.name}${failure ? `  FAILED: ${failure}` : ""}`);
-  // Out of quota or signed out: every further call would fail the same way.
-  if (stopsTheRun(result.first.failure) || stopsTheRun(result.second?.failure)) {
+  // Out of quota or signed out, on any turn: every further call would fail the same way.
+  if (result.turns.some((one) => stopsTheRun(one.failure))) {
     console.error(
       `\nSTOPPED after ${done} of ${work.length} runs and ${calls} model calls: ${failure}\n` +
         "Quota or sign-in: nothing further was attempted. Re-run with --resume once it is fixed.",

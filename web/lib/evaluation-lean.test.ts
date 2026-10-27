@@ -11,9 +11,12 @@ import test from "node:test";
  * `evaluation/lean.mjs`, pure, and are tested here; `m5/run.mjs` is pinned to use them.
  */
 
-type Scenario = { fixture: string; prompt: string; then?: string; family: string; sources: string[]; smoke?: string[] };
+type Scenario = { fixture: string; prompt: string; then?: string | string[]; family: string; sources: string[]; smoke?: string[] };
 type Lean = {
   DEFAULT_BUDGET: number;
+  followUps: (scenario: Scenario) => string[];
+  titleNumbered: (answer: string, n: number) => string | null;
+  resolveTurn: (request: string, previousAnswer: string) => { sent: string | null; failure: string | null };
   callsPerRun: (scenario: Scenario) => number;
   plannedCalls: (work: { scenario: Scenario; index: number }[]) => number;
   checkBudget: (planned: number, budget: number) => void;
@@ -48,6 +51,49 @@ test("a plan's model calls count every turn, and a plan over budget is refused b
   assert.throws(() => lean.checkBudget(13, 12), /refusing: this plan makes 13 model calls and the budget is 12.*--budget 13/);
   assert.throws(() => lean.checkBudget(1, Number("x")), /--budget is a whole number/);
   assert.throws(() => lean.checkBudget(1, -1), /--budget is a whole number/);
+});
+
+test("follow-up turns may be a list: each is a call, and the run is named by all of them in order", () => {
+  // docs/work/vibe-hypotheses: a pick by title, then a request in the same
+  // conversation. One follow-up keeps exactly the name and the count it had.
+  const chain: Scenario = { fixture: "f5", prompt: "p5", then: ["pick", "ask"], family: "H", sources: ["plugin-skills"] };
+  assert.deepEqual(lean.followUps(one), []);
+  assert.deepEqual(lean.followUps(two), ["yes"]);
+  assert.deepEqual(lean.followUps(chain), ["pick", "ask"]);
+  assert.equal(lean.callsPerRun(chain), 3, "every follow-up is a call");
+  assert.equal(lean.runName(two, 1), "f2__p2__then-yes__01", "a single follow-up's name did not change");
+  assert.equal(lean.runName(chain, 2), "f5__p5__then-pick__then-ask__02");
+  assert.deepEqual(lean.select([chain], { source: "plugin-skills", only: "f5__p5__then-pick__then-ask" }), [chain]);
+});
+
+test("a follow-up picks a title only when the answer before it numbers exactly one item that way", () => {
+  // The user chooses from the title alone, so the evaluation answers with the title
+  // as the agent wrote it — and never with text it guessed was one.
+  const offer = [
+    "Bloom also goes on your Champagne & Blueprints shelf. Which of these is it?",
+    "",
+    "1. **Masterminds & Misdirection** — my pick",
+    "   I want the clever ones running a game on everybody, me included.",
+    "2. **Smartest Person in the Room**",
+    "   I like one mind seeing further than everyone around it.",
+    "3) **Thinking on Their Feet**",
+    "   **Clever characters** would be a new Genre: I like characters who are clever and do smart things.",
+  ].join("\n");
+  assert.equal(lean.titleNumbered(offer, 1), "Masterminds & Misdirection", "the marker after the bold is not the title");
+  assert.equal(lean.titleNumbered(offer, 2), "Smartest Person in the Room");
+  assert.equal(lean.titleNumbered(offer, 3), "Thinking on Their Feet", "a closing parenthesis numbers an item too");
+  assert.equal(lean.titleNumbered(offer, 4), null, "there is no fourth");
+
+  // A bold line that is not a numbered item is never a title; nor is a number whose
+  // line has no bold span first; and two lists in one answer make every number ambiguous.
+  assert.equal(lean.titleNumbered("**Clever characters**\n1. Masterminds & Misdirection", 1), null);
+  assert.equal(lean.titleNumbered("1. The first **Masterminds**", 1), null);
+  assert.equal(lean.titleNumbered(`${offer}\n\n1. **Another List**`, 1), null);
+  assert.equal(lean.titleNumbered("", 1), null);
+
+  assert.deepEqual(lean.resolveTurn("{title:2}", offer), { sent: "Smartest Person in the Room", failure: null });
+  assert.deepEqual(lean.resolveTurn("{title:4}", offer), { sent: null, failure: "no unambiguous title 4 to pick" });
+  assert.deepEqual(lean.resolveTurn("Yes, do that.", offer), { sent: "Yes, do that.", failure: null }, "an ordinary request is sent as written");
 });
 
 test("smoke selects only what is marked smoke for this source, and --only takes a list", () => {
@@ -130,7 +176,15 @@ test("the runner uses the lean rules: budget before any call, smoke, resume, and
   assert.ok(check < runner.indexOf("if (DRY) process.exit(0);"), "a dry run skips the budget");
   // The run loop is the last loop over the work; the dry run's listing is the first.
   assert.ok(check < runner.lastIndexOf("for (const { scenario, index } of work)"), "the budget is checked after calls start");
-  assert.match(runner, /if \(stopsTheRun\(result\.first\.failure\) \|\| stopsTheRun\(result\.second\?\.failure\)\) \{[\s\S]*?process\.exit\(3\);/);
+  // A quota or sign-in failure on any turn stops the invocation, not only on the first two.
+  assert.match(runner, /if \(result\.turns\.some\(\(one\) => stopsTheRun\(one\.failure\)\)\) \{[\s\S]*?process\.exit\(3\);/);
+  // Every follow-up resumes the first turn's session, a failed turn stops the rest, and a
+  // pick is resolved before its call — an unresolvable one is never sent.
+  assert.match(runner, /if \(previous !== undefined && previous\.failure !== null\) break;/);
+  assert.match(runner, /resolveTurn\(text, previous\.answer\)/);
+  assert.match(runner, /turn\(sent, config, previous === undefined \? null : turns\[0\]\.session\)/);
+  assert.match(runner, /calls: \[from, loggedCalls\(logFile\)\]/, "a turn's transcript boundary is not recorded");
+  assert.match(runner, /Which turn made which calls:/, "the artifact does not say which turn made which calls");
   assert.match(runner, /return \{ answer: "", session: "unknown", failure: failureOf\(error\) \};/);
   assert.match(runner, /parsed\.is_error \?/, "an error inside a successful exit is not caught");
   assert.match(runner, /^selection: \$\{SMOKE \? "smoke" : "full"\}/m, "an artifact does not say how it was selected");

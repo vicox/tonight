@@ -27,6 +27,16 @@ nothing about the evaluation, and nothing that names a tool or a Vibe operation.
 | `like-oceans-tonight` | *"Something like Ocean's Eleven for tonight?"* |
 | `knives-out-and-tonight` | *"Loved Knives Out — what should I watch tonight?"* |
 
+## A film they liked, and what they loved in it
+
+`docs/work/vibe-hypotheses`: a liked with a reason, on a film whose evening one of their Vibes is
+and whose reason none of them says.
+
+| key | request |
+| --- | --- |
+| `bloom-clever` | *"I liked The Brothers Bloom because clever characters do smart things."* |
+| `like-bloom-tonight` | *"Something like The Brothers Bloom for tonight?"* |
+
 ## The second turn
 
 Given after one of the requests above, in the same session.
@@ -37,6 +47,15 @@ Given after one of the requests above, in the same session.
 | `no` | *"No, leave it."* |
 | `partial` | *"Only the first part, not the rest."* |
 | `three-films` | *"Paterson, Arrival and Palm Springs."* |
+| `pick-title-one` | *"{title:1}"* |
+| `pick-title-two` | *"{title:2}"* |
+| `existing-only` | *"Just the existing one — no new one."* |
+| `new-only` | *"Just the new one — leave it out of the other."* |
+
+`{title:N}` is not sent as written. The runner sends the title the answer before it numbered N —
+the title alone, as somebody choosing by title would say it — and fails the turn before any call
+when that answer has no single item numbered N with a bold title (`evaluation/lean.mjs`,
+`titleNumbered`).
 
 ## Somebody new
 
