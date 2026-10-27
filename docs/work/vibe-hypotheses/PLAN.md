@@ -1187,6 +1187,45 @@ its own review.
 - **USD 0.0478** at the Flash prices.
 - Balance USD 24.84 → 24.78.
 
+### 13.4 Grounding only, on `deepseek-v4-pro` (2026-10-27, single pass)
+
+**Scope** (user-approved): whether the three hypotheses stay grounded in *"clever characters do
+smart things"*. Six first turns — five plugin, one recommend-only — on `HEAD` `7ec5b9b`.
+
+**What ran:**
+
+- Instructions byte-identical to the reviewed `a095d37`: the instruction digests are 783e37b0 and
+  524b2eb9, the same as §13.3, and the catalog is `ffaaeb811785202c` as expected.
+- Fingerprint `a307abda487cd1b463329ccb945ce396`.
+- The runner cannot stop after turn 1 without a code change, so the existing commands ran and only
+  turn 1 is scored. The follow-ups ran too, as stated cost.
+
+**Judgments** ("subject drift" means the reading moved from the characters to the plan):
+
+| Run | The three hypotheses | Grounding |
+| --- | --- | --- |
+| recommend-only | *Sleight of Mind* (outsmart everyone) · *Sharp Company* (cleverness in how they talk) · *Battle of Wits* (clever characters outmanoeuvre each other) | **PASS** |
+| existing-only | *Masterminds & Misdirection* (*"a scheme… the plan is cleverer than it looks… pieces clicking at the reveal"*) · *Sharp Tongues* · *Bright Company* | **FAIL, mild:** #1's subject drifts from the characters to the plan |
+| new-only | *One Step Ahead* · *Silver Tongues* · *Clever Company* | **PASS** |
+| no | *Masterminds & Misdirection* (clever characters running rings) · *Clever Company* · *Wit's End* (clever talk) | **PASS** |
+| pick-title-two | *Masterminds & Misdirection* (its new Genre *Double-cross*: *"nobody at the table is telling the whole truth"* — deception as such, borderline) · *Quick Wits* · *The Right Moves* (sentence grounded; its new Genre *Competence*: *"I like watching people who are very good at what they do do it well"*) | **FAIL:** generic competence, carried in #3's Genre |
+| kept (06) | *The Smartest Person in the Room* · *Sleight of Hand* (*"clever plans and neat tricks unfold, where the cleverness itself is the point"*) · *Two Steps Ahead* | **FAIL, mild:** #2's subject drifts to plans and tricks |
+
+**Overall:**
+
+- **3 PASS, 3 FAIL.**
+- Generic competence: 1 of 6, and only in a Genre. Flash, under the same instructions, had it in
+  6 of 6 (§13.3).
+- Invented exclusions: 0 of 6.
+- Drift from the characters to the plan: 2 of 6, both mild.
+
+**Cost:**
+
+- Turn 1 (scored): 18 API requests, USD 0.1721.
+- Follow-ups (extra): 24 requests, USD 0.0552.
+- In total, 42 requests and USD 0.2273, all off-peak, 0 failed. The balance went from USD 24.78 to
+  24.59; that does not reconcile with the price estimate, as in §12.9.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
