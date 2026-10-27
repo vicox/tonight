@@ -1277,6 +1277,12 @@ the pins catch the deletion of both rules. Two wording conflicts, each fixed:
 - `verdicts.test.ts` refuses the old *"no broader than the reading's own sentence"* in `next`.
 - `tonight-vibes/test.sh` refuses *"no broader than that reading"* in the skill.
 
+### 14.2 Codex code review 2 — READY (`30ef225`)
+
+Both blockers are resolved: the wording keeps Genres reusable and allows competence that was said.
+No new blockers. Codex reran vibes 158/158, recommend 248/248, plugin 37/37 and 164 focused tests.
+Stopped here by the user's instruction: no live run until the user decides.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
