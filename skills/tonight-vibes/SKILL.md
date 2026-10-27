@@ -239,13 +239,15 @@ learns why a film worked for somebody.
   gave, such as *"nobody does the stupid thing"*. The three may read differently what they loved
   about that subject, never swap it for another: when their reason is about people — what they
   did, how they talked, who they were — every reading is about those people, never a plan or a
-  trick on its own, and never being good at things in general. Where they gave none, three
-  different reasons the film may have worked for them. None is a Vibe they already have: where
-  the film already belongs is said beside the list, never as one of the three.
+  trick on its own, and never being good at things in general unless their words said so. Where
+  they gave none, three different reasons the film may have worked for them. None is a Vibe they
+  already have: where the film already belongs is said beside the list, never as one of the three.
 - **Each is a whole Vibe**: a name, an *"I like…"* sentence, its Genres — any new Genre's meaning
   shown as the *"I like…"* sentence it will be written as, word for word — and this film as its
-  core. **A new Genre made for a reading is no broader than that reading's sentence**: one that
-  would hold films the reading would not is the reading widened by another route.
+  core. **A new Genre made for a reading stays inside their reason**: it may hold more films than
+  the reading — an ingredient does — but never a subject or a quality their words did not carry.
+  One that turns the people they named into anybody good at anything is the reading widened by
+  another route.
 - **The titles lead.** A numbered list, the recommended one first: each item starts with its title
   in bold — the title alone, with *"my pick"* after the bold, never inside it — and its *"I like…"*
   sentence beneath. Nothing else in the offer is bold at the start of a line. A title says its

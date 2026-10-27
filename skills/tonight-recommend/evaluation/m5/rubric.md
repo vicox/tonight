@@ -111,8 +111,9 @@ never a FAIL of what it would have shown.
    None is wider than it: not the film's tricks on the viewer, competence at anything, deception
    as such, or a character study. None states a rule they did not give, such as *"nobody does the
    stupid thing"* — that is outcome 3. **The same holds for any new Genre a hypothesis is built
-   on**: a Genre broader than its hypothesis's sentence — *"people who are very good at what they
-   do"* under a reading about clever characters — fails it as surely as the sentence would.
+   on**: a Genre may cover more films than its hypothesis, as an ingredient does, but one that
+   claims a subject or quality their reason did not carry — *"people who are very good at what
+   they do"* for a reason about clever characters — fails it as surely as the sentence would.
 6. **Distinct, scored by the reviewer.** Shown the three titles and the three descriptions
    shuffled, the reviewer matches them, and for each pair names a film that fits one and not the
    other. Three names for one preference fails.

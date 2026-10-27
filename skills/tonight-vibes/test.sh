@@ -320,11 +320,15 @@ check "readings may differ about the subject, never swap it — people stay the 
     "$(order_check '**Each keeps the subject of their reason**' \
         'The three may read differently what they loved' 'about that subject, never swap it for another' \
         'when their reason is about people' 'every reading is about those people, never a plan or a' \
-        'trick on its own, and never being good at things in general')" "True"
-check "a new Genre made for a reading is no broader than that reading's sentence" \
+        'trick on its own, and never being good at things in general unless their words said so')" "True"
+check "a new Genre made for a reading stays inside their reason, and may still cover more films" \
     "$(order_check '**Each is a whole Vibe**' \
-        '**A new Genre made for a reading is no broader than that reading' "s sentence**" \
-        'one that would hold films the reading would not is the reading widened by another route')" "True"
+        '**A new Genre made for a reading stays inside their reason**' \
+        'it may hold more films than the reading — an ingredient does' \
+        'but never a subject or a quality their words did not carry' \
+        'is the reading widened by another route')" "True"
+check "a Genre is not held narrower than an ingredient can be" \
+    "$(grep -ciE 'no broader than that reading' "$SKILL")" "0"
 check "the grounding rule names no film and no reason from the evaluation" \
     "$(sed -n '/### Three hypotheses, chosen by title/,/### What to consider, and what to offer/p' "$SKILL" | grep -ciE 'clever characters|Brothers Bloom|Masterminds')" "0"
 check "a new Genre's meaning is shown as the words it will be written as, and written word for word" \

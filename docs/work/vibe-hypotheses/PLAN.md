@@ -1255,6 +1255,28 @@ smart things"*. Six first turns — five plugin, one recommend-only — on `HEAD
   scenario.
 - `evaluation-m5.test.ts`: the B5 Genre clause.
 
+**Committed as `e5c67ac`.** `npm test`: 1371 tests, 1367 pass, with the 4 known failures.
+
+### 14.1 Codex code review 1 — NOT READY
+
+**Codex ran** vibes 157/157, recommend 248/248, plugin 37/37 and 164 focused tests, and found that
+the pins catch the deletion of both rules. Two wording conflicts, each fixed:
+
+1. **"No broader than that reading's sentence" contradicted Genres as reusable ingredients.**
+   *"I like clever characters"* is a valid ingredient of a narrower reading, and an existing,
+   broader Genre may already be reused. Now a new Genre made for a reading **stays inside their
+   reason**: it may hold more films than the reading, as an ingredient does, but never a subject or
+   a quality their words did not carry. Said in the skill, `next` and rubric B5.
+2. **The ban on competence in general also refused it when somebody says it.** Now readings never
+   bring in being good at things in general **unless their words said so** — in the skill and in
+   `next`.
+
+**Pins:**
+
+- Both texts are pinned in the new wording.
+- `verdicts.test.ts` refuses the old *"no broader than the reading's own sentence"* in `next`.
+- `tonight-vibes/test.sh` refuses *"no broader than that reading"* in the skill.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.

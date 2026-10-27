@@ -868,8 +868,11 @@ describe("the verdict tools", () => {
       // §13.3-§13.4: readings slid from the people in their reason to a plan, or to skill in
       // general, and a new genre carried the widening its sentence did not. Both said here,
       // where recommend alone reads them — and generically, never the scenario's own words.
-      assert.match(next as string, /Each keeps the subject of their reason — what their sentence is about stays what every reading is about; when it is about people, every reading is about those people, never a plan alone or being good at things in general — and none states a rule they never gave/u);
-      assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given, and no broader than the reading's own sentence/u);
+      // Code review: competence is refused only where their words did not carry it, and a
+      // new genre is bounded by their reason, not by its reading — an ingredient may cover more.
+      assert.match(next as string, /Each keeps the subject of their reason — what their sentence is about stays what every reading is about; when it is about people, every reading is about those people, never a plan alone, and never being good at things in general unless their words said so — and none states a rule they never gave/u);
+      assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given, and claiming no subject or quality their words did not carry \(it may cover more films than the reading\)/u);
+      assert.doesNotMatch(next as string, /no broader than the reading's own sentence/u, "a genre is held narrower than an ingredient can be");
       assert.doesNotMatch(next as string, /Bloom|clever characters|Champagne|Blueprints/u, "the guidance names the evaluation's own scenario");
       assert.match(next as string, /None is a vibe they already have: where the film already belongs is said beside the three, never as one of them/u);
       assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given/u);
