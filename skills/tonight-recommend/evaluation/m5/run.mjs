@@ -68,6 +68,19 @@
  * the artifact records it, and the rubric scores against it. A run that ends on
  * another date than it started straddled midnight: it is void, and is rerun rather
  * than scored (`docs/work/m6/PLAN.md`, §5.2).
+ *
+ * **It can drive DeepSeek instead of `claude -p`** (`--backend deepseek`; `claude`
+ * when left out, and then nothing about a Claude run changes). The agent is the
+ * adapter in `../deepseek.mjs`: the same system prompt, Tonight's tools through the
+ * same proxy, so the transcript, the boundaries and the snapshots are made the same
+ * way. Its key comes from `DEEPSEEK_API_KEY` and is never recorded; its results go in
+ * a directory of their own; every API request's usage goes in `usage/<run>.jsonl`.
+ *
+ * **It can record a baseline with today's harness** (`--against <commit>`): the three
+ * instruction files of that commit stand in the working tree for one invocation and
+ * are put back however it ends (`../revision.mjs`). Before a DeepSeek or `--against`
+ * invocation records anything, the server has to be serving the tool catalog the
+ * files on disk register (docs/work/vibe-hypotheses §12).
  */
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -75,6 +88,7 @@ import { existsSync, globSync, mkdirSync, readdirSync, readFileSync, rmSync, wri
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEEPSEEK_MODEL, deepseekBackend, mcp, settingsLine } from "../deepseek.mjs";
 import { agentHost } from "../host.mjs";
 import {
   DEFAULT_BUDGET,
@@ -84,11 +98,12 @@ import {
   pending,
   plannedCalls,
   recorded,
-  resolveTurn,
   runName,
+  runTurns,
   select,
   stopsTheRun,
 } from "../lean.mjs";
+import { catalogDigest, expectedCatalog, gitIn, swapInstructions, waitForCatalog } from "../revision.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const EVAL = join(here, "..");
@@ -119,7 +134,14 @@ const SOURCE = option("source", null);
 /** `--smoke`: only the scenarios marked smoke for this source, one run each by default. */
 const SMOKE = args.includes("--smoke");
 const RUNS = Number(option("runs", SMOKE ? "1" : "3"));
-const MODEL = option("model", "claude-sonnet-5");
+/** `--backend claude` (the default) or `--backend deepseek`: which agent the runs are given. */
+const BACKENDS = ["claude", "deepseek"];
+const BACKEND = option("backend", "claude");
+if (!BACKENDS.includes(BACKEND)) throw new Error(`--backend is one of ${BACKENDS.join(", ")}`);
+const DEEPSEEK = BACKEND === "deepseek";
+const MODEL = option("model", DEEPSEEK ? DEEPSEEK_MODEL : "claude-sonnet-5");
+/** `--against <commit>`: record that commit's instructions with this harness (`../revision.mjs`). */
+const AGAINST = option("against", null);
 const ONLY = option("only", null);
 const PORT = Number(option("port", "3997"));
 const DRY = args.includes("--dry-run");
@@ -138,7 +160,30 @@ if (!SOURCES.includes(SOURCE)) {
   throw new Error(`--source is required: one of ${SOURCES.join(", ")}`);
 }
 
-const CLI = execFileSync("claude", ["--version"], { encoding: "utf8" }).trim().split(" ")[0];
+const git = gitIn(ROOT);
+if (DEEPSEEK) {
+  if (args.includes("--host")) throw new Error("--host chooses how `claude -p` runs; a DeepSeek run has no CLI host");
+  if (!DRY && !process.env.DEEPSEEK_API_KEY) throw new Error("--backend deepseek needs DEEPSEEK_API_KEY in the environment");
+  // A recording names the harness that made it, so that harness has to be what HEAD is.
+  if (!DRY && git(["status", "--porcelain", "--untracked-files=no", "--", "skills/tonight-recommend/evaluation"]).trim()) {
+    throw new Error("the evaluation harness has uncommitted changes — commit them, so `harness:` names the code that ran");
+  }
+  // There is no CLI host: the artifact names the loop that stands in for one, and its
+  // results never share a directory with a Claude host's.
+  Object.assign(HOST, {
+    line: `DeepSeek API, the runner's own tool loop over the Tonight proxy (${settingsLine()})`,
+    isolation:
+      "the system prompt is the skills and nothing else; the only tools are Tonight's, through the proxy — no " +
+      "web, no files, no memory; the runner holds the conversation between turns",
+    suffix: `-deepseek-${MODEL}`,
+  });
+}
+
+const CLI = DEEPSEEK ? "none (DeepSeek API)" : execFileSync("claude", ["--version"], { encoding: "utf8" }).trim().split(" ")[0];
+
+// The swap comes before anything reads the instructions: what follows — the digest,
+// the guard, every run — sees the target's files. The restore is already installed.
+const SWAP = AGAINST === null ? null : swapInstructions({ target: AGAINST, git });
 
 const skill = (name) => readFileSync(join(ROOT, "skills", name, "SKILL.md"), "utf8");
 
@@ -191,24 +236,43 @@ function version() {
   return createHash("sha256").update(instructions(), "utf8").digest("hex").slice(0, 8);
 }
 
-/** The same guard as Phase 1 and M3: a recording of edited instructions describes nothing. */
+/**
+ * The same guard as Phase 1 and M3: a recording of edited instructions describes nothing.
+ * It compares with HEAD, or with the commit `--against` named.
+ */
 function refuseIfPromptsMoved() {
+  const against = SWAP?.against ?? "HEAD";
   for (const file of [
     "skills/tonight-recommend/SKILL.md",
     "skills/tonight-vibes/SKILL.md",
     "web/lib/mcp/server.ts",
   ]) {
     try {
-      execFileSync("git", ["diff", "--quiet", "HEAD", "--", file], { cwd: ROOT });
+      execFileSync("git", ["diff", "--quiet", against, "--", file], { cwd: ROOT });
     } catch {
-      throw new Error(`${file} differs from HEAD — commit or revert before recording.`);
+      throw new Error(`${file} differs from ${against} — commit or revert before recording.`);
     }
   }
 }
 
+const short = (sha) => git(["rev-parse", "--short", sha]).trim();
 const VERSION = version();
-const TARGET = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim();
-const OUT = join(SET_DIR, "results", `${SET}-${SOURCE}-${VERSION}-${TARGET}${HOST.suffix}`, "runs");
+const HARNESS = short("HEAD");
+const TARGET = SWAP === null ? HARNESS : short(SWAP.against);
+// A baseline recorded with today's harness is named by both, so --resume never mixes
+// recordings two versions of the harness made; a DeepSeek recording never sits with
+// a Claude one.
+const OUT = join(
+  SET_DIR,
+  "results",
+  `${SET}-${SOURCE}-${VERSION}-${TARGET}${SWAP === null ? "" : `-harness-${HARNESS}`}${HOST.suffix}`,
+  "runs",
+);
+/** Whether this invocation proves which catalog the server serves, and records it. */
+const CHECKS_CATALOG = DEEPSEEK || SWAP !== null;
+/** The catalog the guarded `server.ts` registers — set before the first run, when it is checked. */
+let EXPECTED_CATALOG = null;
+const ORIGIN = process.env.TONIGHT_ORIGIN ?? "http://localhost:3000";
 
 const scenarios = JSON.parse(readFileSync(join(SET_DIR, "scenarios.json"), "utf8"));
 const fixture = (id) => JSON.parse(readFileSync(join(FIXTURES, `${id}.json`), "utf8"));
@@ -313,8 +377,26 @@ function loggedCalls(logFile) {
   return readFileSync(file, "utf8").split("\n").filter((line) => line.trim() && JSON.parse(line).tool).length;
 }
 
+/** The DeepSeek agent for this invocation — one, so a follow-up turn finds its conversation. */
+const AGENT = DEEPSEEK && !DRY ? deepseekBackend({ key: process.env.DEEPSEEK_API_KEY, model: MODEL }) : null;
+
+/** One turn, fresh or resumed, on whichever backend this invocation runs. */
+async function turn(said, config, resume) {
+  return AGENT === null ? claudeTurn(said, config, resume) : AGENT.turn(said, config, resume, systemPrompt());
+}
+
+/**
+ * The digest of the tool catalog the server serves, read with a run's own token —
+ * straight from the server, never through the proxy, so it is no part of a transcript.
+ */
+async function servedCatalog(bearer) {
+  const answer = await mcp(fetch, `${ORIGIN}/mcp`, { authorization: `Bearer ${bearer}` }, "tools/list");
+  if (answer.error) throw new Error(answer.error.message ?? JSON.stringify(answer.error));
+  return catalogDigest(answer.result.tools);
+}
+
 /** One `claude -p` turn, fresh or resumed. */
-function turn(said, config, resume) {
+function claudeTurn(said, config, resume) {
   try {
     const printed = execFileSync(
       "claude",
@@ -386,29 +468,24 @@ async function run(scenario, requests, index) {
     }),
   );
 
-  // Every turn in order, each resuming the first one's session. A failed turn stops
-  // the turns after it, and an unresolvable pick fails before any call is made.
-  const turns = [];
+  // The catalog this run's server served, read before its first turn — the evidence a
+  // baseline and an after-run were given different instructions, and one pass the same.
+  const toolsDigest = CHECKS_CATALOG ? await servedCatalog(bearer) : null;
+
+  // Every turn in order, each awaited before its boundary is read and before the next
+  // starts (`../lean.mjs`, `runTurns`); the proxy stops only after the last.
+  let turns = [];
   try {
-    for (const { key, text } of requests) {
-      const previous = turns.at(-1);
-      if (previous !== undefined && previous.failure !== null) break;
-      const from = loggedCalls(logFile);
-      const { sent, failure } = previous === undefined ? { sent: text, failure: null } : resolveTurn(text, previous.answer);
-      if (failure !== null) {
-        turns.push({ key, sent, answer: "", session: turns[0].session, failure, calls: [from, from], called: false });
-        break;
-      }
-      const done = turn(sent, config, previous === undefined ? null : turns[0].session);
-      // A resume that started a different session did not resume.
-      if (previous !== undefined && done.failure === null && done.session !== turns[0].session) {
-        done.failure = `did not resume: asked for ${turns[0].session}, answered in ${done.session}`;
-      }
-      turns.push({ key, sent, ...done, calls: [from, loggedCalls(logFile)], called: true });
-    }
+    turns = await runTurns(requests, {
+      turn: (sent, resume) => turn(sent, config, resume),
+      boundary: () => loggedCalls(logFile),
+    });
   } finally {
     rmSync(config, { force: true });
     await shutDown(proxy, PORT);
+  }
+  if (toolsDigest !== null && toolsDigest !== EXPECTED_CATALOG) {
+    turns[0].failure ??= `the server served catalog ${toolsDigest}, not the expected ${EXPECTED_CATALOG}`;
   }
   const first = turns[0];
 
@@ -417,11 +494,51 @@ async function run(scenario, requests, index) {
   const straddled = SET === "m6" && ended !== today ? `void: started on ${today}, ended on ${ended} — rerun` : null;
 
   const afterDigest = seed(scenario.fixture, "--snapshot", join(OUT, afterFile));
+
+  // DeepSeek: every API request, with its turn and its UTC time, so a run can be
+  // priced request by request — a failed turn's requests included. Never the key.
+  let usageFile = null;
+  if (DEEPSEEK) {
+    usageFile = `usage/${name}.jsonl`;
+    const lines = turns.flatMap((one, at) => (one.requests ?? []).map((request, n) => ({ turn: at + 1, request: n + 1, ...request })));
+    writeFileSync(join(OUT, usageFile), lines.map((line) => `${JSON.stringify(line)}\n`).join(""));
+  }
+  const answeredWith = (field) => turns.map((one) => one[field]).filter(Boolean).at(-1) ?? "unknown";
+
   return {
     name, spec, snapshotFile, afterFile, logFile, digest, afterDigest, first, turns,
-    resolved: answeredBy(first.session), today, straddled,
+    resolved: DEEPSEEK ? answeredWith("model") : answeredBy(first.session), today, straddled,
     calls: turns.filter((one) => one.called).length,
+    toolsDigest, usageFile, fingerprint: DEEPSEEK ? answeredWith("fingerprint") : null,
   };
+}
+
+/** A DeepSeek run's usage in one line: the two units apart, input split by the cache. */
+function usageLine(turns) {
+  const requests = turns.flatMap((one) => one.requests ?? []);
+  const sum = (field) => requests.reduce((total, request) => total + request[field], 0);
+  return (
+    `${turns.filter((one) => one.called).length} turns, ${requests.length} API requests; ` +
+    `input ${sum("prompt_cache_hit_tokens")} cache-hit + ${sum("prompt_cache_miss_tokens")} cache-miss tokens; ` +
+    `output ${sum("completion_tokens")} tokens (${sum("reasoning_tokens")} of them reasoning)`
+  );
+}
+
+/** The header lines only a DeepSeek or `--against` invocation has; a Claude run's header is unchanged. */
+function extraHeader(result) {
+  const lines = [];
+  if (CHECKS_CATALOG) {
+    lines.push(`harness: ${HARNESS}`, `tools_digest: ${result.toolsDigest} (expected ${EXPECTED_CATALOG})`);
+  }
+  if (DEEPSEEK) {
+    lines.push(
+      `backend: deepseek`,
+      `fingerprint: ${result.fingerprint}`,
+      `usage: ${usageLine(result.turns)}`,
+      `usage_file: ${result.usageFile}`,
+    );
+  }
+  return lines.map((line) => `${line}\n`).join("");
 }
 
 /** The first failure among a run's turns, or null. */
@@ -466,7 +583,7 @@ skills: ${skillsGiven().join(", ")}
 host: ${HOST.line}, instructions as the system prompt
 ${HOST.isolation ? `host_isolation: ${HOST.isolation}\n` : ""}instructions: ${VERSION}
 target: ${TARGET}
-model_requested: ${MODEL}
+${extraHeader(result)}model_requested: ${MODEL}
 model_resolved: ${result.resolved}
 cli_version: ${CLI}
 session: ${result.first.session}
@@ -553,7 +670,8 @@ const stateOf = (name) => {
 const work = pending(chosen, RUNS, { resume: RESUME, stateOf });
 const PLANNED = plannedCalls(work);
 console.error(
-  `${SET.toUpperCase()} semantic evaluation on ${SOURCE} — instructions ${VERSION} at ${TARGET}, model ${MODEL}, CLI ${CLI}, host ${HOST.name}\n` +
+  `${SET.toUpperCase()} semantic evaluation on ${SOURCE} — instructions ${VERSION} at ${TARGET}, model ${MODEL}, CLI ${CLI}, ` +
+    `${DEEPSEEK ? "backend deepseek" : `host ${HOST.name}`}${SWAP === null ? "" : `, harness ${HARNESS}`}\n` +
     `${chosen.length} scenarios × ${RUNS} runs${SMOKE ? " (smoke)" : ""}${RESUME ? `, ${work.length} not yet recorded ok` : ""} = ` +
     `${work.length} runs, ${PLANNED} model calls, budget ${BUDGET} → ${OUT}`,
 );
@@ -564,8 +682,18 @@ if (DRY) {
 checkBudget(PLANNED, BUDGET);
 if (DRY) process.exit(0);
 
+// Before anything is seeded: the server has to be serving the catalog the guarded
+// files register — not merely a different one (`../revision.mjs`).
+if (CHECKS_CATALOG && work.length) {
+  EXPECTED_CATALOG = expectedCatalog(join(ROOT, "web", "lib", "mcp", "server.ts"));
+  const bearer = seed(work[0].scenario.fixture, "--token");
+  console.error(`Waiting for ${ORIGIN} to serve tool catalog ${EXPECTED_CATALOG}…`);
+  await waitForCatalog({ expected: EXPECTED_CATALOG, read: () => servedCatalog(bearer) });
+}
+
 mkdirSync(join(OUT, "snapshots"), { recursive: true });
 mkdirSync(join(OUT, "logs"), { recursive: true });
+if (DEEPSEEK) mkdirSync(join(OUT, "usage"), { recursive: true });
 
 let done = 0;
 let calls = 0;

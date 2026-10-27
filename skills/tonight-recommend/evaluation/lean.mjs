@@ -64,6 +64,37 @@ export function resolveTurn(request, previousAnswer) {
     : { sent: title, failure: null };
 }
 
+/**
+ * A run's turns, in order, each awaited before the next — and before its transcript
+ * boundary is read, so a backend that answers asynchronously has made every call it
+ * will make by the time its turn is closed (docs/work/vibe-hypotheses §12.2).
+ *
+ * Every follow-up resumes the first turn's session and is failed if it answers in
+ * another; a failed turn stops the turns after it; a pick that cannot be resolved
+ * fails before its call. `turn(sent, resume)` is the backend; `boundary()` is how
+ * many Tonight calls have been logged so far.
+ */
+export async function runTurns(requests, { turn, boundary }) {
+  const turns = [];
+  for (const { key, text } of requests) {
+    const previous = turns.at(-1);
+    if (previous !== undefined && previous.failure !== null) break;
+    const from = await boundary();
+    const { sent, failure } = previous === undefined ? { sent: text, failure: null } : resolveTurn(text, previous.answer);
+    if (failure !== null) {
+      turns.push({ key, sent, answer: "", session: turns[0].session, failure, calls: [from, from], called: false });
+      break;
+    }
+    const done = await turn(sent, previous === undefined ? null : turns[0].session);
+    // A resume that started a different session did not resume.
+    if (previous !== undefined && done.failure === null && done.session !== turns[0].session) {
+      done.failure = `did not resume: asked for ${turns[0].session}, answered in ${done.session}`;
+    }
+    turns.push({ key, sent, ...done, calls: [from, await boundary()], called: true });
+  }
+  return turns;
+}
+
 /** The model calls a list of planned runs would make. */
 export const plannedCalls = (work) => work.reduce((sum, item) => sum + callsPerRun(item.scenario), 0);
 
@@ -161,6 +192,9 @@ const STOPPING = [
   /authentication[_ ]error/i,
   /invalid api key/i,
   /oauth token/i,
+  // DeepSeek's own words for the same two: no money left (402), a key it refuses (401).
+  /insufficient balance/i,
+  /authentication fails/i,
 ];
 
 /** Whether a failure means the run should stop here rather than fail every call after it. */

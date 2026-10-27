@@ -179,11 +179,16 @@ test("the runner uses the lean rules: budget before any call, smoke, resume, and
   // A quota or sign-in failure on any turn stops the invocation, not only on the first two.
   assert.match(runner, /if \(result\.turns\.some\(\(one\) => stopsTheRun\(one\.failure\)\)\) \{[\s\S]*?process\.exit\(3\);/);
   // Every follow-up resumes the first turn's session, a failed turn stops the rest, and a
-  // pick is resolved before its call — an unresolvable one is never sent.
-  assert.match(runner, /if \(previous !== undefined && previous\.failure !== null\) break;/);
-  assert.match(runner, /resolveTurn\(text, previous\.answer\)/);
-  assert.match(runner, /turn\(sent, config, previous === undefined \? null : turns\[0\]\.session\)/);
-  assert.match(runner, /calls: \[from, loggedCalls\(logFile\)\]/, "a turn's transcript boundary is not recorded");
+  // pick is resolved before its call — an unresolvable one is never sent. The loop is
+  // `runTurns`, awaited, with the proxy log as its boundary (behaviour:
+  // evaluation-deepseek.test.ts); the proxy stops only after it settles.
+  const leanSource = readFileSync(new URL("lean.mjs", EVALUATION), "utf8");
+  assert.match(leanSource, /if \(previous !== undefined && previous\.failure !== null\) break;/);
+  assert.match(leanSource, /resolveTurn\(text, previous\.answer\)/);
+  assert.match(leanSource, /const done = await turn\(sent, previous === undefined \? null : turns\[0\]\.session\);/);
+  assert.match(leanSource, /calls: \[from, await boundary\(\)\]/, "a turn's boundary is read before the turn is awaited");
+  assert.match(runner, /turns = await runTurns\(requests, \{\s*turn: \(sent, resume\) => turn\(sent, config, resume\),\s*boundary: \(\) => loggedCalls\(logFile\),\s*\}\);\s*\} finally \{\s*rmSync\(config, \{ force: true \}\);\s*await shutDown\(proxy, PORT\);/,
+    "the turns are not awaited before the proxy stops");
   assert.match(runner, /Which turn made which calls:/, "the artifact does not say which turn made which calls");
   assert.match(runner, /return \{ answer: "", session: "unknown", failure: failureOf\(error\) \};/);
   assert.match(runner, /parsed\.is_error \?/, "an error inside a successful exit is not caught");

@@ -591,3 +591,348 @@ All three blockers are resolved, and Codex found no new ones. It reran:
 - **The manual ChatGPT plugin pass:** the coordinator's, as for every deploy that changes
   instructions (`m5/README.md`).
 - **Nothing is pushed, merged or deployed.**
+
+## 12. DeepSeek as a second backend for the live evaluation — plan delta
+
+Status: **new scope, approved by the user on 2026-10-27; under Codex review of this section only.**
+Everything above stays READY and is not reopened.
+
+**The ask:**
+
+- Let the existing M5/M6 runner (`m5/run.mjs`) drive a DeepSeek model instead of `claude -p`.
+- Run the five Vibe-hypothesis scenarios (H1-H5) with it, at the baseline `fdb99b9` and at `HEAD`.
+- Report the actual transcripts, tool writes, rubric scores, model and version, and costs.
+
+**The bounds:**
+
+- The smallest adapter that works, reusing the harness, fixtures and rubric — no second
+  framework.
+- The Claude runner preserved.
+- No product change.
+
+### 12.1 What is there (inspected, nothing printed)
+
+- **A DeepSeek key exists.** It is not in the environment (`DEEPSEEK_API_KEY` is unset). It is in
+  opencode's credential store (`~/.local/share/opencode/auth.json`, entry `deepseek`, type `api`).
+  - `GET /models` with it answers `deepseek-flash` and `deepseek-v4-pro`.
+  - `GET /user/balance`: available, USD 25.23.
+  - The key is never printed or written. A run receives it only as `DEEPSEEK_API_KEY` in the
+    environment of the process that starts the runner.
+- **No `web/.env.local` exists**, in this worktree or the hub checkout. The dev server and the
+  seeder need `OAUTH_SIGNING_SECRET`; everything else is optional in development. A dev-only file
+  is created in this worktree:
+  - `PUBLIC_ORIGIN=http://localhost:3000`;
+  - a freshly generated 48-byte secret;
+  - no `DEV_DATABASE_DIR`, so the database is in memory.
+
+  `web/.gitignore` ignores `.env*`, so it is never committed; the secret is never printed.
+- **Ports** 3000 (server) and 3997 (proxy) are free.
+- **The DeepSeek API, per its docs as of 2026-10-27:**
+  - OpenAI-compatible `POST /chat/completions` with `tools`.
+  - Both models call tools.
+  - Thinking is on by default (`thinking: {type: "enabled"}`).
+  - With `tools`, the whole assistant message — `content`, `reasoning_content`, `tool_calls` — has
+    to be sent back in every later request, or the API answers 400.
+  - Prices are per 1M tokens and halve off-peak. Peak is 01:00-04:00 and 06:00-10:00 UTC on
+    weekdays.
+
+    | Model | Input, cache hit (off-peak / peak) | Input, cache miss | Output |
+    | --- | --- | --- | --- |
+    | `deepseek-v4-pro` | $0.022 / $0.044 | $0.66 / $1.32 | $1.98 / $3.96 |
+    | `deepseek-flash` | $0.003 / $0.006 | $0.15 / $0.30 | $0.60 / $1.20 |
+- **Only the instruction files differ at runtime.** Between `fdb99b9` and `HEAD` the only runtime
+  files that differ are the two `SKILL.md` files, `web/lib/mcp/server.ts` and `plugin.json`
+  (`git diff --stat`, tests excluded).
+
+### 12.2 Design
+
+**`evaluation/deepseek.mjs` — the adapter, one export:**
+`deepseekBackend({ key, model, base, fetch })` → `{ turn(said, configFile, resume, system) }`. It
+is plain `fetch`, with no SDK and no new dependency.
+
+- **It reads the per-run MCP config file the CLI reads** — the proxy URL and its
+  `Authorization`. So it talks to the same proxy, and the proxy log, the transcript, the turn
+  boundaries and the snapshots are produced exactly as for a Claude run.
+- **Tools:** `tools/list` through the proxy, with the same request shape the seeder uses (stateless
+  JSON-RPC, SSE answers). Each tool becomes an OpenAI function tool with its MCP `inputSchema` as
+  `parameters` (`$schema` dropped). Tonight's tools only; there is nothing else to call.
+- **The loop, per turn:**
+  1. `POST {base}/chat/completions` with `{ model, messages, tools, thinking: { type: "enabled" } }`.
+  2. Append `choices[0].message` whole, as the API requires.
+  3. Run each `tool_call`, in order, as `tools/call` through the proxy. The tool message is the
+     tool's text content; an `isError` result is prefixed `Error: `, so the model is told the way
+     the CLI tells Claude.
+  4. Repeat until a message has no tool calls; its `content` is the answer.
+
+  At most 40 requests per turn, or the turn fails as `error_max_turns`, as the CLI names it.
+
+**Completion and failure (review 1, blocker 2):**
+
+- **Each request sends `max_tokens: 32768`, `reasoning_effort: "high"` and `thinking: { type:
+  "enabled" }`.** These are explicit, and recorded, rather than left to the provider's defaults.
+- **Each request has a 300-second timeout.**
+- **A turn succeeds only on `finish_reason: "stop"`** with no tool calls. `"tool_calls"` runs the
+  calls. Anything else fails the turn as `deepseek finish_reason <reason>`: `length` (truncated),
+  `content_filter`, `insufficient_system_resource`, or a missing or unknown reason.
+- **Tool calls:**
+  - each keeps its `id` in the tool message (`tool_call_id`);
+  - arguments that are not valid JSON are answered `Error: arguments are not valid JSON`, and
+    never called;
+  - a JSON-RPC error from the server is answered `Error: <its message>`;
+  - an `isError` result's text — a refusal's whole payload, `vibe_required` included — is passed
+    unchanged after `Error: `.
+
+  The `Error: ` prefix is this adapter's convention. It has not been verified as identical to
+  what the CLI shows Claude.
+- **Transport failures fail the turn** (`deepseek …` or `mcp …`): `fetch` throwing, a timeout, an
+  HTTP error, or a body that does not parse.
+- **Usage counted before a failure is kept** and returned with it.
+- **The key is redacted** from every failure and message the adapter produces — an error body that
+  echoes it included — before anything leaves the adapter.
+- **The runner awaits the turn (review 2, blocker 2).** Today it does not — `run.mjs:402` calls
+  `turn()` synchronously, which only worked because the CLI turn is synchronous.
+  - The turn loop moves into `lean.mjs` as `runTurns(requests, { turn, boundary })`. Each turn is
+    resolved, its boundary read, the turn **awaited**, and the boundary read again; the next turn
+    starts only after that.
+  - `run.mjs` awaits `runTurns` inside the `try` whose `finally` stops the proxy, so cleanup waits
+    for the last turn.
+  - Tested with a delayed asynchronous backend that logs its tool call only after a delay: the
+    recorded boundary includes it, and cleanup is observed only after the last turn.
+
+**Accounting (review 1, blocker 3):**
+
+- **Two units, named apart.** A *turn* is one user message and everything the agent does before it
+  answers — the unit `--budget` and `callsPerRun` count, as today. An *API request* is one
+  `/chat/completions` call; a turn makes one or more.
+- **Every API request is recorded, in a sidecar** `usage/<run>.jsonl` in the result directory,
+  key-free. Each line has:
+  - the turn, its UTC start time and its duration;
+  - `finish_reason`;
+  - `prompt_cache_hit_tokens`, `prompt_cache_miss_tokens`, `completion_tokens`, and
+    `completion_tokens_details.reasoning_tokens`.
+
+  A request that failed after the API answered is recorded too.
+- **The artifact header carries the totals:** turns, API requests, cache-hit input, cache-miss
+  input and output.
+- **Pricing stays outside the harness.** The report prices each request at its own UTC time: peak
+  01:00-04:00 and 06:00-10:00 UTC on weekdays, everything else off-peak — including Chinese public
+  holidays (none falls on 2026-10-27). Output is priced on `completion_tokens`, which already
+  includes reasoning; `reasoning_tokens` is information, never added again.
+- **The worst case** at the 40-request cap is 26 × 40 = 1,040 API requests. Expected: a handful a
+  turn.
+- **Sessions:** a conversation is kept in memory under a random session id. A resumed turn
+  appends its user message to that conversation; an unknown id fails the turn as *"did not
+  resume"*.
+- **What a turn returns:** `{ answer, session, failure, model, fingerprint, usage }`.
+  - `model` and `fingerprint` are the API's own `model` and `system_fingerprint`.
+  - `usage` sums requests, cache-hit input, cache-miss input, output and reasoning tokens.
+- **Failures** read `deepseek HTTP <status> — <message>`. `lean.mjs`'s stop list gains DeepSeek's
+  two wordings that every later call would repeat: `Insufficient Balance` (402) and
+  `Authentication Fails` (401). A 429 already stops.
+- **The key** comes from the environment only, and is refused before anything is seeded when it
+  is missing (a dry run excepted). It never reaches a log, an artifact or an error message.
+
+**`m5/run.mjs`:**
+
+- **`--backend claude|deepseek`, default `claude`.** Without it nothing changes: the same
+  `claude -p` call, `--host`, default model `claude-sonnet-5`, `answeredBy`, result directory and
+  artifact.
+- **With `deepseek`:**
+  - `--model` defaults to `deepseek-v4-pro`;
+  - `claude --version` is not called;
+  - `--host` is refused, because it has no meaning here;
+  - the result directory gains `-deepseek-<model>`, so recordings never mix with Claude's;
+  - the artifact records `backend`, `model_resolved` and `fingerprint` from the API, and `usage`;
+    `cli_version: none (DeepSeek API)`; a host line that describes the loop.
+- **`turn()` dispatches** to the adapter or to the CLI. The turn loop, title resolution,
+  transcript boundaries and stops are unchanged.
+- **`--against <commit>`** — how a baseline is recorded with today's harness. The runner does the
+  swap itself, so it cannot be left half done (review 1, blocker 1):
+  1. **Refuse unless the tracked tree is clean** (`git status --porcelain --untracked-files=no` is
+     empty). So the harness is exactly `HEAD`, and the three instruction files carry no edit to
+     lose.
+  2. **Freeze both SHAs** (`git rev-parse`): the target and `HEAD`.
+  3. **Install the restore before touching anything.** On `exit` — normal, `process.exit` or an
+     uncaught error — and on `SIGINT` and `SIGTERM`, run `git restore --source <HEAD sha> -- <3
+     files>`, synchronously, then exit with the signal's code. It is idempotent, so running twice
+     is harmless.
+  4. **Swap:** `git restore --source <target sha> -- <3 files>`. This touches the working tree only,
+     never the index.
+  5. **The guard compares the three files with the target sha**, not `HEAD`, as today's guard
+     compares them with `HEAD`.
+  6. **Wait until the server serves the expected catalog** (review 2, blocker 1 — see *The
+     catalog check* below).
+  7. **Record**, then restore.
+
+  **The catalog check.** A digest that merely changed would prove nothing about which revision is
+  being served. So the check compares against the *expected* catalog:
+  - **Expected:** a fresh child `node` process imports the working-tree `server.ts` — which the
+    guard has just proven equal to the target — and lists each registered tool's name and
+    description. The digest is sha256 over the sorted (name, description) pairs. A child process,
+    so no module cache from an earlier revision can answer.
+  - **Served:** the same digest over the live `tools/list`, read through the server with a token
+    minted the way the seeder mints one.
+  - **The runner polls the served digest until it equals the expected one**, for up to 120
+    seconds. On a timeout the invocation stops before anything is seeded — the restore still runs
+    — and the message names both digests.
+  - **When it runs:** before every DeepSeek invocation and every `--against` invocation, `HEAD`
+    included. So a `HEAD` pass that starts while the server still serves the baseline waits for
+    the restored catalog, and a stale or transient catalog is never accepted.
+  - **Its limit:** a revision that differs only outside the tool descriptions is not told apart by
+    the digest. The guard covers the files themselves.
+
+  The artifact gains:
+  - `target:` the target sha;
+  - `harness:` the `HEAD` sha;
+  - `tools_digest:` the digest of the descriptions the server served for that run. It is recorded
+    on every run, so a baseline and an after-run show different digests, and runs of one pass the
+    same.
+- **Results are partitioned by harness.** With `--against`, the result directory is
+  `…-<target>-harness-<HEAD>-deepseek-<model>`, so `--resume` never mixes recordings made by two
+  versions of the adapter.
+- **A DeepSeek run requires a committed harness:** it refuses while anything under
+  `skills/tonight-recommend/evaluation/` differs from `HEAD`. The Claude path keeps today's
+  guard, unchanged.
+
+### 12.3 Tests (deterministic, no network)
+
+- **`web/lib/evaluation-deepseek.test.ts`** drives the adapter against a stub `fetch` that plays
+  both DeepSeek and the MCP proxy. It checks:
+  - tools are mapped;
+  - the tool loop runs calls in order and returns the final answer;
+  - the whole assistant message, `reasoning_content` included, is sent back, across a resumed
+    turn too;
+  - `tool_call_id` is kept;
+  - an `isError` result's payload passes unchanged after `Error: `;
+  - a JSON-RPC error, and arguments that are not JSON, are answered as errors;
+  - a resumed turn continues the conversation, and an unknown session fails;
+  - each of `length`, `content_filter`, `insufficient_system_resource` and a missing finish reason
+    fails the turn, with the usage before it kept;
+  - a timeout and a transport failure fail the turn;
+  - a 402 fails with a failure `stopsTheRun` accepts;
+  - the request cap fails the turn;
+  - per-request usage is recorded and summed;
+  - `max_tokens`, `reasoning_effort` and `thinking` are sent;
+  - **the key appears in no returned value, no usage record and no failure — an error body that
+    echoes it included**.
+- **Runner pins:**
+  - the Claude path unchanged (the existing pins, plus `--backend` defaulting to `claude`);
+  - `--host` refused with `deepseek`;
+  - the `-deepseek-<model>` and `-harness-<sha>` suffixes;
+  - the `--against` sequence: clean-tree refusal, both SHAs frozen, the restore installed before
+    the swap, the server-reload wait, the guard and `target:` following the target, and
+    `harness:` and `tools_digest:` recorded;
+  - the boundary read after the awaited turn.
+- **The swap and restore**, against a scratch git repository in a temp directory: a dirty file
+  refuses; a swap is undone on exit and on a thrown error. It runs no server and makes no model
+  call.
+- **The catalog check:**
+  - `waitForCatalog` against a stub reader: a stale catalog that then turns correct is waited
+    out; one that never matches times out with both digests named; a transient read error is
+    retried;
+  - the child-process expected digest equals the digest of the in-process `tonightMcpServer`'s
+    registered tools for the current `server.ts`.
+- **`runTurns`** with a delayed asynchronous backend: boundaries are read after the awaited turn,
+  a failed turn stops the rest, a pick is resolved before its call, and the returned promise
+  settles only after the last turn.
+
+### 12.4 The live runs (this session is the operator; the key is available)
+
+1. Commit the adapter and its tests, so `harness:` names the code that ran. Write `web/.env.local`
+   (12.1) and start `npm run dev`.
+2. **Baseline:** both commands with `--backend deepseek --model deepseek-v4-pro --against fdb99b9
+   --runs 1`:
+   - `recommend-only --only m5-05-partial-fit --budget 2`;
+   - `plugin-skills --only m5-05-partial-fit,m5-06-bloom-saved --budget 11`.
+
+   The runner swaps the files, waits for the server, records, and restores (12.2).
+3. **`HEAD`:** the same two commands, without `--against`.
+4. **The report**, for each of the 2 × 6 runs:
+   - the transcript (tool calls and their arguments) and the writes;
+   - the answers;
+   - a rubric score against T1 and the family rows, with the evidence cited;
+   - the model and fingerprint;
+   - tokens, and a cost from 12.1's prices at the run's UTC time.
+
+   Codex is asked to check the scoring.
+
+That is 13 model turns a pass and 26 in all — the five new scenarios only. The re-scored first-films
+run (F1) is an existing scenario and is not part of this ask.
+
+**One run per scenario per pass is a single-pass comparison.** It shows what this model did once
+under each set of instructions. It is not a pass rate, and it does not prove an improvement. The
+report says so.
+
+### 12.6 Review log
+
+- **Codex plan-delta review 1 — NOT READY.** It accepted the adapter's size, the use of the
+  existing key through the process environment, the full-message replay, `deepseek-v4-pro` and
+  the prices. Three blockers, resolved in 12.2-12.4:
+  1. **The baseline swap was not safe.** The runner now does the swap itself: a clean tree is
+     required, both SHAs are frozen, the restore is installed before the swap and runs on exit,
+     error and signal, the server reload is awaited, a committed harness is required, and results
+     are partitioned by harness.
+  2. **Completion and failure were undefined.** Only `stop` is success; every other finish reason
+     fails the turn; the limits and the timeout are explicit; tool-call ids, refusal payloads,
+     JSON-RPC errors and bad arguments are handled; usage survives a failure; the key is redacted.
+  3. **The accounting could not price a run.** Turns and API requests are named apart, every API
+     request has its usage and UTC time in a sidecar, and the report prices each request at its
+     own time, with output on `completion_tokens` only.
+
+  Also adopted: `Error: ` described as the adapter's convention, a redaction test against an echoed
+  key, and single-pass wording.
+- **Codex plan-delta review 2 — NOT READY.** The completion, accounting and restore protections
+  were accepted. Two blockers, resolved in 12.2-12.3:
+  1. **A changed digest did not prove the requested revision was serving.** The check now compares
+     the served catalog with the expected one, computed from the guarded `server.ts` in a fresh
+     child process. It runs before every DeepSeek and every `--against` invocation, `HEAD`
+     included, and is tested for stale and never-matching catalogs.
+  2. **The runner did not await the turn.** It does now: the loop moves into `runTurns` and is
+     awaited before every boundary read and before cleanup, tested with a delayed asynchronous
+     backend.
+- **Codex plan-delta review 3 — READY.** No blockers in the delta.
+
+### 12.7 Implementation
+
+**New files:**
+
+- `evaluation/deepseek.mjs` — the adapter.
+- `evaluation/revision.mjs` — the catalog digest, the expected catalog computed in a child process,
+  `waitForCatalog`, and the guarded swap.
+- `web/lib/evaluation-deepseek.test.ts` — 12 tests, no network.
+
+**Changed:**
+
+- `evaluation/lean.mjs` — `runTurns`, and the two DeepSeek stop words.
+- `m5/run.mjs`:
+  - `--backend`, `--against`;
+  - the dispatching, awaited `turn`;
+  - the catalog check;
+  - the usage sidecar and the extra header lines.
+- The M5 README.
+- Three runner pins, moved to where the loop now lives (`evaluation-lean.test.ts`,
+  `evaluation-m5.test.ts`).
+
+**Kept as it was:**
+
+- A Claude run's `const HOST = agentHost(…)`, its `host:` and `host_isolation:` lines, and its
+  results directory name. A DeepSeek run replaces the host's line, isolation and suffix with its
+  own.
+- The M6 host pins, unchanged and passing.
+
+**Checks:**
+
+- **Dry runs:**
+  - the Claude result directory is named exactly as before (`m5-plugin-skills-<digest>-<sha>`);
+  - the DeepSeek one is `…-deepseek-deepseek-v4-pro`;
+  - `--backend deepseek --host login` is refused.
+- **typecheck** is clean.
+- **lint** shows 0 errors and the two known warnings.
+
+### 12.5 Not in scope
+
+- An SDK or a second framework.
+- DeepSeek in `run-baseline.mjs` or `m3/run.mjs`.
+- A price table in the harness.
+- Automated scoring.
+- Any change to fixtures, rubric criteria, the seeder, the proxy or product code.

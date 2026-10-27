@@ -301,8 +301,13 @@ test("a recording is named by the skills it was given, the source and the commit
     "the runner still reads the retired projection");
   assert.match(runner, /createHash\("sha256"\)\.update\(instructions\(\), "utf8"\)\.digest\("hex"\)\.slice\(0, 8\)/,
     "the version is not a digest of the instructions supplied");
-  assert.match(runner, /const OUT = join\(SET_DIR, "results", `\$\{SET\}-\$\{SOURCE\}-\$\{VERSION\}-\$\{TARGET\}\$\{HOST\.suffix\}`, "runs"\);/,
-    "the result directory no longer names set, source, digest, commit and host");
+  // A Claude run without --against is named exactly as before; a baseline recorded with
+  // today's harness names that harness too, and a DeepSeek run its backend and model.
+  assert.match(
+    runner,
+    /`\$\{SET\}-\$\{SOURCE\}-\$\{VERSION\}-\$\{TARGET\}\$\{SWAP === null \? "" : `-harness-\$\{HARNESS\}`\}\$\{HOST\.suffix\}`/,
+    "the result directory no longer names set, source, digest, commit, harness and host",
+  );
   assert.match(runner, /\binstructions: \$\{VERSION\}$/m, "an artifact does not name the digest it ran on");
   assert.match(runner, /^target: \$\{TARGET\}$/m, "an artifact does not name its commit");
 });
@@ -316,7 +321,9 @@ test("the runner reseeds every run, snapshots after every run, and never reseeds
   assert.match(readme, /\*\*vibes, then\s+films, then genres\*\*/);
   // A second turn that did not resume is a failure, not a fresh conversation scored
   // as the second half of one.
-  assert.match(runner, /did not resume/);
+  // The check lives in the turn loop the runner awaits (`lean.mjs`, `runTurns`).
+  assert.match(readFileSync(new URL("../lean.mjs", M5), "utf8"), /did not resume/);
+  assert.match(runner, /await runTurns\(requests,/);
 });
 
 test("a legacy scenario runs alone, once, per fresh v12 seed and migration", () => {
