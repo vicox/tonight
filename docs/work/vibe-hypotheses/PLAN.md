@@ -572,3 +572,22 @@ each fixed:
    list they pick nothing from gets nothing; a plain yes takes the recommended one, first in every
    list. Said in *Three hypotheses, chosen by title*, in its *Their pick is their yes* rule, and in
    *A new user's first films*. Pinned in all three places.
+
+The fixes are in `760b4f9`. After them: 116 focused tests pass, typecheck is clean, lint is
+unchanged, and the Python replay of both `test.sh` files shows no failures.
+
+### Codex code review 2 — READY
+
+All three blockers are resolved, and Codex found no new ones. It reran:
+
+- the vibes shell suite: 150 passed;
+- the recommend shell suite: 244 passed;
+- the verdict tests: 38 passed.
+
+### What is left, and whose
+
+- **The live baseline:** the operator runs the 7.2 commands at `fdb99b9`.
+- **The live after-run:** the operator runs the same commands at the reviewed commit.
+- **The manual ChatGPT plugin pass:** the coordinator's, as for every deploy that changes
+  instructions (`m5/README.md`).
+- **Nothing is pushed, merged or deployed.**
