@@ -1368,6 +1368,12 @@ than routing vocabulary. Each is now the rule it showed:
 - `taste-verdicts.test.ts` pinned the old example. It now pins the rule and refuses the example.
 - `tonight-recommend/test.sh` and `tools.test.ts` also refuse the removed wording.
 
+### 15.2 Codex code review 2 — READY (`84db46f`)
+
+The remaining examples are gone and the inference rules hold; no new blockers. Codex reran
+vibes 160/160, recommend 251/251, plugin 37/37 and 233 focused tests. Stopped here: no live run,
+push, merge or deploy.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
