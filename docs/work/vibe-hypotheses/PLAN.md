@@ -1132,6 +1132,11 @@ words) is not a blocker. Three blockers, each fixed:
    runner cannot resolve is the runner's limit: the turns after it are UNTESTED, and behaviour 4 is
    scored by the reviewer from the answer itself.
 
+### 13.2 Codex code review 2 — READY (`566f562`)
+
+No new blockers. Codex reran vibes 154/154, recommend 248/248, plugin 37/37 and 164 focused tests;
+the original parser reproductions now pass.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
