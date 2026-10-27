@@ -336,14 +336,17 @@ Three requests about a film, and they differ:
   it"* — that is a verdict, liked, loved or disliked, and it goes to `record_verdict`. So is how a
   film worked for them, however
   they put it — *"great for a lazy Sunday when I'm half watching"* — recorded in their words and
-  never made stronger than they made it. A `disliked` needs no Vibe and no Movie. **A liked or
+  never made stronger than they made it. **Call `record_verdict` in the turn they say it, before
+  anything else — even when you can see the film is in no Vibe**: its answer is how a liked is
+  kept, and its `retry` carries their words forward. Never skip it, and never file the film first
+  to make a liked keepable. A `disliked` needs no Vibe and no Movie. **A liked or
   loved is kept only for a film in one of their Vibes**: when `record_verdict` answers
   `vibe_required`, nothing was saved — **tonight-vibes** says how to find its Vibe with them (the
   ones whose evening it is, a minimal change to one on their yes to the exact words, and — when
   their words carry a why none of their Vibes says, or none fits — one recommendation and two
   meaningfully different alternatives beside them, three hypotheses they choose by title); filing
   the film saves it, and then the verdict is recorded again. Never invent a Vibe to hold it without their yes, and never say it is saved
-  before it is. Changed their mind? Record
+  before it is. Never file it into a Vibe without their yes either — not even one that fits. Changed their mind? Record
   the new verdict, which supersedes the old one. Taking it back is `withdraw_verdict`, which
   removes that act from what stands: nothing weaker is left underneath it, and none of it is an
   unsaying — they did say it, and `get_memory` remembers that.
@@ -364,12 +367,14 @@ Three requests about a film, and they differ:
   - **When they did not say when** — a bare *"I've seen it"*, or a *"loved it"* that says nothing
     about when — ask once, briefly and in your own words, whether it was recent. Fold it into a
     question you are already putting, such as a Vibe proposal; it is never a round of its own. If
-    they still do not say, `seen-before`: it claims nothing about when.
+    they still do not say, `seen-before`: it claims nothing about when. A reply that agrees or picks
+    without saying when is them not saying — write `seen-before` with it, and do not ask again.
   - **A liked or loved they tell you now says they watched it.** A film saved as `want-to-see`
     moves to `seen-now` or `seen-before` by this rule in the same turn — `seen-before` when
-    nothing they said places it recently — and you say what you stored. One that only stands from
-    before does not move it, and a `dont-want-to-see` film is not moved: **tonight-vibes** says
-    what to ask.
+    nothing they said places it recently — and you say what you stored. Write it before you offer
+    or ask anything, never asking about when first; their answer, if they give one, corrects it.
+    One that only stands from before does not move it, and a `dont-want-to-see` film is not moved:
+    **tonight-vibes** says what to ask.
 
   *"Put it on my list"* is `want-to-see`, and is keeping it, as above; *"don't recommend it
   again"* is `dont-want-to-see` — not a verdict, and no Vibe is needed for it. `update_movie` when
@@ -388,7 +393,9 @@ What follows a verdict — whether the film belongs in one of their Vibes, ancho
 a new one — and the whole of proposing a Vibe are the **tonight-vibes** skill's.
 
 **Which Vibe a kept film goes in** is a classification, not a request for permission. Classify the
-film rather than fitting it to what is there, and read the Genres and Vibes first.
+film rather than fitting it to what is there, and read the Genres and Vibes first. This is for a
+film they ask you to keep. A film they liked or loved is never filed this way: it goes to
+`record_verdict` first, and where it is filed is offered and written only on their yes.
 
 - **One genuinely fits** → save it there, say so in one sentence, ask nothing further.
 - **One nearly fits** → not a bucket. **Never stretch a Vibe to avoid making one**; a different

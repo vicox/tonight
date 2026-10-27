@@ -1075,6 +1075,41 @@ H3 meaningful may need a prompt that names the pick.
 - **USD 0.0497** at the Flash off-peak prices ($0.003 / $0.15 / $0.60 per 1M).
 - The balance went from USD 24.90 to 24.84 (USD 0.06, at cent precision).
 
+## 13. Fixing what the live runs found (user decision, 2026-10-27)
+
+**The order the user set:**
+
+1. Fix the genuine behaviour the v4-pro and Flash runs exposed.
+2. Codex reviews the changed implementation.
+3. Only after READY, rerun the same scenarios on `deepseek-flash`, baseline against `HEAD`.
+
+The scope is minimal, with no new framework, schema or API: instructions, tool descriptions,
+`VIBE_REQUIRED_NEXT`, the evaluation's follow-up and title reading, the rubric, and pins.
+
+| Found | Fixed in |
+| --- | --- |
+| Recommend-only filed a liked without a yes (v4-pro), or never recorded it (Flash) | `tonight-recommend`: call `record_verdict` in the turn they say it, before anything else — even for a film you can see is in no Vibe — and never file the film first to make the liked keepable; never file into a Vibe without a yes, even one that fits; the keep flow's no-question filing is for a film they ask to keep, never a liked. `record_verdict`'s description says the same where every host reads it |
+| A pick without a when-answer asked about when again, and wrote nothing (v4-pro H3) | `tonight-vibes` *Their pick is their yes*, `tonight-recommend`'s viewing rule and `next`: a pick that does not say when is them not saying — `seen-before` with it, never asked again |
+| A Genre meaning shown one way was written another (v4-pro H1), or shown as a definition (Flash) | `tonight-vibes` and `next`: each new Genre's meaning shown as the *"I like…"* sentence it will be written as, and written word for word; `create_genre`'s description says to show it as the first-person sentence it will be written as |
+| Hypotheses wider than their reason, or stating a rule they never gave; an existing Vibe offered as one of three | `tonight-vibes` and `next`: each reading keeps the subject of their reason (a worked example that is not the scenario's: *"the dialogue was so sharp"*); no reading turns into a rule they never gave; where the film already belongs is said beside the three, never as one of them |
+| A liked want-to-see film was asked about before it moved (v4-pro H5) | `tonight-vibes`, `tonight-recommend`, `record_verdict`'s description and `next`: write the move before you offer or ask anything, never asking about when first |
+
+**The evaluation:**
+
+- **`new-only` names its pick:** *"{title:1} — just that one, and leave it out of Champagne &
+  Blueprints."* With three new options, *"just the new one"* did not say which; `{title:N}` is now
+  resolved anywhere in a follow-up.
+- **Formatting is not behaviour.** `titleNumbered` reads titles by number where they are numbered,
+  and as the three line-leading bold titles, in order, where none is — the number inside the bold,
+  and quotes, included.
+- **The rubric** scores behaviour (eight T1 criteria, *After a pick*, *After a decline*) apart from
+  presentation, which is recorded and never a behavioural FAIL alone. A turn never sent is UNTESTED.
+- The table that T1 had split in two is whole again.
+
+**Pins:** both `test.sh` files, `verdicts.test.ts` (`next` and `record_verdict`), `tools.test.ts`
+(`create_genre`), `evaluation-lean.test.ts` (titles and placeholders), and `evaluation-m5.test.ts`
+(the rubric's criteria and the `new-only` request). `plugin.json` is 1.10.1.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.

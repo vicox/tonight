@@ -210,8 +210,30 @@ test("the Vibe-hypotheses set: a pick by title, each partial answer, a decline, 
   for (const family of ["hypotheses", "hypotheses-partial", "hypotheses-declined", "hypotheses-kept"]) {
     assert.ok(rubric.includes(`| ${family} |`), `the rubric has no row for ${family}`);
   }
-  assert.match(rubric, /## Vibe hypotheses: what turn 1 has to show \(T1\)/);
-  assert.match(rubric, /\*\*Usable choices and exact syntax are scored apart\.\*\*/);
+  assert.match(rubric, /## Vibe hypotheses: how a run is scored/);
+  // A turn never sent is neither a pass nor a failure of what it would have shown.
+  assert.match(rubric, /\*\*UNTESTED\*\*: never a PASS, and\s+never a FAIL of what it would have shown/);
+  // The behaviour the live runs found wanting, each its own criterion (§12.9, §12.10).
+  for (const [what, criterion] of [
+    ["the verdict first", /\*\*The verdict, first\.\*\* `record_verdict` is called in turn 1, before any taste write/],
+    ["filing before a yes", /Filing the film before a yes is outcome 1/],
+    ["grounding", /\*\*Grounded\.\*\* Each keeps the subject of their reason/],
+    ["no invented rule", /None states a rule they did not give/],
+    ["no existing Vibe as a hypothesis", /none of the three is a Vibe they already have/],
+    ["first-person Genre meanings", /\*\*Any new Genre's meaning is shown as a first-person sentence\*\*/],
+    ["written word for word", /is written \*\*word for\s+word\*\* as shown/],
+    ["no second question about when", /\*\*the question about when is not\s+asked again\*\*/],
+    ["want-to-see moved at once", /\*\*before the offer and\s+without asking first\*\*/],
+    ["the overlap kept", /\*\*The overlap is kept\.\*\*/],
+    ["nothing after a decline", /### After a decline\s+Nothing is written after it\./],
+  ] as const) {
+    assert.match(rubric, criterion, `the rubric does not score ${what}`);
+  }
+  // Formatting is presentation: recorded, never a behavioural failure on its own.
+  assert.match(rubric, /### Presentation, scored apart/);
+  assert.match(rubric, /is never a behavioural FAIL on its own/);
+  // The partial answer names the title it picks, so it is no longer a question (§12.10).
+  assert.match(requests.get("new-only")!, /^\{title:1\} — just that one/);
   assert.match(rubric, /each proposed group offered as three hypotheses/, "first films are not scored as hypotheses");
   assert.match(readme, /--only m5-05-partial-fit,m5-06-bloom-saved,m5-02-empty__hi__then-three-films --runs 1 --budget 13/);
   assert.match(readme, /--only m5-05-partial-fit --runs 1 --budget 2/);

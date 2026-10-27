@@ -50,12 +50,16 @@ Given after one of the requests above, in the same session.
 | `pick-title-one` | *"{title:1}"* |
 | `pick-title-two` | *"{title:2}"* |
 | `existing-only` | *"Just the existing one — no new one."* |
-| `new-only` | *"Just the new one — leave it out of the other."* |
+| `new-only` | *"{title:1} — just that one, and leave it out of Champagne & Blueprints."* |
 
-`{title:N}` is not sent as written. The runner sends the title the answer before it numbered N —
-the title alone, as somebody choosing by title would say it — and fails the turn before any call
-when that answer has no single item numbered N with a bold title (`evaluation/lean.mjs`,
-`titleNumbered`).
+`{title:N}` is not sent as written. The runner puts in its place the title the answer before it
+offered as choice N — the title alone, as somebody choosing by title would say it — and fails the
+turn before any call when that answer does not say which title that is (`evaluation/lean.mjs`,
+`titleNumbered`). How the list is formatted does not decide it: titles are read by their number
+where they are numbered, and as the three line-leading bold titles, in order, where none is.
+
+`new-only` names the one it picks. With three new options, *"just the new one"* did not say which,
+and both models read it as a question — so the follow-up says the title, and what it leaves out.
 
 ## Somebody new
 

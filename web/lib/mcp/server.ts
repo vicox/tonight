@@ -548,7 +548,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "than what they are like. A confirmation covers only the meaning they were shown, and " +
         "settles that it is theirs rather than granting permission to write. A meaning shown " +
         "beside a title they picked was shown, whether or not they read it — write it as it was " +
-        "shown, and never a genre only an option they did not pick needed.",
+        "shown, and never a genre only an option they did not pick needed. So show a new genre's " +
+        "meaning as the first-person sentence it will be written as, and write those words.",
       inputSchema: z.object({ name: genreName, instruction: genreInstruction }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
@@ -1048,6 +1049,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "vibes says — file the film, then call this again with `retry.arguments`, in this " +
         "conversation. Until then it is not saved, so never say it is. `disliked` needs no vibe " +
         "and no saved film.\n\n" +
+        "**Call this in the turn they say it, before anything else** — before offering a vibe, " +
+        "filing the film or asking about when, and even for a film you can see is in no vibe: its " +
+        "answer is how a liked is kept. Never file the film first to make a liked keepable; filing " +
+        "it needs their yes. A liked or loved said now about a film saved as want-to-see is their " +
+        "word that they watched it: move it with update_movie to seen-before — seen-now only if " +
+        "they placed it recently — in this same turn, before you ask anything.\n\n" +
         "**Turning a film down is not a verdict.** *\"Not interested\"*, *\"stop suggesting it\"*, " +
         "*\"don't recommend it again\"* say where the film stands on their list: dont-want-to-see, " +
         "with `create_movie` or `update_movie`. *\"Not tonight\"* and *\"not in the mood for " +
@@ -1423,7 +1430,9 @@ const VERDICT_COVERAGE = {
  */
 const VIBE_REQUIRED_NEXT =
   "Nothing was written. A liked or loved verdict is kept only for a film in at least one of " +
-  "their vibes. Read get_taste, then make one offer in this conversation, judging each vibe by " +
+  "their vibes. If `movie.viewing` is want-to-see, their liked says they watched it: move it " +
+  "with update_movie to seen-before (seen-now only if they placed it recently) now, before the " +
+  "offer, and say so. Read get_taste, then make one offer in this conversation, judging each vibe by " +
   "its instruction and genres, not its name: (1) propose filing the film in every vibe whose " +
   "evening it is; if it is that same evening except that the sentence does not yet cover this " +
   "film, show them the exact minimal new wording and change it with update_vibe only on their " +
@@ -1432,11 +1441,17 @@ const VIBE_REQUIRED_NEXT =
   "never instead of it — one recommended new vibe and two meaningfully different alternatives: " +
   "three distinct hypotheses about what they loved in this film, never three names for one. " +
   "With a reason given they are readings of their words, none wider than what they said and none " +
-  "ruling out what they did not; with none, three different reasons it may have worked. Each is " +
-  "a name, an \"I like…\" sentence, its genres — any new genre's meaning shown — and this film " +
+  "ruling out what they did not; with none, three different reasons it may have worked. Each " +
+  "keeps the subject of their reason — what their sentence is about stays what every reading is " +
+  "about — and none states a rule they never gave. None is a vibe they already have: where the " +
+  "film already belongs is said beside the three, never as one of them. Each is " +
+  "a name, an \"I like…\" sentence, its genres — any new genre's meaning shown as the exact " +
+  "first-person sentence create_genre will be given — and this film " +
   "as core, as a numbered list whose items start with the title alone in bold, the recommended " +
   "one first and marked after the bold, never inside it. A title they pick, its number, or a " +
-  "plain yes for the recommended one is their yes to it as shown; only that one is written. (3) " +
+  "plain yes for the recommended one is their yes to it as shown; only that one is written, its " +
+  "genre meanings word for word. A pick that does not say when they watched it is them not " +
+  "saying: write seen-before with it, and never ask about when again. (3) " +
   "On their yes, write exactly what they agreed, in this order: the genres of the picked " +
   "hypothesis only; create_vibe with this film as core and core.viewing, which saves and files " +
   "it; then update_movie listing the vibes it is in now — the new one included — plus every " +

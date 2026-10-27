@@ -56,8 +56,10 @@ before and after is snapshotted and named in the artifact by digest.
 **Follow-up turns** — `then`, one request key or a list of them — resume the recorded session
 with `claude -p --resume`. A run whose follow-up came back in a different session is marked
 failed: it did not resume, and is not scored as though it had. A failed turn stops the turns
-after it. A follow-up written `{title:N}` sends the title the answer before it numbered N, and
-fails before any call when that answer has no single such item. The artifact records what each
+after it. Wherever a follow-up has `{title:N}`, it sends the title the answer before it offered as
+choice N — by number where the titles are numbered, as the three line-leading bold titles where
+none is — and fails before any call when that answer does not say which title that is. How the
+list is formatted is scored as presentation, apart (`rubric.md`). The artifact records what each
 turn sent and which Tonight calls it made.
 
 **The Vibe-hypotheses set** (`docs/work/vibe-hypotheses`, §7.2) is the `m5-05-partial-fit` and

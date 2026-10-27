@@ -780,6 +780,25 @@ check "a liked said now moves a want-to-see film to seen in that turn; a standin
 check "the keep flow's proposal is not how a liked film's Vibe is offered" \
     "$(order_check 'This proposal is for keeping a film' \
         'three hypotheses chosen by title')" "True"
+# §12.9-§12.10: recommend alone filed a liked without a yes, or never recorded it at all.
+check "a liked goes to record_verdict first, every time, and is never filed to get past it" \
+    "$(order_check 'it goes to `record_verdict`' \
+        '**Call `record_verdict` in the turn they say it, before' 'anything else — even when you can see the film is in no Vibe**' \
+        'its answer is how a liked is' 'kept' \
+        'Never skip it, and never file the film first' 'to make a liked keepable' \
+        'Never file it into a Vibe without their yes either — not even one that fits')" "True"
+check "the keep flow's no-question filing is for a film they ask to keep, never a liked" \
+    "$(order_check '**Which Vibe a kept film goes in** is a classification' \
+        'This is for a' 'film they ask you to keep. A film they liked or loved is never filed this way' \
+        'it goes to' '`record_verdict` first, and where it is filed is offered and written only on their yes' \
+        'One genuinely fits')" "True"
+check "a reply that picks without saying when is seen-before, never a second question" \
+    "$(order_check '**When they did not say when**' 'If' 'they still do not say, `seen-before`' \
+        'A reply that agrees or picks' 'without saying when is them not saying — write `seen-before` with it, and do not ask again')" "True"
+check "a liked said now moves a want-to-see film before anything is offered or asked" \
+    "$(order_check '**A liked or loved they tell you now says they watched it.**' \
+        'Write it before you offer' 'or ask anything, never asking about when first' \
+        'their answer, if they give one, corrects it')" "True"
 check "a Vibe offered and not picked is not their taste" \
     "$(order_check 'anything you noticed or offered yourself' \
         'a Vibe you offered that they did not pick is not their taste' \

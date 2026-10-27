@@ -30,38 +30,70 @@ export const callsPerRun = (scenario) => 1 + followUps(scenario).length;
 const thenKey = (scenario) => followUps(scenario).map((one) => `__then-${one}`).join("");
 
 /**
- * A follow-up that picks a title from the answer before it: `{title:N}`, the whole
- * request. The user chooses from the title alone (docs/work/vibe-hypotheses), so the
- * evaluation answers the way they would — with the title, as the agent wrote it.
+ * A follow-up that picks a title from the answer before it: `{title:N}`, the whole request
+ * or a part of one (*"{title:1} — just that one"*). The user chooses from the title alone
+ * (docs/work/vibe-hypotheses), so the evaluation answers the way they would — with the
+ * title, as the agent wrote it.
  */
-const TITLE_PICK = /^\{title:([1-9])\}$/;
+const TITLE_PICK = /\{title:([1-9])\}/g;
 
 /**
- * The title numbered `n` in an answer, or null.
- *
- * A title is a numbered list item whose line starts with the number and then a bold
- * span, and the title is that span alone — a recommended marker sits after the bold,
- * never inside it. Exactly one item numbered `n`, or nothing: two lists in one answer,
- * or a number with no bold span, is not a choice anybody could answer by title.
+ * The titles an answer offers, in order: each line that starts with a bold span — numbered
+ * or not, the number outside the bold or inside it — read as the span alone, without its
+ * number or the quotes around it. A marker after the bold (*"my pick"*) is no part of it.
  */
-export function titleNumbered(answer, n) {
-  const item = new RegExp(`^[ \\t]*${n}[.)][ \\t]+\\*\\*([^*\\n]+)\\*\\*`, "gm");
-  const found = [...String(answer ?? "").matchAll(item)].map((match) => match[1].trim()).filter(Boolean);
-  return found.length === 1 ? found[0] : null;
+function offeredTitles(answer) {
+  const items = [];
+  for (const match of String(answer ?? "").matchAll(/^[ \t]*(?:(\d+)[.)][ \t]+)?\*\*([^*\n]+)\*\*/gm)) {
+    let number = match[1] === undefined ? null : Number(match[1]);
+    let title = match[2].trim();
+    const inside = /^(\d+)[.)]\s+(.*)$/.exec(title);
+    if (inside) {
+      number ??= Number(inside[1]);
+      title = inside[2];
+    }
+    title = title.replace(/^["“'‘]+|["”'’]+$/gu, "").replace(/[:：]$/u, "").trim();
+    if (title) items.push({ number, title });
+  }
+  return items;
 }
 
 /**
- * What a follow-up sends: the request as written, or — for `{title:N}` — the title the
- * answer before it numbered N. An ambiguous pick is a failure of that turn, decided
- * before any model call is made.
+ * The title an answer offers as choice `n`, or null when the answer does not say which
+ * one that is.
+ *
+ * How the list is formatted is the presentation rule's business, not the choice's: a
+ * person answers *"Thinking on Their Feet"* whether or not a number stood before it, so
+ * neither does a missing number make a choice unanswerable here.
+ *
+ * - **Numbered titles** are taken by number, and exactly one may carry `n`.
+ * - **With no number anywhere**, three line-leading bold titles are the three choices, in
+ *   the order shown.
+ *
+ * Anything else — two lists, a number with no bold title, more or fewer than three
+ * unnumbered — is no choice anybody could answer by title.
+ */
+export function titleNumbered(answer, n) {
+  const items = offeredTitles(answer);
+  const numbered = items.filter((item) => item.number !== null);
+  if (numbered.length) {
+    const found = numbered.filter((item) => item.number === n);
+    return found.length === 1 ? found[0].title : null;
+  }
+  return items.length === 3 ? (items[n - 1]?.title ?? null) : null;
+}
+
+/**
+ * What a follow-up sends: the request as written, with every `{title:N}` in it replaced
+ * by the title the answer before it offered as choice N. A pick that cannot be resolved
+ * is a failure of that turn, decided before any model call is made.
  */
 export function resolveTurn(request, previousAnswer) {
-  const pick = TITLE_PICK.exec(request);
-  if (pick === null) return { sent: request, failure: null };
-  const title = titleNumbered(previousAnswer, Number(pick[1]));
-  return title === null
-    ? { sent: null, failure: `no unambiguous title ${pick[1]} to pick` }
-    : { sent: title, failure: null };
+  const wanted = [...request.matchAll(TITLE_PICK)].map((match) => Number(match[1]));
+  if (wanted.length === 0) return { sent: request, failure: null };
+  const missing = wanted.find((n) => titleNumbered(previousAnswer, n) === null);
+  if (missing !== undefined) return { sent: null, failure: `no unambiguous title ${missing} to pick` };
+  return { sent: request.replace(TITLE_PICK, (_, n) => titleNumbered(previousAnswer, Number(n))), failure: null };
 }
 
 /**

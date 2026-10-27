@@ -860,6 +860,20 @@ describe("the verdict tools", () => {
       // title — the vibes skill's rules, carried where recommend alone reads them.
       assert.match(next as string, /With a reason given they are readings of their words, none wider than what they said and none ruling out what they did not; with none, three different reasons it may have worked/u);
       assert.match(next as string, /any new genre's meaning shown/u);
+      // What the live runs found wanting (docs/work/vibe-hypotheses §12.9-§12.10), where
+      // recommend alone reads it: a want-to-see film moved at once; readings that keep the
+      // reason's subject, state no rule, and never offer an existing vibe; meanings shown as
+      // the words they will be written as; and no second question about when.
+      assert.match(next as string, /If `movie\.viewing` is want-to-see, their liked says they watched it: move it with update_movie to seen-before \(seen-now only if they placed it recently\) now, before the offer/u);
+      assert.match(next as string, /Each keeps the subject of their reason — what their sentence is about stays what every reading is about — and none states a rule they never gave/u);
+      assert.match(next as string, /None is a vibe they already have: where the film already belongs is said beside the three, never as one of them/u);
+      assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given/u);
+      assert.match(next as string, /only that one is written, its genre meanings word for word/u);
+      assert.match(next as string, /A pick that does not say when they watched it is them not saying: write seen-before with it, and never ask about when again/u);
+      assert.ok(
+        (next as string).indexOf("If `movie.viewing` is want-to-see") < (next as string).indexOf("Read get_taste, then make one offer"),
+        "the viewing is moved after the offer, not before it",
+      );
       assert.match(next as string, /a numbered list whose items start with the title alone in bold, the recommended one first and marked after the bold, never inside it/u);
       assert.match(next as string, /A title they pick, its number, or a plain yes for the recommended one is their yes to it as shown; only that one is written/u);
       // The composite, in order: the picked genres, the vibe anchored on the film,
@@ -1077,6 +1091,17 @@ describe("the verdict tools", () => {
         /find the vibes it belongs in with them — and a new one beside them when their words carry a why none of their vibes says/u,
       );
       assert.doesNotMatch(cleo.record_verdict!.description ?? "", /the vibe is what says why it worked/u);
+      // Called first, every time, and never bypassed by filing the film (§12.9-§12.10:
+      // recommend alone filed without a yes, or never called this at all).
+      assert.match(
+        cleo.record_verdict!.description ?? "",
+        /\*\*Call this in the turn they say it, before anything else\*\* — before offering a vibe, filing the film or asking about when, and even for a film you can see is in no vibe/u,
+      );
+      assert.match(cleo.record_verdict!.description ?? "", /Never file the film first to make a liked keepable; filing it needs their yes/u);
+      assert.match(
+        cleo.record_verdict!.description ?? "",
+        /A liked or loved said now about a film saved as want-to-see is their word that they watched it: move it with update_movie to seen-before/u,
+      );
       assert.match(cleo.update_movie!.description ?? "", /Nor can a film they like or love be taken out of its last vibe/u);
       assert.match(cleo.delete_vibe!.description ?? "", /the one refusal is for a film they like or love that is in no other vibe/u);
       assert.doesNotMatch(cleo.delete_vibe!.description ?? "", /Always allowed/u);

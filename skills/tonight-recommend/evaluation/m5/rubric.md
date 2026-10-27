@@ -79,42 +79,78 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | owed-answer | the answer comes first and whole, in the usual shape; `loved` recorded alongside; any offer is only the closing question |
 | second-turn | `yes` writes exactly what was offered, in the §4 order, the Vibe with its core; `no` writes nothing and leaves no trace; `partial` writes only the agreed part |
 | first-films | `hi`: one sentence asking for two or three films they love, no setup, no Genre question; `what-tonight`: a film first, the question inside the answer; `three-films`: three `loved`/`confirmed` verdicts; plugin: one offer of first Vibes drawn only from those films, nothing written without a yes — and each proposed group offered as three hypotheses in a numbered bold-title list, at most one per group to be created, a plain yes taking item 1 of each (F1, below) |
-| hypotheses | T1 on turn 1; then `{title:2}`: only that option's Vibe created, its name, sentence and Genre meanings identical to turn 1; 0-1 `create_genre`, none only an unpicked option needed; The Brothers Bloom also filed in Champagne & Blueprints; the liked kept by `record_verdict` again; no second confirmation question; the unpicked titles in no write |
-| hypotheses-partial | T1 on turn 1; `existing-only`: Bloom filed in Champagne & Blueprints and the liked kept, no Genre and no Vibe created; `new-only`: the recommended Vibe created and the liked kept, no Champagne & Blueprints membership |
+| hypotheses | T1 on turn 1; then `{title:2}`: *After a pick* (below); The Brothers Bloom also filed in Champagne & Blueprints; no second confirmation question; the unpicked titles in no write |
+| hypotheses-partial | T1 on turn 1; `existing-only`: Bloom filed in Champagne & Blueprints and the liked kept, no Genre and no Vibe created; `new-only` (*"{title:1} — just that one, and leave it out of Champagne & Blueprints."*): *After a pick* for that title, and no Champagne & Blueprints membership |
 | hypotheses-declined | T1 on turn 1; then nothing written — no movie, viewing, Genre, Vibe or verdict — and said once that the liked is not kept |
-| hypotheses-kept | T1 (fixture 06) on turn 1; `{title:1}`: the recommended Vibe created with core Bloom, as shown, and Bloom still in Champagne & Blueprints; `like-bloom-tonight`: a recommendation that reflects the picked hypothesis in their words, names no Vibe or Genre, uses neither unpicked hypothesis as their taste, and writes no taste |
-
-## Vibe hypotheses: what turn 1 has to show (T1)
-
-`docs/work/vibe-hypotheses`. Scored on the first turn of every run that starts with
-`bloom-clever`, read up to that turn's boundary in the artifact (*Which turn made which calls*),
-so a write before the pick is a write before a yes.
-
-**On `m5-05-partial-fit`:**
-
-- `record_verdict` with `liked`, `volunteered`, `because` = *"clever characters do smart things"*
-  — answered `vibe_required`; zero taste writes.
-- One offer. Champagne & Blueprints is named as also The Brothers Bloom's evening, and is
-  unchanged: no new wording proposed for it, and Bloom is not offered as its core.
-- **Three hypotheses, as a numbered list, each item starting with its title in bold**, the
-  recommended one first and marked outside the bold. No alternative names for one idea.
-- Each hypothesis has an *"I like…"* sentence that adds something its Genres do not say, its
-  Genres — any new Genre's meaning shown — and Bloom as core. Grounded in their reason: none states
-  an exclusion or a generalisation their words did not carry (outcome 3 otherwise).
-- The question about when, at most once, inside the offer.
-- Never says the liked is saved.
-- **Distinct, scored by the reviewer:** shown the three titles and the three descriptions
-  shuffled, the reviewer matches them; and for each pair names a film that fits one and not the
-  other. Three names for one preference fails.
-- **Usable choices and exact syntax are scored apart.** A run whose pick failed as *"no
-  unambiguous title N to pick"* still has its turn 1 scored for whether three choices were
-  presented that a person could answer by title.
-
-**On `m5-06-bloom-saved`**, the same, except: the liked is kept in turn 1; Bloom's viewing moves
-from `want-to-see` to `seen-before` in turn 1 — an opinion said now places no recent viewing; and
-there is no line saying the liked is not saved.
+| hypotheses-kept | T1 (fixture 06) on turn 1; `{title:1}`: *After a pick*, the recommended Vibe with core Bloom, and Bloom still in Champagne & Blueprints; `like-bloom-tonight`: a recommendation that reflects the picked hypothesis in their words, names no Vibe or Genre, uses neither unpicked hypothesis as their taste, and writes no taste |
 | going-through | plugin: every anchor, merge or delete is an offer; anchors come from standing positive verdicts; Wingwomen never raised |
 | recommendation-only-reading | nothing offered as fitting Quiet Dread is gory or has torture in it — the Slow Burn Genre rules both out and the request asked for their taste; the positive evidence used is recognisable; no taste write and no Vibe offer |
+
+## Vibe hypotheses: how a run is scored
+
+`docs/work/vibe-hypotheses`. Turn 1 (T1) is scored on every run that starts with `bloom-clever`,
+read up to that turn's boundary in the artifact (*Which turn made which calls*), so a write before
+the pick is a write before a yes.
+
+**Three outcomes.** Each criterion is PASS or FAIL. A turn that was never sent — because an
+earlier one failed, or because its pick could not be resolved — is **UNTESTED**: never a PASS, and
+never a FAIL of what it would have shown.
+
+### Behaviour, turn 1 (T1) — on `m5-05-partial-fit`
+
+1. **The verdict, first.** `record_verdict` is called in turn 1, before any taste write, with
+   `liked`, `volunteered` and `because` = *"clever characters do smart things"*; it is answered
+   `vibe_required`. Not calling it is a FAIL. Filing the film before a yes is outcome 1.
+2. **Zero taste writes** in turn 1.
+3. **One offer, with the overlap said.** Champagne & Blueprints is named as also The Brothers
+   Bloom's evening, and is unchanged: no new wording proposed for it, and Bloom is not offered as
+   its core.
+4. **Three hypotheses, each led by a title a person can answer with**, the recommended one marked.
+   No alternative names for one idea, and none of the three is a Vibe they already have.
+5. **Grounded.** Each keeps the subject of their reason — the characters and their cleverness.
+   None is wider than it: not the film's tricks on the viewer, competence at anything, deception
+   as such, or a character study. None states a rule they did not give, such as *"nobody does the
+   stupid thing"* — that is outcome 3.
+6. **Distinct, scored by the reviewer.** Shown the three titles and the three descriptions
+   shuffled, the reviewer matches them, and for each pair names a film that fits one and not the
+   other. Three names for one preference fails.
+7. **Each is a whole Vibe**: an *"I like…"* sentence that adds something its Genres do not say,
+   its Genres, and Bloom as core. **Any new Genre's meaning is shown as a first-person sentence** —
+   the words `create_genre` will be given.
+8. **The question about when**, at most once, inside the offer. The liked is never said to be
+   saved.
+
+**On `m5-06-bloom-saved`**, the same, except:
+- the liked is kept in turn 1;
+- Bloom's viewing moves from `want-to-see` to `seen-before` in turn 1, **before the offer and
+  without asking first** — an opinion said now places no recent viewing;
+- there is no line saying the liked is not saved.
+
+### After a pick
+
+- The picked Vibe — its name, its sentence and each new Genre's meaning — is written **word for
+  word** as shown, with only the Genres it needed.
+- **The overlap is kept.** Bloom is in Champagne & Blueprints and in the new Vibe, unless the
+  follow-up left Champagne & Blueprints out.
+- **A pick that did not say when** writes `seen-before`, and **the question about when is not
+  asked again**.
+- **The liked is kept**: `record_verdict` again where it was refused.
+
+### After a decline
+
+Nothing is written after it.
+
+### Presentation, scored apart
+
+The skill asks for a numbered list, the title alone in bold, and the recommended marker after the
+bold. A deviation — no numbers, or a number inside the bold — is recorded as **presentation**, and
+is never a behavioural FAIL on its own.
+
+The runner reads titles by number where they are numbered, and as the three line-leading bold
+titles, in order, where none is, so a deviation does not stop the pick.
+
+A pick it still cannot resolve means the answer offered no three titles a person could answer with.
+Behaviour 4 FAILs, and the turns after it are UNTESTED.
 
 ## Threshold
 

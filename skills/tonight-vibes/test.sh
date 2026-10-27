@@ -306,6 +306,26 @@ check "genuinely distinct hypotheses, never names for one preference, grounded i
         'readings of their words — none wider than what they said, and none ruling out what they did not rule out' \
         'three different reasons the film may have worked for them' \
         'None is a Vibe they already have')" "True"
+# §12.9-§12.10: what the live runs found wanting, each said where it is acted on.
+check "each reading keeps the subject of their reason, and none turns into a rule they never gave" \
+    "$(order_check 'readings of their words — none wider than what they said, and none ruling out what they did not rule out' \
+        '**Each keeps the subject of their reason**' \
+        'what their sentence is about stays what every reading is about' \
+        '*"the dialogue was so sharp"*' 'never the plot, the acting or being clever in general' \
+        'no reading turns into a rule they never gave' \
+        'None is a Vibe they already have: where the film already belongs is said beside the list, never as one of the three')" "True"
+check "a new Genre's meaning is shown as the words it will be written as, and written word for word" \
+    "$(order_check '**Each is a whole Vibe**' \
+        'shown as the *"I like…"* sentence it will be written as, word for word' \
+        '`create_genre` for any new Genre in the agreed idea, with the instruction they were shown, word for word')" "True"
+check "a pick that says nothing about when is seen-before, and when is never asked again" \
+    "$(order_check '**Their pick is their yes.**' '**exactly as it was shown**' \
+        '**A pick that does not say when they' 'watched it is them not saying**' \
+        'the film is written `seen-before` with it, and when is never asked again')" "True"
+check "a liked said now moves a want-to-see film before anything is offered or asked" \
+    "$(order_check '**A liked or loved they tell you now is them telling you they watched it.**' \
+        '**Write it before you offer or ask anything, and never ask about when first**' \
+        'their answer, if they give one, corrects it')" "True"
 check "each hypothesis is a whole Vibe with this film as its core" \
     "$(order_check '**Each is a whole Vibe**: a name, an *"I like…"* sentence, its Genres' \
         'and this film as its core')" "True"

@@ -567,6 +567,9 @@ test("a vibe is asked for as one idea, read from the genres' instructions", asyn
     "create_vibe: a pick by title is not what was shown");
   assert.match(describing("create_genre"), /A meaning shown beside a title they picked was shown, whether or not they read it — write it as it was shown, and never a genre only an option they did not pick needed/u,
     "create_genre: a pick by title is not what was shown, or an unpicked option's genre is written");
+  // Shown as the words it will be written as, so writing it never changes it (§12.9).
+  assert.match(describing("create_genre"), /So show a new genre's meaning as the first-person sentence it will be written as, and write those words/u,
+    "create_genre: a meaning shown one way can be written another");
   // A liked said now moves a want-to-see film; one that stands from before does not.
   for (const tool of ["create_movie", "update_movie"]) {
     const viewing = fieldOf(tool, "viewing");

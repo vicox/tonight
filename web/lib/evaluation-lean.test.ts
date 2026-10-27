@@ -96,6 +96,43 @@ test("a follow-up picks a title only when the answer before it numbers exactly o
   assert.deepEqual(lean.resolveTurn("Yes, do that.", offer), { sent: "Yes, do that.", failure: null }, "an ordinary request is sent as written");
 });
 
+test("formatting alone never makes a choice unanswerable: unnumbered titles, or a number inside the bold", () => {
+  // What the DeepSeek Flash runs offered (docs/work/vibe-hypotheses §12.10): three titles a
+  // person could answer with, set out in a way the presentation rule does not ask for. A
+  // person answers with the title; so does the runner.
+  const unnumbered = [
+    "It belongs on your **Champagne & Blueprints** shelf too. Pick one by title:",
+    "",
+    "**Masterminds & Misdirection** — my pick",
+    "*I like watching clever people run a con.*",
+    "Your **Heist**, plus a new one.",
+    "",
+    "**Talk Your Way Out**",
+    "*I like characters whose weapon is the conversation.*",
+    "",
+    "**The Beautiful Lie**",
+    "*I like watching a fiction being built.*",
+  ].join("\n");
+  assert.equal(lean.titleNumbered(unnumbered, 1), "Masterminds & Misdirection", "a bold word inside a line is not a title");
+  assert.equal(lean.titleNumbered(unnumbered, 2), "Talk Your Way Out");
+  assert.equal(lean.titleNumbered(unnumbered, 3), "The Beautiful Lie");
+
+  const inside = '**1. "Smartest in the Room"** — my bet.\n\n**2. "Champagne & Blueprints"** — the one you have.\n\n**3. "Everybody\'s Playing Someone"**';
+  assert.equal(lean.titleNumbered(inside, 1), "Smartest in the Room", "a number inside the bold, and the quotes, are not the title");
+  assert.equal(lean.titleNumbered(inside, 3), "Everybody's Playing Someone");
+
+  // Without numbers, only exactly three line-leading bold titles are a choice of three.
+  assert.equal(lean.titleNumbered("**Champagne & Blueprints** is close.\n\n**The Long Con**, built from Heist.", 1), null);
+  assert.equal(lean.titleNumbered(`${unnumbered}\n\n**A Fourth Thing**`, 1), null);
+
+  // A pick may sit inside a sentence, which then names what it chose.
+  assert.deepEqual(lean.resolveTurn("{title:1} — just that one, and leave it out of Champagne & Blueprints.", unnumbered), {
+    sent: "Masterminds & Misdirection — just that one, and leave it out of Champagne & Blueprints.",
+    failure: null,
+  });
+  assert.deepEqual(lean.resolveTurn("{title:2} — just that one.", "no titles here"), { sent: null, failure: "no unambiguous title 2 to pick" });
+});
+
 test("smoke selects only what is marked smoke for this source, and --only takes a list", () => {
   const all = [one, two, three];
   assert.deepEqual(lean.select(all, { source: "recommend-only", smoke: true }), [one]);

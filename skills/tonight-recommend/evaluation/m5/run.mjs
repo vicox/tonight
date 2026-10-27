@@ -44,10 +44,11 @@
  * of them — resumes the recorded session (`claude -p --resume <session>`) with each in
  * turn. Whether the CLI resumed is checked from its own answer — the session id it
  * reports — and a run where it did not is marked failed rather than scored as though
- * it had. A failed turn stops the turns after it. A follow-up written `{title:N}`
- * sends the title the answer before it numbered N, as somebody choosing by title would
- * (docs/work/vibe-hypotheses); a pick that is not unambiguous fails that turn before
- * any call. The artifact records what each turn sent and which Tonight calls it made.
+ * it had. A failed turn stops the turns after it. Wherever a follow-up has `{title:N}`,
+ * it sends the title the answer before it offered as choice N, as somebody choosing by
+ * title would (docs/work/vibe-hypotheses; `../lean.mjs`, `titleNumbered`); a pick that is
+ * not unambiguous fails that turn before any call. The artifact records what each turn
+ * sent and which Tonight calls it made.
  *
  * **A legacy fixture is never reseeded here.** Vibes from before cores cannot be
  * written by a build that requires one, and they are never written by SQL; the
