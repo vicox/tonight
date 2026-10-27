@@ -1430,15 +1430,21 @@ const VIBE_REQUIRED_NEXT =
   "yes to those words — never to make a vibe say a reason it was not about. (2) If their words " +
   "carry a why none of their vibes says, or no vibe fits, offer — beside (1) in the same offer, " +
   "never instead of it — one recommended new vibe and two meaningfully different alternatives: " +
-  "three distinct hypotheses about what they loved in this film, never three names for one, " +
-  "each a name, an \"I like…\" sentence, its genres and this film as core, as a numbered list " +
-  "whose items start with the title alone in bold, the recommended one first. A title they " +
-  "pick, its number, or a plain yes for the recommended one is their yes to it as shown; only " +
-  "that one is written. (3) On their yes, write exactly what they agreed — the genres of the " +
-  "picked one only; create_vibe with it as core and core.viewing, create_movie with viewing " +
-  "seen-now or seen-before and vibes, or update_movie with every vibe it is now in — a watched " +
-  `film is ${SEEN_RULE}, and when they did not say when, that question goes into the offer — ` +
-  "then call record_verdict again with retry.arguments. If they decline, it stays unsaved: say " +
+  "three distinct hypotheses about what they loved in this film, never three names for one. " +
+  "With a reason given they are readings of their words, none wider than what they said and none " +
+  "ruling out what they did not; with none, three different reasons it may have worked. Each is " +
+  "a name, an \"I like…\" sentence, its genres — any new genre's meaning shown — and this film " +
+  "as core, as a numbered list whose items start with the title alone in bold, the recommended " +
+  "one first and marked after the bold, never inside it. A title they pick, its number, or a " +
+  "plain yes for the recommended one is their yes to it as shown; only that one is written. (3) " +
+  "On their yes, write exactly what they agreed, in this order: the genres of the picked " +
+  "hypothesis only; create_vibe with this film as core and core.viewing, which saves and files " +
+  "it; then update_movie listing the vibes it is in now — the new one included — plus every " +
+  "existing vibe they agreed it belongs to, because the list replaces what was there. With no " +
+  "new vibe, an unsaved film is create_movie with viewing seen-now or seen-before and the agreed " +
+  "vibes, and a saved one is update_movie with its vibes now plus the agreed ones. A watched " +
+  `film is ${SEEN_RULE}, and when they did not say when, that question goes into the offer. ` +
+  "Then call record_verdict again with retry.arguments. If they decline, it stays unsaved: say " +
   "so once, and write nothing in its place.";
 
 /**

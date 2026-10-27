@@ -531,3 +531,44 @@ The instruction text of §6:
   - 21 new or replaced checks in `skills/tonight-vibes/test.sh` and 5 in
     `skills/tonight-recommend/test.sh`;
   - the `next` pins and the description pins in `verdicts.test.ts` and `tools.test.ts`.
+- **Results:**
+  - `npm test`: 1355 tests, 1351 pass, with the same 4 known failures.
+  - typecheck clean; lint unchanged.
+
+### Codex code review 1 — NOT READY
+
+**Codex ran:**
+
+- **The shell suites:** vibes 150/150, recommend 244/244, plugin 37/37.
+- **Node:** 139 focused tests.
+- **The runner:**
+  - both dry runs;
+  - in-memory checks of the turn loop for 1, 2 and 3 turns: transcript boundaries, title
+    resolution, a failed pick stopping, the quota stop, and a resume mismatch;
+  - compatibility of names, counts and selections across the 33 existing M5/M6 scenarios.
+
+**It found** no runner blocker and no storage of unselected suggestions. Three instruction gaps,
+each fixed:
+
+1. **`VIBE_REQUIRED_NEXT` listed the write tools as alternatives.** On `recommend-only` that could
+   create the new Vibe and retry the liked without filing the film in Champagne & Blueprints. It
+   now gives the order:
+   - the picked Genres only;
+   - `create_vibe` with the film as core;
+   - `update_movie` listing the Vibes it is in now — the new one included — plus every agreed
+     existing one;
+   - then the retry.
+
+   It also says what to do when no new Vibe was picked. Pinned, including that the retry comes
+   after the filing.
+2. **`VIBE_REQUIRED_NEXT` lacked the hypothesis constraints** that `recommend-only` is scored on:
+   - readings of their words, none wider and none ruling out more, when they gave a reason;
+   - different reasons when they gave none;
+   - any new Genre's meaning shown;
+   - the recommended marker after the bold title.
+
+   Added and pinned.
+3. **First films had no boundary for an unpicked list.** A title now accepts its own list only; a
+   list they pick nothing from gets nothing; a plain yes takes the recommended one, first in every
+   list. Said in *Three hypotheses, chosen by title*, in its *Their pick is their yes* rule, and in
+   *A new user's first films*. Pinned in all three places.

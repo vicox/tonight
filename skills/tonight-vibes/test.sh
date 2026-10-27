@@ -318,6 +318,7 @@ check "their pick is their yes to what was shown, written exactly as shown, neve
     "$(order_check '**Their pick is their yes.**' \
         'A title, its number, or a plain yes for the one you recommend' \
         'shown beside the title, whether or not they read them' \
+        'except on first films, where it accepts its own list and no other' \
         '**exactly as it was shown**' 'never ask again' \
         'show the exact new words, and write on their yes to those')" "True"
 check "only the pick is written, nothing records the others, and they are not their taste" \
@@ -328,9 +329,11 @@ check "only the pick is written, nothing records the others, and they are not th
 check "a no writes nothing further, and what was written stays" \
     "$(order_check '**A no writes nothing further.**' 'What was already written stays' \
         'Only a liked still refused is not kept')" "True"
-check "first films: one list per Vibe, one written per list, a plain yes takes the first of each" \
+check "first films: one list per Vibe, one written per list, a pick accepts its list only" \
     "$(order_check '**First films** offer one such list for each Vibe' \
-        'One per list is written; a plain yes takes the first of each')" "True"
+        'One per list is written' \
+        'A title they pick accepts that list only — a list they pick nothing from gets nothing' \
+        'a plain yes takes the recommended one, first in every list')" "True"
 check "the kept path offers its one new Vibe as three hypotheses, and the film stays where it is" \
     "$(order_check '**A new Vibe**, at most one, anchored on this film' \
         'It is offered as three hypotheses' 'the film stays in the Vibes it is already in')" "True"
@@ -486,6 +489,7 @@ check "each first-films Vibe is three hypotheses chosen by title, one written pe
     "$(order_check '**This is the one offer that may hold several Vibes**' \
         'is offered as three hypotheses chosen by title' \
         '**One yes covers the offer**, taking the first of each list' \
+        'a title they pick takes that one for its list and accepts no other list' \
         'at most one is written per list')" "True"
 check "a no to the first-films offer saves nothing positive, and a yes is followed by the verdicts" \
     "$(order_check 'a no saves nothing positive' \

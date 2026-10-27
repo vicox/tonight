@@ -243,7 +243,8 @@ learns why a film worked for somebody.
   belong to keeping a film, not to this.
 - **Their pick is their yes.** A title, its number, or a plain yes for the one you recommend
   confirms that hypothesis — its name, its sentence and its Genres' meanings, shown beside the
-  title, whether or not they read them — and the rest of the offer with it. Write it then and
+  title, whether or not they read them — and the rest of the offer with it, except on first
+  films, where it accepts its own list and no other. Write it then and
   there, **exactly as it was shown**, and never ask again. A change they make to it — *"the
   second, but more about the plan"* — is their idea: show the exact new words, and write on their
   yes to those.
@@ -255,7 +256,8 @@ learns why a film worked for somebody.
   filed, a viewing their liked moved. Only a liked still refused is not kept, and that is said
   once.
 - **First films** offer one such list for each Vibe the films suggest, under the films it is drawn
-  from. One per list is written; a plain yes takes the first of each.
+  from. One per list is written. A title they pick accepts that list only — a list they pick
+  nothing from gets nothing — and a plain yes takes the recommended one, first in every list.
 
 Around the list, a few short lines: where else the film belongs, the question about when if one is
 owed, and — while it is refused — that the liked is not saved until they pick.
@@ -410,8 +412,8 @@ for a film, on its own if they did not — what two or three films they love. Wh
   instruction, its Genres and its core, one list under the films it is drawn from. The Genres are
   new, so each one's instruction is shown, because a yes covers only the meaning they were shown.
 - **One yes covers the offer**, taking the first of each list; a title they pick takes that one
-  for its list, and at most one is written per list; a partial yes writes exactly the agreed part;
-  a no saves nothing positive. Writing follows *Writing what they agreed*, and each loved is
+  for its list and accepts no other list, and at most one is written per list; a partial yes
+  writes exactly the agreed part; a no saves nothing positive. Writing follows *Writing what they agreed*, and each loved is
   recorded again once its film is filed.
 
 Nothing about this is remembered as a stage they are in. A user who leaves halfway has said what

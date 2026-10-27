@@ -856,10 +856,19 @@ describe("the verdict tools", () => {
       assert.match(next as string, /beside \(1\) in the same offer, never instead of it/u);
       assert.match(next as string, /one recommended new vibe and two meaningfully different alternatives/u);
       assert.match(next as string, /three distinct hypotheses about what they loved in this film, never three names for one/u);
-      assert.match(next as string, /a numbered list whose items start with the title alone in bold/u);
+      // Grounded in their words, every meaning shown, and the marker outside the
+      // title — the vibes skill's rules, carried where recommend alone reads them.
+      assert.match(next as string, /With a reason given they are readings of their words, none wider than what they said and none ruling out what they did not; with none, three different reasons it may have worked/u);
+      assert.match(next as string, /any new genre's meaning shown/u);
+      assert.match(next as string, /a numbered list whose items start with the title alone in bold, the recommended one first and marked after the bold, never inside it/u);
       assert.match(next as string, /A title they pick, its number, or a plain yes for the recommended one is their yes to it as shown; only that one is written/u);
-      assert.match(next as string, /the genres of the picked one only/u);
-      assert.match(next as string, /update_movie with every vibe it is now in/u);
+      // The composite, in order: the picked genres, the vibe anchored on the film,
+      // then the film's whole list — new and existing — before the retry.
+      assert.match(next as string, /in this order: the genres of the picked hypothesis only; create_vibe with this film as core and core\.viewing, which saves and files it; then update_movie listing the vibes it is in now — the new one included — plus every existing vibe they agreed it belongs to, because the list replaces what was there/u);
+      assert.ok(
+        (next as string).indexOf("update_movie listing the vibes it is in now") < (next as string).indexOf("call record_verdict again"),
+        "the retry comes before the film is filed where it belongs",
+      );
       assert.match(next as string, /call record_verdict again with retry\.arguments/u);
       assert.match(next as string, /If they decline, it stays unsaved/u);
 
