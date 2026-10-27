@@ -1439,18 +1439,16 @@ const VIBE_REQUIRED_NEXT =
   "carry a why none of their vibes says, or no vibe fits, offer — beside (1) in the same offer, " +
   "never instead of it — one recommended new vibe and two meaningfully different alternatives: " +
   "three distinct hypotheses about what they loved in this film, never three names for one. " +
-  "With a reason given they are readings of their words, none wider than what they said and none " +
-  "ruling out what they did not; with none, three different reasons it may have worked. Each " +
-  "keeps the subject of their reason — what their sentence is about stays what every reading is " +
-  "about; when it is about people, every reading is about those people, never the events around " +
-  "them alone, and " +
-  "never being good at things in general unless their words said so — and none states a rule " +
-  "they never gave. None is a vibe they already have: where the film already belongs is said " +
-  "beside the three, never as one of them. Each is a name, an \"I like…\" sentence, its genres " +
-  "— any new genre's meaning shown as the exact first-person sentence create_genre will be " +
-  "given, and claiming no subject or quality their words did not carry (it may cover more films " +
-  "than the reading) — and this film as core, as a numbered list whose items start with the " +
-  "title alone in bold, the recommended " +
+  "Each is a facet the film really has, and none claims of the film what it is not. Their " +
+  "verdict ranks them: with a reason given, the recommended one is the facet their words point " +
+  "to, no wider than they said it, and the other two may be other facets of the film, offered as " +
+  "possibilities and never presented as what they said; with none, three different facets it " +
+  "may have worked through. None states a rule or an exclusion as theirs. None is a vibe they " +
+  "already have: where the film already belongs is said beside the three, never as one of them. " +
+  "Each is a name, an \"I like…\" sentence, its genres — any new genre's meaning shown as the " +
+  "exact first-person sentence create_genre will be given, part of that hypothesis's idea and " +
+  "free to cover more films than it — and this film as core, as a numbered list whose items " +
+  "start with the title alone in bold, the recommended " +
   "one first and marked after the bold, never inside it. A title they pick, its number, or a " +
   "plain yes for the recommended one is their yes to it as shown; only that one is written, its " +
   "genre meanings word for word. A pick that does not say when they watched it is them not " +

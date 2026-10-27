@@ -856,22 +856,22 @@ describe("the verdict tools", () => {
       assert.match(next as string, /beside \(1\) in the same offer, never instead of it/u);
       assert.match(next as string, /one recommended new vibe and two meaningfully different alternatives/u);
       assert.match(next as string, /three distinct hypotheses about what they loved in this film, never three names for one/u);
-      // Grounded in their words, every meaning shown, and the marker outside the
-      // title — the vibes skill's rules, carried where recommend alone reads them.
-      assert.match(next as string, /With a reason given they are readings of their words, none wider than what they said and none ruling out what they did not; with none, three different reasons it may have worked/u);
+      // Facets of the film ranked by their verdict, every meaning shown, and the marker
+      // outside the title — the vibes skill's rules, carried where recommend alone reads them.
+      assert.match(next as string, /Each is a facet the film really has, and none claims of the film what it is not/u);
       assert.match(next as string, /any new genre's meaning shown/u);
       // What the live runs found wanting (docs/work/vibe-hypotheses §12.9-§12.10), where
       // recommend alone reads it: a want-to-see film moved at once; readings that keep the
       // reason's subject, state no rule, and never offer an existing vibe; meanings shown as
       // the words they will be written as; and no second question about when.
       assert.match(next as string, /If `movie\.viewing` is want-to-see, their liked says they watched it: move it with update_movie to seen-before \(seen-now only if they placed it recently\) now, before the offer/u);
-      // §13.3-§13.4: readings slid from the people in their reason to a plan, or to skill in
-      // general, and a new genre carried the widening its sentence did not. Both said here,
-      // where recommend alone reads them — and generically, never the scenario's own words.
-      // Code review: competence is refused only where their words did not carry it, and a
-      // new genre is bounded by their reason, not by its reading — an ingredient may cover more.
-      assert.match(next as string, /Each keeps the subject of their reason — what their sentence is about stays what every reading is about; when it is about people, every reading is about those people, never the events around them alone, and never being good at things in general unless their words said so — and none states a rule they never gave/u);
-      assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given, and claiming no subject or quality their words did not carry \(it may cover more films than the reading\)/u);
+      // §16: the three are facets of the film. Their reason ranks them and binds the
+      // recommended one only; none is presented as what they said, none adds a rule of
+      // theirs, and a new genre belongs to its own hypothesis — generically, never the
+      // scenario's own words.
+      assert.match(next as string, /Their verdict ranks them: with a reason given, the recommended one is the facet their words point to, no wider than they said it, and the other two may be other facets of the film, offered as possibilities and never presented as what they said; with none, three different facets it may have worked through\. None states a rule or an exclusion as theirs/u);
+      assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given, part of that hypothesis's idea and free to cover more films than it/u);
+      assert.doesNotMatch(next as string, /readings of their words|subject of their reason|their words did not carry/u, "the hypotheses are held to their reason alone");
       assert.doesNotMatch(next as string, /no broader than the reading's own sentence/u, "a genre is held narrower than an ingredient can be");
       assert.doesNotMatch(next as string, /Bloom|clever characters|Champagne|Blueprints/u, "the guidance names the evaluation's own scenario");
       assert.match(next as string, /None is a vibe they already have: where the film already belongs is said beside the three, never as one of them/u);

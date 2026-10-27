@@ -1374,6 +1374,65 @@ The remaining examples are gone and the inference rules hold; no new blockers. C
 vibes 160/160, recommend 251/251, plugin 37/37 and 233 focused tests. Stopped here: no live run,
 push, merge or deploy.
 
+## 16. Hypotheses are facets of the film (user correction, 2026-10-28)
+
+**The correction:**
+
+- The verdict keeps their stated reason, in `because`.
+- The three Vibes offered are distinct, plausible taste facets of the **film**. Their verdict
+  informs and ranks them: where they gave a reason, the recommended one follows it. The other two
+  may be other facets of the film, rather than readings of the same reason.
+- Their pick confirms which one is their taste.
+- No unsupported claim about the film, and no preference or exclusion invented as theirs.
+
+**This supersedes:**
+
+- §5.2's *"Grounded. With a reason given, three readings of their words"*;
+- the reason-only rules added in §13 and §14 — *"each keeps the subject of their reason"*,
+  *"people stay those people"*, *"a new Genre stays inside their reason"*.
+
+Those were this plan's reading of §1, and were tightened on the earlier instructions. Live
+results scored under the old B5 (§13.3, §13.4) are not rescored here.
+
+**What changed:**
+
+- **`tonight-vibes`, *Three hypotheses*:**
+  - *Each is a facet the film really has*, and none claims of the film what it is not.
+  - *Their verdict ranks them*: the recommended one is the facet their words point to, no wider
+    than they said it. The other two may be other facets, never presented as what they said.
+  - With no reason, three facets the film may have worked through.
+  - *None states a rule or an exclusion as theirs* — kept, because a title pick confirms a sentence
+    they may not have read.
+  - A new Genre is part of its own hypothesis's idea, as *One idea, said three ways* says, and may
+    cover more films.
+- **Step 3 of *When a liked or loved needs a Vibe*:** their pick says which hypothesis is their
+  taste; why they liked it stays in `because`.
+- **`VIBE_REQUIRED_NEXT`:** the same, in one clause each.
+- **Rubric B5:** *Grounded in the film, ranked by the verdict*. The recommended one is held to their
+  reason; the other two are scored against the film. Invented rules are still outcome 3, and a new
+  Genre is scored as part of its own hypothesis.
+
+**Unchanged:**
+
+- The verdict first, with `because` verbatim.
+- Overlap — filing beside the Vibe it belongs to — and the minimal-change offer.
+- Pick by title; only the pick is written, as shown; a decline writes nothing.
+- Writes, viewings and the question about when.
+- First films, Genre reusability, no examples in the instructions.
+- Fixtures, prompts and scenarios, the runner, schema and API.
+
+`plugin.json` is 1.10.4.
+
+**Pins:**
+
+- `tonight-vibes/test.sh`:
+  - The four reason-only checks are now three: facets of the film, the verdict's ranking with no
+    rule as theirs, and the Genre as part of its hypothesis.
+  - A new check refuses the old wording.
+  - Step 3's pin follows its new sentence.
+- `verdicts.test.ts`: `next` is pinned to the new clauses and refuses the old ones.
+- `evaluation-m5.test.ts`: the new B5.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.

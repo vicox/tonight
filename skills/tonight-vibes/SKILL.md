@@ -198,8 +198,9 @@ another:
    say a reason it was not about — that is a new Vibe beside it.
 3. **A new Vibe for the why.** When their words carry a why none of their Vibes says — or no Vibe
    fits at all — offer one recommended new Vibe and two meaningfully different alternatives, as
-   *Three hypotheses, chosen by title* says, each with this film as its core. Their pick says why
-   they liked it; an idea of their own is considered again with their meaning. **This goes beside
+   *Three hypotheses, chosen by title* says, each with this film as its core. Their pick says which
+   of them is their taste — why they liked it stays their words, in `because` — and an idea of
+   their own is considered again with their meaning. **This goes beside
    1, never instead of it**: the one offer files the film where it belongs and anchors the new
    Vibe on it, and says so — what the Vibe it joins holds, and what the new one would hold that
    it does not — so their pick covers both, and a part of it writes that part.
@@ -227,23 +228,19 @@ learns why a film worked for somebody.
 
 - **Three different hypotheses about what they loved in that film**, one of them recommended.
   Each would lead to different films: for any two, there is a film that fits one and not the
-  other. **Never three names for one preference.** Where they gave a reason, the three are
-  readings of their words — none wider than what they said, and none ruling out what they did not
-  rule out. **Each keeps the subject of their reason**: what their sentence is about stays what
-  every reading is about — the part of the film they named and what they said of it, never
-  another part of the film, and never that quality in general — and no reading turns into a rule
-  they never gave. The three may read differently what they loved about that subject, never swap
-  it for another: when their reason is about people — what they did, how they talked, who they
-  were — every reading is about those people, never the events around them on their own, and
-  never being good at things in general unless their words said so. Where
-  they gave none, three different reasons the film may have worked for them. None is a Vibe they
-  already have: where the film already belongs is said beside the list, never as one of the three.
+  other. **Never three names for one preference.** **Each is a facet the film really has** —
+  something about it a person could love — and none claims of the film what it is not. **Their
+  verdict ranks them**: where they gave a reason, the recommended one is the facet their words
+  point to, no wider than they said it; the other two may be other facets of the film, offered as
+  possibilities and never presented as what they said. Where they gave none, three different
+  facets the film may have worked through. **None states a rule or an exclusion as theirs.** None
+  is a Vibe they already have: where the film already belongs is said beside the list, never as
+  one of the three.
 - **Each is a whole Vibe**: a name, an *"I like…"* sentence, its Genres — any new Genre's meaning
   shown as the *"I like…"* sentence it will be written as, word for word — and this film as its
-  core. **A new Genre made for a reading stays inside their reason**: it may hold more films than
-  the reading — an ingredient does — but never a subject or a quality their words did not carry.
-  One that turns the people they named into anybody good at anything is the reading widened by
-  another route.
+  core. A new Genre is part of its hypothesis's idea, as *One idea, said three ways* says: it may
+  hold more films than the hypothesis — an ingredient does — and says nothing its sentence goes
+  against.
 - **The titles lead.** A numbered list, the recommended one first: each item starts with its title
   in bold — the title alone, with *"my pick"* after the bold, never inside it — and its *"I like…"*
   sentence beneath. Nothing else in the offer is bold at the start of a line. A title says its

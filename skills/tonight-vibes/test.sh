@@ -278,7 +278,7 @@ check "a new Vibe for the why: one recommended and two alternatives, beside wher
         'When their words carry a why none of their Vibes says' \
         'one recommended new Vibe and two meaningfully different alternatives' \
         '*Three hypotheses, chosen by title*' 'with this film as its core' \
-        'Their pick says why they liked it' \
+        'Their pick says which of them is their taste — why they liked it stays their words, in `because`' \
         '**This goes beside 1, never instead of it**' \
         'files the film where it belongs and anchors the new' 'and says so' \
         'so their pick covers both' 'a part of it writes that part')" "True"
@@ -303,37 +303,29 @@ check "three hypotheses wherever a Vibe is learned from a film they liked" \
         'a liked or loved answered' '`vibe_required`, a kept one whose words carry a why' \
         "or a new user's first" 'films' '**three hypotheses**, and they choose one by its title' \
         'This is how Tonight learns why a film worked for somebody')" "True"
-check "genuinely distinct hypotheses, never names for one preference, grounded in their words" \
+check "genuinely distinct hypotheses, never names for one preference, each a facet of the film" \
     "$(order_check '**Three different hypotheses about what they loved in that film**' \
         'one of them recommended' \
         'for any two, there is a film that fits one and not the other' \
-        '**Never three names for one preference.**' \
-        'readings of their words — none wider than what they said, and none ruling out what they did not rule out' \
-        'three different reasons the film may have worked for them' \
+        '**Never three names for one preference.**' '**Each is a facet the film really has**' \
+        'none claims of the film what it is not' \
         'None is a Vibe they already have')" "True"
-# §12.9-§12.10: what the live runs found wanting, each said where it is acted on.
-check "each reading keeps the subject of their reason, and none turns into a rule they never gave" \
-    "$(order_check 'readings of their words — none wider than what they said, and none ruling out what they did not rule out' \
-        '**Each keeps the subject of their reason**' \
-        'what their sentence is about stays what every reading is about' \
-        'the part of the film they named and what they said of it, never' \
-        'another part of the film, and never that quality in general' \
-        'no reading turns into a rule' 'they never gave' \
+# §16: the hypotheses are facets of the film; their reason ranks them, and binds only the
+# recommended one. No reading is presented as what they said, and none adds a rule of theirs.
+check "their verdict ranks the facets: the recommended one is the facet their reason points to" \
+    "$(order_check '**Each is a facet the film really has**' '**Their verdict ranks them**' \
+        'where they gave a reason, the recommended one is the facet their words point to, no wider than they said it' \
+        'the other two may be other facets of the film, offered as possibilities and never presented as what they said' \
+        'Where they gave none, three different facets the film may have worked through' \
+        '**None states a rule or an exclusion as theirs.**' \
         'None is a Vibe they already have: where the film already belongs is said beside the list, never as one of the three')" "True"
-# §13.3-§13.4: readings slid from the people in a reason to a plan or to skill in general,
-# and a new Genre carried the widening its reading's sentence did not.
-check "readings may differ about the subject, never swap it — people stay the people" \
-    "$(order_check '**Each keeps the subject of their reason**' \
-        'The three may read differently what they loved' 'about that subject, never swap it for another' \
-        'when their reason is about people' 'every reading is about those people, never the events' \
-        'around them on their own, and' \
-        'never being good at things in general unless their words said so')" "True"
-check "a new Genre made for a reading stays inside their reason, and may still cover more films" \
+check "a new Genre is part of its hypothesis, and may cover more films" \
     "$(order_check '**Each is a whole Vibe**' \
-        '**A new Genre made for a reading stays inside their reason**' \
-        'it may hold more films than the reading — an ingredient does' \
-        'but never a subject or a quality their words did not carry' \
-        'is the reading widened by another route')" "True"
+        "A new Genre is part of its hypothesis's idea, as *One idea, said three ways* says" \
+        'hold more films than the hypothesis — an ingredient does' \
+        'says nothing its sentence goes against')" "True"
+check "no hypothesis is held to their reason alone any more" \
+    "$(grep -ciE 'readings of their words|subject of their reason|stays inside their reason|widened by another route' "$SKILL")" "0"
 check "a Genre is not held narrower than an ingredient can be" \
     "$(grep -ciE 'no broader than that reading' "$SKILL")" "0"
 check "the grounding rule names no film and no reason from the evaluation" \

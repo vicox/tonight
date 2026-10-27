@@ -107,13 +107,15 @@ never a FAIL of what it would have shown.
    its core.
 4. **Three hypotheses, each led by a title a person can answer with**, the recommended one marked.
    No alternative names for one idea, and none of the three is a Vibe they already have.
-5. **Grounded.** Each keeps the subject of their reason — the characters and their cleverness.
-   None is wider than it: not the film's tricks on the viewer, competence at anything, deception
-   as such, or a character study. None states a rule they did not give, such as *"nobody does the
-   stupid thing"* — that is outcome 3. **The same holds for any new Genre a hypothesis is built
-   on**: a Genre may cover more films than its hypothesis, as an ingredient does, but one that
-   claims a subject or quality their reason did not carry — *"people who are very good at what
-   they do"* for a reason about clever characters — fails it as surely as the sentence would.
+5. **Grounded in the film, ranked by the verdict.** Each is a facet The Brothers Bloom really
+   has, and none claims of the film what it is not. **The recommended one is the facet their
+   reason points to** — the characters and their cleverness — and is no wider than it: not
+   competence at anything, not the film's tricks on the viewer. The other two may be other facets
+   of the film, scored against the film and not against their reason, and neither is presented
+   as what they said. None states a rule or an exclusion they did not give — *"nobody does the
+   stupid thing"*, *"not lucky"* — that is outcome 3. **A new Genre is scored as part of its own
+   hypothesis**: it may cover more films than the hypothesis, as an ingredient does, and says
+   nothing its sentence goes against.
 6. **Distinct, scored by the reviewer.** Shown the three titles and the three descriptions
    shuffled, the reviewer matches them, and for each pair names a film that fits one and not the
    other. Three names for one preference fails.
