@@ -1014,6 +1014,67 @@ not done here:
    characters"*, no competence at anything, no stated exclusion.
 5. **A want-to-see film moves in the turn the liked is said**, before the offer.
 
+### 12.10 The live runs on DeepSeek Flash (2026-10-27, single pass)
+
+**What ran:**
+
+- `--backend deepseek --model deepseek-flash` — the only Flash id the API lists, served by
+  DeepSeek-V4.1-Flash-1017.
+- `model_resolved` is `deepseek-flash` and the fingerprint is `bc19ba97cbe016479903222bb1578db6`,
+  in every run.
+- The harness is `fa30737` (evaluation code unchanged since `cab2a0b`); no code changes.
+- The baseline `fdb99b9` was served catalog `c5521c63643dba7a` and `HEAD` `fa30737` was served
+  `282f74c4aa8033d7`, each as expected.
+- After every invocation the tree was clean again.
+- Results are in the four `…-deepseek-deepseek-flash` directories (gitignored).
+
+**Scores.** These apply the strict criteria of 12.9; they are this session's own, not
+independently checked. B is the baseline, H is `HEAD`.
+
+| Run | B | H |
+| --- | --- | --- |
+| H1 recommend-only | FAIL: `record_verdict` never called; a single new Vibe with other names; C&B declined as stretching; pick not sent | FAIL: `record_verdict` never called; one of the three options **is the existing C&B**; the number inside the bold (`**1. "…"**`); pick not sent |
+| H1 plugin (pick title 2) | FAIL: offered to **reword C&B's sentence** (the G2 trap); no hypotheses; pick not sent | FAIL: C&B named and unchanged, the overlap said, three bold titles, *my pick* marked — but **not numbered**, so the pick was not sent and turn 2 is untested; new Genre meanings not in the first person; two options (*Clever Company*, *Fast Talkers*) barely distinct |
+| H2 existing-only | T1 FAIL: no C&B (a shelf of its own); other names; unnumbered. Turn 2 PASS | T1 FAIL on numbering; C&B and overlap right; meanings in the first person; *The Beautiful Lie* borderline wider. Turn 2 PASS (filed in C&B, liked kept, nothing else) |
+| H3 new-only | T1 FAIL (C&B only, reason folded in); turn 2 FAIL (a single new Vibe with other names, asked again, nothing written) | T1: numbered correctly, C&B and overlap right; meanings not in the first person; *Nothing Up My Sleeve* (the film fooling the viewer) wider than their reason. Turn 2 FAIL: asked which of the three, nothing written |
+| H4 no | T1 FAIL (the reword offered again); turn 2 PASS | T1 FAIL: unnumbered; meanings not in the first person; *Everybody's Lying* and *The People Behind the Plan* wider than their reason. Turn 2 PASS |
+| H5 kept path | FAIL: viewing left `want-to-see`; the reword offered; no hypotheses; pick not sent | T1: liked kept; **viewing moved to `seen-before` in turn 1 and said** (passes the in-the-moment capture `deepseek-v4-pro` missed); overlap and difference said. Unnumbered, so the pick was not sent and turns 2-3 are untested; a meaning not in the first person; *In Capable Hands* (competence at anything) wider. FAIL |
+
+**What changed between B and H** — one pass each:
+
+- The C&B rewording trap went from three runs to none.
+- The film was named in C&B with the overlap said in 4/4 `HEAD` plugin runs (B: 2/5, through a
+  folded reason or a reword).
+- Three hypotheses with the recommended one marked: `HEAD` 4/4, B 1/5.
+- In-the-moment capture on the kept path: `HEAD` passed, B failed.
+
+**What still failed at `HEAD` on Flash:**
+
+- The numbered list — 1 of 4, so no pick could be exercised.
+- First-person Genre meanings — 3 of 4.
+- Grounding — wider options in 3 runs.
+- The "new only" completion.
+- Recommend-only: no verdict attempted, and an existing Vibe offered as a hypothesis.
+
+**Against the `deepseek-v4-pro` pass (12.9):**
+
+- v4-pro numbered 5/5 and wrote two picks exactly as shown, but missed the in-the-moment capture.
+- Flash got the capture right, and numbered almost never.
+- On recommend-only: v4-pro filed without a yes; Flash never recorded the verdict at all.
+
+**A note on the test itself.** `new-only` (*"Just the new one — leave it out of the other."*) does
+not say which of three new options. The rubric assumes the recommended one; both models read it as
+needing a choice — v4-pro took the recommended, then asked about when; Flash asked which. Keeping
+H3 meaningful may need a prompt that names the pick.
+
+**Cost:**
+
+- 39 API requests, all off-peak (16:34-16:40 UTC), 0 failed, 0 without usage.
+- Input: 1,177,600 cache-hit and 133,654 cache-miss tokens. Output: 43,582 tokens, reasoning
+  included.
+- **USD 0.0497** at the Flash off-peak prices ($0.003 / $0.15 / $0.60 per 1M).
+- The balance went from USD 24.90 to 24.84 (USD 0.06, at cent precision).
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
