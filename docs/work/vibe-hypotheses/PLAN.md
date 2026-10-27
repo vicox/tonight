@@ -1137,6 +1137,56 @@ words) is not a blocker. Three blockers, each fixed:
 No new blockers. Codex reran vibes 154/154, recommend 248/248, plugin 37/37 and 164 focused tests;
 the original parser reproductions now pass.
 
+### 13.3 The fresh Flash run after the fixes (2026-10-27, single pass)
+
+**What ran:**
+
+- `deepseek-flash`, fingerprint `bc19ba97cbe016479903222bb1578db6` in every run, harness
+  `a095d37`, `--runs 1`.
+- Baseline `fdb99b9` (served catalog `c5521c63643dba7a`) against `HEAD` `a095d37` (served
+  `ffaaeb811785202c`), each as expected; the tree was clean after every invocation.
+- Results are in the four `…-a095d37…-deepseek-deepseek-flash` directories.
+- Scored by this session against the §13 rubric (B1-B8, *After a pick*, *After a decline*,
+  presentation apart); not independently checked.
+
+**Written as shown (criterion 3, mechanical).** All eight Genre meanings and Vibe sentences that
+`HEAD` wrote appear word for word in the turn-1 offer.
+
+| Run | B (`fdb99b9`) | H (`a095d37`) |
+| --- | --- | --- |
+| H1 recommend-only | `record_verdict` first ✓. Proposed new words for C&B (the G2 trap) ✗. No three hypotheses (B4 ✗); pick UNTESTED | `record_verdict` first ✓; no write before a yes ✓. Three numbered titles, first-person meanings ✓. **C&B offered as an alternative to the three, not beside them (B3 ✗)**. *The Job Done Well* (competence) is wider (B5 ✗). Pick *Fast Talk*: written word for word, `seen-before`, no second question, liked kept ✓ — filed in Fast Talk only, consistent with the offer |
+| H1 plugin (pick title 2) | C&B only, reason folded in (B4 ✗); pick UNTESTED | B1-B4, B6-B8 ✓. *The Machine Closes* (logistics over people) wider (B5 ✗). Pick *Wit*: written word for word; Bloom in C&B and Wit; `seen-before`; no second question; liked kept ✓. The Vibe and its new Genre are both named *Wit* — a Genre said again (naming rule) |
+| H2 existing-only | C&B only (B4 ✗); turn 2 ✓ | T1: B5 ✗ (*Frighteningly Good*); rest ✓ — the number inside the bold is presentation. Turn 2 ✓ (C&B only, `seen-before`, liked kept, nothing else) |
+| H3 new-only (names its pick) | **Filed Bloom into C&B and kept the liked in turn 1 with no yes — outcome 1**; pick UNTESTED | T1: B5 ✗ (*Steady Hands*); rest ✓. Turn 2 (*Masterminds & Misdirection*, not C&B): written word for word, only its Genre, C&B left out as asked, `seen-before` said, no second question, liked kept ✓ |
+| H4 no | C&B only (B4 ✗); turn 2 ✓ nothing written | T1: B5 ✗ (*Very Good At This*); rest ✓. Turn 2 ✓: nothing written, said once |
+| H5 kept path | Liked kept, but the viewing was left `want-to-see` and asked about (✗); no hypotheses; pick UNTESTED | T1: liked kept; **viewing moved to `seen-before` in turn 1, before the offer** ✓; overlap said ✓; B5 ✗ (*Nothing to Prove*). Turn 2: written word for word, C&B kept ✓. Turn 3: **not assessable** — the recorded answer is only *"Four above — The Sting is where I'd start…"*, while `record_episode` offered four films, two of them in no recorded reply |
+
+**What the fixes did, in this one pass:**
+
+- **Fix 1 (verdict first, no filing without a yes):** held in all six `HEAD` runs. The baseline
+  filed without a yes once.
+- **Fix 2 (no second question about when):** held in all four completed picks.
+- **Fix 3 (written as shown):** held for all eight strings, with first-person meanings in all six.
+- **Fix 5 (want-to-see moved at once):** held.
+- **The picks themselves:** every pick resolved on `HEAD`, so every follow-up was exercised. On the
+  baseline, all three picks were UNTESTED because no turn 1 offered three choices.
+- **Still failing — fix 4 (grounding):** in all six `HEAD` runs one of the three readings
+  generalised *"clever characters do smart things"* into competence at anything, in spite of the
+  new rule. Recommend-only also offered C&B *instead of* beside the three.
+
+**A limit of the harness, not the agent.** The DeepSeek adapter records only a turn's final
+assistant message. Text the model sends together with tool calls — here, very likely H5's actual
+recommendation, written before `record_episode` — is not in the artifact. Until the adapter
+records every assistant text of a turn, such a turn cannot be scored. That is a harness change for
+its own review.
+
+**Cost:**
+
+- 64 API requests, all off-peak (17:06-17:13 UTC), 0 failed, 0 without usage.
+- Input: 2,187,776 cache-hit and 78,294 cache-miss tokens. Output: 49,174 tokens.
+- **USD 0.0478** at the Flash prices.
+- Balance USD 24.84 → 24.78.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
