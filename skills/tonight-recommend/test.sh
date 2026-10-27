@@ -142,7 +142,7 @@ check "a sufficient request is answered rather than interrogated" \
         'question about films')" "True"
 check "the good and bad questions are shown side by side" \
     "$(order_check 'question about films' \
-        'More clever mystery, or more action?' \
+        'A choice between two kinds of film for tonight' \
         'What genres do you like?')" "True"
 check "the database question is named as the wrong one" \
     "$(grep -c 'What Genres should I save?' "$SKILL")" "1"
@@ -334,9 +334,13 @@ check "the answer is a thesis, then a lead, then directions, in that order" \
         'directions')" "True"
 check "the lead is committed to out loud, not merely placed first" \
     "$(order_check 'one lead, named as such' "*\"I'd start with X\"*")" "True"
-check "and the worked example commits to one, rather than listing equals" \
-    "$(order_check "I'd start with *Knives Out*" 'If you want it colder' \
-        'If you want one room')" "True"
+check "and the presented form commits to one, rather than listing equals" \
+    "$(order_check 'Presented, each part is its own short paragraph' "the lead in" \
+        "*\"I'd start with\"* the film" 'each direction opened by when it wins' \
+        'then the one question or lever')" "True"
+# The shape is described, not shown: no worked answer with films in it.
+check "no worked answer survives" \
+    "$(grep -ciE 'Knives Out|Inside Man|The Outfit|Sleuth|whodunnit' "$SKILL")" "0"
 check "there are two or three directions, and the count is stated" \
     "$(order_check 'two or three' 'directions')" "True"
 check "a direction is defined against the runner-up it is not" \
@@ -469,12 +473,11 @@ echo "--- a Vibe is named, not labelled ---"
 
 # The distinguishing product idea. A Genre is named for what it is and a Vibe for
 # what it feels like, and the failure is always in the same direction: a helpful
-# assistant restating the ingredients. Both halves are pinned — the rule, and
-# examples of each kind — because the rule alone reads as a matter of taste until
-# `Popcorn Chaos` and `Funny action` are sitting next to each other.
+# assistant restating the ingredients.
 # M5: the distinction is what recommend keeps — a Vibe is read and kept here too —
-# and the examples, the failure shown, and the rule against widening an idea moved
-# with Vibe authoring to tonight-vibes, whose test.sh pins them.
+# and the failure, and the rule against widening an idea, moved with Vibe authoring
+# to tonight-vibes, whose test.sh pins them. The skills name no example Vibe or
+# Genre: the rule is stated, not shown.
 check "the two kinds of name are distinguished" \
     "$(order_check 'A Genre is named for what it is; a Vibe for what it feels like')" "True"
 check "naming is the assistant's to do, and may not widen the idea" \
@@ -530,10 +533,11 @@ check "it is explicitly not a save-confirmation dialog" \
         'would you like me to save this' \
         'The question is not whether they clicked save')" "True"
 check "a standing preference and a one-night mood are told apart" \
-    "$(order_check 'Tonight I feel like slow science fiction' \
+    "$(order_check 'A wish for tonight writes **nothing**' \
         'what they want now, not what they are like' \
-        'I love slow science fiction' \
-        'A standing preference, stated plainly')" "True"
+        'They say plainly that they love a kind of film' \
+        'A standing preference, stated plainly' \
+        'They say what they feel like tonight')" "True"
 # "Both routes may create, and a bare request for tonight may not" pinned the
 # authoring paragraph that moved to tonight-vibes (M5); its test.sh carries it. The
 # table above still says a request for tonight writes nothing.
@@ -583,8 +587,13 @@ echo "--- explicit management is handled here, not redirected ---"
 
 check "one skill does not mean one intent: a direct request is done, not deflected" \
     "$(order_check 'it is not the only thing you will be asked' \
-        'rename my Sci-Fi genre to Spacey' \
+        'somebody says plainly to rename one of their Genres' \
         'do it and answer')" "True"
+# The skill names no film, Vibe or Genre to show a rule: the rule is stated instead.
+check "no example Vibe or Genre name, or scenario wording, survives" \
+    "$(grep -ciE 'Sci-Fi|Spacey|Space Tension|Popcorn Chaos|Thriller|slow burn|Game Night|Kid Detective|lazy Sunday|science fiction|tension never' "$SKILL")" "0"
+check "no example film survives" \
+    "$(grep -cE 'Arrival|Heat|Dune|Tag' "$SKILL")" "0"
 check "and the reverse is what must not happen" \
     "$(order_check 'a request for a film turning into a configuration session')" "True"
 check "the CRUD tools are named as the way to do it" \
@@ -1143,9 +1152,9 @@ check "the table maps each sentence to its own fact" \
         '*"we didn'"'"'t watch it"* | `started: false` |' \
         '*"actually not that one"*, about a choice | `chosen: false` |' \
         '*"nah, not that one"* | `passed: true`, their words as `passReason` if they gave any |' \
-        '*"we'"'"'re watching Heat instead"*, Heat not offered | Heat as theirs, `started: true` |' \
+        '*"we'"'"'re watching X instead"*, X not offered | X as theirs, `started: true` |' \
         'a new evening: `record_episode` with `offers` and no request |' \
-        '*"loved Arrival"* | never an evening — that is a verdict |' \
+        '*"loved X"* | never an evening — that is a verdict |' \
         '*"I'"'"'ve seen it"* | never an evening — that is a viewing |')" "True"
 check "statements merge one film at a time, and changes are corrections" \
     "$(order_check 'merges into the evening one film at a time' \

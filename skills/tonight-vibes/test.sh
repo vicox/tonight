@@ -129,8 +129,8 @@ echo "--- one idea, said three ways ---"
 check "constructing a vibe means reading the genres own instructions, not their names" \
     "$(order_check 'instructions** — not their names, which
 are labels and say almost nothing' \
-        '`Slapstick` under `Quiet Dread` looks defensible until you
-read what Slapstick means to this person')" "True"
+        'A Genre whose name looks at home under a Vibe can still mean' \
+        'only its instruction shows' 'it. Two ideas, one object.')" "True"
 check "the vibe's sentence must add meaning and contradict none" \
     "$(order_check 'must **add** what the Genres do not say and **contradict** nothing they do' \
         'a sentence that only restates the
@@ -177,10 +177,15 @@ check "the two kinds of name are distinguished, in that order" \
     "$(order_check 'A Vibe name is evocative, not descriptive' \
         'A **Genre** is named for what it is' \
         'A **Vibe** is named for what it *feels* like')" "True"
-check "evocative names are shown, not just asked for" \
-    "$(order_check 'Space Tension' 'Popcorn Chaos' 'Quiet Dread')" "True"
-check "descriptive names are shown as the failure they are" \
-    "$(order_check '`Funny action`' '**not Vibe names**' 'it has been' 'labelled')" "True"
+check "a Vibe name is described as a shelf, not shown by example" \
+    "$(order_check 'A **Vibe** is named for what it *feels* like' \
+        'The name of a shelf in a good video' 'a list they would go back to')" "True"
+check "a name that restates the Genres is the failure it is" \
+    "$(order_check 'A name that lists the Genres, or puts a quality in front of one' \
+        '**not a Vibe name**' 'it has been' 'labelled')" "True"
+# The skill states the naming rule and names no Vibe or Genre to show it.
+check "no example Vibe or Genre names survive" \
+    "$(grep -ciE 'Space Tension|Popcorn Chaos|Quiet Dread|Funny action|Slow burn|Slapstick|Clever thriller|Practical effects' "$SKILL")" "0"
 check "the test for a name is pointed at, not restated" \
     "$(order_check '`create_vibe` carries the test for that in its own description' \
         'at the moment a name is being chosen')" "True"
@@ -192,7 +197,7 @@ echo
 echo "--- a statement about a film is a verdict first ---"
 
 check "however it is phrased, it is a verdict first, and only then about Vibes" \
-    "$(order_check 'However it is' 'phrased, a statement about how a film worked for them is **a verdict first**' \
+    "$(order_check 'however it is phrased, a' 'statement about how a film worked for them is **a verdict first**' \
         'only then a' 'question about their Vibes')" "True"
 check "the verdict needs no yes, because they said it" \
     "$(order_check 'record_verdict — their words' 'needs no yes: they said it')" "True"
@@ -210,7 +215,7 @@ check "watching is not an opinion" \
 check "when or how a film worked stays their reason and is stored nowhere else" \
     "$(order_check 'is part of their reason and stays in `because`' \
         'never an occasion, a daypart or an' 'attention level stored anywhere else' \
-        'you like low-attention films')" "True"
+        'never a claim about the kind of viewer they are')" "True"
 
 echo
 echo "--- which way it points ---"
@@ -235,7 +240,7 @@ check "membership in one Vibe or several, and a partial yes writes the agreed pa
 check "a new core only when it embodies the instruction better, named against the old one" \
     "$(order_check '**A new core for a Vibe**' \
         'embodies the instruction better than the current' 'named against it' \
-        'Palm Springs stays in it')" "True"
+        'the film that anchors it now' 'that the current one stays in it')" "True"
 check "a Vibe with no core may be anchored by new evidence" \
     "$(order_check '**An anchor for a Vibe with no core yet**')" "True"
 check "at most one new Vibe, only when their words carry a how, when or why" \
@@ -311,16 +316,18 @@ check "each reading keeps the subject of their reason, and none turns into a rul
     "$(order_check 'readings of their words — none wider than what they said, and none ruling out what they did not rule out' \
         '**Each keeps the subject of their reason**' \
         'what their sentence is about stays what every reading is about' \
-        '*"the dialogue was so sharp"*' 'never the plot, the acting or being clever in general' \
-        'no reading turns into a rule they never gave' \
+        'the part of the film they named and what they said of it, never' \
+        'another part of the film, and never that quality in general' \
+        'no reading turns into a rule' 'they never gave' \
         'None is a Vibe they already have: where the film already belongs is said beside the list, never as one of the three')" "True"
 # §13.3-§13.4: readings slid from the people in a reason to a plan or to skill in general,
 # and a new Genre carried the widening its reading's sentence did not.
 check "readings may differ about the subject, never swap it — people stay the people" \
     "$(order_check '**Each keeps the subject of their reason**' \
         'The three may read differently what they loved' 'about that subject, never swap it for another' \
-        'when their reason is about people' 'every reading is about those people, never a plan or a' \
-        'trick on its own, and never being good at things in general unless their words said so')" "True"
+        'when their reason is about people' 'every reading is about those people, never the events' \
+        'around them on their own, and' \
+        'never being good at things in general unless their words said so')" "True"
 check "a new Genre made for a reading stays inside their reason, and may still cover more films" \
     "$(order_check '**Each is a whole Vibe**' \
         '**A new Genre made for a reading stays inside their reason**' \
@@ -331,6 +338,9 @@ check "a Genre is not held narrower than an ingredient can be" \
     "$(grep -ciE 'no broader than that reading' "$SKILL")" "0"
 check "the grounding rule names no film and no reason from the evaluation" \
     "$(sed -n '/### Three hypotheses, chosen by title/,/### What to consider, and what to offer/p' "$SKILL" | grep -ciE 'clever characters|Brothers Bloom|Masterminds')" "0"
+# The skill names no film, Vibe or Genre from the evaluation's scenarios, or any other.
+check "no scenario film or Vibe survives anywhere in the skill" \
+    "$(grep -ciE 'Bloom|Champagne|Blueprints|Masterminds|Paterson|Logan Lucky|Knives Out|Palm Springs|Groundhog|Reservoir Dogs|Everybody Has a Plan|dialogue was so sharp|stupid thing' "$SKILL")" "0"
 check "a new Genre's meaning is shown as the words it will be written as, and written word for word" \
     "$(order_check '**Each is a whole Vibe**' \
         'shown as the *"I like…"* sentence it will be written as, word for word' \
@@ -380,9 +390,9 @@ check "the kept path offers its one new Vibe as three hypotheses, and the film s
 check "the keep flow's proposal is not how a liked film's Vibe is offered" \
     "$(order_check 'This proposal is for keeping a film' \
         'three hypotheses chosen by title, never one idea under other names')" "True"
-check "the worked case: a liked whose evening they have and whose reason they do not" \
-    "$(order_check '*"I liked The Brothers Bloom because clever characters do smart things."*' \
-        'it goes there too, and three hypotheses by title, *Masterminds & Misdirection* recommended' \
+check "the table's case: a liked whose evening they have and whose reason they do not" \
+    "$(order_check 'They liked a film in no Vibe for a reason none of their Vibes says, and one of them is already its evening' \
+        'it goes in that Vibe too, and three hypotheses by title, one recommended' \
         'both Vibes on its list' '`record_verdict` again')" "True"
 check "on a yes the film is filed, then the same verdict is recorded again" \
     "$(order_check 'On their yes, write exactly what they agreed' \
@@ -453,9 +463,9 @@ check "the pick is written as shown: its Genres only, and a new core keeps its o
         '`create_vibe` with its name, instruction, Genres and **core**, exactly as they were shown' \
         'That includes the new core when it also belongs to a Vibe they have' \
         'so a Vibe left out of it is a Vibe the film leaves')" "True"
-check "the worked cases include the opt-out and the not-tonight" \
-    "$(order_check 'Good, but I don' 'they declined more of the kind' \
-        'Not tonight — too long' 'nothing about Vibes')" "True"
+check "the table includes the opt-out and the not-tonight" \
+    "$(order_check 'They liked it, and want no more of the kind' 'they declined more of the kind' \
+        'They turn it down for one evening, with a reason' 'nothing about Vibes')" "True"
 
 echo
 echo "--- keeping a film, and proposing a Vibe ---"
@@ -477,14 +487,13 @@ check "the write constraints point at the tools that state them" \
         'arrive with `create_genre` and `create_vibe`')" "True"
 check "the Vibe is proposed conversationally, named, explained and anchored, then asked about" \
     "$(order_check 'say what you noticed, name it, say what it means, name its core' \
-        'Then ask' 'Shall I make it?')" "True"
+        'Then ask' 'closed by one question: whether to make it')" "True"
 check "the proposal names its Genres, and what a new one would mean" \
     "$(order_check 'name its core, name its Genres with what any new one would mean' \
         'make the idea concrete')" "True"
-check "and the worked proposal does: one Genre of theirs, one new one with its meaning" \
-    "$(order_check 'Reservoir Dogs is the one that says it best' \
-        'It would be built on your Heist and one new Genre, Double-cross:' \
-        'plots where nobody at the table is telling the truth' 'Shall I make it?')" "True"
+# The worked proposal went with the skill's examples; the rule above says what it showed.
+check "no worked proposal survives" \
+    "$(grep -ciE 'Reservoir Dogs|Double-cross|Shall I make it' "$SKILL")" "0"
 check "a proposed Vibe is shown as an idea: other films in it, other names for it" \
     "$(order_check 'make the idea concrete' \
         'three to five other films that would belong in it' \
@@ -508,7 +517,7 @@ check "proposing a Vibe belongs to saving, not to recommending" \
     "$(order_check 'Propose while saving, not' 'while recommending' \
         'a Vibe that genuinely fits needs none of this')" "True"
 check "a film named in a proposal that they then speak about is a new statement" \
-    "$(order_check 'oh, I loved that one' 'that is a new statement about a film')" "True"
+    "$(order_check 'then say something about one, that is a new statement about a film')" "True"
 
 echo
 echo "--- a new user's first films ---"
@@ -574,7 +583,7 @@ check "the idea just used is the Vibe, and its parts are the Genres" \
 check "a bare request for tonight leaves nothing behind" \
     "$(order_check 'Wanting something tonight' 'is not saying it' 'leaves nothing behind')" "True"
 check "near-duplicate Genres are called out" \
-    "$(order_check 'do not add `Slow-paced`')" "True"
+    "$(order_check 'Never add a Genre whose meaning one of theirs already' 'has, under a different name')" "True"
 check "one conversation should not produce eight Genres" \
     "$(order_check 'One conversation should not produce eight Genres')" "True"
 
@@ -651,17 +660,17 @@ check "a liked said now moves a want-to-see film to seen, in that turn, and says
 check "a viewing is never changed to get past the refusal" \
     "$(order_check '**Never change a viewing to get past the refusal**' \
         'not on the strength of a verdict' 'A viewing is written only when they said it')" "True"
-check "stop suggesting it is dont-want-to-see, never disliked, and no Vibe talk" \
-    "$(order_check '*"Stop suggesting it."*' \
-        '`dont-want-to-see` on the film — never `disliked`, which says they watched it' 'nothing about Vibes')" "True"
+check "asking not to be offered it again is dont-want-to-see, never disliked, and no Vibe talk" \
+    "$(order_check 'They ask not to be offered it again' \
+        '`dont-want-to-see` on the film — a viewing, not a verdict, and never `disliked`, which says they watched it' 'nothing about Vibes')" "True"
 check "not tonight is at most a pass on that evening, with their reason" \
-    "$(order_check '*"Not tonight — too long."*' 'at most a pass on that evening, *"too long"* as its reason — it is about an evening, not the film' 'nothing about Vibes')" "True"
+    "$(order_check 'They turn it down for one evening, with a reason' 'at most a pass on that evening, their reason with it — it is about an evening, not the film' 'nothing about Vibes')" "True"
 # M9: the attribution rule, whole, where Vibes meet a watched film — the update
 # on an unambiguous reference, the new evening of their own, and no evening at
 # all when it is unclear. Code review 1: the first half alone was not the rule.
 check "a watch last night is a viewing, never a verdict" \
     "$(order_check '**Watching is not an opinion.**' \
-        '*"I watched it last night"* is a viewing, never a verdict.')" "True"
+        'Saying they watched it is a viewing, never a verdict.')" "True"
 check "attribution (i): an evening is updated only on an unambiguous reference, never by title or recency" \
     "$(order_check '**Watching is not an opinion.**' \
         'it **updates** a recorded evening — `started` on that film — only when they unambiguously referred to that evening' \
@@ -675,7 +684,7 @@ check "attribution (iii): an ambiguous reference writes to no evening, and nothi
         'a statement that might be about a recorded evening but does not say so' \
         'writes to **no** evening, and no question is asked in order to file it')" "True"
 check "the table row carries all three routes" \
-    "$(order_check '*"I watched it last night."*' \
+    "$(order_check 'They say they watched it recently' \
         '`started` on a recorded evening only when they referred to it' \
         'a new evening of their own when they named none you recorded' \
         'no evening when it is unclear')" "True"
@@ -683,11 +692,11 @@ check "the old route to a viewing or an evening is gone" \
     "$(grep -ciE 'a viewing or an evening|written nowhere' "$SKILL")" "0"
 check "going through Vibes re-anchors a core not seen like a missing one" \
     "$(order_check '**Anchor.**' 'A Vibe whose core reads anything' 'but `seen-now` or `seen-before` is anchored again in the same way, as one with no core')" "True"
-check "a watch last night is seen-now in the table" \
-    "$(order_check '*"I watched it last night."*' 'a viewing, `seen-now`')" "True"
-check "don't recommend it again is a viewing, not a verdict" \
-    "$(order_check '*"Stop suggesting it."*' '*"Don'"'"'t recommend it again."*' \
-        '`dont-want-to-see` on the film — a viewing, not a verdict')" "True"
+check "a recent watch is seen-now in the table" \
+    "$(order_check 'They say they watched it recently' 'a viewing, `seen-now`')" "True"
+# The table describes what was said rather than quoting it: no example sentence in its first column.
+check "the table quotes no example sentence" \
+    "$(sed -n '/### What each kind of statement writes/,/^## /p' "$SKILL" | grep -c '^| \*"')" "0"
 
 echo
 printf '%d passed, %d failed\n' "$pass" "$fail"

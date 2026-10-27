@@ -785,6 +785,21 @@ test("no cross-tool rule has been copied into a tool description", async () => {
   );
 });
 
+test("no tool description shows its rule with a film, a vibe or a genre", async () => {
+  // docs/work/vibe-hypotheses §15: the descriptions state their rules and name no
+  // example — and the ones they used to name were the evaluation fixtures' own.
+  const tools = await listTools(await tokenFor(someone()));
+  const everything = JSON.stringify(tools);
+  for (const name of [
+    /Bloom|Champagne|Blueprints|Masterminds/,
+    /Paterson|Arrival|\bHeat\b|\bDune\b|Am[ée]lie/,
+    /Space Tension|Puzzle Pressure|Small Town Secrets|Sci-Fi|\bAction\b|Slow burn/,
+    /Smart, not heavy|Funny action|tension never lets up/,
+  ]) {
+    assert.equal(name.test(everything), false, `${name} is named in a tool description`);
+  }
+});
+
 test("a movie is saved with what the user said, and appears once in the model", async () => {
   const token = await tokenFor(someone());
   await ok(token, "create_genre", { name: "Sci-Fi", instruction: "Ideas over spectacle." });

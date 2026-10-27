@@ -477,7 +477,7 @@ export function checkYear(value: unknown): number {
     if (value === undefined || value === null) {
       throw new TasteError(
         "a movie needs a release year — it is half of how a movie is named, " +
-          "so that Dune 1984 and Dune 2021 are two films and not one",
+          "so that one title in two years is two films and not one",
       );
     }
     throw new TasteError(

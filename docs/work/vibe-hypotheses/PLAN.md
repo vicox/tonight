@@ -1283,6 +1283,68 @@ Both blockers are resolved: the wording keeps Genres reusable and allows compete
 No new blockers. Codex reran vibes 158/158, recommend 248/248, plugin 37/37 and 164 focused tests.
 Stopped here by the user's instruction: no live run until the user decides.
 
+## 15. No concrete examples in the instructions (user decision, 2026-10-27)
+
+**Why.** Examples teach the example. Several of the skills' and the tools' examples were also the
+evaluation's own fixtures and prompts — Paterson, Logan Lucky's lazy Sunday, Knives Out, Palm
+Springs, Space Tension, Arrival, Heat, Dune — and the *How it sounds* table was the M5 request set
+nearly word for word. An agent that has read the test cases is not being tested.
+
+**The boundary:**
+
+- **Removed:** every film title, every Vibe or Genre name, and every worked conversation,
+  proposal or answer. Each is replaced by the rule it illustrated, stated in a sentence.
+- **Kept:** short generic cues that name no film, Vibe, Genre or person, and define what a rule
+  keys on — *loved*, *favourite*; *"not tonight"*, *"stop suggesting it"*; *"just watched it"*,
+  *"years ago"*; *"I'd start with X"* — with `X` where a film would go. Format markers stay too:
+  *"I like…"*, *"my pick"*, and `tt0111161` as the shape of an IMDb id, which is in no fixture.
+
+**What changed:**
+
+- **`tonight-vibes`:**
+  - The worked examples are replaced by rules — names in the coherence and naming sections, the
+    *Champagne & Blueprints* line in step 3, the grounding examples, the *Palm Springs* core
+    offer, the *Knives Out* owed answer, the *Everybody Has a Plan* proposal, and the
+    `Slow burn` / `Slow-paced` lines.
+  - *How it sounds* is now *What each kind of statement writes*: the same rows, keyed by what was
+    said rather than by a quoted sentence.
+  - *"never a plan or a trick on its own"* is now *"never the events around them on their own"*,
+    the same rule without the scenario's nouns.
+- **`tonight-recommend`:**
+  - Removed: the *Sci-Fi* / *Space Tension* lines, the *Game Night* / *Kid Detective* / *Tag*
+    reasons, *"you loved Sleuth"*, and the *Knives Out* answer, which is now described in one
+    paragraph.
+  - The *Ask this* column and the slow-science-fiction rows say what is asked, without an example.
+  - Gone too: *"too grim … your Thriller"*, *"saved Arrival / Heat"*, `Dune`, and the
+    rename/delete examples.
+  - The evening table uses `X` where it named *Heat* and *Arrival*.
+- **Tool guidance** — `server.ts`, one error in `taste/model.ts` — the same, where it named
+  fixture films or Vibes:
+  - the genre and vibe name fields and `genreInstruction`;
+  - the year (*Dune*), *"saved Arrival / Heat"*, *"you loved Paterson"* and *"the tension never
+    lets up"*;
+  - *'Space Tension' beats 'Sci-Fi Thriller'*, *Heat* and *Arrival* in the episode tools, and
+    *Amélie* and *Dune* in `check_candidates`;
+  - `next`'s *"never a plan alone"*.
+
+**Not changed:**
+
+- Product behaviour, schema, API, the runner.
+- Every fixture, prompt, scenario and the rubric: they are what the instructions are tested
+  against, and they still name the scenario.
+- The website's own copy.
+
+`plugin.json` is 1.10.3.
+
+**Pins:**
+
+- Every assertion that pinned an example now pins the rule that replaced it.
+- New refusals:
+  - `tonight-vibes/test.sh`: no example Vibe or Genre name, no scenario film, no worked
+    proposal, and no quoted sentence in the table.
+  - `tonight-recommend/test.sh`: no example film, Vibe or Genre name, and no worked answer.
+  - `tools.test.ts`: no tool description names a fixture film, Vibe or Genre.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
