@@ -559,6 +559,21 @@ test("a vibe is asked for as one idea, read from the genres' instructions", asyn
   assert.match(update, /a minimal one — the exact new\s+words, shown to them/u, "update_vibe: no minimal-change rule");
   assert.match(update, /write it only on their yes to those words/u, "update_vibe: a minimal change without their yes");
   assert.match(update, /a different evening is a new vibe, not a reworded one/u, "update_vibe: a stretch is allowed");
+  // docs/work/vibe-hypotheses: the minimal change never carries a reason the vibe
+  // was not about, and a vibe picked by title was agreed as it was shown.
+  assert.match(update, /a change that would make it say a reason it was not about — that reason is a new vibe\s+beside it/u,
+    "update_vibe: a reason can be added by rewording");
+  assert.match(create, /A vibe they picked by its title from several you offered was agreed with everything shown beside that title, whether or not they read it: write exactly those words, and none of the others/u,
+    "create_vibe: a pick by title is not what was shown");
+  assert.match(describing("create_genre"), /A meaning shown beside a title they picked was shown, whether or not they read it — write it as it was shown, and never a genre only an option they did not pick needed/u,
+    "create_genre: a pick by title is not what was shown, or an unpicked option's genre is written");
+  // A liked said now moves a want-to-see film; one that stands from before does not.
+  for (const tool of ["create_movie", "update_movie"]) {
+    const viewing = fieldOf(tool, "viewing");
+    assert.match(viewing, /except for a film saved as want-to-see that they tell you now they liked or loved: that is their word that they watched it/u,
+      `${tool}: a liked said now is not their word`);
+    assert.match(viewing, /A liked or loved that only stands from before does not move it/u, `${tool}: a standing liked moves the list`);
+  }
   assert.match(update, /Changing the rest to fit is rewording their sentence by another route/iu,
     "update: fixing incoherence by editing their words is not ruled out");
 });
@@ -1258,6 +1273,13 @@ test("a film not saved as seen is never a core, and a standing liked does not ma
     );
     assert.match(core.description ?? "", /a\s+liked or loved does not override it/u, `${name}: liked overrides`);
     assert.match(core.description ?? "", /never\s+to get past this/u, `${name}: a bypass is allowed`);
+    // docs/work/vibe-hypotheses: what they say now is their word; what stands from
+    // before is not.
+    assert.match(
+      core.description ?? "",
+      /A liked or loved they tell you now is their word that they watched it; one that only stands from before is not/u,
+      `${name}: a liked said now is not their word`,
+    );
     assert.match(
       core.description ?? "",
       /saved first if it is not saved yet — as `viewing` says, seen-now or seen-before, or as seen-before without one/u,

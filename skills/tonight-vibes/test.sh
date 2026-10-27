@@ -253,18 +253,94 @@ check "a liked or loved in no Vibe is not saved, and is never said to be" \
     "$(order_check '### When a liked or loved needs a Vibe' \
         '**nothing is written**' '`reason: "vibe_required"`' \
         '**Until the film is filed, the verdict is not saved, so never say it is.**')" "True"
-check "an existing Vibe first, read by its instructions" \
-    "$(order_check '1. **An existing Vibe first.**' \
-        "each Vibe's instruction and its Genres'" 'instructions, not the names')" "True"
+# docs/work/vibe-hypotheses: three questions answered in one offer, not a ladder —
+# where the film belongs is one question, and why it worked for them is another.
+check "read by its instructions, three questions answered together in one offer" \
+    "$(order_check "each Vibe's instruction and its Genres'" 'instructions, not the names' \
+        'answer three questions in it, together rather than one after' 'another' \
+        '1. **Where it belongs.** Every Vibe whose evening it is')" "True"
 check "a minimal change to a Vibe's sentence only when needed, and only on a yes to the exact words" \
     "$(order_check '2. **A minimal change, only when needed, and only on their yes.**' \
         'exact new wording — the smallest change that covers it' \
         'only on their yes to those words' \
         'A minimal change is never a way to stretch a Vibe')" "True"
-check "otherwise one recommended Vibe and two meaningfully different alternatives, each a reason" \
-    "$(order_check '3. **Otherwise one recommended new Vibe and two meaningfully different alternatives**' \
-        'three different reasons the film may have worked for them, not three names for one' \
-        'with this film as its core' 'Their pick says why they liked it')" "True"
+check "a minimal change never carries a reason the Vibe was not about" \
+    "$(order_check 'A minimal change is never a way to stretch a Vibe' \
+        'never a way to make a Vibe say a reason it was not about' \
+        'that is a new Vibe beside it')" "True"
+check "a new Vibe for the why: one recommended and two alternatives, beside where it belongs" \
+    "$(order_check '3. **A new Vibe for the why.**' \
+        'When their words carry a why none of their Vibes says' \
+        'one recommended new Vibe and two meaningfully different alternatives' \
+        '*Three hypotheses, chosen by title*' 'with this film as its core' \
+        'Their pick says why they liked it' \
+        '**This goes beside 1, never instead of it**' \
+        'files the film where it belongs and anchors the new' 'and says so' \
+        'so their pick covers both' 'a part of it writes that part')" "True"
+check "a title, its number, or a plain yes for the recommended one is their yes" \
+    "$(order_check 'A title they pick, its number, or a plain yes for the one you recommend is their yes' \
+        'On their yes, write exactly what they agreed')" "True"
+check "a no keeps an unsaved film unsaved, and a saved one keeps its captured viewing" \
+    "$(order_check 'On a no, or a change of subject, the liked or loved stays unsaved' \
+        'A film not saved yet stays unsaved; a saved one keeps the viewing their liked already moved')" "True"
+check "a bare loved leads to new Vibes only when none of theirs fits" \
+    "$(order_check 'A bare *"loved it"* may lead to new Vibes here, and only when none of theirs fits' \
+        'the three' 'hypotheses are how you learn the why they did not give')" "True"
+check "a Vibe is the evening, and their because keeps the why" \
+    "$(order_check '**A liked or loved is kept only for a film in at least one of their' \
+        'a Vibe is the kind of evening it belongs to, and their `because` keeps why it worked')" "True"
+
+echo
+echo "--- three hypotheses, chosen by title ---"
+
+check "three hypotheses wherever a Vibe is learned from a film they liked" \
+    "$(order_check '### Three hypotheses, chosen by title' \
+        'a liked or loved answered' '`vibe_required`, a kept one whose words carry a why' \
+        "or a new user's first" 'films' '**three hypotheses**, and they choose one by its title' \
+        'This is how Tonight learns why a film worked for somebody')" "True"
+check "genuinely distinct hypotheses, never names for one preference, grounded in their words" \
+    "$(order_check '**Three different hypotheses about what they loved in that film**' \
+        'one of them recommended' \
+        'for any two, there is a film that fits one and not the other' \
+        '**Never three names for one preference.**' \
+        'readings of their words — none wider than what they said, and none ruling out what they did not rule out' \
+        'three different reasons the film may have worked for them' \
+        'None is a Vibe they already have')" "True"
+check "each hypothesis is a whole Vibe with this film as its core" \
+    "$(order_check '**Each is a whole Vibe**: a name, an *"I like…"* sentence, its Genres' \
+        'and this film as its core')" "True"
+check "the titles lead: numbered, the title alone in bold, nothing else bold, no other names" \
+    "$(order_check '**The titles lead.**' 'A numbered list, the recommended one first' \
+        'each item starts with its title in bold — the title alone' 'never inside it' \
+        'Nothing else in the offer is bold at the start of a line' \
+        'tells it apart from the other two' 'No other names for any of them')" "True"
+check "their pick is their yes to what was shown, written exactly as shown, never asked again" \
+    "$(order_check '**Their pick is their yes.**' \
+        'A title, its number, or a plain yes for the one you recommend' \
+        'shown beside the title, whether or not they read them' \
+        '**exactly as it was shown**' 'never ask again' \
+        'show the exact new words, and write on their yes to those')" "True"
+check "only the pick is written, nothing records the others, and they are not their taste" \
+    "$(order_check '**Only the one they pick is written.**' \
+        'no Vibe, and no Genre only they needed' 'nothing records that they were offered' \
+        'A hypothesis they did not pick is not their taste' \
+        'what a recommendation reads is what was written')" "True"
+check "a no writes nothing further, and what was written stays" \
+    "$(order_check '**A no writes nothing further.**' 'What was already written stays' \
+        'Only a liked still refused is not kept')" "True"
+check "first films: one list per Vibe, one written per list, a plain yes takes the first of each" \
+    "$(order_check '**First films** offer one such list for each Vibe' \
+        'One per list is written; a plain yes takes the first of each')" "True"
+check "the kept path offers its one new Vibe as three hypotheses, and the film stays where it is" \
+    "$(order_check '**A new Vibe**, at most one, anchored on this film' \
+        'It is offered as three hypotheses' 'the film stays in the Vibes it is already in')" "True"
+check "the keep flow's proposal is not how a liked film's Vibe is offered" \
+    "$(order_check 'This proposal is for keeping a film' \
+        'three hypotheses chosen by title, never one idea under other names')" "True"
+check "the worked case: a liked whose evening they have and whose reason they do not" \
+    "$(order_check '*"I liked The Brothers Bloom because clever characters do smart things."*' \
+        'it goes there too, and three hypotheses by title, *Masterminds & Misdirection* recommended' \
+        'both Vibes on its list' '`record_verdict` again')" "True"
 check "on a yes the film is filed, then the same verdict is recorded again" \
     "$(order_check 'On their yes, write exactly what they agreed' \
         'then call' '`record_verdict` again with `retry.arguments`' \
@@ -287,6 +363,11 @@ check "a merge moves its films before it deletes" \
 check "asking has a budget: one offer, one new Vibe, no re-offer, no nagging" \
     "$(order_check '**Asking has a budget.**' 'At most one offer per statement' \
         'at most one new Vibe in it' 'is not offered again in this conversation' 'Never nag')" "True"
+check "the budget shows three hypotheses and writes one, on both paths; first films hold several" \
+    "$(order_check '**Asking has a budget.**' \
+        'an offer may show three hypotheses, and only the one they pick is written' \
+        '`vibe_required` and on a kept one alike' \
+        'First films are the one offer that may hold several')" "True"
 check "an owed answer comes first and whole, and an offer never displaces it" \
     "$(order_check '**When a film answer is owed**' 'the answer' 'comes first and whole' \
         'it never displaces the lead or the' 'directions' 'it waits for the next turn')" "True"
@@ -322,6 +403,13 @@ check "what is never written" \
         'an occasion, daypart or attention field anywhere' \
         'a Vibe, a' 'membership or a core without their yes' \
         'any record that a Vibe offer was made or turned down')" "True"
+check "a hypothesis they did not pick is never written, nor a Genre only it needed" \
+    "$(order_check '**Never written:**' 'a hypothesis they did not pick, or a Genre only it needed')" "True"
+check "the pick is written as shown: its Genres only, and a new core keeps its other Vibe" \
+    "$(order_check '`create_genre` for any new Genre' 'of the hypothesis they picked, and of no other' \
+        '`create_vibe` with its name, instruction, Genres and **core**, exactly as they were shown' \
+        'That includes the new core when it also belongs to a Vibe they have' \
+        'so a Vibe left out of it is a Vibe the film leaves')" "True"
 check "the worked cases include the opt-out and the not-tonight" \
     "$(order_check 'Good, but I don' 'they declined more of the kind' \
         'Not tonight — too long' 'nothing about Vibes')" "True"
@@ -394,6 +482,11 @@ check "each first-films Vibe comes with two meaningfully different alternatives"
     "$(order_check '**This is the one offer that may hold several Vibes**' \
         'two meaningfully different alternatives beside it' \
         'not other names for one')" "True"
+check "each first-films Vibe is three hypotheses chosen by title, one written per list" \
+    "$(order_check '**This is the one offer that may hold several Vibes**' \
+        'is offered as three hypotheses chosen by title' \
+        '**One yes covers the offer**, taking the first of each list' \
+        'at most one is written per list')" "True"
 check "a no to the first-films offer saves nothing positive, and a yes is followed by the verdicts" \
     "$(order_check 'a no saves nothing positive' \
         'each loved is recorded again once its film is filed')" "True"
@@ -501,6 +594,16 @@ check "filing a liked film not saved yet: when is asked inside the Vibe's questi
         'that question goes into the one you put about the Vibe')" "True"
 check "no bare seen is written anywhere in the skill" \
     "$(grep -cE '`seen`|viewing: seen\b' "$SKILL")" "0"
+# docs/work/vibe-hypotheses: a liked said now is their word that they watched it,
+# captured in the turn they say it; a standing one still does not move the list.
+check "a liked said now moves a want-to-see film to seen, in that turn, and says what it stored" \
+    "$(order_check '**A standing `liked` or `loved` does not override `want-to-see` or `dont-want-to-see`.**' \
+        '**A liked or loved they tell you now is them telling you they watched it.**' \
+        '`want-to-see` moves to `seen-now` or `seen-before` in the same turn' \
+        '`seen-before` when nothing they said places it recently' 'and you say what you stored' \
+        'not a verdict standing in for it' \
+        'A `dont-want-to-see` film is still the one question above' \
+        '**Never change a viewing to get past the refusal**')" "True"
 check "a viewing is never changed to get past the refusal" \
     "$(order_check '**Never change a viewing to get past the refusal**' \
         'not on the strength of a verdict' 'A viewing is written only when they said it')" "True"

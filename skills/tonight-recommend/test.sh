@@ -763,6 +763,27 @@ check "and the write flow says it where a verdict is recorded" \
         'the verdict is recorded again' \
         'Never invent a Vibe to hold it without their yes' \
         'never say it is saved before it is')" "True"
+# docs/work/vibe-hypotheses: where a film belongs and why it worked are two questions,
+# and the new Vibe for the why goes beside the filing, chosen by title.
+check "vibe_required: the Vibes whose evening it is, and a new one beside them chosen by title" \
+    "$(order_check 'answers `vibe_required`, nothing was saved' 'the ones whose evening it is' \
+        'when their words carry a why none of their Vibes says, or none fits' \
+        'one recommendation and two meaningfully different alternatives beside them, three hypotheses they choose by title')" "True"
+check "a Vibe is the evening, and their because keeps the why" \
+    "$(order_check 'A liked or loved, though, is kept only' \
+        'a Vibe is the kind of evening it belongs to, and their `because` keeps why it worked')" "True"
+check "a liked said now moves a want-to-see film to seen in that turn; a standing one does not" \
+    "$(order_check '**A liked or loved they tell you now says they watched it.**' \
+        'moves to `seen-now` or `seen-before` by this rule in the same turn' \
+        '`seen-before` when nothing they said places it recently' 'and you say what you stored' \
+        'One that only stands from before does not move it')" "True"
+check "the keep flow's proposal is not how a liked film's Vibe is offered" \
+    "$(order_check 'This proposal is for keeping a film' \
+        'three hypotheses chosen by title')" "True"
+check "a Vibe offered and not picked is not their taste" \
+    "$(order_check 'anything you noticed or offered yourself' \
+        'a Vibe you offered that they did not pick is not their taste' \
+        'a reading of your own is never evidence for another one')" "True"
 # And the false rule is gone rather than reworded.
 check "a Movie no longer comes into being because somebody said something" \
     "$(grep -ciE 'asked for it to be kept, or said something about it' "$SKILL")" "0"

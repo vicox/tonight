@@ -480,3 +480,54 @@ hypothesis that states an exclusion or a generalisation their words did not carr
 - **Additions review 2 — READY.** No new blockers. One wording note, adopted in 5.6: on the
   `vibe_required` path a decline means no further write, and a viewing already captured for a
   saved, unfiled film stays.
+
+## 11. Implementation
+
+### Baseline at `5231b1d` (§9 step 2)
+
+| Check | Result |
+| --- | --- |
+| `npm test` | 1351 tests, 1347 pass. The 4 failures are the known `lib/evaluation.test.ts` ones, which need the gitignored `results/` |
+| `npm run typecheck` | clean |
+| `npm run lint` | 0 errors, the 2 known warnings |
+| `skills/*/test.sh` | **not executed here**: this session cannot run shell scripts without an approval it does not have. Every `order_check` and whole-file `grep -c` check was replayed in Python instead: vibes 117 of 129, recommend 197 of 239, 0 failing. The remaining checks (`in_slice`, `sed`, `ls`) are for Codex's review run |
+
+### Commit A — `fdb99b9` (§9 step 3)
+
+- **The composition test** (`verdicts.test.ts`, *"a picked hypothesis anchors a new vibe…"*) is
+  green on the unchanged base. That confirms the end state of §2 was always reachable with today's
+  tools, and nothing in the server's behaviour changes.
+- **Fixtures** `m5-05-partial-fit` and `m5-06-bloom-saved`; **requests** `bloom-clever`,
+  `like-bloom-tonight`, `pick-title-one`, `pick-title-two`, `existing-only` and `new-only`; **five
+  scenarios**; **rubric** rows and T1; **README** pass commands.
+- **The runner**: `followUps`, `titleNumbered` and `resolveTurn` in `lean.mjs`; `run.mjs` loops
+  over the turns with the resume check, the stop and the quota stop on each, and records what each
+  turn sent and its transcript boundary.
+- **The dry runs** list exactly the planned runs: 6 runs and 13 calls on `plugin-skills`, 1 run and
+  2 calls on `recommend-only`.
+- **The live baseline (§9 step 4) is not recorded**: this worktree has no `web/.env.local`. It is
+  the operator's, at `fdb99b9`.
+
+### Commit B (§9 step 5)
+
+The instruction text of §6:
+
+- `skills/tonight-vibes/SKILL.md`:
+  - the three questions;
+  - *Three hypotheses, chosen by title*;
+  - the kept path and the budget;
+  - writing as shown;
+  - the worked row;
+  - the keep flow's scope;
+  - first films;
+  - a liked said now.
+- `skills/tonight-recommend/SKILL.md`: the why sentence, the `vibe_required` summary, a liked
+  said now, the keep flow's scope, and an unpicked Vibe that is not their taste.
+- `web/lib/mcp/server.ts`: `record_verdict`, `create_genre`, `create_vibe`, `update_vibe`,
+  `movieViewing`, `vibeCore` and `VIBE_REQUIRED_NEXT`. No input schema changes, and
+  `SERVER_VERSION` is unchanged.
+- `plugin.json`: 1.10.0.
+- Pins:
+  - 21 new or replaced checks in `skills/tonight-vibes/test.sh` and 5 in
+    `skills/tonight-recommend/test.sh`;
+  - the `next` pins and the description pins in `verdicts.test.ts` and `tools.test.ts`.

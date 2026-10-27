@@ -845,13 +845,21 @@ describe("the verdict tools", () => {
       // The same answer in the text, for a host that shows the model only that.
       assert.deepEqual(JSON.parse(result.content?.[0]?.text ?? "null"), result.structuredContent);
 
-      // What it tells the agent to do: an existing vibe first, a minimal sentence
-      // change only on their yes, otherwise one recommendation and two
-      // alternatives, then the same call again.
+      // What it tells the agent to do, in one offer: the vibes whose evening it is,
+      // a minimal sentence change only on their yes, and — beside those, never
+      // instead — three distinct hypotheses chosen by title, then the same call again.
+      // On recommend alone this is all the guidance there is (docs/work/vibe-hypotheses).
       assert.match(next as string, /Nothing was written/u);
-      assert.match(next as string, /if one of their vibes fits/u);
+      assert.match(next as string, /propose filing the film in every vibe whose evening it is/u);
       assert.match(next as string, /exact minimal new wording[^.]*only on their yes to those words/u);
+      assert.match(next as string, /never to make a vibe say a reason it was not about/u);
+      assert.match(next as string, /beside \(1\) in the same offer, never instead of it/u);
       assert.match(next as string, /one recommended new vibe and two meaningfully different alternatives/u);
+      assert.match(next as string, /three distinct hypotheses about what they loved in this film, never three names for one/u);
+      assert.match(next as string, /a numbered list whose items start with the title alone in bold/u);
+      assert.match(next as string, /A title they pick, its number, or a plain yes for the recommended one is their yes to it as shown; only that one is written/u);
+      assert.match(next as string, /the genres of the picked one only/u);
+      assert.match(next as string, /update_movie with every vibe it is now in/u);
       assert.match(next as string, /call record_verdict again with retry\.arguments/u);
       assert.match(next as string, /If they decline, it stays unsaved/u);
 
@@ -1050,6 +1058,16 @@ describe("the verdict tools", () => {
       assert.match(cleo.record_verdict!.description ?? "", /\*\*A liked or loved needs a vibe\.\*\*/u);
       assert.match(cleo.record_verdict!.description ?? "", /`reason: "vibe_required"`/u);
       assert.match(cleo.record_verdict!.description ?? "", /`disliked` needs no vibe and no saved film/u);
+      // Where it belongs and why it worked are two things (docs/work/vibe-hypotheses).
+      assert.match(
+        cleo.record_verdict!.description ?? "",
+        /a vibe says what kind of evening it is for them, and their `because` keeps why it worked/u,
+      );
+      assert.match(
+        cleo.record_verdict!.description ?? "",
+        /find the vibes it belongs in with them — and a new one beside them when their words carry a why none of their vibes says/u,
+      );
+      assert.doesNotMatch(cleo.record_verdict!.description ?? "", /the vibe is what says why it worked/u);
       assert.match(cleo.update_movie!.description ?? "", /Nor can a film they like or love be taken out of its last vibe/u);
       assert.match(cleo.delete_vibe!.description ?? "", /the one refusal is for a film they like or love that is in no other vibe/u);
       assert.doesNotMatch(cleo.delete_vibe!.description ?? "", /Always allowed/u);
