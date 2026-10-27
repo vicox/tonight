@@ -1433,6 +1433,15 @@ results scored under the old B5 (§13.3, §13.4) are not rescored here.
 - `verdicts.test.ts`: `next` is pinned to the new clauses and refuses the old ones.
 - `evaluation-m5.test.ts`: the new B5.
 
+**Committed as `79da866`.** `npm test`: 1372 tests, 1368 pass, with the 4 known failures.
+
+### 16.1 Codex code review 1 — READY (`79da866`)
+
+The semantics match the correction, and no rule still holds all three hypotheses to their reason.
+Confirmation, overlap, write order and Genre reusability hold. No example was introduced, and the
+pins keep the rules they did not replace. Codex ran vibes 160/160, recommend 251/251, plugin 37/37
+and 233 focused tests. Stopped here: no live run, push, merge or deploy.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
