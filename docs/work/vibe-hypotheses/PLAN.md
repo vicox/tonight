@@ -1110,6 +1110,28 @@ The scope is minimal, with no new framework, schema or API: instructions, tool d
 (`create_genre`), `evaluation-lean.test.ts` (titles and placeholders), and `evaluation-m5.test.ts`
 (the rubric's criteria and the `new-only` request). `plugin.json` is 1.10.1.
 
+**Committed as `525e2a8`.** `npm test`: 1371 tests, 1367 pass, with the 4 known failures.
+
+### 13.1 Codex code review 1 — NOT READY
+
+**Codex ran** the shell suites (vibes 154/154, recommend 248/248, plugin 37/37) and 164 focused
+tests. It found that the changes target the observed failures and that `next`'s length (559
+words) is not a blocker. Three blockers, each fixed:
+
+1. **The pick-without-timing default ignored timing already given** (*"I watched it last night
+   and liked it"* → pick → must stay `seen-now`). Now `seen-before` applies only when nothing they
+   said in the conversation placed it; timing they gave stands, and a seen viewing already stored
+   is kept. Said in the vibes skill, the recommend viewing rule, `next` and the rubric.
+2. **The relaxed extractor could manufacture a wrong pick.** It sent a bold Genre line under
+   unbolded numbered titles, and unwrapped `'Til Dawn` into `Til Dawn`.
+   - Where the answer numbers a list at all, only numbered bold titles choose; the unnumbered
+     fallback applies only where nothing is numbered.
+   - Only quotes that wrap the whole title come off.
+   - Both have regression tests.
+3. **An extraction failure still counted against the agent.** The rubric now says a pick the
+   runner cannot resolve is the runner's limit: the turns after it are UNTESTED, and behaviour 4 is
+   scored by the reviewer from the answer itself.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.

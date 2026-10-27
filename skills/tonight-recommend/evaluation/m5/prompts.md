@@ -55,8 +55,9 @@ Given after one of the requests above, in the same session.
 `{title:N}` is not sent as written. The runner puts in its place the title the answer before it
 offered as choice N — the title alone, as somebody choosing by title would say it — and fails the
 turn before any call when that answer does not say which title that is (`evaluation/lean.mjs`,
-`titleNumbered`). How the list is formatted does not decide it: titles are read by their number
-where they are numbered, and as the three line-leading bold titles, in order, where none is.
+`titleNumbered`). Most formatting does not decide it: titles are read by their number where the
+answer numbers a list, and as the three line-leading bold titles, in order, where nothing is
+numbered. A pick the runner cannot read leaves the turns after it UNTESTED (`rubric.md`).
 
 `new-only` names the one it picks. With three new options, *"just the new one"* did not say which,
 and both models read it as a question — so the follow-up says the title, and what it leaves out.

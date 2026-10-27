@@ -368,7 +368,9 @@ Three requests about a film, and they differ:
     about when — ask once, briefly and in your own words, whether it was recent. Fold it into a
     question you are already putting, such as a Vibe proposal; it is never a round of its own. If
     they still do not say, `seen-before`: it claims nothing about when. A reply that agrees or picks
-    without saying when is them not saying — write `seen-before` with it, and do not ask again.
+    without saying when is them not saying: if nothing they said earlier placed it, write
+    `seen-before` with it — timing they did give stands, and a seen viewing already stored is kept
+    — and do not ask again.
   - **A liked or loved they tell you now says they watched it.** A film saved as `want-to-see`
     moves to `seen-now` or `seen-before` by this rule in the same turn — `seen-before` when
     nothing they said places it recently — and you say what you stored. Write it before you offer

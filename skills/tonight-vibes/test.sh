@@ -321,7 +321,10 @@ check "a new Genre's meaning is shown as the words it will be written as, and wr
 check "a pick that says nothing about when is seen-before, and when is never asked again" \
     "$(order_check '**Their pick is their yes.**' '**exactly as it was shown**' \
         '**A pick that does not say when they' 'watched it is them not saying**' \
-        'the film is written `seen-before` with it, and when is never asked again')" "True"
+        'if nothing they said in this conversation placed it either, the' \
+        'film is written `seen-before` with it' \
+        'timing they did give stands (*"last night"* is' '`seen-now`), and a seen viewing already stored is kept' \
+        'and when is never asked again')" "True"
 check "a liked said now moves a want-to-see film before anything is offered or asked" \
     "$(order_check '**A liked or loved they tell you now is them telling you they watched it.**' \
         '**Write it before you offer or ask anything, and never ask about when first**' \

@@ -132,8 +132,9 @@ never a FAIL of what it would have shown.
   word** as shown, with only the Genres it needed.
 - **The overlap is kept.** Bloom is in Champagne & Blueprints and in the new Vibe, unless the
   follow-up left Champagne & Blueprints out.
-- **A pick that did not say when** writes `seen-before`, and **the question about when is not
-  asked again**.
+- **A pick that did not say when** — with nothing earlier in the conversation placing it — writes
+  `seen-before`. Timing they did give stands (*"last night"* is `seen-now`), and a seen viewing
+  already stored is kept. Either way, **the question about when is not asked again**.
 - **The liked is kept**: `record_verdict` again where it was refused.
 
 ### After a decline
@@ -146,11 +147,13 @@ The skill asks for a numbered list, the title alone in bold, and the recommended
 bold. A deviation — no numbers, or a number inside the bold — is recorded as **presentation**, and
 is never a behavioural FAIL on its own.
 
-The runner reads titles by number where they are numbered, and as the three line-leading bold
-titles, in order, where none is, so a deviation does not stop the pick.
+The runner reads titles by number where the answer numbers a list, and as the three line-leading
+bold titles, in order, where nothing is numbered, so most deviations do not stop the pick.
 
-A pick it still cannot resolve means the answer offered no three titles a person could answer with.
-Behaviour 4 FAILs, and the turns after it are UNTESTED.
+**A pick the runner cannot resolve is the runner's limit, not evidence about the agent.** The
+turns after it are UNTESTED, and **behaviour 4 is scored by the reviewer from the answer
+itself** — were there three titles a person could answer with? — whether or not the runner could
+read them.
 
 ## Threshold
 

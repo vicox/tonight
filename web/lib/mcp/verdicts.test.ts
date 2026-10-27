@@ -869,7 +869,8 @@ describe("the verdict tools", () => {
       assert.match(next as string, /None is a vibe they already have: where the film already belongs is said beside the three, never as one of them/u);
       assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given/u);
       assert.match(next as string, /only that one is written, its genre meanings word for word/u);
-      assert.match(next as string, /A pick that does not say when they watched it is them not saying: write seen-before with it, and never ask about when again/u);
+      // Timing they did give stands, and so does a seen viewing already stored (code review).
+      assert.match(next as string, /A pick that does not say when they watched it is them not saying: unless something they said earlier placed it \("last night" is seen-now\) or the film already has a seen viewing, write seen-before with it — and never ask about when again/u);
       assert.ok(
         (next as string).indexOf("If `movie.viewing` is want-to-see") < (next as string).indexOf("Read get_taste, then make one offer"),
         "the viewing is moved after the offer, not before it",

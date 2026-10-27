@@ -794,7 +794,9 @@ check "the keep flow's no-question filing is for a film they ask to keep, never 
         'One genuinely fits')" "True"
 check "a reply that picks without saying when is seen-before, never a second question" \
     "$(order_check '**When they did not say when**' 'If' 'they still do not say, `seen-before`' \
-        'A reply that agrees or picks' 'without saying when is them not saying — write `seen-before` with it, and do not ask again')" "True"
+        'A reply that agrees or picks' 'without saying when is them not saying: if nothing they said earlier placed it, write' \
+        '`seen-before` with it — timing they did give stands, and a seen viewing already stored is kept' \
+        'and do not ask again')" "True"
 check "a liked said now moves a want-to-see film before anything is offered or asked" \
     "$(order_check '**A liked or loved they tell you now says they watched it.**' \
         'Write it before you offer' 'or ask anything, never asking about when first' \

@@ -229,9 +229,14 @@ test("the Vibe-hypotheses set: a pick by title, each partial answer, a decline, 
   ] as const) {
     assert.match(rubric, criterion, `the rubric does not score ${what}`);
   }
-  // Formatting is presentation: recorded, never a behavioural failure on its own.
+  // Formatting is presentation: recorded, never a behavioural failure on its own — and a
+  // pick the runner cannot read is its own limit, scored from the answer (code review).
   assert.match(rubric, /### Presentation, scored apart/);
   assert.match(rubric, /is never a behavioural FAIL on its own/);
+  assert.match(rubric, /\*\*A pick the runner cannot resolve is the runner's limit, not evidence about the agent\.\*\*/);
+  assert.match(rubric, /\*\*behaviour 4 is scored by the reviewer from the answer\s+itself\*\*/);
+  // A pick without timing is seen-before only when nothing placed it; timing given stands.
+  assert.match(rubric, /with nothing earlier in the conversation placing it — writes\s+`seen-before`\. Timing they did give stands/);
   // The partial answer names the title it picks, so it is no longer a question (§12.10).
   assert.match(requests.get("new-only")!, /^\{title:1\} — just that one/);
   assert.match(rubric, /each proposed group offered as three hypotheses/, "first films are not scored as hypotheses");

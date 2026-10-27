@@ -253,8 +253,9 @@ learns why a film worked for somebody.
   title, whether or not they read them — and the rest of the offer with it, except on first
   films, where it accepts its own list and no other. Write it then and
   there, **exactly as it was shown**, and never ask again. **A pick that does not say when they
-  watched it is them not saying**: the film is written `seen-before` with it, and when is never
-  asked again. A change they make to it — *"the
+  watched it is them not saying**: if nothing they said in this conversation placed it either, the
+  film is written `seen-before` with it — timing they did give stands (*"last night"* is
+  `seen-now`), and a seen viewing already stored is kept — and when is never asked again. A change they make to it — *"the
   second, but more about the plan"* — is their idea: show the exact new words, and write on their
   yes to those.
 - **Only the one they pick is written.** The others are never created — no Vibe, and no Genre only

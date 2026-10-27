@@ -1451,7 +1451,8 @@ const VIBE_REQUIRED_NEXT =
   "one first and marked after the bold, never inside it. A title they pick, its number, or a " +
   "plain yes for the recommended one is their yes to it as shown; only that one is written, its " +
   "genre meanings word for word. A pick that does not say when they watched it is them not " +
-  "saying: write seen-before with it, and never ask about when again. (3) " +
+  "saying: unless something they said earlier placed it (\"last night\" is seen-now) or the film " +
+  "already has a seen viewing, write seen-before with it — and never ask about when again. (3) " +
   "On their yes, write exactly what they agreed, in this order: the genres of the picked " +
   "hypothesis only; create_vibe with this film as core and core.viewing, which saves and files " +
   "it; then update_movie listing the vibes it is in now — the new one included — plus every " +

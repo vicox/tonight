@@ -52,11 +52,22 @@ function offeredTitles(answer) {
       number ??= Number(inside[1]);
       title = inside[2];
     }
-    title = title.replace(/^["“'‘]+|["”'’]+$/gu, "").replace(/[:：]$/u, "").trim();
+    title = unwrapped(title.replace(/[:：]$/u, "").trim());
     if (title) items.push({ number, title });
   }
   return items;
 }
+
+/** A title without the quotes around it — only a matched pair around the whole of it, so `'Til Dawn` stays. */
+function unwrapped(title) {
+  for (const [open, close] of [['"', '"'], ["“", "”"], ["'", "'"], ["‘", "’"]]) {
+    if (title.length > 2 && title.startsWith(open) && title.endsWith(close)) return title.slice(open.length, -close.length).trim();
+  }
+  return title;
+}
+
+/** Whether the answer numbers a list at all — bold or not, the number inside the bold or before it. */
+const numbersAList = (answer) => /^[ \t]*(?:\*\*)?\d+[.)][ \t]+\S/m.test(String(answer ?? ""));
 
 /**
  * The title an answer offers as choice `n`, or null when the answer does not say which
@@ -66,18 +77,21 @@ function offeredTitles(answer) {
  * person answers *"Thinking on Their Feet"* whether or not a number stood before it, so
  * neither does a missing number make a choice unanswerable here.
  *
- * - **Numbered titles** are taken by number, and exactly one may carry `n`.
- * - **With no number anywhere**, three line-leading bold titles are the three choices, in
+ * - **Where the answer numbers a list**, choices are taken by number only, and exactly one
+ *   bold title may carry `n`. A numbered list whose items are not bold is not read at all —
+ *   never in its place three bold lines that may be Genre names (code review).
+ * - **Where nothing is numbered**, three line-leading bold titles are the three choices, in
  *   the order shown.
  *
  * Anything else — two lists, a number with no bold title, more or fewer than three
- * unnumbered — is no choice anybody could answer by title.
+ * unnumbered — is not read as a choice. That is the runner's limit, not the agent's: the
+ * turn after it is UNTESTED, and whether a person could have answered is scored from the
+ * answer itself (`m5/rubric.md`).
  */
 export function titleNumbered(answer, n) {
   const items = offeredTitles(answer);
-  const numbered = items.filter((item) => item.number !== null);
-  if (numbered.length) {
-    const found = numbered.filter((item) => item.number === n);
+  if (numbersAList(answer)) {
+    const found = items.filter((item) => item.number === n);
     return found.length === 1 ? found[0].title : null;
   }
   return items.length === 3 ? (items[n - 1]?.title ?? null) : null;

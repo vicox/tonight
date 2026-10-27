@@ -125,6 +125,16 @@ test("formatting alone never makes a choice unanswerable: unnumbered titles, or 
   assert.equal(lean.titleNumbered("**Champagne & Blueprints** is close.\n\n**The Long Con**, built from Heist.", 1), null);
   assert.equal(lean.titleNumbered(`${unnumbered}\n\n**A Fourth Thing**`, 1), null);
 
+  // Code review: where a list is numbered, only its numbers choose — three bold Genre lines
+  // under unbolded numbered titles are never read as the choices, which would send a pick
+  // nobody could have made.
+  const genresUnderNumbers = ["1. First Vibe", "**Genre A**: one", "2. Second Vibe", "**Genre B**: two", "3. Third Vibe", "**Genre C**: three"].join("\n");
+  assert.equal(lean.titleNumbered(genresUnderNumbers, 2), null, "a Genre line was sent as the pick");
+  assert.deepEqual(lean.resolveTurn("{title:2}", genresUnderNumbers), { sent: null, failure: "no unambiguous title 2 to pick" });
+  // Only quotes that wrap the whole title come off: an apostrophe that starts one stays.
+  assert.equal(lean.titleNumbered("1. **'Til Dawn** — my pick\n2. **Second**\n3. **Third**", 1), "'Til Dawn");
+  assert.equal(lean.titleNumbered("1. **“Quoted Title”**\n2. **Second**\n3. **Third**", 1), "Quoted Title");
+
   // A pick may sit inside a sentence, which then names what it chose.
   assert.deepEqual(lean.resolveTurn("{title:1} — just that one, and leave it out of Champagne & Blueprints.", unnumbered), {
     sent: "Masterminds & Misdirection — just that one, and leave it out of Champagne & Blueprints.",
