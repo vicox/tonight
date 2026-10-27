@@ -957,6 +957,63 @@ fixed with a regression test:
 
 After the fixes: the evaluation tests (47) pass, typecheck is clean, and lint is unchanged.
 
+**Codex code review 2 — READY** (`cab2a0b`). Its extra stub checks: a failed catalog check makes
+zero model calls, removes the bearer config and stops the proxy.
+
+### 12.9 The live DeepSeek runs (2026-10-27, single pass)
+
+**What ran:**
+
+- Model `deepseek-v4-pro`, fingerprint `a307abda487cd1b463329ccb945ce396`, in every run.
+- Harness `cab2a0b`, one run per scenario.
+- Baseline `fdb99b9` (served catalog `c5521c63643dba7a`, as expected) against `HEAD` `cab2a0b`
+  (served `282f74c4aa8033d7`, as expected).
+- After every `--against` invocation the tree was clean again.
+- The artifacts are in the four `…-deepseek-deepseek-v4-pro` result directories (gitignored).
+
+**Scores.** These are Codex's checked scores, stricter than the first pass; B is the baseline, H is
+`HEAD`.
+
+| Run | B | H |
+| --- | --- | --- |
+| H1 recommend-only | FAIL: Champagne & Blueprints (C&B) only, reason folded into it; no hypotheses; pick not sent | FAIL: `create_movie` filed Bloom into C&B in turn 1 with no yes (inadmissible 1); no hypotheses; `vibe_required`, and so the new `next`, never exercised |
+| H1 plugin (pick title 2) | FAIL: C&B only; pick not sent | Title selection, overlap and the verdict right. Sharp Company's name and sentence written as shown; Bloom in both Vibes; C&B unchanged. **Exact write FAIL:** the new Genre shown as *"characters whose…"* was written as *"I like characters whose…"* |
+| H2 existing-only | T1 FAIL (three ideas, but unnumbered, with other names, C&B unnamed); turn 2 PASS | T1 **grounding FAIL** (*Trick Mirror*, unreliable narration, is not their reason); turn 2 PASS |
+| H3 new-only | FAIL (turn 1 offered only C&B, so turn 2 asked again) | FAIL: turn 2 asked the when-question a second time instead of writing; nothing kept. T1 doubtful: *A Fine Art* generalises their reason |
+| H4 no | T1 FAIL; turn 2 PASS (nothing written) | T1 FAIL, outcome 3 (*No Dumb Moves* states an exclusion they never gave); turn 2 PASS |
+| H5 kept path, 3 turns | FAIL: viewing left `want-to-see`; one Vibe with other names; pick not sent | **FAIL on T1:** the viewing was not moved in turn 1 — it was moved in turn 2, before anchoring. The rest passed: three grounded hypotheses; the pick written exactly as shown; C&B kept; the recommendation from the picked hypothesis in their words, with no Vibe or Genre named and no taste write |
+
+**Also shared:** in `HEAD` H1-H3, new Genre meanings were shown as definitions, not in the first
+person the plan requires. The rubric's T1 does not yet repeat that requirement.
+
+**Summary** (Codex's wording, adopted): *in this single sample, `HEAD` consistently produced
+numbered title choices on `plugin-skills` and preserved the overlap in both completed new-Vibe
+writes. Grounding, exact wording, immediate capture and new-only completion still failed.
+Recommend-only introduced an unconfirmed taste write.* The baseline H2 already produced three
+hypotheses once, so "fixes hypotheses" would overstate it.
+
+**Cost:**
+
+- 52 API requests, all off-peak (15:22-15:45 UTC), 0 failed, 0 without usage.
+- Input: 1,828,096 cache-hit and 139,980 cache-miss tokens. Output: 112,029 tokens, reasoning
+  included.
+- **USD 0.354** at the docs' off-peak prices.
+- The account balance went from USD 25.23 to 24.90 — USD 0.33. The two figures do not reconcile and
+  are reported apart.
+
+**What the runs point at.** These are instruction changes, and each is its own plan and review —
+not done here:
+
+1. **Recommend-only filed a liked film without a yes.** The keep flow's *"one genuinely fits → save
+   it there, ask nothing further"* looks like the route. The skill should say that it is for a film
+   they ask to keep, and that a liked goes to `record_verdict` first.
+2. **A pick without an answer about when** has to write `seen-before`, never ask again.
+3. **New Genre meanings are shown in the first person**, exactly as they will be written — and T1
+   should say so.
+4. **Hypotheses keep their reason's own subject.** No unreliable narration for *"clever
+   characters"*, no competence at anything, no stated exclusion.
+5. **A want-to-see film moves in the turn the liked is said**, before the offer.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
