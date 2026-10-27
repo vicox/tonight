@@ -110,7 +110,9 @@ never a FAIL of what it would have shown.
 5. **Grounded.** Each keeps the subject of their reason — the characters and their cleverness.
    None is wider than it: not the film's tricks on the viewer, competence at anything, deception
    as such, or a character study. None states a rule they did not give, such as *"nobody does the
-   stupid thing"* — that is outcome 3.
+   stupid thing"* — that is outcome 3. **The same holds for any new Genre a hypothesis is built
+   on**: a Genre broader than its hypothesis's sentence — *"people who are very good at what they
+   do"* under a reading about clever characters — fails it as surely as the sentence would.
 6. **Distinct, scored by the reviewer.** Shown the three titles and the three descriptions
    shuffled, the reviewer matches them, and for each pair names a film that fits one and not the
    other. Three names for one preference fails.

@@ -1226,6 +1226,35 @@ smart things"*. Six first turns — five plugin, one recommend-only — on `HEAD
 - In total, 42 requests and USD 0.2273, all off-peak, 0 failed. The balance went from USD 24.78 to
   24.59; that does not reconcile with the price estimate, as in §12.9.
 
+## 14. A small change to grounding (user decision, 2026-10-27)
+
+**What the runs showed:**
+
+- Flash generalised the reason into competence in 6 of 6 offers (§13.3).
+- v4-pro did it once, in a new Genre whose sentence was grounded, and twice let a reading slide
+  from the people to the plan (§13.4).
+
+**The change** is wording only, generic, and names nothing from the scenario:
+
+- **`tonight-vibes`**, *Three hypotheses*: the three may read differently what they loved about the
+  subject of their reason, never swap it for another. When the reason is about people — what they
+  did, how they talked, who they were — every reading is about those people, never a plan or a
+  trick on its own, and never being good at things in general.
+- **`tonight-vibes`**, *Each is a whole Vibe*: a new Genre made for a reading is no broader than that
+  reading's sentence; one that would hold films the reading would not is the reading widened by
+  another route.
+- **`VIBE_REQUIRED_NEXT`**: both, in one clause each, for recommend alone.
+- **The rubric, B5**: grounding holds for any new Genre a hypothesis is built on.
+
+**Not changed:** schema, API, tools, the runner, other rules. `plugin.json` is 1.10.2.
+
+**Pins:**
+
+- `verdicts.test.ts`: both clauses of `next`, and that `next` names nothing from the scenario.
+- `tonight-vibes/test.sh`: both rules, and that the *Three hypotheses* section names nothing from the
+  scenario.
+- `evaluation-m5.test.ts`: the B5 Genre clause.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.

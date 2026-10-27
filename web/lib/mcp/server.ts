@@ -1443,11 +1443,13 @@ const VIBE_REQUIRED_NEXT =
   "With a reason given they are readings of their words, none wider than what they said and none " +
   "ruling out what they did not; with none, three different reasons it may have worked. Each " +
   "keeps the subject of their reason — what their sentence is about stays what every reading is " +
-  "about — and none states a rule they never gave. None is a vibe they already have: where the " +
-  "film already belongs is said beside the three, never as one of them. Each is " +
-  "a name, an \"I like…\" sentence, its genres — any new genre's meaning shown as the exact " +
-  "first-person sentence create_genre will be given — and this film " +
-  "as core, as a numbered list whose items start with the title alone in bold, the recommended " +
+  "about; when it is about people, every reading is about those people, never a plan alone or " +
+  "being good at things in general — and none states a rule they never gave. None is a vibe " +
+  "they already have: where the film already belongs is said beside the three, never as one of " +
+  "them. Each is a name, an \"I like…\" sentence, its genres — any new genre's meaning shown as " +
+  "the exact first-person sentence create_genre will be given, and no broader than the reading's " +
+  "own sentence — and this film as core, as a numbered list whose items start with the title " +
+  "alone in bold, the recommended " +
   "one first and marked after the bold, never inside it. A title they pick, its number, or a " +
   "plain yes for the recommended one is their yes to it as shown; only that one is written, its " +
   "genre meanings word for word. A pick that does not say when they watched it is them not " +

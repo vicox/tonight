@@ -314,6 +314,19 @@ check "each reading keeps the subject of their reason, and none turns into a rul
         '*"the dialogue was so sharp"*' 'never the plot, the acting or being clever in general' \
         'no reading turns into a rule they never gave' \
         'None is a Vibe they already have: where the film already belongs is said beside the list, never as one of the three')" "True"
+# §13.3-§13.4: readings slid from the people in a reason to a plan or to skill in general,
+# and a new Genre carried the widening its reading's sentence did not.
+check "readings may differ about the subject, never swap it — people stay the people" \
+    "$(order_check '**Each keeps the subject of their reason**' \
+        'The three may read differently what they loved' 'about that subject, never swap it for another' \
+        'when their reason is about people' 'every reading is about those people, never a plan or a' \
+        'trick on its own, and never being good at things in general')" "True"
+check "a new Genre made for a reading is no broader than that reading's sentence" \
+    "$(order_check '**Each is a whole Vibe**' \
+        '**A new Genre made for a reading is no broader than that reading' "s sentence**" \
+        'one that would hold films the reading would not is the reading widened by another route')" "True"
+check "the grounding rule names no film and no reason from the evaluation" \
+    "$(sed -n '/### Three hypotheses, chosen by title/,/### What to consider, and what to offer/p' "$SKILL" | grep -ciE 'clever characters|Brothers Bloom|Masterminds')" "0"
 check "a new Genre's meaning is shown as the words it will be written as, and written word for word" \
     "$(order_check '**Each is a whole Vibe**' \
         'shown as the *"I like…"* sentence it will be written as, word for word' \

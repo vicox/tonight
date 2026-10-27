@@ -865,7 +865,12 @@ describe("the verdict tools", () => {
       // reason's subject, state no rule, and never offer an existing vibe; meanings shown as
       // the words they will be written as; and no second question about when.
       assert.match(next as string, /If `movie\.viewing` is want-to-see, their liked says they watched it: move it with update_movie to seen-before \(seen-now only if they placed it recently\) now, before the offer/u);
-      assert.match(next as string, /Each keeps the subject of their reason — what their sentence is about stays what every reading is about — and none states a rule they never gave/u);
+      // §13.3-§13.4: readings slid from the people in their reason to a plan, or to skill in
+      // general, and a new genre carried the widening its sentence did not. Both said here,
+      // where recommend alone reads them — and generically, never the scenario's own words.
+      assert.match(next as string, /Each keeps the subject of their reason — what their sentence is about stays what every reading is about; when it is about people, every reading is about those people, never a plan alone or being good at things in general — and none states a rule they never gave/u);
+      assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given, and no broader than the reading's own sentence/u);
+      assert.doesNotMatch(next as string, /Bloom|clever characters|Champagne|Blueprints/u, "the guidance names the evaluation's own scenario");
       assert.match(next as string, /None is a vibe they already have: where the film already belongs is said beside the three, never as one of them/u);
       assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given/u);
       assert.match(next as string, /only that one is written, its genre meanings word for word/u);
