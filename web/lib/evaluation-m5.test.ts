@@ -323,7 +323,7 @@ test("the runner reseeds every run, snapshots after every run, and never reseeds
   // as the second half of one.
   // The check lives in the turn loop the runner awaits (`lean.mjs`, `runTurns`).
   assert.match(readFileSync(new URL("../lean.mjs", M5), "utf8"), /did not resume/);
-  assert.match(runner, /await runTurns\(requests,/);
+  assert.match(runner, /await checkedTurns\(requests,/);
 });
 
 test("a legacy scenario runs alone, once, per fresh v12 seed and migration", () => {

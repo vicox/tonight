@@ -187,8 +187,10 @@ test("the runner uses the lean rules: budget before any call, smoke, resume, and
   assert.match(leanSource, /resolveTurn\(text, previous\.answer\)/);
   assert.match(leanSource, /const done = await turn\(sent, previous === undefined \? null : turns\[0\]\.session\);/);
   assert.match(leanSource, /calls: \[from, await boundary\(\)\]/, "a turn's boundary is read before the turn is awaited");
-  assert.match(runner, /turns = await runTurns\(requests, \{\s*turn: \(sent, resume\) => turn\(sent, config, resume\),\s*boundary: \(\) => loggedCalls\(logFile\),\s*\}\);\s*\} finally \{\s*rmSync\(config, \{ force: true \}\);\s*await shutDown\(proxy, PORT\);/,
-    "the turns are not awaited before the proxy stops");
+  // The catalog check and every turn run inside the block that removes the bearer's
+  // config and stops the proxy, so neither outlives a failure (code review: blocker 1).
+  assert.match(runner, /try \{\s*\(\{ digest: toolsDigest, turns \} = await checkedTurns\(requests, \{\s*served: CHECKS_CATALOG \? \(\) => servedCatalog\(bearer\) : undefined,\s*expected: EXPECTED_CATALOG,\s*turn: \(sent, resume\) => turn\(sent, config, resume\),\s*boundary: \(\) => loggedCalls\(logFile\),\s*\}\)\);\s*\} finally \{\s*rmSync\(config, \{ force: true \}\);\s*await shutDown\(proxy, PORT\);/,
+    "the turns or the catalog check run outside the cleanup");
   assert.match(runner, /Which turn made which calls:/, "the artifact does not say which turn made which calls");
   assert.match(runner, /return \{ answer: "", session: "unknown", failure: failureOf\(error\) \};/);
   assert.match(runner, /parsed\.is_error \?/, "an error inside a successful exit is not caught");

@@ -54,30 +54,43 @@ export function expectedCatalog(serverFile) {
  * Waits until the server serves the expected catalog. A stale one is waited out, a
  * read that fails is tried again, and one that never matches stops everything with
  * both digests named.
+ *
+ * The deadline holds for every read: one that has not answered by then is abandoned,
+ * and one that answers after it is not accepted, even if it matches — a catalog served
+ * late is not evidence of what was being served in time.
  */
-export async function waitForCatalog({
-  expected,
-  read,
-  timeoutMs = 120_000,
-  intervalMs = 1000,
-  sleep = (ms) => new Promise((wake) => setTimeout(wake, ms)),
-  clock = Date.now,
-}) {
+export async function waitForCatalog({ expected, read, timeoutMs = 120_000, intervalMs = 1000, clock = Date.now }) {
   const deadline = clock() + timeoutMs;
+  const OVERDUE = Symbol("overdue");
+  const left = () => Math.max(0, deadline - clock());
   let last = "nothing read";
   for (;;) {
+    // The read races what is left of the deadline; the timer goes as soon as it loses.
+    let timer;
+    const overdue = new Promise((wake) => {
+      timer = setTimeout(() => wake(OVERDUE), left());
+    });
     try {
-      last = await read();
-      if (last === expected) return last;
+      const served = await Promise.race([read(), overdue]);
+      if (served === OVERDUE) {
+        last = "no answer before the deadline";
+      } else if (clock() > deadline) {
+        last = `${served}, after the deadline`;
+      } else {
+        last = served;
+        if (served === expected) return served;
+      }
     } catch (error) {
       last = `unreadable (${error.message})`;
+    } finally {
+      clearTimeout(timer);
     }
     if (clock() >= deadline) {
       throw new Error(
         `the server never served the expected tool catalog: expected ${expected}, last served ${last}`,
       );
     }
-    await sleep(intervalMs);
+    await new Promise((wake) => setTimeout(wake, Math.min(intervalMs, left())));
   }
 }
 

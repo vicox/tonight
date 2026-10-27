@@ -71,11 +71,22 @@ export async function mcp(fetchImpl, url, headers, method, params = {}) {
   });
   const body = await response.text();
   const line = body.split("\n").find((one) => one.startsWith("data: "));
+  let answer = null;
   try {
-    return JSON.parse(line ? line.slice(6) : body);
+    answer = JSON.parse(line ? line.slice(6) : body);
   } catch {
-    throw new Error(`HTTP ${response.status}, no JSON-RPC answer`);
+    // said below
   }
+  // Only a JSON-RPC answer is the server's: a result, or an error with a code. The
+  // proxy's own 502 — `{ error: "could not reach Tonight" }` — is not one, and neither
+  // is anything else a failed hop returns; an HTTP failure counts only when it carries
+  // a real JSON-RPC error, which the model is then told as the tool's answer.
+  const jsonRpc =
+    answer?.jsonrpc === "2.0" &&
+    ("result" in answer || (typeof answer.error === "object" && typeof answer.error?.code === "number"));
+  if (!jsonRpc) throw new Error(`HTTP ${response.status}, no JSON-RPC answer`);
+  if (!response.ok && !answer.error) throw new Error(`HTTP ${response.status}`);
+  return answer;
 }
 
 /** Tonight's tools as OpenAI-style function tools: the MCP input schema is the parameters. */
@@ -104,18 +115,26 @@ function target(configFile) {
   return { url: server.url, headers: server.headers ?? {} };
 }
 
-/** One API request's accounting: what it cost, when, and how it ended. Never the key. */
-function usageOf(body, started, ms) {
-  const usage = body?.usage ?? {};
+/**
+ * One API request's accounting — every attempt, a failed one included: when, how long,
+ * how it ended, and what it cost where the API said. Usage it did not report is null,
+ * never zero, so a priced run cannot quietly undercount. Never the key.
+ */
+function attemptOf({ started, ms, outcome, status = null, body = null }) {
+  const usage = body?.usage;
+  const tokens = (value) => (usage ? (value ?? 0) : null);
   return {
     at: started.toISOString(),
     ms,
+    outcome,
+    status,
     model: body?.model ?? null,
     finish_reason: body?.choices?.[0]?.finish_reason ?? null,
-    prompt_cache_hit_tokens: usage.prompt_cache_hit_tokens ?? 0,
-    prompt_cache_miss_tokens: usage.prompt_cache_miss_tokens ?? 0,
-    completion_tokens: usage.completion_tokens ?? 0,
-    reasoning_tokens: usage.completion_tokens_details?.reasoning_tokens ?? 0,
+    usage_reported: Boolean(usage),
+    prompt_cache_hit_tokens: tokens(usage?.prompt_cache_hit_tokens),
+    prompt_cache_miss_tokens: tokens(usage?.prompt_cache_miss_tokens),
+    completion_tokens: tokens(usage?.completion_tokens),
+    reasoning_tokens: tokens(usage?.completion_tokens_details?.reasoning_tokens),
   };
 }
 
@@ -201,6 +220,7 @@ export function deepseekBackend({
           text = await response.text();
         } catch (error) {
           const why = error?.name === "TimeoutError" ? `timed out after ${REQUEST_TIMEOUT_MS / 1000}s` : error?.message;
+          requests.push(attemptOf({ started, ms: now().getTime() - started.getTime(), outcome: "transport_error", status: response?.status ?? null }));
           return end({ failure: `deepseek request failed: ${why}` });
         }
         const ms = now().getTime() - started.getTime();
@@ -212,11 +232,15 @@ export function deepseekBackend({
           // not JSON: an HTTP error page, or a truncated answer — said below
         }
         if (!response.ok) {
+          requests.push(attemptOf({ started, ms, outcome: "http_error", status: response.status, body }));
           return end({ failure: `deepseek HTTP ${response.status} — ${body?.error?.message ?? text.slice(0, 300)}` });
         }
-        if (body === null) return end({ failure: "deepseek answered something that is not JSON" });
+        if (body === null) {
+          requests.push(attemptOf({ started, ms, outcome: "not_json", status: response.status }));
+          return end({ failure: "deepseek answered something that is not JSON" });
+        }
 
-        requests.push(usageOf(body, started, ms));
+        requests.push(attemptOf({ started, ms, outcome: "answered", status: response.status, body }));
         lastModel = body.model ?? lastModel;
         fingerprint = body.system_fingerprint ?? fingerprint;
 

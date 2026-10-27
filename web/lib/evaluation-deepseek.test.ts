@@ -112,11 +112,14 @@ function stub(replies: Reply[], tools: Record<string, (args: Record<string, unkn
     if (url === PROXY) {
       const method = body.method as string;
       const params = body.params as { name: string; arguments: Record<string, unknown> };
-      const answer =
+      const handler =
         method === "tools/list"
-          ? { jsonrpc: "2.0", id: 1, result: { tools: [{ name: "get_taste", description: "Read it.", inputSchema: { $schema: "x", type: "object", properties: {} } }] } }
-          : { jsonrpc: "2.0", id: 1, ...((tools[params.name] ?? (() => ({ result: { content: [{ type: "text", text: "{}" }] } })))(params.arguments) as object) };
-      return new Response(`event: message\ndata: ${JSON.stringify(answer)}\n\n`, { status: 200 });
+          ? (tools["tools/list"] ?? (() => ({ result: { tools: [{ name: "get_taste", description: "Read it.", inputSchema: { $schema: "x", type: "object", properties: {} } }] } })))
+          : (tools[params.name] ?? (() => ({ result: { content: [{ type: "text", text: "{}" }] } })));
+      const answer = handler(params?.arguments ?? {}) as { http?: number; raw?: string };
+      // A hop that fails answers as it really would: a status and a body of its own.
+      if (answer.http !== undefined) return new Response(answer.raw ?? "", { status: answer.http });
+      return new Response(`event: message\ndata: ${JSON.stringify({ jsonrpc: "2.0", id: 1, ...answer })}\n\n`, { status: 200 });
     }
     const reply = replies.shift();
     if (reply === undefined) throw new Error("the script ran out");
@@ -242,16 +245,66 @@ test("arguments that are not JSON, and a JSON-RPC error, are answered to the mod
   assert.equal(sent.filter((one) => one.url === PROXY && (one.body.params as { name?: string }).name === "get_taste").length, 0);
 });
 
-test("transport failures, a timeout and the request cap fail the turn", async () => {
-  assert.match((await backend([new Error("ECONNRESET")]).agent.turn("Go.", config(), null, "S")).failure ?? "", /^deepseek request failed: ECONNRESET/);
-  assert.match((await backend(["timeout"]).agent.turn("Go.", config(), null, "S")).failure ?? "", /timed out after 300s/);
-  assert.match((await backend([{ raw: "<html>bad gateway</html>", status: 502 }]).agent.turn("Go.", config(), null, "S")).failure ?? "", /^deepseek HTTP 502 — <html>bad gateway/);
-  assert.equal((await backend([{ raw: "not json" }]).agent.turn("Go.", config(), null, "S")).failure, "deepseek answered something that is not JSON");
+test("transport failures, a timeout and the request cap fail the turn — and every failed attempt is still accounted", async () => {
+  // Each failed attempt is one API request on the books: when, how long, how it ended,
+  // and usage it did not report as null — never zero, never missing.
+  const attempt = (turn: Turn) => {
+    assert.equal(turn.requests.length, 1, "a failed attempt is missing from the accounting");
+    const [one] = turn.requests as (Usage & { outcome: string; status: number | null; usage_reported: boolean })[];
+    assert.match(one!.at, /^\d{4}-\d{2}-\d{2}T/);
+    assert.equal(typeof one!.ms, "number");
+    return one!;
+  };
+
+  const reset = await backend([new Error("ECONNRESET")]).agent.turn("Go.", config(), null, "S");
+  assert.match(reset.failure ?? "", /^deepseek request failed: ECONNRESET/);
+  assert.equal(attempt(reset).outcome, "transport_error");
+
+  const slow = await backend(["timeout"]).agent.turn("Go.", config(), null, "S");
+  assert.match(slow.failure ?? "", /timed out after 300s/);
+  assert.equal(attempt(slow).outcome, "transport_error");
+
+  const gateway = await backend([{ raw: "<html>bad gateway</html>", status: 502 }]).agent.turn("Go.", config(), null, "S");
+  assert.match(gateway.failure ?? "", /^deepseek HTTP 502 — <html>bad gateway/);
+  const failed = attempt(gateway);
+  assert.deepEqual(
+    [failed.outcome, failed.status, failed.usage_reported, failed.prompt_cache_hit_tokens, failed.completion_tokens],
+    ["http_error", 502, false, null, null],
+  );
+
+  const garbled = await backend([{ raw: "not json" }]).agent.turn("Go.", config(), null, "S");
+  assert.equal(garbled.failure, "deepseek answered something that is not JSON");
+  assert.equal(attempt(garbled).outcome, "not_json");
 
   const looping = Array.from({ length: 5 }, (_, n) => calling({ id: `c${n}`, name: "get_taste", args: "{}" }));
   const capped = await backend(looping, {}, 3).agent.turn("Go.", config(), null, "S");
   assert.equal(capped.failure, "error_max_turns");
   assert.equal(capped.requests.length, 3);
+});
+
+test("a hop to Tonight that fails is a failed turn, never an answer the model reads; a real JSON-RPC error is", async () => {
+  // The proxy's own 502, exactly as it answers when the server is unreachable.
+  const unreachable = { http: 502, raw: JSON.stringify({ error: "the evaluation proxy could not reach Tonight" }) };
+  const call = await backend(
+    [calling({ id: "c1", name: "record_verdict", args: "{}" }), answer({ content: "All saved!" })],
+    { record_verdict: () => unreachable },
+  ).agent.turn("Go.", config(), null, "S");
+  assert.equal(call.failure, "mcp tools/call record_verdict: HTTP 502, no JSON-RPC answer");
+  assert.equal(call.answer, "", "a turn whose write never reached Tonight came back as an answer");
+
+  const list = await backend([answer({ content: "x" })], { "tools/list": () => unreachable }).agent.turn("Go.", config(), null, "S");
+  assert.equal(list.failure, "mcp tools/list: HTTP 502, no JSON-RPC answer");
+  assert.equal(list.requests.length, 0, "the model was asked anything without its tools");
+
+  // A failure status with a genuine JSON-RPC error is the server's answer, and the model is told it.
+  const rpc = backend(
+    [calling({ id: "c1", name: "update_vibe", args: "{}" }), answer({ content: "Sorry." })],
+    { update_vibe: () => ({ http: 400, raw: JSON.stringify({ jsonrpc: "2.0", id: 1, error: { code: -32602, message: "Invalid params" } }) }) },
+  );
+  const told = await rpc.agent.turn("Go.", config(), null, "S");
+  assert.equal(told.failure, null);
+  const tool = (rpc.api()[1]!.body.messages as Record<string, unknown>[]).find((one) => one.role === "tool");
+  assert.equal(tool?.content, "Error: Invalid params");
 });
 
 test("no money or a refused key stops the invocation, and the key never leaves the adapter", async () => {
@@ -302,12 +355,9 @@ test("the turn loop awaits a late backend before it reads the boundary, and sett
 });
 
 test("the catalog check waits out a stale catalog, retries an unreadable one, and names both when it never matches", async () => {
-  let now = 0;
-  const clock = () => now;
-  const sleep = async (ms: number) => void (now += ms);
-
+  const fast = { timeoutMs: 400, intervalMs: 1 };
   const seen = ["stale", "stale", "expected"];
-  assert.equal(await revision.waitForCatalog({ expected: "expected", read: async () => seen.shift()!, clock, sleep }), "expected");
+  assert.equal(await revision.waitForCatalog({ expected: "expected", read: async () => seen.shift()!, ...fast }), "expected");
 
   let reads = 0;
   const flaky = async () => {
@@ -315,13 +365,63 @@ test("the catalog check waits out a stale catalog, retries an unreadable one, an
     if (reads === 1) throw new Error("ECONNREFUSED");
     return "expected";
   };
-  assert.equal(await revision.waitForCatalog({ expected: "expected", read: flaky, clock, sleep }), "expected");
+  assert.equal(await revision.waitForCatalog({ expected: "expected", read: flaky, ...fast }), "expected");
 
-  now = 0;
   await assert.rejects(
-    revision.waitForCatalog({ expected: "expected", read: async () => "baseline", clock, sleep, timeoutMs: 5000 }),
+    revision.waitForCatalog({ expected: "expected", read: async () => "baseline", timeoutMs: 30, intervalMs: 1 }),
     /never served the expected tool catalog: expected expected, last served baseline/,
   );
+});
+
+test("the catalog deadline holds for every read: a hanging read is abandoned, and a late match is refused", async () => {
+  const started = Date.now();
+  await assert.rejects(
+    revision.waitForCatalog({ expected: "expected", read: () => new Promise<string>(() => {}), timeoutMs: 40, intervalMs: 1 }),
+    /expected expected, last served no answer before the deadline/,
+  );
+  assert.ok(Date.now() - started < 2000, "a read that never answers held the wait past its deadline");
+
+  // A matching catalog that arrives after the deadline is not evidence of what was served in time.
+  let now = 0;
+  await assert.rejects(
+    revision.waitForCatalog({
+      expected: "expected",
+      read: async () => ((now = 500), "expected"),
+      timeoutMs: 100,
+      intervalMs: 1,
+      clock: () => now,
+    }),
+    /last served expected, after the deadline/,
+  );
+});
+
+test("a run's turns start only once its server serves the expected catalog — otherwise none does", async () => {
+  type Checked = {
+    checkedTurns: (
+      requests: { key: string; text: string }[],
+      options: { served?: () => Promise<string>; expected: string | null; turn: (sent: string, resume: string | null) => Promise<unknown>; boundary: () => number },
+    ) => Promise<{ digest: string | null; turns: { failure: string | null; called: boolean; sent: string | null }[] }>;
+  };
+  const { checkedTurns } = await load<Checked>("lean.mjs");
+  const requests = [{ key: "bloom-clever", text: "I liked it." }];
+  let called = 0;
+  const turn = async () => ((called += 1), { answer: "ok", session: "s", failure: null });
+
+  const unreadable = await checkedTurns(requests, { served: async () => { throw new Error("ECONNREFUSED"); }, expected: "abc", turn, boundary: () => 0 });
+  assert.deepEqual(unreadable.turns.map((one) => [one.called, one.sent]), [[false, null]]);
+  assert.equal(unreadable.turns[0]!.failure, "the server served catalog unreadable (ECONNREFUSED), not the expected abc");
+
+  const stale = await checkedTurns(requests, { served: async () => "old", expected: "abc", turn, boundary: () => 0 });
+  assert.equal(stale.turns[0]!.failure, "the server served catalog old, not the expected abc");
+  assert.equal(called, 0, "a model was called against the wrong instructions");
+
+  const right = await checkedTurns(requests, { served: async () => "abc", expected: "abc", turn, boundary: () => 0 });
+  assert.equal(right.digest, "abc");
+  assert.equal(called, 1);
+
+  // No check at all for a plain Claude run: no digest, and the turns run as before.
+  assert.equal((await checkedTurns(requests, { expected: null, turn, boundary: () => 0 })).digest, null);
+  assert.equal(called, 2);
 });
 
 test("the expected catalog is the one the server.ts on disk registers, read in a fresh process", () => {

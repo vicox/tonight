@@ -95,11 +95,11 @@ import {
   checkBudget,
   failureOf,
   followUps,
+  checkedTurns,
   pending,
   plannedCalls,
   recorded,
   runName,
-  runTurns,
   select,
   stopsTheRun,
 } from "../lean.mjs";
@@ -468,24 +468,22 @@ async function run(scenario, requests, index) {
     }),
   );
 
-  // The catalog this run's server served, read before its first turn — the evidence a
+  // The catalog this run's server serves, proven before its first turn — the evidence a
   // baseline and an after-run were given different instructions, and one pass the same.
-  const toolsDigest = CHECKS_CATALOG ? await servedCatalog(bearer) : null;
-
-  // Every turn in order, each awaited before its boundary is read and before the next
-  // starts (`../lean.mjs`, `runTurns`); the proxy stops only after the last.
+  // Then every turn in order, each awaited before its boundary is read and before the
+  // next starts (`../lean.mjs`); the config and the proxy go however that ends.
   let turns = [];
+  let toolsDigest = null;
   try {
-    turns = await runTurns(requests, {
+    ({ digest: toolsDigest, turns } = await checkedTurns(requests, {
+      served: CHECKS_CATALOG ? () => servedCatalog(bearer) : undefined,
+      expected: EXPECTED_CATALOG,
       turn: (sent, resume) => turn(sent, config, resume),
       boundary: () => loggedCalls(logFile),
-    });
+    }));
   } finally {
     rmSync(config, { force: true });
     await shutDown(proxy, PORT);
-  }
-  if (toolsDigest !== null && toolsDigest !== EXPECTED_CATALOG) {
-    turns[0].failure ??= `the server served catalog ${toolsDigest}, not the expected ${EXPECTED_CATALOG}`;
   }
   const first = turns[0];
 
@@ -513,14 +511,21 @@ async function run(scenario, requests, index) {
   };
 }
 
-/** A DeepSeek run's usage in one line: the two units apart, input split by the cache. */
+/**
+ * A DeepSeek run's usage in one line: turns and API requests apart, every attempt
+ * counted, input split by the cache — and how many requests reported no usage, so a
+ * price made from the totals says what it could not include.
+ */
 function usageLine(turns) {
   const requests = turns.flatMap((one) => one.requests ?? []);
-  const sum = (field) => requests.reduce((total, request) => total + request[field], 0);
+  const sum = (field) => requests.reduce((total, request) => total + (request[field] ?? 0), 0);
+  const failed = requests.filter((one) => one.outcome !== "answered").length;
+  const unreported = requests.filter((one) => !one.usage_reported).length;
   return (
-    `${turns.filter((one) => one.called).length} turns, ${requests.length} API requests; ` +
-    `input ${sum("prompt_cache_hit_tokens")} cache-hit + ${sum("prompt_cache_miss_tokens")} cache-miss tokens; ` +
-    `output ${sum("completion_tokens")} tokens (${sum("reasoning_tokens")} of them reasoning)`
+    `${turns.filter((one) => one.called).length} turns, ${requests.length} API requests (${failed} failed, ` +
+    `${unreported} with no usage reported); input ${sum("prompt_cache_hit_tokens")} cache-hit + ` +
+    `${sum("prompt_cache_miss_tokens")} cache-miss tokens; output ${sum("completion_tokens")} tokens ` +
+    `(${sum("reasoning_tokens")} of them reasoning)`
   );
 }
 
@@ -603,7 +608,7 @@ recorded: ${stamp}
 
 ## Prompt
 
-> ${result.first.sent}
+> ${result.first.sent ?? `(not sent: ${result.first.failure})`}
 ${asked}
 ## Tonight MCP transcript
 

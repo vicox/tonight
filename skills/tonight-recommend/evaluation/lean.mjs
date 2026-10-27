@@ -95,6 +95,33 @@ export async function runTurns(requests, { turn, boundary }) {
   return turns;
 }
 
+/**
+ * A run's turns, once its server is proven to serve the expected tool catalog.
+ *
+ * `served()` reads the catalog's digest; without it there is no check, as on a plain
+ * Claude run. A catalog that cannot be read, or is not the expected one, ends the run
+ * before any turn — no model call is made — with the reason as its one failure. The
+ * caller runs this inside the block that cleans up after the run, so a failed check
+ * leaves nothing behind.
+ */
+export async function checkedTurns(requests, { served, expected, turn, boundary }) {
+  if (served === undefined) return { digest: null, turns: await runTurns(requests, { turn, boundary }) };
+  let digest;
+  try {
+    digest = await served();
+  } catch (error) {
+    digest = `unreadable (${error.message})`;
+  }
+  if (digest !== expected) {
+    const failure = `the server served catalog ${digest}, not the expected ${expected}`;
+    return {
+      digest,
+      turns: [{ key: requests[0].key, sent: null, answer: "", session: "unknown", failure, calls: [0, 0], called: false }],
+    };
+  }
+  return { digest, turns: await runTurns(requests, { turn, boundary }) };
+}
+
 /** The model calls a list of planned runs would make. */
 export const plannedCalls = (work) => work.reduce((sum, item) => sum + callsPerRun(item.scenario), 0);
 

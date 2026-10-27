@@ -929,6 +929,34 @@ report says so.
 - **typecheck** is clean.
 - **lint** shows 0 errors and the two known warnings.
 
+**Committed as `908b1f2`.** After the commit:
+
+- `npm test`: 1367 tests, 1363 pass, with the 4 known failures.
+- A real `--against fdb99b9` dry run left the tree clean.
+
+### 12.8 Codex code review 1 — NOT READY
+
+Codex reproduced each finding with stubs and found the Claude path unchanged. Four blockers, each
+fixed with a regression test:
+
+1. **A failed per-run catalog read bypassed cleanup**, leaving the bearer config and the proxy
+   behind, and a mismatched catalog was rejected only after the turns. The read now happens in
+   `checkedTurns` (`lean.mjs`), inside the `try` whose `finally` cleans up and before any turn. A
+   catalog that is unreadable or not the expected one ends the run with no model call.
+2. **An MCP HTTP failure could become a successful turn.** The proxy's own 502 (`{ error: "…could
+   not reach Tonight" }`) was told to the model as a tool error. `mcp()` now accepts only a JSON-RPC
+   answer — a result, or an error with a numeric code — and a non-2xx only when it carries one.
+   Anything else fails the turn, `tools/list` included.
+3. **The catalog timeout was not enforced on a hanging read.** Each read now races what is left of
+   the deadline, with the timer cleared when the read wins; a match that arrives after the deadline
+   is refused. Tested with a read that never answers and with a late match.
+4. **Failed API attempts were missing from the accounting.** Every attempt is recorded now:
+   `outcome` (`answered`, `http_error`, `transport_error` or `not_json`), `status`, `at`, `ms`, and
+   `usage_reported`. Usage the API did not report is null, never zero. The artifact's usage line
+   counts failed attempts and unreported usage.
+
+After the fixes: the evaluation tests (47) pass, typecheck is clean, and lint is unchanged.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
