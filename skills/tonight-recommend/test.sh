@@ -591,7 +591,7 @@ check "one skill does not mean one intent: a direct request is done, not deflect
         'do it and answer')" "True"
 # The skill names no film, Vibe or Genre to show a rule: the rule is stated instead.
 check "no example Vibe or Genre name, or scenario wording, survives" \
-    "$(grep -ciE 'Sci-Fi|Spacey|Space Tension|Popcorn Chaos|Thriller|slow burn|Game Night|Kid Detective|lazy Sunday|science fiction|tension never' "$SKILL")" "0"
+    "$(grep -ciE 'Sci-Fi|Spacey|Space Tension|Popcorn Chaos|Thriller|slow burn|Game Night|Kid Detective|lazy Sunday|science fiction|tension never|quiet thread|funny under|being grim|too grim' "$SKILL")" "0"
 check "no example film survives" \
     "$(grep -cE 'Arrival|Heat|Dune|Tag' "$SKILL")" "0"
 check "and the reverse is what must not happen" \

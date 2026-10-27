@@ -478,8 +478,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "— not as the lead, not as a direction.\n\n" +
         "**What you find here is theirs; what you make of it is yours.** Report a verdict as the " +
         "verdict it is — that they loved that film — and where several of them line up, the line-up " +
-        "is your reading and has to sound like one: *\"there may be a quiet, patient thread " +
-        "here\"*, never *\"you love quiet films\"* or *\"your taste is X\"*. They said four things; " +
+        "is your reading and has to sound like one: something you noticed, said as a possibility, " +
+        "never as the kind of film they love or what their taste is. They said four things; " +
         "the fifth thing, the one about the kind of film they like, is yours until they say it " +
         "themselves. One verdict is one film and never a register, a style or a kind. And where " +
         "`because` is absent they gave no reason, so *\"what made it work for you\"* is a sentence " +

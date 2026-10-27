@@ -464,7 +464,12 @@ describe("what recommendation work is handed", () => {
     // those four verdicts are in hand.
     assert.match(text, /\*\*What you find here is theirs; what you make of it is yours\.\*\*/u);
     assert.match(text, /the line-up\s+is your reading and has to sound like one/u);
-    assert.match(text, /never \*"you love quiet films"\* or \*"your taste is X"\*/u);
+    assert.match(
+      text,
+      /something you noticed, said as a possibility,\s+never as the kind of film they love or what their taste is/u,
+    );
+    // §15: the boundary is stated, never shown with a sample taste.
+    assert.doesNotMatch(text, /quiet films|quiet, patient thread/u);
     assert.match(text, /One verdict is one film and never a register, a style or a kind/u);
     // And no reason where none was given.
     assert.match(

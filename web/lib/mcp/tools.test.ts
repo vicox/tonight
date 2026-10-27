@@ -794,7 +794,7 @@ test("no tool description shows its rule with a film, a vibe or a genre", async 
     /Bloom|Champagne|Blueprints|Masterminds/,
     /Paterson|Arrival|\bHeat\b|\bDune\b|Am[ée]lie/,
     /Space Tension|Puzzle Pressure|Small Town Secrets|Sci-Fi|\bAction\b|Slow burn/,
-    /Smart, not heavy|Funny action|tension never lets up/,
+    /Smart, not heavy|Funny action|tension never lets up|quiet films|quiet, patient/,
   ]) {
     assert.equal(name.test(everything), false, `${name} is named in a tool description`);
   }

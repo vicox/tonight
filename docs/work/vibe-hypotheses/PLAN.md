@@ -1345,6 +1345,29 @@ nearly word for word. An agent that has read the test cases is not being tested.
   - `tonight-recommend/test.sh`: no example film, Vibe or Genre name, and no worked answer.
   - `tools.test.ts`: no tool description names a fixture film, Vibe or Genre.
 
+**Committed as `e07d396`.** `npm test`: 1372 tests, 1368 pass, with the 4 known failures.
+
+### 15.1 Codex code review 1 — NOT READY
+
+**Codex ran** vibes 160/160, recommend 251/251, plugin 37/37 and 233 focused tests. It found no
+behaviour regression — table routing, overlap, grounding, naming, the answer's shape and the
+reusable-Genre distinction all held. **One finding:** sample tastes were still in the text, more
+than routing vocabulary. Each is now the rule it showed:
+
+- **`tonight-recommend`:**
+  - *"There may be a quiet thread here"* is now *"saying what you noticed asks for nothing"*.
+  - The table row *"turned down three films for being grim"* is now *"several films for the same
+    reason"*.
+  - *"something funny under two hours"* is now *"a request that names only a mood or a length"*.
+- **`get_taste`:** *"there may be a quiet, patient thread here", never "you love quiet films"* is
+  now *"something you noticed, said as a possibility, never as the kind of film they love or what
+  their taste is"*.
+
+**Pins:**
+
+- `taste-verdicts.test.ts` pinned the old example. It now pins the rule and refuses the example.
+- `tonight-recommend/test.sh` and `tools.test.ts` also refuse the removed wording.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
