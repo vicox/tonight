@@ -1,0 +1,48 @@
+{
+  "id": "m5-05-partial-fit",
+  "user": "google:eval-m5-05-partial-fit",
+  "title": "A Vibe whose evening a liked film fits without saying why they liked it, and one it does not fit",
+  "exists_for": ["hypotheses", "title-pick", "partial-overlap", "no-orphan-likes"],
+  "construction_note": "docs/work/vibe-hypotheses. The Brothers Bloom is absent on purpose: the request introduces it. It belongs on Champagne & Blueprints' evening — a crew, a plan, beautiful places — and nothing there says what they gave as the reason, clever characters doing smart things. Reading Room is an evening it is not, so where it belongs is a judgement, not the only Vibe there is. Every core is a film they loved.",
+  "writes": true,
+  "model": {
+    "genres": [
+      { "name": "Heist", "instruction": "I like a plan, a crew, and watching the job come together." },
+      { "name": "Glamour", "instruction": "I like beautiful places and people dressed for them." },
+      { "name": "Slow Burn", "instruction": "I like films that take their time and trust me to wait." },
+      { "name": "Character Story", "instruction": "I want to come out knowing a person, not a plot." }
+    ],
+    "vibes": [
+      {
+        "name": "Champagne & Blueprints",
+        "genres": ["Heist", "Glamour"],
+        "instruction": "Glamorous capers, where I get to enjoy the plan as much as the places.",
+        "core": { "title": "Ocean's Eleven", "year": 2001 }
+      },
+      {
+        "name": "Reading Room",
+        "genres": ["Slow Burn", "Character Story"],
+        "instruction": "Films that are patient with me, where nothing is chasing anyone.",
+        "core": { "title": "Paterson", "year": 2016 }
+      }
+    ],
+    "movies": [
+      { "title": "Ocean's Eleven", "year": 2001, "vibes": ["Champagne & Blueprints"], "viewing": "seen-before" },
+      { "title": "Paterson", "year": 2016, "vibes": ["Reading Room"], "viewing": "seen-before" }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": { "title": "Ocean's Eleven", "year": 2001 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "Paterson", "year": 2016 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    }
+  ]
+}

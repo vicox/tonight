@@ -464,7 +464,12 @@ describe("what recommendation work is handed", () => {
     // those four verdicts are in hand.
     assert.match(text, /\*\*What you find here is theirs; what you make of it is yours\.\*\*/u);
     assert.match(text, /the line-up\s+is your reading and has to sound like one/u);
-    assert.match(text, /never \*"you love quiet films"\* or \*"your taste is X"\*/u);
+    assert.match(
+      text,
+      /something you noticed, said as a possibility,\s+never as the kind of film they love or what their taste is/u,
+    );
+    // §15: the boundary is stated, never shown with a sample taste.
+    assert.doesNotMatch(text, /quiet films|quiet, patient thread/u);
     assert.match(text, /One verdict is one film and never a register, a style or a kind/u);
     // And no reason where none was given.
     assert.match(
@@ -482,6 +487,14 @@ describe("what recommendation work is handed", () => {
     // immediately, and an offer nobody takes up leaves nothing behind.
     assert.match(text, /their yes is what writes it — and it\s+writes it there and then/u);
     assert.match(text, /answered with\s+`create_genre` and nothing else/u);
+    // §19: but after one film's verdict no genre is offered on its own — the genre
+    // offer above competed with the vibe offer, and won, on the kept path. It adds
+    // no offer of its own: whether one is made stays where it was (code review).
+    assert.match(
+      text,
+      /After they say how one film worked for them, though, a genre is never offered on its own: a new genre then comes only as part of a new vibe, and only where one is offered at all/u,
+    );
+    assert.doesNotMatch(text, /what their words carry is offered as a vibe/u, "the read prescribes a vibe after every verdict");
     assert.match(text, /offer only what you would write on the spot/u);
     assert.doesNotMatch(text, /propose_change|a proposal that already exists/u, "it still names a tool that is gone");
     // Noticing aloud stays free — this must not read as "always ask".

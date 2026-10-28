@@ -591,7 +591,7 @@ describe("episode tools", () => {
     assert.match(said, /`request` is refused together with `episode`/u);
     assert.match(said, /\*\*An evening they tell you about without asking you anything\*\*/u);
     assert.match(said, /It never attaches to\s+an existing one/u);
-    assert.match(said, /\*\\?"I've seen Heat\\?"\* is a viewing, never an evening/u);
+    assert.match(said, /\*\\?"I've seen X\\?"\* is a viewing, never an evening/u);
     assert.match(said, /\*\*This call only adds\.\*\*/u);
     assert.match(said, /is a correction and is refused — use\s+`correct_episode`/u);
   });

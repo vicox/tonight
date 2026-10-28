@@ -237,7 +237,7 @@ const strictly = <T extends z.ZodRawShape>(shape: T) =>
 const genreName = z
   .string()
   .describe(
-    'A genre\'s name — "Action", "Sci-Fi", "Slow burn". This is the only identifier Tonight ' +
+    "A genre's name — plain, named for what it is. This is the only identifier Tonight " +
       "takes: genres are addressed by name everywhere, and there is no id to look up or pass. " +
       "Matched case-insensitively.",
   );
@@ -245,20 +245,19 @@ const genreName = z
 const vibeName = z
   .string()
   .describe(
-    'A vibe\'s name — "Space Tension", "Puzzle Pressure", "Small Town Secrets". Evocative, not ' +
-      "descriptive: a genre is named for what it is and a vibe for what it feels like, so if " +
-      "knowing the genres already tells you the name, the name is doing no work. " +
-      '"Smart, not heavy" and "Funny action" are genre lists, not vibe names. The only ' +
-      "identifier Tonight takes, matched case-insensitively. Genres and vibes have separate " +
-      "names: a genre called X and a vibe called X are different objects.",
+    "A vibe's name. Evocative, not descriptive: a genre is named for what it is and a vibe for " +
+      "what it feels like, so if knowing the genres already tells you the name, the name is doing " +
+      "no work. A name that lists the genres, or puts a quality in front of one, is a genre list, " +
+      "not a vibe name. The only identifier Tonight takes, matched case-insensitively. Genres " +
+      "and vibes have separate names: a genre called X and a vibe called X are different objects.",
   );
 
 const genreInstruction = z
   .string()
   .describe(
     "What this genre means to THIS user, in their own words, written as their preference. Not a " +
-      "dictionary definition of the genre: two users with an Action genre may mean opposite " +
-      "things, and this is where the difference lives. Include what they rule out. Write it in " +
+      "dictionary definition of the genre: two users with genres of the same name may mean " +
+      "opposite things, and this is where the difference lives. Include what they rule out. Write it in " +
       "the user's first person — it is their sentence about themselves, not a note about them.",
   );
 
@@ -300,7 +299,7 @@ const movieYear = z
   .max(MAX_YEAR, `a movie's year must be between ${MIN_YEAR} and ${MAX_YEAR}`)
   .describe(
     "The film's release year. Required, because it is the other half of how a movie is " +
-      "addressed: Dune 1984 and Dune 2021 are two films. Establish it before writing rather " +
+      "addressed: two films that share a title are two films. Establish it before writing rather " +
       "than guessing — if you do not know it, ask.",
   );
 
@@ -356,14 +355,17 @@ const movieViewing = z
       "pass reason, and no quote of what they said about when. A reason they did give is " +
       "recorded where it belongs, in their words, as it always is.\n\n" +
       "**Say what you stored.** After the write, tell them in one short sentence where the film " +
-      "now stands — *\"saved Arrival as want to see\"*, *\"saved Heat as seen before\"* — so that " +
+      "now stands — the film, and the viewing you wrote — so that " +
       "a status they did not mean is corrected there and then. A correction is another " +
       "`update_movie`.\n\n" +
       "**This is a fact, never an opinion.** It says where the film stands for them and nothing " +
       "about whether they liked it — it is never a score or star rating, and never where a " +
       "fresh opinion goes. Liked, loved and disliked are verdicts and `record_verdict` " +
       "is what records them; a judgement already says they watched it, so there is nothing to " +
-      "write here as well.\n\n" +
+      "write here as well — except for a film saved as want-to-see that they tell you now they " +
+      "liked or loved: that is their word that they watched it, so it becomes seen-now or " +
+      "seen-before by the rule above, in the same turn. A liked or loved that only stands from " +
+      "before does not move it.\n\n" +
       "**Not a way to tidy up after something else.** Forgetting or withdrawing a verdict " +
       "leaves this standing on purpose: it is a different thing they said and it is still " +
       "true. Change it only where changing it is itself what they asked for. If they asked " +
@@ -400,7 +402,8 @@ const vibeCore = z
       "seen-before without one — with nothing else about it.\n\n" +
       "Refused when the saved film's viewing is anything but `seen-now` or `seen-before` — a " +
       "liked or loved does not override it, and a viewing is changed only on their word, never " +
-      "to get past this.",
+      "to get past this. A liked or loved they tell you now is their word that they watched it; " +
+      "one that only stands from before is not.",
   );
 
 /**
@@ -474,9 +477,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "to them and may be recommended, and a `dont-want-to-see` film is **never recommended** " +
         "— not as the lead, not as a direction.\n\n" +
         "**What you find here is theirs; what you make of it is yours.** Report a verdict as the " +
-        "verdict it is — *\"you loved Paterson\"* — and where several of them line up, the line-up " +
-        "is your reading and has to sound like one: *\"there may be a quiet, patient thread " +
-        "here\"*, never *\"you love quiet films\"* or *\"your taste is X\"*. They said four things; " +
+        "verdict it is — that they loved that film — and where several of them line up, the line-up " +
+        "is your reading and has to sound like one: something you noticed, said as a possibility, " +
+        "never as the kind of film they love or what their taste is. They said four things; " +
         "the fifth thing, the one about the kind of film they like, is yours until they say it " +
         "themselves. One verdict is one film and never a register, a style or a kind. And where " +
         "`because` is absent they gave no reason, so *\"what made it work for you\"* is a sentence " +
@@ -485,7 +488,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "writes it there and then.** *\"Want me to turn that into a genre?\"* is answered with " +
         "`create_genre` and nothing else: the genre they agreed to is a genre they have, the " +
         "same as one they asked for outright, and there is nothing to record beforehand and " +
-        "nothing left over after. So offer only what you would write on the spot. Nothing here " +
+        "nothing left over after. After they say how one film worked for them, though, a genre is " +
+        "never offered on its own: a new genre then comes only as part of a new vibe, and only " +
+        "where one is offered at all. So offer only what you would write on the spot. Nothing here " +
         "holds a pending offer, so an offer you mean to come back to is an offer only you are " +
         "carrying, and it is gone when this conversation is. Saying what you noticed and asking " +
         "nothing is free and writes nothing at all.\n\n" +
@@ -494,8 +499,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "film and a judgement — liked, loved or disliked. Where they said why, `because` holds " +
         "their words; where they did not, it is not there, and you have none to offer — and " +
         "where they did, use their " +
-        "words as they said them and do not make them stronger: \"the tension never lets up\" is " +
-        "not \"you love tense films\". `told` says whether they " +
+        "words as they said them and do not make them stronger: a quality they named in one film " +
+        "is never a claim that they love every film with it. `told` says whether they " +
         "volunteered it or answered a question you put — the first tells you more than the " +
         "second, and neither is a number.\n\n" +
         "A verdict is an opinion and never a refusal: a film they do not want recommended is a " +
@@ -590,8 +595,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
       description:
         "Combine one or more of the user's genres into a vibe of their own. Every named genre " +
         "must already exist; a vibe cannot be built from another vibe. Name it the way a shelf in " +
-        "a good video shop is named, not the way a filter is: 'Space Tension' beats " +
-        "'Sci-Fi Thriller', and the test is whether they would ask for it by name in a month. " +
+        "a good video shop is named, not the way a filter is: never its genres said again, and " +
+        "the test is whether they would ask for it by name in a month. " +
         "A vibe is the shape of a recommendation idea, so the moment to write one is just after " +
         "using that idea to choose films — but only when the user stated the idea as lasting " +
         "taste, or confirmed a meaning you put to them. Wanting something tonight is not that, " +
@@ -636,7 +641,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "is not yours to adjust. The one change you may propose is a minimal one — the exact new " +
         "words, shown to them — when a film they like belongs to that same evening and the " +
         "sentence does not yet cover it; write it only on their yes to those words. A change " +
-        "that would make it a different evening is a new vibe, not a reworded one.\n\n" +
+        "that would make it a different evening is a new vibe, not a reworded one, and so is one " +
+        "its core would no longer fit wholly.\n\n" +
         "**Every one of these changes the whole vibe, so settle the whole vibe before you " +
         "call.** Work out what the result would be — the name it would then have, the sentence " +
         "it would then have, the genres it would then be built from, and what those genres' " +
@@ -833,10 +839,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "to append to. A film already in the evening keeps its place and what was said about " +
         "it, and gains the lead if it leads this round. The request stays the evening's first; " +
         "`request` is refused together with `episode`.\n\n" +
-        "**An evening they tell you about without asking you anything** — *\"I'm watching Heat " +
-        "tonight\"*, *\"we watched Heat last night\"*, naming no evening you recorded — is this " +
+        "**An evening they tell you about without asking you anything** — *\"I'm watching X " +
+        "tonight\"*, *\"we watched X last night\"*, naming no evening you recorded — is this " +
         "call with `offers` and no `request`: a new evening of their own. It never attaches to " +
-        "an existing one. *\"I've seen Heat\"* is a viewing, never an evening.\n\n" +
+        "an existing one. *\"I've seen X\"* is a viewing, never an evening.\n\n" +
         "**This call only adds.** `offers` here may fill a fact that is not known yet; " +
         "restating a stored value changes nothing; taking something back (null), changing a " +
         "known fact or replacing a reason is a correction and is refused — use " +
@@ -933,8 +939,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "A title that matches one of its films is never the reference, and neither is the " +
         "evening being the latest or recent. If they did not say which evening, write to no " +
         "evening — and do not ask a question in order to file it. **A verdict is not a watch on " +
-        "an evening:** *\"loved Arrival\"* says what they thought of the film and writes no " +
-        "evening, even one that offered Arrival; nothing here is inferred from a verdict or from " +
+        "an evening:** *\"loved X\"* says what they thought of the film and writes no " +
+        "evening, even one that offered X; nothing here is inferred from a verdict or from " +
         "a film being marked seen now or seen before.\n\n" +
         "**Facts are per film, and they merge.** `offers` says what they said about films of " +
         "the evening, one entry per film; facts left out keep what is recorded, and null takes " +
@@ -1036,6 +1042,12 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "\"vibe_required\"`, with `retry` and `next`: find the vibe it belongs in with them, file " +
         "the film, then call this again with `retry.arguments`, in this conversation. Until then " +
         "it is not saved, so never say it is. `disliked` needs no vibe and no saved film.\n\n" +
+        "**Call this in the turn they say it, before anything else** — before offering a vibe, " +
+        "filing the film or asking about when, and even for a film you can see is in no vibe: its " +
+        "answer is how a liked is kept. Never file the film first to make a liked keepable; filing " +
+        "it needs their yes. A liked or loved said now about a film saved as want-to-see is their " +
+        "word that they watched it: move it with update_movie to seen-before — seen-now only if " +
+        "they placed it recently — in this same turn, before you ask anything.\n\n" +
         "**Turning a film down is not a verdict.** *\"Not interested\"*, *\"stop suggesting it\"*, " +
         "*\"don't recommend it again\"* say where the film stands on their list: dont-want-to-see, " +
         "with `create_movie` or `update_movie`. *\"Not tonight\"* and *\"not in the mood for " +
@@ -1298,8 +1310,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "offers one: nothing here suggests, ranks or filters a film, and it knows no film it was " +
         "not told about.\n\n" +
         "Each film is matched by title and year together, the way Tonight names a film: case and " +
-        "spacing aside, exactly. *Amélie* and *Amelie* are two films here, and so are *Dune* 1984 " +
-        "and *Dune* 2021.\n\n" +
+        "spacing aside, exactly. A title with and without its accents is two films here, and so " +
+        "is one title in two years.\n\n" +
         "`status` is what was found. `saved`: a film on their list, which `movie` shows as stored " +
         "— its `viewing`, and the `vibes` it is filed in. `said-only`: no saved film, but a verdict " +
         "about it stands. `nothing`: neither. **`nothing` means Tonight holds nothing about the " +
@@ -1328,8 +1340,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
                   "case and spacing aside.",
               ),
               year: movieYear.describe(
-                "Its release year — the other half of how Tonight names a film: Dune 1984 and " +
-                  "Dune 2021 are two films.",
+                "Its release year — the other half of how Tonight names a film: one title in two " +
+                  "years is two films.",
               ),
               imdb_id: imdbIdText
                 .optional()
@@ -1411,17 +1423,31 @@ const VERDICT_COVERAGE = {
  */
 const VIBE_REQUIRED_NEXT =
   "Nothing was written. A liked or loved verdict is kept only for a film in at least one of " +
-  "their vibes. Read get_taste, then in this conversation: (1) if one of their vibes fits — " +
+  "their vibes. If `movie.viewing` is want-to-see, their liked says they watched it: move it " +
+  "with update_movie to seen-before (seen-now only if they placed it recently) now, before the " +
+  "offer, and say so. Read get_taste, then in this conversation: (1) if one of their vibes fits — " +
   "judge by its instruction and genres, not its name — propose filing the film there; if it " +
   "fits except that its sentence does not yet cover this film, show them the exact minimal new " +
-  "wording and change it with update_vibe only on their yes to those words. (2) If none fits, " +
+  "wording — one its core still fits wholly — and change it with update_vibe only on their yes " +
+  "to those words; where a new vibe would make sense too, offer both in the one offer — that " +
+  "wording, and a new vibe offered as (2) offers one — say in one line which you would choose " +
+  "and why, and let them choose; a reply that does not make clear which they chose is asked " +
+  "about once before anything is written. A film that only partly fits a vibe goes there only " +
+  "beside one it fits well or anchors. (2) If none fits, " +
   "offer one recommended new vibe and two meaningfully different alternatives — each a " +
-  "different reason the film may have worked for them, with a name, a sentence, their genres " +
-  "and this film as core — and let their choice say why. (3) On their yes, file it — " +
+  "different evening the film could stand for, read from the film, their vibes and what they " +
+  "have liked and anything they said about it, with a name, a sentence, their genres and this " +
+  "film as core — and let their choice say which; never ask them why they liked it. (3) On " +
+  "their yes, file it — " +
   "update_movie with its vibes, create_movie with viewing seen-now or seen-before and vibes for " +
-  "an unsaved film, or create_vibe with it as core and core.viewing — a watched film is " +
+  "an unsaved film, or create_vibe with it as core and core.viewing; where they chose the new " +
+  "wording, update_vibe with it first; where they chose a new vibe beside one the film partly " +
+  "fits, create_vibe with it as core and core.viewing, then update_movie listing that new vibe " +
+  "and the one it partly fits, because the list replaces what was there — a watched film is " +
   `${SEEN_RULE}, and when they did not say when, that question goes into the one you put ` +
-  "about the vibe — then call record_verdict again with retry.arguments. If " +
+  "about the vibe; a yes that does not say when is them not saying: unless something they said " +
+  "earlier placed it or the film already has a seen viewing, write seen-before, and never ask " +
+  "about when again — then call record_verdict again with retry.arguments. If " +
   "they decline, it stays unsaved: say so once, and write nothing in its place.";
 
 /**

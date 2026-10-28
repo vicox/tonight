@@ -15,8 +15,158 @@
 /** The default cap, in model calls, for any invocation that does not name its own. */
 export const DEFAULT_BUDGET = 12;
 
-/** One `claude -p` per turn: a scenario with a second turn makes two calls a run. */
-export const callsPerRun = (scenario) => (scenario.then ? 2 : 1);
+/**
+ * A scenario's follow-up turns, in order, each a request key: none, one (`then: "yes"`),
+ * or a list (`then: ["pick-title-one", "like-bloom-tonight"]`) when a pick has to be
+ * followed by a request in the same conversation.
+ */
+export const followUps = (scenario) =>
+  scenario.then === undefined ? [] : Array.isArray(scenario.then) ? [...scenario.then] : [scenario.then];
+
+/** One `claude -p` per turn: the first, and one for every follow-up. */
+export const callsPerRun = (scenario) => 1 + followUps(scenario).length;
+
+/** The follow-ups as a run's name carries them: `__then-yes`, or `__then-a__then-b`. */
+const thenKey = (scenario) => followUps(scenario).map((one) => `__then-${one}`).join("");
+
+/**
+ * A follow-up that picks a title from the answer before it: `{title:N}`, the whole request
+ * or a part of one (*"{title:1} — just that one"*). The user chooses from the title alone
+ * (docs/work/vibe-hypotheses), so the evaluation answers the way they would — with the
+ * title, as the agent wrote it.
+ */
+const TITLE_PICK = /\{title:([1-9])\}/g;
+
+/**
+ * The titles an answer offers, in order: each line that starts with a bold span — numbered
+ * or not, the number outside the bold or inside it — read as the span alone, without its
+ * number or the quotes around it. A marker after the bold (*"my pick"*) is no part of it.
+ */
+function offeredTitles(answer) {
+  const items = [];
+  for (const match of String(answer ?? "").matchAll(/^[ \t]*(?:(\d+)[.)][ \t]+)?\*\*([^*\n]+)\*\*/gm)) {
+    let number = match[1] === undefined ? null : Number(match[1]);
+    let title = match[2].trim();
+    const inside = /^(\d+)[.)]\s+(.*)$/.exec(title);
+    if (inside) {
+      number ??= Number(inside[1]);
+      title = inside[2];
+    }
+    title = unwrapped(title.replace(/[:：]$/u, "").trim());
+    if (title) items.push({ number, title });
+  }
+  return items;
+}
+
+/** A title without the quotes around it — only a matched pair around the whole of it, so `'Til Dawn` stays. */
+function unwrapped(title) {
+  for (const [open, close] of [['"', '"'], ["“", "”"], ["'", "'"], ["‘", "’"]]) {
+    if (title.length > 2 && title.startsWith(open) && title.endsWith(close)) return title.slice(open.length, -close.length).trim();
+  }
+  return title;
+}
+
+/** Whether the answer numbers a list at all — bold or not, the number inside the bold or before it. */
+const numbersAList = (answer) => /^[ \t]*(?:\*\*)?\d+[.)][ \t]+\S/m.test(String(answer ?? ""));
+
+/**
+ * The title an answer offers as choice `n`, or null when the answer does not say which
+ * one that is.
+ *
+ * How the list is formatted is the presentation rule's business, not the choice's: a
+ * person answers *"Thinking on Their Feet"* whether or not a number stood before it, so
+ * neither does a missing number make a choice unanswerable here.
+ *
+ * - **Where the answer numbers a list**, choices are taken by number only, and exactly one
+ *   bold title may carry `n`. A numbered list whose items are not bold is not read at all —
+ *   never in its place three bold lines that may be Genre names (code review).
+ * - **Where nothing is numbered**, three line-leading bold titles are the three choices, in
+ *   the order shown.
+ *
+ * Anything else — two lists, a number with no bold title, more or fewer than three
+ * unnumbered — is not read as a choice. That is the runner's limit, not the agent's: the
+ * turn after it is UNTESTED, and whether a person could have answered is scored from the
+ * answer itself (`m5/rubric.md`).
+ */
+export function titleNumbered(answer, n) {
+  const items = offeredTitles(answer);
+  if (numbersAList(answer)) {
+    const found = items.filter((item) => item.number === n);
+    return found.length === 1 ? found[0].title : null;
+  }
+  return items.length === 3 ? (items[n - 1]?.title ?? null) : null;
+}
+
+/**
+ * What a follow-up sends: the request as written, with every `{title:N}` in it replaced
+ * by the title the answer before it offered as choice N. A pick that cannot be resolved
+ * is a failure of that turn, decided before any model call is made.
+ */
+export function resolveTurn(request, previousAnswer) {
+  const wanted = [...request.matchAll(TITLE_PICK)].map((match) => Number(match[1]));
+  if (wanted.length === 0) return { sent: request, failure: null };
+  const missing = wanted.find((n) => titleNumbered(previousAnswer, n) === null);
+  if (missing !== undefined) return { sent: null, failure: `no unambiguous title ${missing} to pick` };
+  return { sent: request.replace(TITLE_PICK, (_, n) => titleNumbered(previousAnswer, Number(n))), failure: null };
+}
+
+/**
+ * A run's turns, in order, each awaited before the next — and before its transcript
+ * boundary is read, so a backend that answers asynchronously has made every call it
+ * will make by the time its turn is closed (docs/work/vibe-hypotheses §12.2).
+ *
+ * Every follow-up resumes the first turn's session and is failed if it answers in
+ * another; a failed turn stops the turns after it; a pick that cannot be resolved
+ * fails before its call. `turn(sent, resume)` is the backend; `boundary()` is how
+ * many Tonight calls have been logged so far.
+ */
+export async function runTurns(requests, { turn, boundary }) {
+  const turns = [];
+  for (const { key, text } of requests) {
+    const previous = turns.at(-1);
+    if (previous !== undefined && previous.failure !== null) break;
+    const from = await boundary();
+    const { sent, failure } = previous === undefined ? { sent: text, failure: null } : resolveTurn(text, previous.answer);
+    if (failure !== null) {
+      turns.push({ key, sent, answer: "", session: turns[0].session, failure, calls: [from, from], called: false });
+      break;
+    }
+    const done = await turn(sent, previous === undefined ? null : turns[0].session);
+    // A resume that started a different session did not resume.
+    if (previous !== undefined && done.failure === null && done.session !== turns[0].session) {
+      done.failure = `did not resume: asked for ${turns[0].session}, answered in ${done.session}`;
+    }
+    turns.push({ key, sent, ...done, calls: [from, await boundary()], called: true });
+  }
+  return turns;
+}
+
+/**
+ * A run's turns, once its server is proven to serve the expected tool catalog.
+ *
+ * `served()` reads the catalog's digest; without it there is no check, as on a plain
+ * Claude run. A catalog that cannot be read, or is not the expected one, ends the run
+ * before any turn — no model call is made — with the reason as its one failure. The
+ * caller runs this inside the block that cleans up after the run, so a failed check
+ * leaves nothing behind.
+ */
+export async function checkedTurns(requests, { served, expected, turn, boundary }) {
+  if (served === undefined) return { digest: null, turns: await runTurns(requests, { turn, boundary }) };
+  let digest;
+  try {
+    digest = await served();
+  } catch (error) {
+    digest = `unreadable (${error.message})`;
+  }
+  if (digest !== expected) {
+    const failure = `the server served catalog ${digest}, not the expected ${expected}`;
+    return {
+      digest,
+      turns: [{ key: requests[0].key, sent: null, answer: "", session: "unknown", failure, calls: [0, 0], called: false }],
+    };
+  }
+  return { digest, turns: await runTurns(requests, { turn, boundary }) };
+}
 
 /** The model calls a list of planned runs would make. */
 export const plannedCalls = (work) => work.reduce((sum, item) => sum + callsPerRun(item.scenario), 0);
@@ -36,7 +186,7 @@ export function checkBudget(planned, budget) {
 
 /** A scenario's run name — the stem every one of its files shares. */
 export const runName = (scenario, index) =>
-  `${scenario.fixture}__${scenario.prompt}${scenario.then ? `__then-${scenario.then}` : ""}__${String(index).padStart(2, "0")}`;
+  `${scenario.fixture}__${scenario.prompt}${thenKey(scenario)}__${String(index).padStart(2, "0")}`;
 
 /**
  * Which scenarios run: the source's own, then `--only`'s comma-separated list (each a
@@ -45,7 +195,7 @@ export const runName = (scenario, index) =>
  */
 export function select(scenarios, { source, only = null, smoke = false }) {
   const wanted = only === null ? null : only.split(",").map((one) => one.trim()).filter(Boolean);
-  const key = (one) => `${one.fixture}__${one.prompt}${one.then ? `__then-${one.then}` : ""}`;
+  const key = (one) => `${one.fixture}__${one.prompt}${thenKey(one)}`;
   return scenarios.filter(
     (one) =>
       one.sources.includes(source) &&
@@ -115,6 +265,9 @@ const STOPPING = [
   /authentication[_ ]error/i,
   /invalid api key/i,
   /oauth token/i,
+  // DeepSeek's own words for the same two: no money left (402), a key it refuses (401).
+  /insufficient balance/i,
+  /authentication fails/i,
 ];
 
 /** Whether a failure means the run should stop here rather than fail every call after it. */

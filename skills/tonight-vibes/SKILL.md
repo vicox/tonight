@@ -32,6 +32,10 @@ any number of further films.
 - **A Vibe from before cores existed** reads `core: null`. It is complete and usable as it is,
   and it is anchored only when somebody chooses its core — see *Going through their Vibes*.
 
+**How well a film fits is a judgement, never a number.** The core fits its Vibe wholly. A further
+film fits it well enough to belong there on its own. A film that only partly fits sits in a Vibe
+only beside another it fits well or anchors; a film that does not meaningfully fit is not added.
+
 ### What may be a core
 
 A film **they have seen and stand behind**: one with a standing `liked` or `loved`, or one they
@@ -58,6 +62,13 @@ checks that saved fact alone:
   things they said that disagree. Say how it is saved and ask once whether they have seen it and,
   if so, recently or a while ago — one question. On a yes, record `seen-now` or `seen-before` with
   `update_movie`, as their answer says, then anchor. On a no, or no answer, write nothing.
+- **A liked or loved they tell you now is them telling you they watched it.** A film saved as
+  `want-to-see` moves to `seen-now` or `seen-before` in the same turn — `update_movie`, by the
+  viewing rule in **tonight-recommend**, `seen-before` when nothing they said places it recently —
+  and you say what you stored. **Write it before you offer or ask anything, and never ask about
+  when first**: their answer, if they give one, corrects it. That is their word, captured when
+  they said it, not a verdict standing in for it. A `dont-want-to-see` film is still the one
+  question above.
 - **Never change a viewing to get past the refusal** — not on the strength of a verdict, and not
   because they asked for the anchor. A viewing is written only when they said it.
 
@@ -68,16 +79,16 @@ by the same film may be one evening described twice.
 
 A Vibe is a name, a sentence and some Genres, and the three are one idea or the Vibe is
 incoherent. So writing one means **reading the Genres' instructions** — not their names, which
-are labels and say almost nothing. `Slapstick` under `Quiet Dread` looks defensible until you
-read what Slapstick means to this person: *broad physical comedy, pratfalls, escalating
-absurdity*, which is not slow, unsettling tension without gore. Two ideas, one object.
+are labels and say almost nothing. A Genre whose name looks at home under a Vibe can still mean,
+to this person, the opposite of the evening the Vibe describes, and only its instruction shows
+it. Two ideas, one object.
 
 The Vibe's sentence must **add** what the Genres do not say and **contradict** nothing they do.
 Both halves matter, and they pull in opposite directions: a sentence that only restates the
 Genres has added nothing, and one that goes against them has made the Genres wrong.
 
-**Coherent is not derived.** The Genres hold the idea in place; they never produce it. `Sci-Fi`
-and `Thriller` do not yield `Space Tension` — the person did, and no reading of the two
+**Coherent is not derived.** The Genres hold the idea in place; they never produce it. Two
+Genres do not yield the Vibe built on them — the person did, and no reading of the two
 instructions would have found it. The test is not *"do the Genres give me this?"* but *"can
 these three be one thing a person meant?"*
 
@@ -100,31 +111,28 @@ Genre but not the sentence, is not a core.
 This is the difference between the two objects, and it is easy to get wrong in the direction of
 being helpful.
 
-A **Genre** is named for what it is. `Clever thriller`, `Slow burn`, `Character story`,
-`Practical effects` — plain, reusable, boring on purpose, because a Genre is an ingredient and
-ingredients are named after themselves.
+A **Genre** is named for what it is — plain, reusable, boring on purpose, because a Genre is an
+ingredient and ingredients are named after themselves.
 
-A **Vibe** is named for what it *feels* like. `Space Tension`, `Puzzle Pressure`, `Popcorn Chaos`,
-`Small Town Secrets`, `Beautiful Melancholy`, `Quiet Dread`. The name of a shelf in a good video
-shop, a playlist somebody made at two in the morning, a list they would go back to.
+A **Vibe** is named for what it *feels* like. The name of a shelf in a good video shop, a
+playlist somebody made at two in the morning, a list they would go back to.
 
-`Smart, not heavy`, `Funny action`, `Emotional drama`, `Light sci-fi` are **not Vibe names**. They
-are the Genres said again in one line. A Vibe named that way has not been named, it has been
+A name that lists the Genres, or puts a quality in front of one, is **not a Vibe name**: it is
+the Genres said again in one line. A Vibe named that way has not been named, it has been
 labelled.
 
 `create_vibe` carries the test for that in its own description, which is where it is read at the
 moment a name is being chosen.
 
 The words for the name can be yours, and a name they do not like is one they will tell you to
-change. What a good name must not do is widen the idea — `Quiet Dread`, over an evening they
-described as "slow, creepy, nothing gory", is a name for that evening and not evidence that they
-like horror. Name the thing they said. Never name a bigger thing.
+change. What a good name must not do is widen the idea — a name for an evening they described is
+a name for that evening, never evidence that they like the wider genre the name calls to mind.
+Name the thing they said. Never name a bigger thing.
 
 ## When they tell you how a film worked for them
 
-*"I loved Paterson."* *"Logan Lucky was great for a lazy Sunday afternoon when I don't need to
-pay full attention."* *"That was exactly my thing because of the dialogue."* However it is
-phrased, a statement about how a film worked for them is **a verdict first**, and only then a
+A bare liked or loved, a reason, or when and how it worked for them — however it is phrased, a
+statement about how a film worked for them is **a verdict first**, and only then a
 question about their Vibes. **A liked or loved is kept only for a film in at least one of their
 Vibes** — the Vibe is what says why it worked — so for a film in none, the Vibe comes before the
 verdict is saved.
@@ -158,9 +166,9 @@ verdict is saved.
 - **`loved` only when their words carry it** — *loved*, *favourite*, *all-time*, *one of the
   best*. A clearly positive statement otherwise is `liked`. Never a stronger judgement than the
   one they gave.
-- **Lukewarm or ambiguous words write nothing** — *"it was fine, I guess"* — unless one light
-  question settles them, and then the answer is `confirmed`.
-- **Watching is not an opinion.** *"I watched it last night"* is a viewing, never a verdict.
+- **Lukewarm or ambiguous words write nothing** unless one light question settles them, and then
+  the answer is `confirmed`.
+- **Watching is not an opinion.** Saying they watched it is a viewing, never a verdict.
   Neither is taking your recommendation. Whether it touches an evening is the recommend skill's
   rule, whole:
   - it **updates** a recorded evening — `started` on that film — only when they unambiguously
@@ -170,9 +178,9 @@ verdict is saved.
     evening with no request, and never attaches to an existing one;
   - anything else — a statement that might be about a recorded evening but does not say so
     included — writes to **no** evening, and no question is asked in order to file it.
-- A sentence about **when** or **how** a film worked — a lazy Sunday, half-watching, with friends
-  — is part of their reason and stays in `because`. It is never an occasion, a daypart or an
-  attention level stored anywhere else, and never a claim like *"you like low-attention films"*.
+- A sentence about **when** or **how** a film worked — the time they watched it, how closely, who
+  with — is part of their reason and stays in `because`. It is never an occasion, a daypart or an
+  attention level stored anywhere else, and never a claim about the kind of viewer they are.
 
 ### When a liked or loved needs a Vibe
 
@@ -186,26 +194,38 @@ Then, in this conversation, one offer:
    instructions, not the names. If one fits, propose filing the film there.
 2. **A minimal change, only when needed, and only on their yes.** If the film belongs to that
    same evening and the Vibe's sentence just does not yet say what makes it fit, show them the
-   exact new wording — the smallest change that covers it — and write it with `update_vibe` only
-   on their yes to those words. If fitting it would make the Vibe a different evening, it is not
+   exact new wording — the smallest change that covers it, and one its core still fits wholly —
+   and write it with `update_vibe` only on their yes to those words. If fitting it would make the Vibe a different evening, it is not
    that Vibe: go on to 3. A minimal change is never a way to stretch a Vibe.
 3. **Otherwise one recommended new Vibe and two meaningfully different alternatives**, in one
-   breath: three different reasons the film may have worked for them, not three names for one
-   idea. Each is a name, a sentence and its Genres — any new Genre's meaning shown — with this
-   film as its core. Their pick says why they liked it; an idea of their own is
+   breath: three different evenings the film could stand for, not three names for one idea — read
+   from the film itself, their Vibes and what they have liked, and from anything they said about
+   it. Each is a name, a sentence and its Genres — any new Genre's meaning shown — with this
+   film as its core. Their pick says which evening it is for them; an idea of their own is
    considered again with their meaning.
+
+**When both make sense.** If the film only partly fits a Vibe, and both a minimal change to it and
+a new Vibe would make sense, offer both in the one offer: the exact new wording, as 2 says, and a new
+Vibe as 3 offers one — anchored on the film, which then also goes in the Vibe it partly fits. Say
+in one line which you would choose and why, and let them choose; a reply that does not make clear
+which they chose is asked about once, before anything is written. A film that fits well is only
+proposed for filing, as 1 says, with nothing more offered.
 
 On their yes, write exactly what they agreed, as *Writing what they agreed* says, then call
 `record_verdict` again with `retry.arguments`, then say in one short sentence what was saved. A
 film not saved yet is filed by `create_vibe` with it as core and its `core.viewing`, or by
 `create_movie` with `viewing` `seen-now` or `seen-before` and its Vibes — liking it says they
 watched it, not when, so when they did not say, that question goes into the one you put about the
-Vibe; a saved one by `update_movie` with its Vibes. On a no, or a change of subject, the liked or loved stays unsaved: say so once, and write
+Vibe; a saved one by `update_movie` with its Vibes. **A yes that does not say when is them not
+saying**: if nothing they said in this conversation placed it either, the film is written
+`seen-before` with it — timing they did give stands, and a seen viewing already stored is kept —
+and when is never asked again. On a no, or a change of subject, the liked or loved stays unsaved: say so once, and write
 nothing in its place — no `disliked`, no viewing they did not state, and no record that you asked.
+A film not saved yet stays unsaved; a saved one keeps the viewing their liked already moved.
 
-This is the one place a bare *"loved it"* may lead to new Vibes: the alternatives are how you
-learn the why they did not give. And when they said they want no more of the kind, offer nothing:
-say once that a liked is kept only with a Vibe, and leave it there.
+A bare *"loved it"* may lead to new Vibes too: the film, their Vibes and what they have liked are
+enough to propose from, and nobody is asked why. And when they said they want no more of the
+kind, offer nothing: say once that a liked is kept only with a Vibe, and leave it there.
 
 ### What to consider, and what to offer
 
@@ -215,20 +235,26 @@ decide what, if anything, is worth offering:
 - **A further film in a Vibe whose instruction it fits** — one Vibe, or several. A partial yes
   writes exactly the part that was agreed.
 - **A new core for a Vibe**, only when this film embodies the instruction better than the current
-  one, and named against it: *"Palm Springs anchors Time Well Wasted. Groundhog Day is closer to
-  what it means — make it the anchor? Palm Springs stays in it."*
+  one, and named against it: the film that anchors it now, why this one is closer to what it
+  means, and that the current one stays in it.
 - **An anchor for a Vibe with no core yet**, when this film embodies it.
-- **A new Vibe**, at most one, anchored on this film — and only when their words carry a *how*,
-  *when* or *why* that no existing Vibe covers. A bare *"loved it"* considers existing Vibes only.
+- **A new Vibe**, at most one, anchored on this film — and only when the film points to an evening
+  none of their Vibes holds: read from the film itself, their other films and verdicts, and
+  anything they said about it, never by asking them why. Offer it as step 3 of *When a liked or
+  loved needs a Vibe* does: one recommended new Vibe and two meaningfully different alternatives,
+  three different evenings the film could stand for, not three names for one idea. Where a
+  minimal change to the Vibe it is in would hold that evening too — one its core still fits wholly
+  — offer both, as *When both make sense* says; the film stays in that Vibe either way.
 
 When nothing fits, stop and say nothing more about it. Most verdicts end there, and that is fine.
 
 **Asking has a budget.** At most one offer per statement, and at most one new Vibe in it — a
-`vibe_required` offer is still one offer: its recommended Vibe and two alternatives, of which they
-pick one. An idea they declined is not offered again in this conversation. Never nag: an offer is
+`vibe_required` offer, or a new Vibe for a kept one, is still one offer: its recommended Vibe and
+two alternatives, of which they pick one — and so is one that offers both, as *When both make
+sense* says. An idea they declined is not offered again in this conversation. Never nag: an offer is
 a sentence they can ignore, not a question they have to answer.
 
-**When a film answer is owed** — *"Loved Knives Out — what should I watch tonight?"* — the answer
+**When a film answer is owed** — a verdict and a request for a film in one breath — the answer
 comes first and whole, in tonight-recommend's shape, and the verdict is recorded alongside it.
 The offer may be the answer's one closing question; it never displaces the lead or the
 directions, and if it does not fit there it waits for the next turn.
@@ -259,7 +285,9 @@ not happen.
    - **a new core, or a first one** — `update_vibe` with the core. The film it replaces stays in
      the Vibe.
 3. Further films — `update_movie` with the Vibes it is in now plus the agreed ones, or
-   `create_movie` for a film that is not saved yet.
+   `create_movie` for a film that is not saved yet. That includes the new core when it also
+   belongs to a Vibe they have: its `update_movie` lists the new Vibe and that one — the list
+   replaces what was there, so a Vibe left out of it is a Vibe the film leaves.
 4. Every liked or loved that was answered `vibe_required` — `record_verdict` again with its
    `retry.arguments`, now that its film is filed.
 5. One short sentence saying what was written.
@@ -268,20 +296,19 @@ not happen.
 stronger judgement than theirs; an occasion, daypart or attention field anywhere; a Vibe, a
 membership or a core without their yes; any record that a Vibe offer was made or turned down.
 
-### How it sounds
+### What each kind of statement writes
 
-| They say | Written | Then |
+| What they said | Written | Then |
 | --- | --- | --- |
-| *"I loved Paterson."* | `loved`, no `because` — kept if Paterson is in a Vibe | kept: existing Vibes only — no reason was given. In no Vibe: not saved yet — its Vibe (an existing one, or one recommendation and two alternatives), then `record_verdict` again |
-| *"Logan Lucky was great for a lazy Sunday afternoon when I don't need to pay full attention."* | `liked`, `because` = that clause, verbatim — kept if it is in a Vibe | a Vibe whose instruction covers it, or one new-Vibe offer anchored on Logan Lucky — in no Vibe, that offer comes first and the verdict after it |
-| *"It was exactly my thing because of the dialogue."* | `liked`, `because` verbatim — kept if it is in a Vibe | strengthen a Vibe about dialogue; maybe one new one — in no Vibe, its Vibe first |
-| *"Good, but I don't need another movie like this."* | `liked`, `because` verbatim — kept if it is in a Vibe | **stop** — they declined more of the kind; in no Vibe, say once it is not kept without one, and offer nothing |
-| *"It was fine, I guess."* | nothing, unless one light question settles it | nothing |
-| *"I hated it."* | `disliked` | tension once, if the film is in a Vibe |
-| *"Stop suggesting it."* | `dont-want-to-see` on the film — never `disliked`, which says they watched it | nothing about Vibes |
-| *"Don't recommend it again."* | `dont-want-to-see` on the film — a viewing, not a verdict | nothing about Vibes |
-| *"Not tonight — too long."* | at most a pass on that evening, *"too long"* as its reason — it is about an evening, not the film | nothing about Vibes |
-| *"I watched it last night."* | a viewing, `seen-now`; `started` on a recorded evening only when they referred to it, a new evening of their own when they named none you recorded, and no evening when it is unclear | nothing — watching is not an opinion |
+| They loved it, and gave no reason | `loved`, no `because` — kept if the film is in a Vibe | kept: as *What to consider* says — a new Vibe only where the film points to an evening none of theirs holds, and nobody is asked why. In no Vibe: not saved yet — its Vibe (an existing one, or one recommendation and two alternatives), then `record_verdict` again |
+| They liked it, and said when or how it worked for them | `liked`, `because` = their words, verbatim — kept if it is in a Vibe | a Vibe whose instruction covers it, or one new-Vibe offer anchored on that film — in no Vibe, that offer comes first and the verdict after it |
+| They liked it for one part of the film | `liked`, `because` verbatim — kept if it is in a Vibe | strengthen a Vibe about that part; maybe one new one — in no Vibe, its Vibe first |
+| They liked it, and want no more of the kind | `liked`, `because` verbatim — kept if it is in a Vibe | **stop** — they declined more of the kind; in no Vibe, say once it is not kept without one, and offer nothing |
+| Lukewarm or ambiguous words | nothing, unless one light question settles it | nothing |
+| They disliked it | `disliked` | tension once, if the film is in a Vibe |
+| They ask not to be offered it again | `dont-want-to-see` on the film — a viewing, not a verdict, and never `disliked`, which says they watched it | nothing about Vibes |
+| They turn it down for one evening, with a reason | at most a pass on that evening, their reason with it — it is about an evening, not the film | nothing about Vibes |
+| They say they watched it recently | a viewing, `seen-now`; `started` on a recorded evening only when they referred to it, a new evening of their own when they named none you recorded, and no evening when it is unclear | nothing — watching is not an opinion |
 
 ## Keeping a film: which Vibe, and proposing one
 
@@ -316,16 +343,19 @@ It would be built on your Heist and one new Genre, Double-cross: plots where nob
 is telling the truth. The Sting and Before the Devil Knows You're Dead would sit in there too. Or
 Nobody Plays Straight, or Small Room, Big Lies — which sounds more like you? Shall I make it?"*
 
-Said in one breath, not laid out as a form. The films are there to show what the idea covers, the
+Said in one breath, not laid out as a form, and closed by one question: whether to make it. The films are there to show what the idea covers, the
 way you would describe a shelf by pointing at what is on it — a name alone is a label, and
 somebody agreeing to a label has agreed to less than they think. The alternative names are there
 because a name is easier to judge against another name than on its own, and the idea is theirs to
-name.
+name. That proposal, with its other names, is for a film they ask you to keep. Where a new Vibe is
+offered for a film they liked or loved — step 3 of *When a liked or loved needs a Vibe*, or a kept
+one's new Vibe — its two alternatives are other Vibes, other evenings the film could stand for,
+never other names for the same one.
 
 Those films are the one place where naming films is not the start of anything. Mentioning a film
 has never written one down, and none of the writing rules reach them: the user has said nothing
 about them, so there is nothing to record, nothing to classify and no Vibe to put them in. If they
-then say something about one — *"oh, I loved that one"* — that is a new statement about a film,
+then say something about one, that is a new statement about a film,
 and it goes through *When they tell you how a film worked for them* like any other.
 
 ## A new user's first films
@@ -357,7 +387,7 @@ they said, and that is all.
 Vibes written before cores existed have none, some hold no films at all, and some films sit in
 no Vibe. None of it is broken, and none of it is raised unprompted. Go through it only when:
 
-- they ask — *"let's go through my vibes"*; or
+- they ask to go through them; or
 - a Vibe with no core is already the subject — new evidence fits it, or they are changing it.
 
 Then, Vibe by Vibe, each item an offer and nothing written without a yes:
@@ -387,12 +417,12 @@ down is how Tonight gets better at this without anybody configuring it. Wanting 
 is not saying it, and on its own leaves nothing behind.
 
 Two Genres meaning the same thing are one taste split in two; two Vibes meaning different things
-are two ideas, and merging them loses one. If `Slow burn` is there, do not add `Slow-paced`. A
-Genre worth creating is reusable — something that could turn up in a different mood on a
-different night: `Clever thriller`, `Light suspense`, `Practical effects`.
+are two ideas, and merging them loses one. Never add a Genre whose meaning one of theirs already
+has, under a different name. A Genre worth creating is reusable — something that could turn up
+in a different mood on a different night.
 
 One conversation should not produce eight Genres.
 
 What a Vibe may be built from, and whose voice an instruction is written in, are `create_vibe`'s and
 `create_genre`'s to state. Names are how everything refers to everything else, so write them as
-ordinary phrases — `Slow burn`, not `SlowBurn`.
+ordinary phrases — words with spaces between them, never run together.

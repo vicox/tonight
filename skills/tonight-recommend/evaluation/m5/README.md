@@ -7,10 +7,10 @@ reruns it (`docs/work/m5/M5-PLAN.md`, §10 and Revision 4).
 
 | file | what it is |
 | --- | --- |
-| `scenarios.json` | the matrix: fixture, request, an optional second turn, the family, whether it counts toward the missed-consideration metric, and the sources it runs on |
+| `scenarios.json` | the matrix: fixture, request, optional follow-up turns, the family, whether it counts toward the missed-consideration metric, and the sources it runs on |
 | `prompts.md` | every request, verbatim |
 | `rubric.md` | how a run is scored: the ten inadmissible outcomes, the per-run fields, the threshold |
-| `fixtures/` | the four models the scenarios start from |
+| `fixtures/` | the six models the scenarios start from |
 | `run.mjs` | the runner |
 
 ## Two sources, because the plugin may load either skill
@@ -53,9 +53,68 @@ films, then genres** are deleted — a film that anchors a vibe cannot be delete
 — and the fixture is written again, each vibe with its core before any other film. The state
 before and after is snapshotted and named in the artifact by digest.
 
-**Second turns** resume the recorded session with `claude -p --resume`. A run whose second turn
-came back in a different session is marked failed: it did not resume, and is not scored as though
-it had.
+**Follow-up turns** — `then`, one request key or a list of them — resume the recorded session
+with `claude -p --resume`. A run whose follow-up came back in a different session is marked
+failed: it did not resume, and is not scored as though it had. A failed turn stops the turns
+after it. Wherever a follow-up has `{title:N}`, it sends the title the answer before it offered as
+choice N — by number where the answer numbers a list, as the three line-leading bold titles where
+nothing is numbered — and fails before any call when it cannot tell which title that is. How the
+list is formatted is scored as presentation, apart, and a pick the runner cannot read leaves the
+turns after it UNTESTED (`rubric.md`). The artifact records what each turn sent and which Tonight
+calls it made.
+
+**The Vibe-offer set** (`docs/work/vibe-hypotheses` §17) is the `m5-05-partial-fit` and
+`m5-06-bloom-saved` scenarios, with the first-films offer. One pass:
+
+```bash
+node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only \
+  --only m5-05-partial-fit --runs 1 --budget 2
+node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills \
+  --only m5-05-partial-fit,m5-06-bloom-saved,m5-02-empty__hi__then-three-films --runs 1 --budget 9
+```
+
+Its baseline is recorded at the commit that added the set, where the instructions and the server
+are those of `5231b1d`, and never at a later commit.
+
+## DeepSeek as the agent, and a baseline with today's harness
+
+`docs/work/vibe-hypotheses` §12.
+
+- **`--backend deepseek`** drives the adapter in `../deepseek.mjs` instead of `claude -p`:
+  - the same system prompt, and Tonight's tools only, through the same proxy, so the transcript,
+    the turn boundaries and the snapshots are made the same way;
+  - `--model` defaults to `deepseek-v4-pro`, and `--host` is refused;
+  - the key comes from `DEEPSEEK_API_KEY` and is never recorded;
+  - results go to `…-deepseek-<model>`, never beside a Claude recording;
+  - the artifact adds `backend`, `fingerprint`, `usage` (turns and API requests named apart, input
+    split by the cache, output) and `usage_file`;
+  - `usage/<run>.jsonl` holds every API request with its UTC time, so a run is priced request by
+    request, outside the harness.
+
+  It refuses to record while the harness under `skills/tonight-recommend/evaluation/` has
+  uncommitted changes, so `harness:` names the code that ran.
+- **`--against <commit>`** records that commit's instructions with today's harness. From a clean
+  tracked tree only, it:
+  1. freezes both SHAs;
+  2. installs a restore that runs on exit, error or signal;
+  3. puts the three instruction files of `<commit>` in the working tree;
+  4. guards against `<commit>`;
+  5. puts `HEAD`'s files back however the invocation ends.
+
+  Results go to `…-<commit>-harness-<HEAD>…`.
+- **Either one first waits for the server to serve the tool catalog** the `server.ts` on disk
+  registers. That catalog is computed in a fresh process, and the wait gives up after 120 seconds,
+  before anything is seeded. Every artifact records the `tools_digest` it was served.
+
+A pass of the three Vibe-offer scenarios, baseline and after:
+
+```bash
+node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only --backend deepseek \
+  --only m5-05-partial-fit --runs 1 --budget 2 --against fdb99b9
+node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills --backend deepseek \
+  --only m5-05-partial-fit,m5-06-bloom-saved --runs 1 --budget 7 --against fdb99b9
+# then the same two without --against
+```
 
 A normal sweep **skips the legacy fixture** and says so — and the fixture from before the vibe
 rule too; each runs one scenario at a time, below.

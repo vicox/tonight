@@ -27,6 +27,20 @@ nothing about the evaluation, and nothing that names a tool or a Vibe operation.
 | `like-oceans-tonight` | *"Something like Ocean's Eleven for tonight?"* |
 | `knives-out-and-tonight` | *"Loved Knives Out — what should I watch tonight?"* |
 
+## A film they liked, and what they loved in it
+
+`docs/work/vibe-hypotheses`: a liked with a reason, on a film whose evening one of their Vibes is
+and whose reason none of them says.
+
+| key | request |
+| --- | --- |
+| `bloom-clever` | *"I liked The Brothers Bloom because clever characters do smart things."* |
+| `like-bloom-tonight` | *"Something like The Brothers Bloom for tonight?"* |
+| `liked-bloom` | *"I liked The Brothers Bloom."* |
+
+`liked-bloom` is the same film with no reason (§19): on `m5-04-reading` no Vibe of theirs is its
+evening, and on `m5-05-partial-fit` one is.
+
 ## The second turn
 
 Given after one of the requests above, in the same session.
@@ -37,6 +51,14 @@ Given after one of the requests above, in the same session.
 | `no` | *"No, leave it."* |
 | `partial` | *"Only the first part, not the rest."* |
 | `three-films` | *"Paterson, Arrival and Palm Springs."* |
+| `pick-title-one` | *"{title:1}"* |
+
+`{title:N}` is not sent as written. The runner puts in its place the title the answer before it
+offered as choice N — the title alone, as somebody choosing by title would say it — and fails the
+turn before any call when that answer does not say which title that is (`evaluation/lean.mjs`,
+`titleNumbered`). Most formatting does not decide it: titles are read by their number where the
+answer numbers a list, and as the three line-leading bold titles, in order, where nothing is
+numbered. A pick the runner cannot read leaves the turns after it UNTESTED (`rubric.md`).
 
 ## Somebody new
 

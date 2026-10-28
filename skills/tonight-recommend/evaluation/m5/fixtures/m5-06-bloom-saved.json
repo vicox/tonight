@@ -1,0 +1,49 @@
+{
+  "id": "m5-06-bloom-saved",
+  "user": "google:eval-m5-06-bloom-saved",
+  "title": "The same model, with the liked film already kept on that Vibe as a film they wanted to see",
+  "exists_for": ["hypotheses", "title-pick", "in-the-moment-capture", "kept-path"],
+  "construction_note": "docs/work/vibe-hypotheses. m5-05's model, with The Brothers Bloom saved earlier as want-to-see and filed in Champagne & Blueprints, with nothing said about it. A liked said now is kept at once — the film is filed — and says they watched it, so its viewing moves to seen-before in that turn (nothing places it recently). The offer is then only about a new Vibe, which a pick anchors on Bloom while it stays in Champagne & Blueprints.",
+  "writes": true,
+  "model": {
+    "genres": [
+      { "name": "Heist", "instruction": "I like a plan, a crew, and watching the job come together." },
+      { "name": "Glamour", "instruction": "I like beautiful places and people dressed for them." },
+      { "name": "Slow Burn", "instruction": "I like films that take their time and trust me to wait." },
+      { "name": "Character Story", "instruction": "I want to come out knowing a person, not a plot." }
+    ],
+    "vibes": [
+      {
+        "name": "Champagne & Blueprints",
+        "genres": ["Heist", "Glamour"],
+        "instruction": "Glamorous capers, where I get to enjoy the plan as much as the places.",
+        "core": { "title": "Ocean's Eleven", "year": 2001 }
+      },
+      {
+        "name": "Reading Room",
+        "genres": ["Slow Burn", "Character Story"],
+        "instruction": "Films that are patient with me, where nothing is chasing anyone.",
+        "core": { "title": "Paterson", "year": 2016 }
+      }
+    ],
+    "movies": [
+      { "title": "Ocean's Eleven", "year": 2001, "vibes": ["Champagne & Blueprints"], "viewing": "seen-before" },
+      { "title": "Paterson", "year": 2016, "vibes": ["Reading Room"], "viewing": "seen-before" },
+      { "title": "The Brothers Bloom", "year": 2008, "vibes": ["Champagne & Blueprints"], "viewing": "want-to-see" }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": { "title": "Ocean's Eleven", "year": 2001 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "Paterson", "year": 2016 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    }
+  ]
+}

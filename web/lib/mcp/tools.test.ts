@@ -559,6 +559,20 @@ test("a vibe is asked for as one idea, read from the genres' instructions", asyn
   assert.match(update, /a minimal one — the exact new\s+words, shown to them/u, "update_vibe: no minimal-change rule");
   assert.match(update, /write it only on their yes to those words/u, "update_vibe: a minimal change without their yes");
   assert.match(update, /a different evening is a new vibe, not a reworded one/u, "update_vibe: a stretch is allowed");
+  // docs/work/vibe-hypotheses §17: the hypothesis and title rules are 1.9.1's again — none of
+  // them is in a description.
+  assert.doesNotMatch(update, /say a reason it was not about/u, "update_vibe: the reverted reason rule is back");
+  // §20: a rewording its core would no longer fit wholly is a new vibe, not a reworded one.
+  assert.match(update, /and so is one\s+its core would no longer fit wholly/u, "update_vibe: a rewording may lose its core");
+  assert.doesNotMatch(create, /picked by its title/u, "create_vibe: the reverted title rule is back");
+  assert.doesNotMatch(describing("create_genre"), /a title they picked/u, "create_genre: the reverted title rule is back");
+  // A liked said now moves a want-to-see film; one that stands from before does not.
+  for (const tool of ["create_movie", "update_movie"]) {
+    const viewing = fieldOf(tool, "viewing");
+    assert.match(viewing, /except for a film saved as want-to-see that they tell you now they liked or loved: that is their word that they watched it/u,
+      `${tool}: a liked said now is not their word`);
+    assert.match(viewing, /A liked or loved that only stands from before does not move it/u, `${tool}: a standing liked moves the list`);
+  }
   assert.match(update, /Changing the rest to fit is rewording their sentence by another route/iu,
     "update: fixing incoherence by editing their words is not ruled out");
 });
@@ -765,6 +779,21 @@ test("no cross-tool rule has been copied into a tool description", async () => {
     ["update_genre"],
     "the workflow half of the rewording rule has spread beyond where it already was",
   );
+});
+
+test("no tool description shows its rule with a film, a vibe or a genre", async () => {
+  // docs/work/vibe-hypotheses §15: the descriptions state their rules and name no
+  // example — and the ones they used to name were the evaluation fixtures' own.
+  const tools = await listTools(await tokenFor(someone()));
+  const everything = JSON.stringify(tools);
+  for (const name of [
+    /Bloom|Champagne|Blueprints|Masterminds/,
+    /Paterson|Arrival|\bHeat\b|\bDune\b|Am[ée]lie/,
+    /Space Tension|Puzzle Pressure|Small Town Secrets|Sci-Fi|\bAction\b|Slow burn/,
+    /Smart, not heavy|Funny action|tension never lets up|quiet films|quiet, patient/,
+  ]) {
+    assert.equal(name.test(everything), false, `${name} is named in a tool description`);
+  }
 });
 
 test("a movie is saved with what the user said, and appears once in the model", async () => {
@@ -1258,6 +1287,13 @@ test("a film not saved as seen is never a core, and a standing liked does not ma
     );
     assert.match(core.description ?? "", /a\s+liked or loved does not override it/u, `${name}: liked overrides`);
     assert.match(core.description ?? "", /never\s+to get past this/u, `${name}: a bypass is allowed`);
+    // docs/work/vibe-hypotheses: what they say now is their word; what stands from
+    // before is not.
+    assert.match(
+      core.description ?? "",
+      /A liked or loved they tell you now is their word that they watched it; one that only stands from before is not/u,
+      `${name}: a liked said now is not their word`,
+    );
     assert.match(
       core.description ?? "",
       /saved first if it is not saved yet — as `viewing` says, seen-now or seen-before, or as seen-before without one/u,

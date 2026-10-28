@@ -1621,9 +1621,9 @@ test("M9: each sentence writes its own fact on its own film", () => {
     ["a stated no to watching", /\| \*"we didn't watch it"\* \| `started: false` \|/],
     ["a choice taken back", /\| \*"actually not that one"\*, about a choice \| `chosen: false` \|/],
     ["a pass with their words", /\*"nah, not that one"\* \| `passed: true`, their words as `passReason` if they gave any \|/],
-    ["a film of their own", /\| \*"we're watching Heat instead"\*, Heat not offered \| Heat as theirs, `started: true` \|/],
+    ["a film of their own", /\| \*"we're watching X instead"\*, X not offered \| X as theirs, `started: true` \|/],
     ["an evening of their own", /naming no evening you recorded \| a new evening: `record_episode` with `offers` and no request \|/],
-    ["a verdict is never an evening", /\| \*"loved Arrival"\* \| never an evening — that is a verdict \|/],
+    ["a verdict is never an evening", /\| \*"loved X"\* \| never an evening — that is a verdict \|/],
     ["a viewing is never an evening", /\| \*"I've seen it"\* \| never an evening — that is a viewing \|/],
   ] as [string, RegExp][]) {
     assert.match(flat, row, `the skill lost: ${what}`);
@@ -1641,7 +1641,7 @@ test("M9: a statement touches an evening only on an unambiguous reference, and n
   assert.match(which, /A statement \*\*updates\*\* an evening only when it unambiguously refers to that evening/);
   assert.match(which, /A film's title, or the evening being recent, is never the reference/);
   // (ii) an explicit report of their own evening creates a new one.
-  assert.match(which, /names no evening you recorded — \*"I'm watching Heat tonight"\*, \*"we watched Heat last night"\* — \*\*creates a new\*\* evening with no request\. It never attaches to an existing one/);
+  assert.match(which, /names no evening you recorded — \*"I'm watching X tonight"\*, \*"we watched X last night"\* — \*\*creates a new\*\* evening with no request\. It never attaches to an existing one/);
   // (iii) an ambiguous reference updates none, and no question is asked to file it.
   assert.match(which, /Anything else writes to \*\*no\*\* evening, and no question is asked in order to file it: a statement that might be about a recorded evening but does not say so/);
   assert.match(which, /Nothing in an evening is ever inferred from a verdict or a viewing/);
@@ -1663,7 +1663,7 @@ test("the films put forward are checked immediately before they are presented, a
   for (const [what, rule] of [
     ["when", /Call `check_candidates` \*\*immediately before presenting\*\*/],
     ["which films", /with every film you put forward — the lead and each direction, by title and year, with an IMDb id where you have one/],
-    ["not a film named as a reason", /A film you name only as the reason for one — \*"you loved Sleuth"\* — is not put forward: it is not checked and not replaced/],
+    ["not a film named as a reason", /A film you name only as the reason for one — a film they loved, said back to them — is not put forward: it is not checked and not replaced/],
     ["it supplies none", /The tool checks films you chose; it never supplies one/],
     // `seen` here is the check's yes-or-no answer — true for either seen value and
     // for a film a standing judgement says they watched — never the stored viewing.
@@ -1727,7 +1727,7 @@ test("a watched film is seen now or seen before, read from what they said, and n
     ["folded into a question already put", "Fold it into a question you are already putting"],
     ["never its own round", "it is never a round of its own"],
     ["unanswered is before", "If they still do not say, `seen-before`"],
-    ["what was stored is said", "*\"saved Heat as seen before\"*"],
+    ["what was stored is said", "Then say in one sentence what you stored — the film, and where it now stands on their list"],
     ["no date", "**Neither seen value is a date.** Never state or guess when they watched a film"],
     ["Tonight's times are not a watch time", "`createdAt`, `updatedAt`, when an evening was recorded"],
     ["their own timing may be said back", "Saying back the timing they gave you is fine"],
@@ -1762,7 +1762,7 @@ test("the vibes skill files a watched film by the same rule, and asks when insid
     ["a saved film keeps its own", "A saved film keeps its own viewing whatever `core.viewing` says"],
     ["a contradiction asks once, with when", "ask once whether they have seen it and, if so, recently or a while ago — one question"],
     ["filing a liked film: not when", "liking it says they watched it, not when"],
-    ["the table: last night is now", "*\"I watched it last night.\"* | a viewing, `seen-now`"],
+    ["the table: a recent watch is now", "They say they watched it recently | a viewing, `seen-now`"],
   ] as [string, string][]) {
     assert.ok(vibes.includes(marker), `the vibes skill lost: ${what}`);
   }

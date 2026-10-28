@@ -26,7 +26,7 @@ const read = (path: string) => readFileSync(new URL(path, M5), "utf8");
 type Scenario = {
   fixture: string;
   prompt: string;
-  then?: string;
+  then?: string | string[];
   family: string;
   considers: boolean;
   sources: string[];
@@ -61,15 +61,18 @@ const fixtures = new Map(
 
 const SOURCES = ["plugin-skills", "recommend-only"];
 
+/** A scenario's follow-up turns, in order — the runner's `followUps`, read the same way. */
+const followUps = (one: Scenario) => (one.then === undefined ? [] : Array.isArray(one.then) ? one.then : [one.then]);
+
 test("every scenario resolves to a fixture and to requests that exist, and every request is used", () => {
   const used = new Set<string>();
   for (const one of scenarios) {
     assert.ok(fixtures.has(one.fixture), `${one.fixture} is named by a scenario and does not exist`);
     assert.ok(requests.has(one.prompt), `${one.prompt} is not in prompts.md`);
     used.add(one.prompt);
-    if (one.then !== undefined) {
-      assert.ok(requests.has(one.then), `${one.then} is not in prompts.md`);
-      used.add(one.then);
+    for (const then of followUps(one)) {
+      assert.ok(requests.has(then), `${then} is not in prompts.md`);
+      used.add(then);
     }
     assert.ok(one.sources.length > 0, `${one.fixture}__${one.prompt} runs nowhere`);
     for (const source of one.sources) assert.ok(SOURCES.includes(source), `${source} is not a source`);
@@ -133,7 +136,10 @@ test("what the retired projection covered runs on recommend alone, and the lifec
   // ran on the ChatGPT-project projection, which had one skill and no second. It moved
   // to `recommend-only`, the selection that likewise has recommend and nothing else, and
   // not onto `plugin-skills`, where the same scenario would be a lifecycle case.
-  const lifecycleOnly = ["second-turn", "going-through"];
+  // The Vibe-offer runs that only the lifecycle can finish — a decline, the kept path —
+  // are the plugin's too. The plain yes stays on both: on recommend alone the refusal's
+  // own `next` is all the guidance there is.
+  const lifecycleOnly = ["second-turn", "going-through", "partial-fit-declined", "kept-new-vibe"];
   for (const one of scenarios) {
     assert.ok(!one.sources.includes("projection"), `${one.fixture}__${one.prompt} still runs on the projection`);
     assert.equal(new Set(one.sources).size, one.sources.length, `${one.fixture}__${one.prompt} lists a source twice`);
@@ -155,8 +161,90 @@ test("the plan's routing rows, second turns and families are all in the matrix",
   ]) {
     assert.ok(families.has(family), `the matrix has no ${family} family`);
   }
-  const then = new Set(scenarios.flatMap((one) => (one.then ? [one.then] : [])));
+  const then = new Set(scenarios.flatMap(followUps));
   for (const answer of ["yes", "no", "partial"]) assert.ok(then.has(answer), `no second turn of ${answer}`);
+});
+
+test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept path to a recommendation", () => {
+  // docs/work/vibe-hypotheses §17. The offer itself is scored on the first turn of every
+  // run, so no run exists only to look at it.
+  const offers = scenarios.filter((one) => one.prompt === "bloom-clever");
+  const shape = offers.map((one) => [one.fixture, followUps(one).join(" → "), [...one.sources].sort().join(", ")]);
+  assert.deepEqual(shape, [
+    ["m5-05-partial-fit", "yes", "plugin-skills, recommend-only"],
+    ["m5-05-partial-fit", "no", "plugin-skills"],
+    ["m5-06-bloom-saved", "pick-title-one → like-bloom-tonight", "plugin-skills"],
+  ]);
+  for (const one of offers) assert.equal(one.considers, true, `${one.fixture}__${one.prompt} is positive and not counted`);
+
+  // A pick is the title alone, resolved by the runner — never a sentence about it.
+  assert.equal(requests.get("pick-title-one"), "{title:1}");
+  assert.equal(requests.get("bloom-clever"), "I liked The Brothers Bloom because clever characters do smart things.");
+  assert.match(requests.get("like-bloom-tonight")!, /The Brothers Bloom/, "the follow-on request does not reach for the film");
+
+  // The models: The Brothers Bloom absent from one, want-to-see on Champagne &
+  // Blueprints in the other, and a second Vibe whose evening it is not in both.
+  const bloom = (id: string) => fixtures.get(id)!.model.movies.find((movie) => movie.title === "The Brothers Bloom");
+  assert.equal(bloom("m5-05-partial-fit"), undefined);
+  assert.deepEqual(bloom("m5-06-bloom-saved"), {
+    title: "The Brothers Bloom",
+    year: 2008,
+    vibes: ["Champagne & Blueprints"],
+    viewing: "want-to-see",
+  });
+  for (const id of ["m5-05-partial-fit", "m5-06-bloom-saved"]) {
+    const spec = fixtures.get(id)!;
+    assert.equal(spec.seed, undefined, `${id} must be reseeded through today's tools before every run`);
+    assert.deepEqual(spec.model.vibes.map((vibe) => vibe.name), ["Champagne & Blueprints", "Reading Room"]);
+    assert.equal(
+      spec.acts?.some((act) => act.film.title === "The Brothers Bloom"),
+      false,
+      `${id}: something is already said about the film the request is about`,
+    );
+  }
+
+  // The rubric scores the offer and every follow-up, and the README has the pass.
+  for (const family of ["partial-fit", "partial-fit-declined", "kept-new-vibe"]) {
+    assert.ok(rubric.includes(`| ${family} |`), `the rubric has no row for ${family}`);
+  }
+  assert.match(rubric, /## Vibe offers after a liked: how a run is scored/);
+  // A turn never sent is neither a pass nor a failure of what it would have shown.
+  assert.match(rubric, /\*\*UNTESTED\*\*: never a PASS, and\s+never a FAIL of what it would have shown/);
+  // 1.9.1's behaviour, the one change, and the workflow fixes kept from the live runs.
+  for (const [what, criterion] of [
+    ["the verdict first", /\*\*The verdict, first\.\*\* `record_verdict` is called in turn 1, before any taste write/],
+    ["filing before a yes", /Filing the film before a yes is outcome 1/],
+    ["an existing Vibe first, and no new one expected", /\*\*An existing Vibe first\.\*\*[^]*A new Vibe\s+is not expected; whether the fit is full or partial is the agent's judgement, never a number/],
+    // §20: where both make sense, both — one recommended in a line, their choice — and the
+    // core still fits a new wording wholly.
+    ["both where both make sense, on T1", /\*\*Where both make sense, both\*\*[^]*one recommended in a line, and their\s+choice\. A new Vibe with no filing in Champagne & Blueprints, or a Genre on its own, fails/],
+    ["both on the kept path, the core still fitting", /\*\*Where a minimal new wording of Champagne & Blueprints would hold\s+that evening too, both\*\*[^]*one Ocean's Eleven still\s+fits wholly/],
+    // Code review: a plain yes takes the recommendation only when it clearly did.
+    ["a yes to both is clear, or asked about", /where both were offered, the recommended one only if the yes clearly took it, and otherwise one question about which before anything is written/],
+    ["a chosen new wording keeps its core", /A new wording they chose is written with `update_vibe`, and the core still fits it\s+wholly/],
+    ["the kept path's one change", /\*\*One offer of a new Vibe: one recommended and two meaningfully different alternatives\*\*/],
+    // §21: three evenings the film could stand for, not three readings of a reason — and
+    // nobody asked why.
+    ["three evenings, not three names", /Three different evenings the film could stand for, not three names for one idea/],
+    ["nobody asked why", /with Bloom as its\s+core, and nobody asked why/],
+    // Code review: a missing offer fails K1 on its own, and is never read as a missed
+    // consideration — that is the transcript's, as the metric defines it.
+    ["no offer is a K1 failure, not a missed consideration", /No such offer is a FAIL of K1\.3 on its\s+own[^]*never a `stopped_after_record: yes`/],
+    ["no second question about when", /\*\*the question about when is not asked again\*\*/],
+    ["want-to-see moved at once", /\*\*before the offer and\s+without asking first\*\*/],
+    ["the overlap kept", /\*\*The overlap is kept\.\*\*/],
+    ["nothing after a decline", /### After a decline\s+Nothing is written after it\./],
+  ] as const) {
+    assert.match(rubric, criterion, `the rubric does not score ${what}`);
+  }
+  // None of the reverted hypothesis criteria is scored any more.
+  assert.doesNotMatch(rubric, /three hypotheses|facet|ranked by the verdict|word for\s+word|numbered bold-title/iu);
+  // A pick the runner cannot read is its own limit, not evidence about the agent.
+  assert.match(rubric, /\*\*A pick the runner cannot resolve is the runner's\s+limit, not evidence about the agent\*\*/);
+  // A yes or pick without timing is seen-before only when nothing placed it; timing given stands.
+  assert.match(rubric, /with nothing earlier in the conversation placing it\s+— writes `seen-before`\. Timing they did give stands/);
+  assert.match(readme, /--only m5-05-partial-fit,m5-06-bloom-saved,m5-02-empty__hi__then-three-films --runs 1 --budget 9/);
+  assert.match(readme, /--only m5-05-partial-fit --runs 1 --budget 2/);
 });
 
 test("the recommendation-only reading case runs on recommend alone (R3-1)", () => {
@@ -243,8 +331,13 @@ test("a recording is named by the skills it was given, the source and the commit
     "the runner still reads the retired projection");
   assert.match(runner, /createHash\("sha256"\)\.update\(instructions\(\), "utf8"\)\.digest\("hex"\)\.slice\(0, 8\)/,
     "the version is not a digest of the instructions supplied");
-  assert.match(runner, /const OUT = join\(SET_DIR, "results", `\$\{SET\}-\$\{SOURCE\}-\$\{VERSION\}-\$\{TARGET\}\$\{HOST\.suffix\}`, "runs"\);/,
-    "the result directory no longer names set, source, digest, commit and host");
+  // A Claude run without --against is named exactly as before; a baseline recorded with
+  // today's harness names that harness too, and a DeepSeek run its backend and model.
+  assert.match(
+    runner,
+    /`\$\{SET\}-\$\{SOURCE\}-\$\{VERSION\}-\$\{TARGET\}\$\{SWAP === null \? "" : `-harness-\$\{HARNESS\}`\}\$\{HOST\.suffix\}`/,
+    "the result directory no longer names set, source, digest, commit, harness and host",
+  );
   assert.match(runner, /\binstructions: \$\{VERSION\}$/m, "an artifact does not name the digest it ran on");
   assert.match(runner, /^target: \$\{TARGET\}$/m, "an artifact does not name its commit");
 });
@@ -258,7 +351,9 @@ test("the runner reseeds every run, snapshots after every run, and never reseeds
   assert.match(readme, /\*\*vibes, then\s+films, then genres\*\*/);
   // A second turn that did not resume is a failure, not a fresh conversation scored
   // as the second half of one.
-  assert.match(runner, /did not resume/);
+  // The check lives in the turn loop the runner awaits (`lean.mjs`, `runTurns`).
+  assert.match(readFileSync(new URL("../lean.mjs", M5), "utf8"), /did not resume/);
+  assert.match(runner, /await checkedTurns\(requests,/);
 });
 
 test("a legacy scenario runs alone, once, per fresh v12 seed and migration", () => {
