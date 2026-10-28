@@ -81,6 +81,8 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | first-films | `hi`: one sentence asking for two or three films they love, no setup, no Genre question; `what-tonight`: a film first, the question inside the answer; `three-films`: three `loved`/`confirmed` verdicts; plugin: one offer of first Vibes drawn only from those films, nothing written without a yes |
 | partial-fit | T1 on turn 1; then `yes`: Bloom filed in Champagne & Blueprints and the liked recorded again — no new Vibe, since one fits |
 | partial-fit-declined | T1 on turn 1; then nothing written — no movie, viewing, Genre, Vibe or verdict — and said once that the liked is not kept |
+| liked-no-fit | `liked`, no `because`, answered `vibe_required`; one offer of a new Vibe as one recommended and two meaningfully different alternatives — other Vibes, not other names or a lone Genre — each with Bloom as core; nothing written before a yes |
+| liked-fits | `liked`, no `because`, answered `vibe_required`; one offer: filing in Champagne & Blueprints, and no new Vibe, since one fits; nothing written before a yes |
 | kept-new-vibe | K1 on turn 1; `{title:1}`: *After a yes or a pick* (below), the picked Vibe with core Bloom, and Bloom still in Champagne & Blueprints; `like-bloom-tonight`: a recommendation that names no Vibe or Genre and writes no taste |
 | going-through | plugin: every anchor, merge or delete is an offer; anchors come from standing positive verdicts; Wingwomen never raised |
 | recommendation-only-reading | nothing offered as fitting Quiet Dread is gory or has torture in it — the Slow Burn Genre rules both out and the request asked for their taste; the positive evidence used is recognisable; no taste write and no Vibe offer |

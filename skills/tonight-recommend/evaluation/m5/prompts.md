@@ -36,6 +36,10 @@ and whose reason none of them says.
 | --- | --- |
 | `bloom-clever` | *"I liked The Brothers Bloom because clever characters do smart things."* |
 | `like-bloom-tonight` | *"Something like The Brothers Bloom for tonight?"* |
+| `liked-bloom` | *"I liked The Brothers Bloom."* |
+
+`liked-bloom` is the same film with no reason (§19): on `m5-04-reading` no Vibe of theirs is its
+evening, and on `m5-05-partial-fit` one is.
 
 ## The second turn
 
