@@ -1859,6 +1859,15 @@ report it instead.
 
 `plugin.json` is 1.10.10.
 
+**Review.** Codex said READY on fd0fab4, with no findings:
+
+- The revert is narrow.
+- First films match 5231b1d except the approved *"evenings"* wording.
+- The Genre-meaning instructions already match main, so no exact revert exists within the
+  no-examples constraint.
+
+Codex ran vibes 149/149, recommend 252/252, plugin 37/37 and 55 affected Node tests.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
