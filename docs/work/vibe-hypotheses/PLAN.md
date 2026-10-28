@@ -1574,7 +1574,14 @@ kept-path answer copies the keep-flow paragraph's shape exactly.
 
 **Pins:** three new checks in the two `test.sh` files. Each fails on the text before this change.
 
-`plugin.json` is 1.10.6.
+`plugin.json` is 1.10.6. **Committed as `b903a1d`.** `npm test`: 1372 tests, 1368 pass, with the 4
+known failures.
+
+### 18.1 Codex code review 1 — READY (`b903a1d`)
+
+The conflict is resolved, and the keep flow's naming, the triggers, first films and the
+descriptions are preserved. No example, hypothesis or title rule was added. Codex ran vibes
+141/141, recommend 249/249, plugin 37/37 and 55 affected Node tests.
 
 ### 12.5 Not in scope
 
