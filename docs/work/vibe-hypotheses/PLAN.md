@@ -1786,6 +1786,15 @@ history. It never asks why, and never needs a reason before proposing.
 
 `plugin.json` is 1.10.9.
 
+**Review.** Codex said READY on 2b23d72, with no findings:
+
+- No proposal waits on a reason.
+- What they said stays evidence, and `because` is unchanged.
+- The kept-path trigger keeps its condition and budget.
+- Confirmation and membership are untouched.
+
+Codex ran vibes 148/148, recommend 252/252 and plugin 37/37.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
