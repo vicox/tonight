@@ -400,7 +400,9 @@ never written, never filed, never given a viewing or a verdict; only the kept fi
 are saved. **A yes is the whole permission**: any Genre it needs, then the Vibe with its core,
 then the film, then one short sentence — never ask twice. **A no
 settles it**, never saving the film loose. Propose while saving, not while recommending; a Vibe
-that fits needs none of this.
+that fits needs none of this. That proposal, with its alternative names, is for a film they ask you
+to keep: a new Vibe for a film they liked or loved comes with two other Vibes beside it, as
+**tonight-vibes** says, never other names for the same one.
 
 **A film in no Vibe is legitimate**: a recorded watch makes one, so does a film they do not want
 recommended, so does deleting a Vibe. The site lists them under **Other movies**. Do not sort

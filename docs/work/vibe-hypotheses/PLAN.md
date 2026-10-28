@@ -1540,6 +1540,42 @@ defines it. `evaluation-m5.test.ts` pins the separation.
 K1 now keeps a missing offer apart from a missed consideration, and the pin passes
 (`evaluation-m5` 15/15). Stopped here: no live run, push, merge or deploy.
 
+## 18. Other Vibes, not other names (user-approved fix, 2026-10-28)
+
+**What the Flash smoke test showed:**
+
+- **The kept path** (`m5-06`): one new Vibe, three to five illustration films, *"could just as
+  well be called"* two other names, then *"Want me to make it?"*.
+- **First films** (`m5-02`): the same shape for each group.
+
+Neither offered a recommended Vibe with two meaningfully different Vibes beside it.
+
+**Why.** The only fully worked proposal in either skill is the keep-a-film paragraph, *Proposing a
+new Vibe*. It asks for *"two or three names it could have instead"*, and nothing scoped it to
+keeping a film. Step 3, the kept path and first films say only *"two meaningfully different
+alternatives"*, and the kept-path line also lacked step 3's *"not three names for one idea"*. The
+kept-path answer copies the keep-flow paragraph's shape exactly.
+
+**The fix** is wording only, where the two conflict:
+
+- **`tonight-vibes`, the kept path:** *"…three different reasons the film may have worked for them,
+  not three names for one idea"* — step 3's own words.
+- **`tonight-vibes`, after the keep flow's alternative-names sentence:** *"That proposal, with its
+  other names, is for a film they ask you to keep. Where a new Vibe is offered for a film they
+  liked or loved — step 3…, a kept one's new Vibe, or first films — its two alternatives are other
+  Vibes, other reasons the film may have worked for them, never other names for the same one."*
+- **`tonight-recommend`, the keep flow:** one sentence to the same effect.
+
+**Unchanged:**
+
+- The keep flow's alternative names and illustration films.
+- First films' rule and their illustration films.
+- Triggers, naming and descriptions, `next`, schema and API.
+
+**Pins:** three new checks in the two `test.sh` files. Each fails on the text before this change.
+
+`plugin.json` is 1.10.6.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.

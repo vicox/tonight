@@ -912,6 +912,12 @@ check "a proposed Vibe is shown as an idea: other films in it, other names for i
 it concrete' \
         'three to five other films that would belong' \
         'two or three alternative names')" "True"
+# §18: the alternative names are the keep flow's; a liked film's new Vibe comes with other Vibes.
+check "alternative names are for keeping a film; a liked film's alternatives are other Vibes" \
+    "$(order_check 'two or three alternative names' \
+        'That proposal, with its alternative names, is for a film they ask you' 'to keep' \
+        'a new Vibe for a film they liked or loved comes with two other Vibes beside it' \
+        'never other names for the same one')" "True"
 check "those films illustrate the idea and are never part of the save" \
     "$(order_check 'Those films are illustration only' \
         'never written, never filed' \

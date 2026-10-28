@@ -292,6 +292,10 @@ check "a kept one's new Vibe is offered as step 3 offers one, under the same tri
         'that no existing Vibe covers' \
         'Offer it as step 3 of *When a liked or loved needs a Vibe* does: one recommended new Vibe and two meaningfully different alternatives, three different reasons the film may have worked for them' \
         'A bare *"loved it"* considers existing Vibes only')" "True"
+# §18: Flash offered one Vibe with other names for it. The kept path says what step 3 says.
+check "a kept one's two alternatives are other reasons, not other names for one idea" \
+    "$(order_check 'Offer it as step 3 of *When a liked or loved needs' \
+        'three different reasons the film may have worked for them, not three names for one idea')" "True"
 check "none of the hypothesis, title or ranking machinery is back" \
     "$(grep -ciE 'three hypotheses|chosen by title|my pick|titles lead|facet|ranks them|subject of their reason|readings of their words|beside 1' "$SKILL")" "0"
 # The skill names no film, Vibe or Genre from the evaluation's scenarios, or any other.
@@ -399,6 +403,13 @@ check "a proposed Vibe is shown as an idea: other films in it, other names for i
     "$(order_check 'make the idea concrete' \
         'three to five other films that would belong in it' \
         'two or three' 'names it could have instead')" "True"
+# §18: the keep flow's other names stay the keep flow's; a Vibe offered for a liked or loved
+# film comes with two other Vibes, never two other names for one.
+check "other names are for keeping a film; a liked film's alternatives are other Vibes" \
+    "$(order_check 'The alternative names are there' \
+        'That proposal, with its other names, is for a film they ask you to keep' \
+        'step 3 of *When a liked or loved needs a Vibe*, a kept' "one's new Vibe, or first films" \
+        'its two alternatives are other Vibes, other reasons the film may have worked for them, never other names for the same one')" "True"
 check "those films illustrate the idea and are never part of the save" \
     "$(order_check 'Those films are illustration only' \
         'never written' 'never in the Vibe, never given a viewing or a verdict')" "True"

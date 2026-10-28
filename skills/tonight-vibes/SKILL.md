@@ -229,8 +229,8 @@ decide what, if anything, is worth offering:
 - **A new Vibe**, at most one, anchored on this film — and only when their words carry a *how*,
   *when* or *why* that no existing Vibe covers. Offer it as step 3 of *When a liked or loved needs
   a Vibe* does: one recommended new Vibe and two meaningfully different alternatives, three
-  different reasons the film may have worked for them. A bare *"loved it"* considers existing
-  Vibes only.
+  different reasons the film may have worked for them, not three names for one idea. A bare
+  *"loved it"* considers existing Vibes only.
 
 When nothing fits, stop and say nothing more about it. Most verdicts end there, and that is fine.
 
@@ -326,7 +326,10 @@ Said in one breath, not laid out as a form, and closed by one question: whether 
 way you would describe a shelf by pointing at what is on it — a name alone is a label, and
 somebody agreeing to a label has agreed to less than they think. The alternative names are there
 because a name is easier to judge against another name than on its own, and the idea is theirs to
-name.
+name. That proposal, with its other names, is for a film they ask you to keep. Where a new Vibe is
+offered for a film they liked or loved — step 3 of *When a liked or loved needs a Vibe*, a kept
+one's new Vibe, or first films — its two alternatives are other Vibes, other reasons the film may
+have worked for them, never other names for the same one.
 
 Those films are the one place where naming films is not the start of anything. Mentioning a film
 has never written one down, and none of the writing rules reach them: the user has said nothing
