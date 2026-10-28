@@ -288,6 +288,7 @@ check "when both make sense: both in one offer, one recommended in a line, they 
         'the exact new wording, as 2 says, and a new' 'Vibe as 3 offers one' \
         'which then also goes in the Vibe it partly fits' \
         'Say in one line which you would choose and why, and let them choose' \
+        'a reply that does not make clear which they chose is asked about once, before anything is written' \
         'A film that fits well is only proposed for filing, as 1 says, with nothing more offered')" "True"
 # docs/work/vibe-hypotheses §17: the workflow fixes kept from the live runs, said without
 # any of the hypothesis machinery — no second question about when, the viewing a liked moved.

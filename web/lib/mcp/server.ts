@@ -1429,15 +1429,19 @@ const VIBE_REQUIRED_NEXT =
   "judge by its instruction and genres, not its name — propose filing the film there; if it " +
   "fits except that its sentence does not yet cover this film, show them the exact minimal new " +
   "wording — one its core still fits wholly — and change it with update_vibe only on their yes " +
-  "to those words; where a new vibe would make sense too, offer both in the one offer (choosing " +
-  "the new one also files the film in the vibe it partly fits), say in one line which you would " +
-  "choose and why, and let them choose. A film that only partly fits a vibe goes there only " +
+  "to those words; where a new vibe would make sense too, offer both in the one offer — that " +
+  "wording, and a new vibe offered as (2) offers one — say in one line which you would choose " +
+  "and why, and let them choose; a reply that does not make clear which they chose is asked " +
+  "about once before anything is written. A film that only partly fits a vibe goes there only " +
   "beside one it fits well or anchors. (2) If none fits, " +
   "offer one recommended new vibe and two meaningfully different alternatives — each a " +
   "different reason the film may have worked for them, with a name, a sentence, their genres " +
   "and this film as core — and let their choice say why. (3) On their yes, file it — " +
   "update_movie with its vibes, create_movie with viewing seen-now or seen-before and vibes for " +
-  "an unsaved film, or create_vibe with it as core and core.viewing — a watched film is " +
+  "an unsaved film, or create_vibe with it as core and core.viewing; where they chose the new " +
+  "wording, update_vibe with it first; where they chose a new vibe beside one the film partly " +
+  "fits, create_vibe with it as core and core.viewing, then update_movie listing that new vibe " +
+  "and the one it partly fits, because the list replaces what was there — a watched film is " +
   `${SEEN_RULE}, and when they did not say when, that question goes into the one you put ` +
   "about the vibe; a yes that does not say when is them not saying: unless something they said " +
   "earlier placed it or the film already has a seen viewing, write seen-before, and never ask " +

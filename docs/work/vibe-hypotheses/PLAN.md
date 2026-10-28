@@ -1697,7 +1697,26 @@ skill still never says *reword*: an existing guard keeps that to the update tool
 - The `partial-fit` row covers a yes to a both-offer.
 - `evaluation-m5.test.ts` follows.
 
-Fixtures and scenarios are unchanged. `plugin.json` is 1.10.8.
+Fixtures and scenarios are unchanged. `plugin.json` is 1.10.8. **Committed as `007af0e`.**
+
+### 20.1 Codex code review 1 — NOT READY
+
+Two findings, each fixed:
+
+1. **`next` named the both path but did not carry it.** The new Vibe's shape stayed under *"If
+   none fits"*, and the writes read as alternatives, so recommend alone could drop the
+   alternatives or the partial home. `next` (1) now offers *"that wording, and a new vibe offered
+   as (2) offers one"*. (3) now orders the writes:
+   - for the new wording, `update_vibe` first;
+   - for a new Vibe beside one the film partly fits, `create_vibe` with the film as core, then
+     `update_movie` listing both — the list replaces what was there;
+   - then the retry.
+2. **The rubric read any plain yes as the recommendation.** Now a yes takes it only when it
+   clearly did; otherwise one question about which, before anything is written. The same rule is
+   in the skill's *When both make sense* and in `next`.
+
+**Pins:** `verdicts.test.ts` gains the clarification, the write order, and the retry after the
+filing. The vibes check and the rubric pin follow.
 
 ### 12.5 Not in scope
 

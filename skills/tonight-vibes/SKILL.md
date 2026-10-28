@@ -206,7 +206,8 @@ Then, in this conversation, one offer:
 **When both make sense.** If the film only partly fits a Vibe, and both a minimal change to it and
 a new Vibe would make sense, offer both in the one offer: the exact new wording, as 2 says, and a new
 Vibe as 3 offers one — anchored on the film, which then also goes in the Vibe it partly fits. Say
-in one line which you would choose and why, and let them choose. A film that fits well is only
+in one line which you would choose and why, and let them choose; a reply that does not make clear
+which they chose is asked about once, before anything is written. A film that fits well is only
 proposed for filing, as 1 says, with nothing more offered.
 
 On their yes, write exactly what they agreed, as *Writing what they agreed* says, then call

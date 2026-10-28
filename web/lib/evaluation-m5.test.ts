@@ -219,6 +219,8 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
     // core still fits a new wording wholly.
     ["both where both make sense, on T1", /\*\*Where both make sense, both\*\*[^]*one recommended in a line, and their\s+choice\. A new Vibe with no filing in Champagne & Blueprints, or a Genre on its own, fails/],
     ["both on the kept path, the core still fitting", /\*\*Where a minimal new wording of\s+Champagne & Blueprints would say that why too, both\*\*[^]*one Ocean's Eleven still\s+fits wholly/],
+    // Code review: a plain yes takes the recommendation only when it clearly did.
+    ["a yes to both is clear, or asked about", /where both were offered, the recommended one only if the yes clearly took it, and otherwise one question about which before anything is written/],
     ["a chosen new wording keeps its core", /A new wording they chose is written with `update_vibe`, and the core still fits it\s+wholly/],
     ["the kept path's one change", /\*\*One offer of a new Vibe: one recommended and two meaningfully different alternatives\*\*/],
     ["three reasons, not three names", /Three different reasons the film may\s+have worked for them, not three names for one idea/],

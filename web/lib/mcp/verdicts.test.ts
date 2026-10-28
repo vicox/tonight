@@ -854,7 +854,15 @@ describe("the verdict tools", () => {
       // §20: a rewording keeps its core; where a new vibe makes sense too, both, one recommended
       // in a line, their choice — and a partial fit only beside a vibe it fits well or anchors.
       assert.match(next as string, /exact minimal new wording — one its core still fits wholly —/u);
-      assert.match(next as string, /where a new vibe would make sense too, offer both in the one offer \(choosing the new one also files the film in the vibe it partly fits\), say in one line which you would choose and why, and let them choose/u);
+      assert.match(next as string, /where a new vibe would make sense too, offer both in the one offer — that wording, and a new vibe offered as \(2\) offers one — say in one line which you would choose and why, and let them choose/u);
+      // Code review: a reply that does not say which is asked about, not taken as the
+      // recommendation; and the both path's writes are in order, the partial home kept.
+      assert.match(next as string, /a reply that does not make clear which they chose is asked about once before anything is written/u);
+      assert.match(next as string, /where they chose the new wording, update_vibe with it first; where they chose a new vibe beside one the film partly fits, create_vibe with it as core and core\.viewing, then update_movie listing that new vibe and the one it partly fits, because the list replaces what was there/u);
+      assert.ok(
+        (next as string).indexOf("then update_movie listing that new vibe") < (next as string).indexOf("call record_verdict again"),
+        "the retry comes before the film is filed in both",
+      );
       assert.match(next as string, /A film that only partly fits a vibe goes there only beside one it fits well or anchors/u);
       assert.match(next as string, /one recommended new vibe and two meaningfully different alternatives/u);
       // docs/work/vibe-hypotheses §17: the workflow fixes from the live runs, kept where
