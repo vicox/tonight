@@ -217,6 +217,9 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
     ["an existing Vibe first, and no new one where one fits", /\*\*An existing Vibe first\.\*\*[^]*A Vibe\s+fits, so no new Vibe is expected/],
     ["the kept path's one change", /\*\*One offer of a new Vibe: one recommended and two meaningfully different alternatives\*\*/],
     ["three reasons, not three names", /Three different reasons the film may\s+have worked for them, not three names for one idea/],
+    // Code review: a missing offer fails K1 on its own, and is never read as a missed
+    // consideration — that is the transcript's, as the metric defines it.
+    ["no offer is a K1 failure, not a missed consideration", /No such offer is a FAIL of K1\.3 on its\s+own[^]*never a `stopped_after_record: yes`/],
     ["no second question about when", /\*\*the question about when is not asked again\*\*/],
     ["want-to-see moved at once", /\*\*before the offer and\s+without asking first\*\*/],
     ["the overlap kept", /\*\*The overlap is kept\.\*\*/],

@@ -116,8 +116,10 @@ never a FAIL of what it would have shown.
 3. **One offer of a new Vibe: one recommended and two meaningfully different alternatives** —
    their words carry a why Champagne & Blueprints does not. Three different reasons the film may
    have worked for them, not three names for one idea; each a name, a sentence and its Genres —
-   any new Genre's meaning shown — with Bloom as its core. No offer is a missed consideration
-   (`stopped_after_record: yes`).
+   any new Genre's meaning shown — with Bloom as its core. No such offer is a FAIL of K1.3 on its
+   own. Whether the agent considered their Vibes is a separate reading, from the transcript, as
+   `considered` and `stopped_after_record` define it: having read the model and offered nothing is
+   a consideration, never a `stopped_after_record: yes`.
 4. **No other taste write** in turn 1.
 
 ### After a yes or a pick

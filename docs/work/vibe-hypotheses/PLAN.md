@@ -1523,6 +1523,18 @@ and 233 focused tests. Stopped here: no live run, push, merge or deploy.
 - Without a required format, the runner may resolve fewer picks, so more follow-ups may be
   UNTESTED.
 
+**Committed as `8360abe`.** `npm test`: 1372 tests, 1368 pass, with the 4 known failures.
+
+### 17.1 Codex code review 1 — NOT READY
+
+**Codex ran** vibes 139/139, recommend 248/248, plugin 37/37 and 233 focused tests. It found the
+skills and `server.ts` in scope: the 1.9.1 flow, the listed fixes, the example removal, and no
+hypothesis, facet, ranking or forced-title rule left. **One finding, fixed:** rubric K1 counted
+any missing offer as `stopped_after_record: yes`. That contradicts the metric — having read the
+model and offered nothing is a consideration — and would inflate the missed-consideration rate.
+Now no offer fails K1.3 on its own, and consideration is read from the transcript as the metric
+defines it. `evaluation-m5.test.ts` pins the separation.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
