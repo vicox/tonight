@@ -562,6 +562,12 @@ check "the offer writes on the yes and at no other time" \
         'a yes and you write the Genre' \
         'a no or a change of
 subject and you write nothing')" "True"
+# §19: after a film's verdict, a lone Genre offer competed with the Vibe offer and won. There,
+# the Vibe path wins; a Genre offer anywhere else is unchanged.
+check "after how a film worked for them, a Vibe with the film as core, never a lone Genre" \
+    "$(order_check 'a yes and you write the Genre' \
+        '**After they' 'say how a film worked for them**, what their words carry is offered as **tonight-vibes** says' \
+        'a Vibe with that film as its core, any new Genre part of it — never a Genre on its own')" "True"
 check "and nothing of an offer outlives the asking" \
     "$(order_check 'nothing to write first and nothing left over' \
         'no pending offer, no note that you asked, no record that they declined')" "True"

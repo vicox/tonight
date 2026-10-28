@@ -273,7 +273,9 @@ than the last thing said, say the further part first. Asking is not asking permi
 nothing. The moment you ask them to adopt it — *"want me to turn that into a
 genre?"* — their answer is the whole of it: a yes and you write the Genre, a no or a change of
 subject and you write nothing. There is nothing to write first and nothing left over
-afterwards — no pending offer, no note that you asked, no record that they declined.
+afterwards — no pending offer, no note that you asked, no record that they declined. **After they
+say how a film worked for them**, what their words carry is offered as **tonight-vibes** says: a
+Vibe with that film as its core, any new Genre part of it — never a Genre on its own.
 
 So offer only what you could create on the spot. An offer you would not act on immediately is an
 offer you cannot honour: the conversation is where it lives, and if they come back to it later

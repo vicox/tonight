@@ -488,7 +488,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "writes it there and then.** *\"Want me to turn that into a genre?\"* is answered with " +
         "`create_genre` and nothing else: the genre they agreed to is a genre they have, the " +
         "same as one they asked for outright, and there is nothing to record beforehand and " +
-        "nothing left over after. So offer only what you would write on the spot. Nothing here " +
+        "nothing left over after. After they say how one film worked for them, though, what their " +
+        "words carry is offered as a vibe with that film as its core, any new genre part of it — " +
+        "never as a genre on its own. So offer only what you would write on the spot. Nothing here " +
         "holds a pending offer, so an offer you mean to come back to is an offer only you are " +
         "carrying, and it is gone when this conversation is. Saying what you noticed and asking " +
         "nothing is free and writes nothing at all.\n\n" +

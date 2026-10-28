@@ -487,6 +487,12 @@ describe("what recommendation work is handed", () => {
     // immediately, and an offer nobody takes up leaves nothing behind.
     assert.match(text, /their yes is what writes it — and it\s+writes it there and then/u);
     assert.match(text, /answered with\s+`create_genre` and nothing else/u);
+    // §19: but after one film's verdict the vibe path wins — the genre offer above
+    // competed with it, and won, on the kept path.
+    assert.match(
+      text,
+      /After they say how one film worked for them, though, what their words carry is offered as a vibe with that film as its core, any new genre part of it — never as a genre on its own/u,
+    );
     assert.match(text, /offer only what you would write on the spot/u);
     assert.doesNotMatch(text, /propose_change|a proposal that already exists/u, "it still names a tool that is gone");
     // Noticing aloud stays free — this must not read as "always ask".

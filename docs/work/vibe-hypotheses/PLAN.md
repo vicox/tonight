@@ -1583,6 +1583,48 @@ The conflict is resolved, and the keep flow's naming, the triggers, first films 
 descriptions are preserved. No example, hypothesis or title rule was added. Codex ran vibes
 141/141, recommend 249/249, plugin 37/37 and 55 affected Node tests.
 
+## 19. Baseline first: 1.9.1 against 1.10.6, then the Vibe path over a lone Genre (2026-10-28)
+
+**The A/B.**
+
+- **Setup:**
+  - Isolated worktree `tonight-ab-baseline`, created by Ops at `3333f36`, so the
+    `--against 5231b1d` swap never touched this ticket's worktree.
+  - `deepseek-flash`, fingerprint `bc19ba97…`, one run each.
+- **Input:** a bare *"I liked The Brothers Bloom."* (`liked-bloom`, added in `3333f36`) on two
+  models:
+  - `m5-04-reading`, whose one Vibe is not its evening;
+  - `m5-05-partial-fit`, where Champagne & Blueprints is.
+
+**Results** — the same on both arms:
+
+- **No Vibe fits:**
+  - 1.9.1 offered three distinct Vibes: *Sleight of Hand*, *Sugar and Sorrow*, *Loved Sideways*.
+  - 1.10.6 offered three distinct Vibes, one recommended: *Beautiful Liars*, *A Story Told
+    Sideways*, *Funny, and Then Not*.
+- **A Vibe fits:** both offered filing in Champagne & Blueprints, with no new Vibe.
+- Nothing was written before a yes on either arm.
+
+The A/B evidenced no trigger ambiguity. The lone-Genre offer is not reproduced on this path: it
+was seen on the kept path (§18 smoke), where *"want me to turn that into a genre?"* — in
+`tonight-recommend`'s persistence rules and the `get_taste` description — competes, unscoped,
+with the Vibe offer.
+
+The A/B cost USD 0.016 (peak prices), and its results are kept as `ab-…` under `m5/results/`.
+
+**The fix** scopes those two places, and only those: *"After they say how a film worked for them,
+what their words carry is offered as tonight-vibes says: a Vibe with that film as its core, any
+new Genre part of it — never a Genre on its own."* A Genre offered anywhere else, and every Genre
+inside a Vibe, is unchanged. The triggers, naming, first films and `next` are unchanged.
+
+**Pins:**
+
+- `tonight-recommend/test.sh`: one check.
+- `taste-verdicts.test.ts`: the `get_taste` clause.
+- Both fail on the text before this change.
+
+`plugin.json` is 1.10.7.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
