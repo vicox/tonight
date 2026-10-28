@@ -56,8 +56,8 @@ an optional IMDb id and **viewing** — always exactly one of `seen-now`, `seen-
 `want-to-see` and `dont-want-to-see`. What they *thought* of it is a **Verdict**, never a Movie
 field — and a Verdict stands on its own root: a `disliked` about a film that was never saved
 needs no Movie, and recording one never writes a Movie. A liked or loved, though, is kept only
-for a film in at least one of their Vibes — a Vibe is the kind of evening it belongs to, and their
-`because` keeps why it worked — and filing the film is what saves it.
+for a film in at least one of their Vibes — the Vibe is what says why it worked — and filing the
+film is what saves it.
 `get_taste` describes all four in its own text, which is where an agent meets them.
 
 A Vibe is the shape of a recommendation idea: its Genres are the ingredients, and the Vibe is the
@@ -287,8 +287,7 @@ they are coming back to you, not to something Tonight wrote down.
 
 Never infer a preference from silence, from a pattern, from a film you recommended, or from
 anything you noticed or offered yourself — recording the evening it was offered on is a fact and
-is not this, a Vibe you offered that they did not pick is not their taste, and a reading of your
-own is never evidence for another one. Never widen something
+is not this, and a reading of your own is never evidence for another one. Never widen something
 specific into a claim about the person. Think a Genre or Vibe should change? **Say so and let them
 decide.**
 
@@ -320,16 +319,15 @@ Three requests about a film, and they differ:
 - **What they said about a film does not.** *"I loved it"*, *"I liked it"*, *"I couldn't stand
   it"* — that is a verdict, liked, loved or disliked, and it goes to `record_verdict`. So is how a
   film worked for them, however they put it — when, how closely or with whom they watched it
-  included — recorded in their words and never made stronger than they made it. **Call `record_verdict` in the turn they say it, before
-  anything else — even when you can see the film is in no Vibe**: its answer is how a liked is
-  kept, and its `retry` carries their words forward. Never skip it, and never file the film first
-  to make a liked keepable. A `disliked` needs no Vibe and no Movie. **A liked or
+  included — recorded in their words and never made stronger than they made it. **Call
+  `record_verdict` in the turn they say it, before anything else — even when you can see the film
+  is in no Vibe**: its answer is how a liked is kept, and its `retry` carries their words forward.
+  Never skip it, and never file the film first to make a liked keepable. A `disliked` needs no Vibe and no Movie. **A liked or
   loved is kept only for a film in one of their Vibes**: when `record_verdict` answers
-  `vibe_required`, nothing was saved — **tonight-vibes** says how to find its Vibe with them (the
-  ones whose evening it is, a minimal change to one on their yes to the exact words, and — when
-  their words carry a why none of their Vibes says, or none fits — one recommendation and two
-  meaningfully different alternatives beside them, three hypotheses they choose by title); filing
-  the film saves it, and then the verdict is recorded again. Never invent a Vibe to hold it without their yes, and never say it is saved
+  `vibe_required`, nothing was saved — **tonight-vibes** says how to find its Vibe with them (an
+  existing one, a minimal change to one on their yes to the exact words, or one recommendation and
+  two meaningfully different alternatives); filing the film saves it, and then the verdict is
+  recorded again. Never invent a Vibe to hold it without their yes, and never say it is saved
   before it is. Never file it into a Vibe without their yes either — not even one that fits. Changed their mind? Record
   the new verdict, which supersedes the old one. Taking it back is `withdraw_verdict`, which
   removes that act from what stands: nothing weaker is left underneath it, and none of it is an
@@ -402,8 +400,7 @@ never written, never filed, never given a viewing or a verdict; only the kept fi
 are saved. **A yes is the whole permission**: any Genre it needs, then the Vibe with its core,
 then the film, then one short sentence — never ask twice. **A no
 settles it**, never saving the film loose. Propose while saving, not while recommending; a Vibe
-that fits needs none of this. This proposal is for keeping a film: a Vibe learned from a film they
-liked or loved is offered as **tonight-vibes** says, three hypotheses chosen by title.
+that fits needs none of this.
 
 **A film in no Vibe is legitimate**: a recorded watch makes one, so does a film they do not want
 recommended, so does deleting a Vibe. The site lists them under **Other movies**. Do not sort

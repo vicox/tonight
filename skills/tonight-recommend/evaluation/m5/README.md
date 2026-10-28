@@ -63,14 +63,14 @@ list is formatted is scored as presentation, apart, and a pick the runner cannot
 turns after it UNTESTED (`rubric.md`). The artifact records what each turn sent and which Tonight
 calls it made.
 
-**The Vibe-hypotheses set** (`docs/work/vibe-hypotheses`, §7.2) is the `m5-05-partial-fit` and
-`m5-06-bloom-saved` scenarios, with the first-films offer re-scored. One pass:
+**The Vibe-offer set** (`docs/work/vibe-hypotheses` §17) is the `m5-05-partial-fit` and
+`m5-06-bloom-saved` scenarios, with the first-films offer. One pass:
 
 ```bash
 node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only \
   --only m5-05-partial-fit --runs 1 --budget 2
 node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills \
-  --only m5-05-partial-fit,m5-06-bloom-saved,m5-02-empty__hi__then-three-films --runs 1 --budget 13
+  --only m5-05-partial-fit,m5-06-bloom-saved,m5-02-empty__hi__then-three-films --runs 1 --budget 9
 ```
 
 Its baseline is recorded at the commit that added the set, where the instructions and the server
@@ -106,13 +106,13 @@ are those of `5231b1d`, and never at a later commit.
   registers. That catalog is computed in a fresh process, and the wait gives up after 120 seconds,
   before anything is seeded. Every artifact records the `tools_digest` it was served.
 
-A pass of the five Vibe-hypothesis scenarios, baseline and after:
+A pass of the three Vibe-offer scenarios, baseline and after:
 
 ```bash
 node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only --backend deepseek \
   --only m5-05-partial-fit --runs 1 --budget 2 --against fdb99b9
 node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills --backend deepseek \
-  --only m5-05-partial-fit,m5-06-bloom-saved --runs 1 --budget 11 --against fdb99b9
+  --only m5-05-partial-fit,m5-06-bloom-saved --runs 1 --budget 7 --against fdb99b9
 # then the same two without --against
 ```
 

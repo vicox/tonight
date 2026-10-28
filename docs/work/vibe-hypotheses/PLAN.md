@@ -1442,6 +1442,87 @@ Confirmation, overlap, write order and Genre reusability hold. No example was in
 pins keep the rules they did not replace. Codex ran vibes 160/160, recommend 251/251, plugin 37/37
 and 233 focused tests. Stopped here: no live run, push, merge or deploy.
 
+## 17. Back to 1.9.1, with one change (user decision, 2026-10-28)
+
+**The scope, definitively:**
+
+- Plugin 1.9.1's Vibe behaviour — triggers, generation, naming and description — at `5231b1d`.
+- One change. The kept path's single new-Vibe suggestion becomes the pattern 1.9.1 already used
+  for `vibe_required` when no Vibe fits: one recommended new Vibe and two meaningfully different
+  alternatives, three different reasons the film may have worked for them.
+- No new decision logic, no rules driven by their reason, no wider offer triggers, no title-led
+  format, and no schema or API change.
+
+**Restored to 1.9.1** — the two skills, `server.ts` description strings and `VIBE_REQUIRED_NEXT`:
+
+- `vibe_required`: an existing Vibe first, the minimal change, *"Otherwise"* the recommended Vibe
+  and two alternatives. Nothing is offered beside a Vibe that fits.
+- First films: as at 1.9.1, with their illustration films.
+- Gone:
+  - the *Three hypotheses* section: titles, *"my pick"*, the *"I like…"* format, facets, ranking
+    by the reason, grounding rules, Genre clauses, written *"word for word"*;
+  - the *"a reason it was not about"* rule in step 2 and `update_vibe`;
+  - the title-pick sentences in `create_vibe` and `create_genre`;
+  - *"a Vibe you offered that they did not pick is not their taste"*;
+  - the reworded *"a Vibe is the kind of evening… `because` keeps why"*.
+
+**Kept from the live runs, as workflow fixes, in wording with no hypotheses or titles:**
+
+- No filing or writing before their yes:
+  - `record_verdict` first in the turn, and never file the film first to make a liked keepable;
+  - never file into a Vibe without their yes, even one that fits;
+  - the keep flow's no-question filing is for a film they ask to keep, never a liked one.
+
+  These are in `tonight-recommend` and the `record_verdict` description.
+- No second question about when: a yes or a pick that does not say when writes `seen-before`,
+  unless they placed it earlier or a seen viewing is stored, and when is never asked again. This
+  is in both skills and `next`.
+- A liked said now moves a `want-to-see` film to seen in the same turn, before any offer. This
+  is in both skills, `next`, and the descriptions of the `viewing` and `core` fields and of
+  `record_verdict`.
+- Safe write order: a new core already in a Vibe of theirs keeps it, because the list
+  `update_movie` is given replaces what was there.
+- `because` verbatim — unchanged since 1.9.1.
+
+**Kept from §15:**
+
+- No concrete examples in the skills or the tool descriptions.
+- The tests that refuse them.
+
+**The one change, in `tonight-vibes`:**
+
+- *What to consider*: *"Offer it as step 3 of When a liked or loved needs a Vibe does: one
+  recommended new Vibe and two meaningfully different alternatives, three different reasons the
+  film may have worked for them."* The trigger is unchanged and still says *covers*.
+- *Asking has a budget*: *"a `vibe_required` offer, or a new Vibe for a kept one, is still one
+  offer"*.
+
+**Evaluation:**
+
+- `m5-05` no longer expects three Vibes: a Vibe fits. Its runs are `yes` (filed) on both
+  sources, and `no`.
+- `m5-06` (the kept path) keeps its pick and the follow-on request.
+- The rubric's section is now *Vibe offers after a liked*; the prompts no longer used are gone.
+- Fixtures, the runner, the DeepSeek backend and the harness are unchanged.
+
+**Pins:**
+
+- The hypothesis pins are gone, and the 1.9.1 pins for step 1 and step 3 are back.
+- The fix pins and the example refusals stay.
+- New: the kept-path change and the budget clause, and a refusal of the hypothesis machinery in
+  both skills, `next`, the tool descriptions and the rubric.
+
+`plugin.json` is 1.10.5.
+
+**Trade-offs:**
+
+- With Bloom unfiled and Champagne & Blueprints fitting, no new Vibe is offered — 1.9.1's
+  trigger.
+- Flash's kept-path omission (3 of 6 at `b36fdf9`) is a reliability matter under the unchanged
+  trigger.
+- Without a required format, the runner may resolve fewer picks, so more follow-ups may be
+  UNTESTED.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.

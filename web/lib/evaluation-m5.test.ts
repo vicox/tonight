@@ -136,10 +136,10 @@ test("what the retired projection covered runs on recommend alone, and the lifec
   // ran on the ChatGPT-project projection, which had one skill and no second. It moved
   // to `recommend-only`, the selection that likewise has recommend and nothing else, and
   // not onto `plugin-skills`, where the same scenario would be a lifecycle case.
-  // The hypotheses runs that only the lifecycle can finish — a partial answer, a
-  // decline, the kept path — are the plugin's too. The plain pick stays on both: on
-  // recommend alone the refusal's own `next` is all the guidance there is.
-  const lifecycleOnly = ["second-turn", "going-through", "hypotheses-partial", "hypotheses-declined", "hypotheses-kept"];
+  // The Vibe-offer runs that only the lifecycle can finish — a decline, the kept path —
+  // are the plugin's too. The plain yes stays on both: on recommend alone the refusal's
+  // own `next` is all the guidance there is.
+  const lifecycleOnly = ["second-turn", "going-through", "partial-fit-declined", "kept-new-vibe"];
   for (const one of scenarios) {
     assert.ok(!one.sources.includes("projection"), `${one.fixture}__${one.prompt} still runs on the projection`);
     assert.equal(new Set(one.sources).size, one.sources.length, `${one.fixture}__${one.prompt} lists a source twice`);
@@ -165,23 +165,20 @@ test("the plan's routing rows, second turns and families are all in the matrix",
   for (const answer of ["yes", "no", "partial"]) assert.ok(then.has(answer), `no second turn of ${answer}`);
 });
 
-test("the Vibe-hypotheses set: a pick by title, each partial answer, a decline, and the kept path to a recommendation", () => {
-  // docs/work/vibe-hypotheses §7.2. The offer itself (T1) is scored on the first turn
-  // of every run, so no run exists only to look at it.
-  const hypotheses = scenarios.filter((one) => one.prompt === "bloom-clever");
-  const shape = hypotheses.map((one) => [one.fixture, followUps(one).join(" → "), [...one.sources].sort().join(", ")]);
+test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept path to a recommendation", () => {
+  // docs/work/vibe-hypotheses §17. The offer itself is scored on the first turn of every
+  // run, so no run exists only to look at it.
+  const offers = scenarios.filter((one) => one.prompt === "bloom-clever");
+  const shape = offers.map((one) => [one.fixture, followUps(one).join(" → "), [...one.sources].sort().join(", ")]);
   assert.deepEqual(shape, [
-    ["m5-05-partial-fit", "pick-title-two", "plugin-skills, recommend-only"],
-    ["m5-05-partial-fit", "existing-only", "plugin-skills"],
-    ["m5-05-partial-fit", "new-only", "plugin-skills"],
+    ["m5-05-partial-fit", "yes", "plugin-skills, recommend-only"],
     ["m5-05-partial-fit", "no", "plugin-skills"],
     ["m5-06-bloom-saved", "pick-title-one → like-bloom-tonight", "plugin-skills"],
   ]);
-  for (const one of hypotheses) assert.equal(one.considers, true, `${one.fixture}__${one.prompt} is positive and not counted`);
+  for (const one of offers) assert.equal(one.considers, true, `${one.fixture}__${one.prompt} is positive and not counted`);
 
   // A pick is the title alone, resolved by the runner — never a sentence about it.
   assert.equal(requests.get("pick-title-one"), "{title:1}");
-  assert.equal(requests.get("pick-title-two"), "{title:2}");
   assert.equal(requests.get("bloom-clever"), "I liked The Brothers Bloom because clever characters do smart things.");
   assert.match(requests.get("like-bloom-tonight")!, /The Brothers Bloom/, "the follow-on request does not reach for the film");
 
@@ -207,44 +204,33 @@ test("the Vibe-hypotheses set: a pick by title, each partial answer, a decline, 
   }
 
   // The rubric scores the offer and every follow-up, and the README has the pass.
-  for (const family of ["hypotheses", "hypotheses-partial", "hypotheses-declined", "hypotheses-kept"]) {
+  for (const family of ["partial-fit", "partial-fit-declined", "kept-new-vibe"]) {
     assert.ok(rubric.includes(`| ${family} |`), `the rubric has no row for ${family}`);
   }
-  assert.match(rubric, /## Vibe hypotheses: how a run is scored/);
+  assert.match(rubric, /## Vibe offers after a liked: how a run is scored/);
   // A turn never sent is neither a pass nor a failure of what it would have shown.
   assert.match(rubric, /\*\*UNTESTED\*\*: never a PASS, and\s+never a FAIL of what it would have shown/);
-  // The behaviour the live runs found wanting, each its own criterion (§12.9, §12.10).
+  // 1.9.1's behaviour, the one change, and the workflow fixes kept from the live runs.
   for (const [what, criterion] of [
     ["the verdict first", /\*\*The verdict, first\.\*\* `record_verdict` is called in turn 1, before any taste write/],
     ["filing before a yes", /Filing the film before a yes is outcome 1/],
-    // §16: facets of the film, the recommended one held to their reason, the others to the film.
-    ["grounding in the film", /\*\*Grounded in the film, ranked by the verdict\.\*\* Each is a facet The Brothers Bloom really\s+has, and none claims of the film what it is not/],
-    ["the recommended one follows their reason", /\*\*The recommended one is the facet their\s+reason points to\*\*/],
-    ["the others scored against the film", /The other two may be other facets\s+of the film, scored against the film and not against their reason/],
-    ["no invented rule", /None states a rule or an exclusion they did not give/],
-    ["a Genre scored with its own hypothesis", /\*\*A new Genre is scored as part of its own\s+hypothesis\*\*/],
-    ["no existing Vibe as a hypothesis", /none of the three is a Vibe they already have/],
-    ["first-person Genre meanings", /\*\*Any new Genre's meaning is shown as a first-person sentence\*\*/],
-    ["written word for word", /is written \*\*word for\s+word\*\* as shown/],
-    ["no second question about when", /\*\*the question about when is not\s+asked again\*\*/],
+    ["an existing Vibe first, and no new one where one fits", /\*\*An existing Vibe first\.\*\*[^]*A Vibe\s+fits, so no new Vibe is expected/],
+    ["the kept path's one change", /\*\*One offer of a new Vibe: one recommended and two meaningfully different alternatives\*\*/],
+    ["three reasons, not three names", /Three different reasons the film may\s+have worked for them, not three names for one idea/],
+    ["no second question about when", /\*\*the question about when is not asked again\*\*/],
     ["want-to-see moved at once", /\*\*before the offer and\s+without asking first\*\*/],
     ["the overlap kept", /\*\*The overlap is kept\.\*\*/],
     ["nothing after a decline", /### After a decline\s+Nothing is written after it\./],
   ] as const) {
     assert.match(rubric, criterion, `the rubric does not score ${what}`);
   }
-  // Formatting is presentation: recorded, never a behavioural failure on its own — and a
-  // pick the runner cannot read is its own limit, scored from the answer (code review).
-  assert.match(rubric, /### Presentation, scored apart/);
-  assert.match(rubric, /is never a behavioural FAIL on its own/);
-  assert.match(rubric, /\*\*A pick the runner cannot resolve is the runner's limit, not evidence about the agent\.\*\*/);
-  assert.match(rubric, /\*\*behaviour 4 is scored by the reviewer from the answer\s+itself\*\*/);
-  // A pick without timing is seen-before only when nothing placed it; timing given stands.
-  assert.match(rubric, /with nothing earlier in the conversation placing it — writes\s+`seen-before`\. Timing they did give stands/);
-  // The partial answer names the title it picks, so it is no longer a question (§12.10).
-  assert.match(requests.get("new-only")!, /^\{title:1\} — just that one/);
-  assert.match(rubric, /each proposed group offered as three hypotheses/, "first films are not scored as hypotheses");
-  assert.match(readme, /--only m5-05-partial-fit,m5-06-bloom-saved,m5-02-empty__hi__then-three-films --runs 1 --budget 13/);
+  // None of the reverted hypothesis criteria is scored any more.
+  assert.doesNotMatch(rubric, /three hypotheses|facet|ranked by the verdict|word for\s+word|numbered bold-title/iu);
+  // A pick the runner cannot read is its own limit, not evidence about the agent.
+  assert.match(rubric, /\*\*A pick the runner cannot resolve is the runner's\s+limit, not evidence about the agent\*\*/);
+  // A yes or pick without timing is seen-before only when nothing placed it; timing given stands.
+  assert.match(rubric, /with nothing earlier in the conversation placing it\s+— writes `seen-before`\. Timing they did give stands/);
+  assert.match(readme, /--only m5-05-partial-fit,m5-06-bloom-saved,m5-02-empty__hi__then-three-films --runs 1 --budget 9/);
   assert.match(readme, /--only m5-05-partial-fit --runs 1 --budget 2/);
 });
 

@@ -545,10 +545,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "never from what you concluded alone, films you chose and patterns you noticed " +
         "included, and never from a request for tonight, which says what they want now rather " +
         "than what they are like. A confirmation covers only the meaning they were shown, and " +
-        "settles that it is theirs rather than granting permission to write. A meaning shown " +
-        "beside a title they picked was shown, whether or not they read it — write it as it was " +
-        "shown, and never a genre only an option they did not pick needed. So show a new genre's " +
-        "meaning as the first-person sentence it will be written as, and write those words.",
+        "settles that it is theirs rather than granting permission to write.",
       inputSchema: z.object({ name: genreName, instruction: genreInstruction }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
@@ -619,9 +616,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "is not a core.\n\n" +
         "Write it only when the whole vibe was agreed — name, sentence, genres and core. " +
         "Films you named to show what the idea covers are illustration: none of them is the " +
-        "core, and none is written. A vibe they picked by its title from several you offered " +
-        "was agreed with everything shown beside that title, whether or not they read it: write " +
-        "exactly those words, and none of the others.",
+        "core, and none is written.",
       inputSchema: z.object({
         name: vibeName,
         genres: vibeGenres,
@@ -644,9 +639,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "is not yours to adjust. The one change you may propose is a minimal one — the exact new " +
         "words, shown to them — when a film they like belongs to that same evening and the " +
         "sentence does not yet cover it; write it only on their yes to those words. A change " +
-        "that would make it a different evening is a new vibe, not a reworded one, and so is a " +
-        "change that would make it say a reason it was not about — that reason is a new vibe " +
-        "beside it.\n\n" +
+        "that would make it a different evening is a new vibe, not a reworded one.\n\n" +
         "**Every one of these changes the whole vibe, so settle the whole vibe before you " +
         "call.** Work out what the result would be — the name it would then have, the sentence " +
         "it would then have, the genres it would then be built from, and what those genres' " +
@@ -1041,13 +1034,11 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "A verdict is a judgement — liked, loved or disliked — about the film, and it applies " +
         "everywhere. Keep their own words for why, where they gave them.\n\n" +
         "**A liked or loved needs a vibe.** It is kept only for a film filed in at least one of " +
-        "their vibes: a vibe says what kind of evening it is for them, and their `because` keeps " +
-        "why it worked. If the film is in none — or not saved at all — nothing is written and the " +
-        "answer is `reason: \"vibe_required\"`, with `retry` and `next`: find the vibes it belongs " +
-        "in with them — and a new one beside them when their words carry a why none of their " +
-        "vibes says — file the film, then call this again with `retry.arguments`, in this " +
-        "conversation. Until then it is not saved, so never say it is. `disliked` needs no vibe " +
-        "and no saved film.\n\n" +
+        "their vibes, because the vibe is what says why it worked for them. If the film is in " +
+        "none — or not saved at all — nothing is written and the answer is `reason: " +
+        "\"vibe_required\"`, with `retry` and `next`: find the vibe it belongs in with them, file " +
+        "the film, then call this again with `retry.arguments`, in this conversation. Until then " +
+        "it is not saved, so never say it is. `disliked` needs no vibe and no saved film.\n\n" +
         "**Call this in the turn they say it, before anything else** — before offering a vibe, " +
         "filing the film or asking about when, and even for a film you can see is in no vibe: its " +
         "answer is how a liked is kept. Never file the film first to make a liked keepable; filing " +
@@ -1431,38 +1422,20 @@ const VIBE_REQUIRED_NEXT =
   "Nothing was written. A liked or loved verdict is kept only for a film in at least one of " +
   "their vibes. If `movie.viewing` is want-to-see, their liked says they watched it: move it " +
   "with update_movie to seen-before (seen-now only if they placed it recently) now, before the " +
-  "offer, and say so. Read get_taste, then make one offer in this conversation, judging each vibe by " +
-  "its instruction and genres, not its name: (1) propose filing the film in every vibe whose " +
-  "evening it is; if it is that same evening except that the sentence does not yet cover this " +
-  "film, show them the exact minimal new wording and change it with update_vibe only on their " +
-  "yes to those words — never to make a vibe say a reason it was not about. (2) If their words " +
-  "carry a why none of their vibes says, or no vibe fits, offer — beside (1) in the same offer, " +
-  "never instead of it — one recommended new vibe and two meaningfully different alternatives: " +
-  "three distinct hypotheses about what they loved in this film, never three names for one. " +
-  "Each is a facet the film really has, and none claims of the film what it is not. Their " +
-  "verdict ranks them: with a reason given, the recommended one is the facet their words point " +
-  "to, no wider than they said it, and the other two may be other facets of the film, offered as " +
-  "possibilities and never presented as what they said; with none, three different facets it " +
-  "may have worked through. None states a rule or an exclusion as theirs. None is a vibe they " +
-  "already have: where the film already belongs is said beside the three, never as one of them. " +
-  "Each is a name, an \"I like…\" sentence, its genres — any new genre's meaning shown as the " +
-  "exact first-person sentence create_genre will be given, part of that hypothesis's idea and " +
-  "free to cover more films than it — and this film as core, as a numbered list whose items " +
-  "start with the title alone in bold, the recommended " +
-  "one first and marked after the bold, never inside it. A title they pick, its number, or a " +
-  "plain yes for the recommended one is their yes to it as shown; only that one is written, its " +
-  "genre meanings word for word. A pick that does not say when they watched it is them not " +
-  "saying: unless something they said earlier placed it (\"last night\" is seen-now) or the film " +
-  "already has a seen viewing, write seen-before with it — and never ask about when again. (3) " +
-  "On their yes, write exactly what they agreed, in this order: the genres of the picked " +
-  "hypothesis only; create_vibe with this film as core and core.viewing, which saves and files " +
-  "it; then update_movie listing the vibes it is in now — the new one included — plus every " +
-  "existing vibe they agreed it belongs to, because the list replaces what was there. With no " +
-  "new vibe, an unsaved film is create_movie with viewing seen-now or seen-before and the agreed " +
-  "vibes, and a saved one is update_movie with its vibes now plus the agreed ones. A watched " +
-  `film is ${SEEN_RULE}, and when they did not say when, that question goes into the offer. ` +
-  "Then call record_verdict again with retry.arguments. If they decline, it stays unsaved: say " +
-  "so once, and write nothing in its place.";
+  "offer, and say so. Read get_taste, then in this conversation: (1) if one of their vibes fits — " +
+  "judge by its instruction and genres, not its name — propose filing the film there; if it " +
+  "fits except that its sentence does not yet cover this film, show them the exact minimal new " +
+  "wording and change it with update_vibe only on their yes to those words. (2) If none fits, " +
+  "offer one recommended new vibe and two meaningfully different alternatives — each a " +
+  "different reason the film may have worked for them, with a name, a sentence, their genres " +
+  "and this film as core — and let their choice say why. (3) On their yes, file it — " +
+  "update_movie with its vibes, create_movie with viewing seen-now or seen-before and vibes for " +
+  "an unsaved film, or create_vibe with it as core and core.viewing — a watched film is " +
+  `${SEEN_RULE}, and when they did not say when, that question goes into the one you put ` +
+  "about the vibe; a yes that does not say when is them not saying: unless something they said " +
+  "earlier placed it or the film already has a seen viewing, write seen-before, and never ask " +
+  "about when again — then call record_verdict again with retry.arguments. If " +
+  "they decline, it stays unsaved: say so once, and write nothing in its place.";
 
 /**
  * The answer to a liked or loved refused for want of a vibe.

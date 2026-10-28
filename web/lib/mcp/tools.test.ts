@@ -559,17 +559,11 @@ test("a vibe is asked for as one idea, read from the genres' instructions", asyn
   assert.match(update, /a minimal one — the exact new\s+words, shown to them/u, "update_vibe: no minimal-change rule");
   assert.match(update, /write it only on their yes to those words/u, "update_vibe: a minimal change without their yes");
   assert.match(update, /a different evening is a new vibe, not a reworded one/u, "update_vibe: a stretch is allowed");
-  // docs/work/vibe-hypotheses: the minimal change never carries a reason the vibe
-  // was not about, and a vibe picked by title was agreed as it was shown.
-  assert.match(update, /a change that would make it say a reason it was not about — that reason is a new vibe\s+beside it/u,
-    "update_vibe: a reason can be added by rewording");
-  assert.match(create, /A vibe they picked by its title from several you offered was agreed with everything shown beside that title, whether or not they read it: write exactly those words, and none of the others/u,
-    "create_vibe: a pick by title is not what was shown");
-  assert.match(describing("create_genre"), /A meaning shown beside a title they picked was shown, whether or not they read it — write it as it was shown, and never a genre only an option they did not pick needed/u,
-    "create_genre: a pick by title is not what was shown, or an unpicked option's genre is written");
-  // Shown as the words it will be written as, so writing it never changes it (§12.9).
-  assert.match(describing("create_genre"), /So show a new genre's meaning as the first-person sentence it will be written as, and write those words/u,
-    "create_genre: a meaning shown one way can be written another");
+  // docs/work/vibe-hypotheses §17: the hypothesis and title rules are 1.9.1's again — none of
+  // them is in a description.
+  assert.doesNotMatch(update, /say a reason it was not about/u, "update_vibe: the reverted reason rule is back");
+  assert.doesNotMatch(create, /picked by its title/u, "create_vibe: the reverted title rule is back");
+  assert.doesNotMatch(describing("create_genre"), /a title they picked/u, "create_genre: the reverted title rule is back");
   // A liked said now moves a want-to-see film; one that stands from before does not.
   for (const tool of ["create_movie", "update_movie"]) {
     const viewing = fieldOf(tool, "viewing");

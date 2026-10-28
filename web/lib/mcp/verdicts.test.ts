@@ -845,53 +845,25 @@ describe("the verdict tools", () => {
       // The same answer in the text, for a host that shows the model only that.
       assert.deepEqual(JSON.parse(result.content?.[0]?.text ?? "null"), result.structuredContent);
 
-      // What it tells the agent to do, in one offer: the vibes whose evening it is,
-      // a minimal sentence change only on their yes, and — beside those, never
-      // instead — three distinct hypotheses chosen by title, then the same call again.
-      // On recommend alone this is all the guidance there is (docs/work/vibe-hypotheses).
+      // What it tells the agent to do: an existing vibe first, a minimal sentence
+      // change only on their yes, otherwise one recommendation and two
+      // alternatives, then the same call again.
       assert.match(next as string, /Nothing was written/u);
-      assert.match(next as string, /propose filing the film in every vibe whose evening it is/u);
+      assert.match(next as string, /if one of their vibes fits/u);
       assert.match(next as string, /exact minimal new wording[^.]*only on their yes to those words/u);
-      assert.match(next as string, /never to make a vibe say a reason it was not about/u);
-      assert.match(next as string, /beside \(1\) in the same offer, never instead of it/u);
       assert.match(next as string, /one recommended new vibe and two meaningfully different alternatives/u);
-      assert.match(next as string, /three distinct hypotheses about what they loved in this film, never three names for one/u);
-      // Facets of the film ranked by their verdict, every meaning shown, and the marker
-      // outside the title — the vibes skill's rules, carried where recommend alone reads them.
-      assert.match(next as string, /Each is a facet the film really has, and none claims of the film what it is not/u);
-      assert.match(next as string, /any new genre's meaning shown/u);
-      // What the live runs found wanting (docs/work/vibe-hypotheses §12.9-§12.10), where
-      // recommend alone reads it: a want-to-see film moved at once; readings that keep the
-      // reason's subject, state no rule, and never offer an existing vibe; meanings shown as
-      // the words they will be written as; and no second question about when.
+      // docs/work/vibe-hypotheses §17: the workflow fixes from the live runs, kept where
+      // recommend alone reads them — a want-to-see film moved before the offer, and no
+      // second question about when.
       assert.match(next as string, /If `movie\.viewing` is want-to-see, their liked says they watched it: move it with update_movie to seen-before \(seen-now only if they placed it recently\) now, before the offer/u);
-      // §16: the three are facets of the film. Their reason ranks them and binds the
-      // recommended one only; none is presented as what they said, none adds a rule of
-      // theirs, and a new genre belongs to its own hypothesis — generically, never the
-      // scenario's own words.
-      assert.match(next as string, /Their verdict ranks them: with a reason given, the recommended one is the facet their words point to, no wider than they said it, and the other two may be other facets of the film, offered as possibilities and never presented as what they said; with none, three different facets it may have worked through\. None states a rule or an exclusion as theirs/u);
-      assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given, part of that hypothesis's idea and free to cover more films than it/u);
-      assert.doesNotMatch(next as string, /readings of their words|subject of their reason|their words did not carry/u, "the hypotheses are held to their reason alone");
-      assert.doesNotMatch(next as string, /no broader than the reading's own sentence/u, "a genre is held narrower than an ingredient can be");
-      assert.doesNotMatch(next as string, /Bloom|clever characters|Champagne|Blueprints/u, "the guidance names the evaluation's own scenario");
-      assert.match(next as string, /None is a vibe they already have: where the film already belongs is said beside the three, never as one of them/u);
-      assert.match(next as string, /any new genre's meaning shown as the exact first-person sentence create_genre will be given/u);
-      assert.match(next as string, /only that one is written, its genre meanings word for word/u);
-      // Timing they did give stands, and so does a seen viewing already stored (code review).
-      assert.match(next as string, /A pick that does not say when they watched it is them not saying: unless something they said earlier placed it \("last night" is seen-now\) or the film already has a seen viewing, write seen-before with it — and never ask about when again/u);
       assert.ok(
-        (next as string).indexOf("If `movie.viewing` is want-to-see") < (next as string).indexOf("Read get_taste, then make one offer"),
+        (next as string).indexOf("If `movie.viewing` is want-to-see") < (next as string).indexOf("Read get_taste"),
         "the viewing is moved after the offer, not before it",
       );
-      assert.match(next as string, /a numbered list whose items start with the title alone in bold, the recommended one first and marked after the bold, never inside it/u);
-      assert.match(next as string, /A title they pick, its number, or a plain yes for the recommended one is their yes to it as shown; only that one is written/u);
-      // The composite, in order: the picked genres, the vibe anchored on the film,
-      // then the film's whole list — new and existing — before the retry.
-      assert.match(next as string, /in this order: the genres of the picked hypothesis only; create_vibe with this film as core and core\.viewing, which saves and files it; then update_movie listing the vibes it is in now — the new one included — plus every existing vibe they agreed it belongs to, because the list replaces what was there/u);
-      assert.ok(
-        (next as string).indexOf("update_movie listing the vibes it is in now") < (next as string).indexOf("call record_verdict again"),
-        "the retry comes before the film is filed where it belongs",
-      );
+      assert.match(next as string, /a yes that does not say when is them not saying: unless something they said earlier placed it or the film already has a seen viewing, write seen-before, and never ask about when again/u);
+      // And none of the reverted hypothesis machinery, nor the evaluation's own scenario.
+      assert.doesNotMatch(next as string, /hypothes|facet|ranks them|title|beside \(1\)|readings of their words/u, "the reverted hypothesis rules are back");
+      assert.doesNotMatch(next as string, /Bloom|clever characters|Champagne|Blueprints/u, "the guidance names the evaluation's own scenario");
       assert.match(next as string, /call record_verdict again with retry\.arguments/u);
       assert.match(next as string, /If they decline, it stays unsaved/u);
 
@@ -1090,18 +1062,15 @@ describe("the verdict tools", () => {
       assert.match(cleo.record_verdict!.description ?? "", /\*\*A liked or loved needs a vibe\.\*\*/u);
       assert.match(cleo.record_verdict!.description ?? "", /`reason: "vibe_required"`/u);
       assert.match(cleo.record_verdict!.description ?? "", /`disliked` needs no vibe and no saved film/u);
-      // Where it belongs and why it worked are two things (docs/work/vibe-hypotheses).
+      // 1.9.1's wording again (docs/work/vibe-hypotheses §17): find the vibe it belongs in,
+      // and no new vibe beside one that fits.
       assert.match(
         cleo.record_verdict!.description ?? "",
-        /a vibe says what kind of evening it is for them, and their `because` keeps why it worked/u,
+        /find the vibe it belongs in with them, file the film, then call this again with `retry\.arguments`/u,
       );
-      assert.match(
-        cleo.record_verdict!.description ?? "",
-        /find the vibes it belongs in with them — and a new one beside them when their words carry a why none of their vibes says/u,
-      );
-      assert.doesNotMatch(cleo.record_verdict!.description ?? "", /the vibe is what says why it worked/u);
+      assert.doesNotMatch(cleo.record_verdict!.description ?? "", /a new one beside them/u);
       // Called first, every time, and never bypassed by filing the film (§12.9-§12.10:
-      // recommend alone filed without a yes, or never called this at all).
+      // recommend alone filed without a yes, or never called this at all) — kept in §17.
       assert.match(
         cleo.record_verdict!.description ?? "",
         /\*\*Call this in the turn they say it, before anything else\*\* — before offering a vibe, filing the film or asking about when, and even for a film you can see is in no vibe/u,
