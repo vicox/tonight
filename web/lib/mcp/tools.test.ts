@@ -562,6 +562,8 @@ test("a vibe is asked for as one idea, read from the genres' instructions", asyn
   // docs/work/vibe-hypotheses §17: the hypothesis and title rules are 1.9.1's again — none of
   // them is in a description.
   assert.doesNotMatch(update, /say a reason it was not about/u, "update_vibe: the reverted reason rule is back");
+  // §20: a rewording its core would no longer fit wholly is a new vibe, not a reworded one.
+  assert.match(update, /and so is one\s+its core would no longer fit wholly/u, "update_vibe: a rewording may lose its core");
   assert.doesNotMatch(create, /picked by its title/u, "create_vibe: the reverted title rule is back");
   assert.doesNotMatch(describing("create_genre"), /a title they picked/u, "create_genre: the reverted title rule is back");
   // A liked said now moves a want-to-see film; one that stands from before does not.

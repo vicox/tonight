@@ -270,6 +270,25 @@ check "otherwise one recommended Vibe and two meaningfully different alternative
     "$(order_check '3. **Otherwise one recommended new Vibe and two meaningfully different alternatives**' \
         'three different reasons the film may have worked for them, not three names for one' \
         'with this film as its core' 'Their pick says why they liked it')" "True"
+# §20: the fit model, said as judgement and never as a number; a rewording keeps its core.
+check "how well a film fits: core wholly, a member on its own, a partial one only beside a home" \
+    "$(order_check '**How well a film fits is a judgement, never a number.**' \
+        'The core fits its Vibe wholly' 'A further film fits it well enough to belong there on its own' \
+        'A film that only partly fits sits in a Vibe only beside another it fits well or anchors' \
+        'a film that does not meaningfully fit is not added')" "True"
+check "fit is never scored" \
+    "$(grep -ciE '[0-9] ?%|percent|fit score|scored fit' "$SKILL")" "0"
+check "a minimal change keeps its core fitting wholly" \
+    "$(order_check '2. **A minimal change' 'the smallest change that covers it, and one its core still fits wholly')" "True"
+# §20: where both a rewording and a new Vibe make sense, both — one recommended in a line, their
+# choice, nothing written first; the film keeps the Vibe it partly fits when they take the new one.
+check "when both make sense: both in one offer, one recommended in a line, they choose" \
+    "$(order_check '**When both make sense.**' 'If the film only partly fits a Vibe' \
+        'both a minimal change to it and' 'a new Vibe would make sense, offer both in the one offer' \
+        'the exact new wording, as 2 says, and a new' 'Vibe as 3 offers one' \
+        'which then also goes in the Vibe it partly fits' \
+        'Say in one line which you would choose and why, and let them choose' \
+        'A film that fits well is only proposed for filing, as 1 says, with nothing more offered')" "True"
 # docs/work/vibe-hypotheses §17: the workflow fixes kept from the live runs, said without
 # any of the hypothesis machinery — no second question about when, the viewing a liked moved.
 check "a yes that says nothing about when is seen-before, and when is never asked again" \
@@ -296,6 +315,11 @@ check "a kept one's new Vibe is offered as step 3 offers one, under the same tri
 check "a kept one's two alternatives are other reasons, not other names for one idea" \
     "$(order_check 'Offer it as step 3 of *When a liked or loved needs' \
         'three different reasons the film may have worked for them, not three names for one idea')" "True"
+check "a kept one: both where a rewording of its Vibe would say it too, and it stays there" \
+    "$(order_check 'not three names for one idea' \
+        'minimal change to the Vibe it is in would say that too — one its core still fits wholly — offer' \
+        'both, as *When both make sense* says; the film stays in that Vibe either way' \
+        'A bare' '*"loved it"* considers existing Vibes only')" "True"
 check "none of the hypothesis, title or ranking machinery is back" \
     "$(grep -ciE 'three hypotheses|chosen by title|my pick|titles lead|facet|ranks them|subject of their reason|readings of their words|beside 1' "$SKILL")" "0"
 # The skill names no film, Vibe or Genre from the evaluation's scenarios, or any other.
@@ -326,7 +350,8 @@ check "asking has a budget: one offer, one new Vibe, no re-offer, no nagging" \
 check "the budget: a vibe_required offer or a kept one's new Vibe is one offer, of which they pick one" \
     "$(order_check '**Asking has a budget.**' \
         'a `vibe_required` offer, or a new Vibe for a kept one, is still one offer: its recommended Vibe and' \
-        'two alternatives, of which they pick one')" "True"
+        'two alternatives, of which they pick one' \
+        'and so is one that offers both, as *When both make' 'sense* says')" "True"
 check "an owed answer comes first and whole, and an offer never displaces it" \
     "$(order_check '**When a film answer is owed**' 'the answer' 'comes first and whole' \
         'it never displaces the lead or the' 'directions' 'it waits for the next turn')" "True"

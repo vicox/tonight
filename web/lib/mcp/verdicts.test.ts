@@ -851,6 +851,11 @@ describe("the verdict tools", () => {
       assert.match(next as string, /Nothing was written/u);
       assert.match(next as string, /if one of their vibes fits/u);
       assert.match(next as string, /exact minimal new wording[^.]*only on their yes to those words/u);
+      // §20: a rewording keeps its core; where a new vibe makes sense too, both, one recommended
+      // in a line, their choice — and a partial fit only beside a vibe it fits well or anchors.
+      assert.match(next as string, /exact minimal new wording — one its core still fits wholly —/u);
+      assert.match(next as string, /where a new vibe would make sense too, offer both in the one offer \(choosing the new one also files the film in the vibe it partly fits\), say in one line which you would choose and why, and let them choose/u);
+      assert.match(next as string, /A film that only partly fits a vibe goes there only beside one it fits well or anchors/u);
       assert.match(next as string, /one recommended new vibe and two meaningfully different alternatives/u);
       // docs/work/vibe-hypotheses §17: the workflow fixes from the live runs, kept where
       // recommend alone reads them — a want-to-see film moved before the offer, and no

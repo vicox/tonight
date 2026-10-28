@@ -79,7 +79,7 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | owed-answer | the answer comes first and whole, in the usual shape; `loved` recorded alongside; any offer is only the closing question |
 | second-turn | `yes` writes exactly what was offered, in the §4 order, the Vibe with its core; `no` writes nothing and leaves no trace; `partial` writes only the agreed part |
 | first-films | `hi`: one sentence asking for two or three films they love, no setup, no Genre question; `what-tonight`: a film first, the question inside the answer; `three-films`: three `loved`/`confirmed` verdicts; plugin: one offer of first Vibes drawn only from those films, nothing written without a yes |
-| partial-fit | T1 on turn 1; then `yes`: Bloom filed in Champagne & Blueprints and the liked recorded again — no new Vibe, since one fits |
+| partial-fit | T1 on turn 1; then `yes`: what was offered — or, where both were, the recommended one — written as shown, Bloom in Champagne & Blueprints either way, and the liked recorded again |
 | partial-fit-declined | T1 on turn 1; then nothing written — no movie, viewing, Genre, Vibe or verdict — and said once that the liked is not kept |
 | liked-no-fit | `liked`, no `because`, answered `vibe_required`; one offer of a new Vibe as one recommended and two meaningfully different alternatives — other Vibes, not other names or a lone Genre — each with Bloom as core; nothing written before a yes |
 | liked-fits | `liked`, no `because`, answered `vibe_required`; one offer: filing in Champagne & Blueprints, and no new Vibe, since one fits; nothing written before a yes |
@@ -106,8 +106,11 @@ never a FAIL of what it would have shown.
    `vibe_required`. Not calling it is a FAIL. Filing the film before a yes is outcome 1.
 2. **Zero taste writes** in turn 1, and the liked is never said to be saved.
 3. **An existing Vibe first.** One offer: filing Bloom in Champagne & Blueprints — with, at most,
-   the exact minimal new wording for its sentence, written only on a yes to those words. A Vibe
-   fits, so no new Vibe is expected.
+   the exact minimal new wording for its sentence, written only on a yes to those words. A new Vibe
+   is not expected; whether the fit is full or partial is the agent's judgement, never a number.
+   **Where both make sense, both** — the new wording and a new Vibe as one recommended and two
+   alternatives, with Bloom also in Champagne & Blueprints — one recommended in a line, and their
+   choice. A new Vibe with no filing in Champagne & Blueprints, or a Genre on its own, fails.
 4. **The question about when**, at most once, inside the offer.
 
 ### Turn 1 (K1) — on `m5-06-bloom-saved`, the kept path
@@ -118,7 +121,10 @@ never a FAIL of what it would have shown.
 3. **One offer of a new Vibe: one recommended and two meaningfully different alternatives** —
    their words carry a why Champagne & Blueprints does not. Three different reasons the film may
    have worked for them, not three names for one idea; each a name, a sentence and its Genres —
-   any new Genre's meaning shown — with Bloom as its core. No such offer is a FAIL of K1.3 on its
+   any new Genre's meaning shown — with Bloom as its core. **Where a minimal new wording of
+   Champagne & Blueprints would say that why too, both** — that wording, one Ocean's Eleven still
+   fits wholly, beside the new Vibe — one recommended in a line, and their choice. A new wording
+   alone, or a Genre on its own, is not this offer. No such offer is a FAIL of K1.3 on its
    own. Whether the agent considered their Vibes is a separate reading, from the transcript, as
    `considered` and `stopped_after_record` define it: having read the model and offered nothing is
    a consideration, never a `stopped_after_record: yes`.
@@ -127,7 +133,8 @@ never a FAIL of what it would have shown.
 ### After a yes or a pick
 
 - What they agreed is written as it was shown, and only the Vibe they picked, with the Genres it
-  needed.
+  needed. A new wording they chose is written with `update_vibe`, and the core still fits it
+  wholly.
 - **The overlap is kept.** Bloom stays in Champagne & Blueprints.
 - **A yes or a pick that did not say when** — with nothing earlier in the conversation placing it
   — writes `seen-before`. Timing they did give stands, and a seen viewing already stored is kept.

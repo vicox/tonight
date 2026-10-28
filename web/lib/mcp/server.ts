@@ -641,7 +641,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "is not yours to adjust. The one change you may propose is a minimal one — the exact new " +
         "words, shown to them — when a film they like belongs to that same evening and the " +
         "sentence does not yet cover it; write it only on their yes to those words. A change " +
-        "that would make it a different evening is a new vibe, not a reworded one.\n\n" +
+        "that would make it a different evening is a new vibe, not a reworded one, and so is one " +
+        "its core would no longer fit wholly.\n\n" +
         "**Every one of these changes the whole vibe, so settle the whole vibe before you " +
         "call.** Work out what the result would be — the name it would then have, the sentence " +
         "it would then have, the genres it would then be built from, and what those genres' " +
@@ -1427,7 +1428,11 @@ const VIBE_REQUIRED_NEXT =
   "offer, and say so. Read get_taste, then in this conversation: (1) if one of their vibes fits — " +
   "judge by its instruction and genres, not its name — propose filing the film there; if it " +
   "fits except that its sentence does not yet cover this film, show them the exact minimal new " +
-  "wording and change it with update_vibe only on their yes to those words. (2) If none fits, " +
+  "wording — one its core still fits wholly — and change it with update_vibe only on their yes " +
+  "to those words; where a new vibe would make sense too, offer both in the one offer (choosing " +
+  "the new one also files the film in the vibe it partly fits), say in one line which you would " +
+  "choose and why, and let them choose. A film that only partly fits a vibe goes there only " +
+  "beside one it fits well or anchors. (2) If none fits, " +
   "offer one recommended new vibe and two meaningfully different alternatives — each a " +
   "different reason the film may have worked for them, with a name, a sentence, their genres " +
   "and this film as core — and let their choice say why. (3) On their yes, file it — " +

@@ -1648,6 +1648,57 @@ The wording forbids a Genre on its own without adding a Vibe trigger or a core r
 the pins cover the correction. Codex ran vibes 141/141, recommend 251/251, plugin 37/37 and 60
 affected Node tests.
 
+## 20. How well a film fits, and both options where both make sense (user decision, 2026-10-28)
+
+**The model** is qualitative, with no scores, thresholds, fields or algorithm:
+
+- the core fits its Vibe wholly;
+- a further film fits well enough to belong on its own;
+- a film that only partly fits sits in a Vibe only beside another it fits well or anchors;
+- a film with no meaningful fit is not added.
+
+A new wording keeps the core fitting wholly. Where a film only partly fits a Vibe and both a minimal
+change and a new Vibe make sense, both go in the one offer: one recommended in a line, the user
+choosing. Choosing the new Vibe also files the film in the one it partly fits. A straightforward
+fit keeps its one confirmation and gets no extra options. No trigger is added.
+
+**Changed:**
+
+- **`tonight-vibes`:**
+  - a *How well a film fits* paragraph after *What a Vibe is*;
+  - step 2's change is *"one its core still fits wholly"*;
+  - a *When both make sense* paragraph after step 3;
+  - the kept path's new-Vibe bullet points to it, *"the film stays in that Vibe either way"*;
+  - the budget counts a both-offer as one offer.
+- **`tonight-recommend`:** the `vibe_required` options add *"the change and a new Vibe side by side,
+  one of them recommended"*.
+- **`server.ts`:**
+  - `next` (1) adds the core clause, the both-offer, and the partial-fit rule;
+  - `update_vibe` adds *"and so is one its core would no longer fit wholly"*.
+
+**Unchanged:** triggers, naming, first films, keeping a film for later, schema, tools and API. The
+skill still never says *reword*: an existing guard keeps that to the update tools.
+
+**Pins:**
+
+- `tonight-vibes/test.sh`:
+  - new checks: the fit paragraph, a refusal of scores (*%*, *percent*, *fit score*), the step-2
+    core clause, *When both make sense*, and the kept-path both;
+  - the budget check is extended.
+- `tonight-recommend/test.sh`: one check.
+- `verdicts.test.ts`: three assertions on `next`.
+- `tools.test.ts`: one assertion on `update_vibe`.
+
+**Rubric:**
+
+- T1 now also accepts the both-offer, and fails a new Vibe with no filing, or a Genre on its own.
+- K1 accepts both, with the core still fitting.
+- A chosen new wording keeps its core.
+- The `partial-fit` row covers a yes to a both-offer.
+- `evaluation-m5.test.ts` follows.
+
+Fixtures and scenarios are unchanged. `plugin.json` is 1.10.8.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.

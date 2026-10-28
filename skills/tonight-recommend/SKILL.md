@@ -328,7 +328,8 @@ Three requests about a film, and they differ:
   loved is kept only for a film in one of their Vibes**: when `record_verdict` answers
   `vibe_required`, nothing was saved — **tonight-vibes** says how to find its Vibe with them (an
   existing one, a minimal change to one on their yes to the exact words, or one recommendation and
-  two meaningfully different alternatives); filing the film saves it, and then the verdict is
+  two meaningfully different alternatives — or, where it only partly fits a Vibe and both make
+  sense, the change and a new Vibe side by side, one of them recommended); filing the film saves it, and then the verdict is
   recorded again. Never invent a Vibe to hold it without their yes, and never say it is saved
   before it is. Never file it into a Vibe without their yes either — not even one that fits. Changed their mind? Record
   the new verdict, which supersedes the old one. Taking it back is `withdraw_verdict`, which

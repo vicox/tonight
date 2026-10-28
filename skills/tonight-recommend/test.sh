@@ -781,6 +781,12 @@ check "and the write flow says it where a verdict is recorded" \
         'the verdict is recorded again' \
         'Never invent a Vibe to hold it without their yes' \
         'never say it is saved before it is')" "True"
+# §20: where the film only partly fits and both make sense, the change and a new Vibe, one recommended.
+check "a partial fit where both make sense: the change and a new Vibe side by side, one recommended" \
+    "$(order_check 'one recommendation and' 'two meaningfully different alternatives' \
+        'or, where it only partly fits a Vibe and both make' \
+        'sense, the change and a new Vibe side by side, one of them recommended' \
+        'the verdict is recorded again')" "True"
 # docs/work/vibe-hypotheses §17: the Vibe offer is 1.9.1's again — no hypotheses, no titles.
 check "none of the hypothesis or title machinery is back" \
     "$(grep -ciE 'three hypotheses|chosen by title|choose by title|the ones whose evening it is' "$SKILL")" "0"

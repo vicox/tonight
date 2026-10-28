@@ -214,7 +214,12 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
   for (const [what, criterion] of [
     ["the verdict first", /\*\*The verdict, first\.\*\* `record_verdict` is called in turn 1, before any taste write/],
     ["filing before a yes", /Filing the film before a yes is outcome 1/],
-    ["an existing Vibe first, and no new one where one fits", /\*\*An existing Vibe first\.\*\*[^]*A Vibe\s+fits, so no new Vibe is expected/],
+    ["an existing Vibe first, and no new one expected", /\*\*An existing Vibe first\.\*\*[^]*A new Vibe\s+is not expected; whether the fit is full or partial is the agent's judgement, never a number/],
+    // §20: where both make sense, both — one recommended in a line, their choice — and the
+    // core still fits a new wording wholly.
+    ["both where both make sense, on T1", /\*\*Where both make sense, both\*\*[^]*one recommended in a line, and their\s+choice\. A new Vibe with no filing in Champagne & Blueprints, or a Genre on its own, fails/],
+    ["both on the kept path, the core still fitting", /\*\*Where a minimal new wording of\s+Champagne & Blueprints would say that why too, both\*\*[^]*one Ocean's Eleven still\s+fits wholly/],
+    ["a chosen new wording keeps its core", /A new wording they chose is written with `update_vibe`, and the core still fits it\s+wholly/],
     ["the kept path's one change", /\*\*One offer of a new Vibe: one recommended and two meaningfully different alternatives\*\*/],
     ["three reasons, not three names", /Three different reasons the film may\s+have worked for them, not three names for one idea/],
     // Code review: a missing offer fails K1 on its own, and is never read as a missed
