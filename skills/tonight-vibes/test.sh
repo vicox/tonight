@@ -329,9 +329,10 @@ check "a kept one: both where a new wording of its Vibe would hold that evening 
         '— offer both, as *When both make sense* says; the film stays in that Vibe either way')" "True"
 check "none of the hypothesis, title or ranking machinery is back" \
     "$(grep -ciE 'three hypotheses|chosen by title|my pick|titles lead|facet|ranks them|subject of their reason|readings of their words|beside 1' "$SKILL")" "0"
-# The skill names no film, Vibe or Genre from the evaluation's scenarios, or any other.
+# The skill names no film, Vibe or Genre from the evaluation's scenarios, or any other —
+# except main's worked proposal (§24), pinned below.
 check "no scenario film or Vibe survives anywhere in the skill" \
-    "$(grep -ciE 'Bloom|Champagne|Blueprints|Masterminds|Paterson|Logan Lucky|Knives Out|Palm Springs|Groundhog|Reservoir Dogs|Everybody Has a Plan|dialogue was so sharp|stupid thing' "$SKILL")" "0"
+    "$(grep -ciE 'Bloom|Champagne|Blueprints|Masterminds|Paterson|Logan Lucky|Knives Out|Palm Springs|Groundhog|dialogue was so sharp|stupid thing' "$SKILL")" "0"
 check "on a yes the film is filed, then the same verdict is recorded again" \
     "$(order_check 'On their yes, write exactly what they agreed' \
         'then call' '`record_verdict` again with `retry.arguments`' \
@@ -428,9 +429,14 @@ check "the Vibe is proposed conversationally, named, explained and anchored, the
 check "the proposal names its Genres, and what a new one would mean" \
     "$(order_check 'name its core, name its Genres with what any new one would mean' \
         'make the idea concrete')" "True"
-# The worked proposal went with the skill's examples; the rule above says what it showed.
-check "no worked proposal survives" \
-    "$(grep -ciE 'Reservoir Dogs|Double-cross|Shall I make it' "$SKILL")" "0"
+# §24: main's worked proposal is back, the one example kept: it shows a new Genre named with
+# its meaning, which offers left out without it.
+check "main's worked proposal shows a new Genre with its meaning" \
+    "$(order_check 'Proposed, that sounds like:' '**Everybody Has a Plan**' \
+        'one new Genre, Double-cross: plots where nobody at the table is telling the truth' \
+        'Shall I make it?"*' 'Said in one breath')" "True"
+check "the worked proposal is the only one" \
+    "$(grep -c 'Proposed, that sounds like' "$SKILL")" "1"
 check "a proposed Vibe is shown as an idea: other films in it, other names for it" \
     "$(order_check 'make the idea concrete' \
         'three to five other films that would belong in it' \

@@ -337,6 +337,12 @@ core, then the film, then one short sentence — never ask a second time. **A no
 never saving the film loose. Propose while saving, not while recommending; a Vibe that genuinely
 fits needs none of this.
 
+Proposed, that sounds like: *"That belongs in a Vibe of its own: **Everybody Has a Plan** — few
+people, one room, each running their own game, and Reservoir Dogs is the one that says it best.
+It would be built on your Heist and one new Genre, Double-cross: plots where nobody at the table
+is telling the truth. The Sting and Before the Devil Knows You're Dead would sit in there too. Or
+Nobody Plays Straight, or Small Room, Big Lies — which sounds more like you? Shall I make it?"*
+
 Said in one breath, not laid out as a form, and closed by one question: whether to make it. The films are there to show what the idea covers, the
 way you would describe a shelf by pointing at what is on it — a name alone is a label, and
 somebody agreeing to a label has agreed to less than they think. The alternative names are there

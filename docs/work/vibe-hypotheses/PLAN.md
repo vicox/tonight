@@ -1913,6 +1913,48 @@ phrase. It fails on 0b3cfc6's text.
 
 Codex ran vibes 149/149, recommend 252/252 and plugin 37/37.
 
+## 24. Main's worked proposal, the one example back (user decision, 2026-10-28)
+
+**Why.** §22 found that main and the branch say the same thing about showing a new Genre's
+meaning. The difference is main's worked proposal in the keep flow, which shows it. §15 removed
+that proposal with every other example. Without it, branch samples left a new Genre's meaning out
+in 4 of 5 bare-liked runs; main showed every meaning in 2 of 2.
+
+**The decision.** Restore that one example, verbatim from 5231b1d, and nothing else:
+
+- no other example;
+- no reason-gating;
+- no change to any Vibe behaviour.
+
+**The change.** In `tonight-vibes`, *Keeping a film*, main's paragraph goes back where it stood, just
+before *"Said in one breath…"*:
+
+    Proposed, that sounds like: *"That belongs in a Vibe of its own: **Everybody Has a Plan** — few
+    people, one room, each running their own game, and Reservoir Dogs is the one that says it best.
+    It would be built on your Heist and one new Genre, Double-cross: plots where nobody at the table
+    is telling the truth. The Sting and Before the Devil Knows You're Dead would sit in there too. Or
+    Nobody Plays Straight, or Small Room, Big Lies — which sounds more like you? Shall I make it?"*
+
+It is the keep flow's proposal, so its other names are the keep flow's, as the text after it
+already says. Two things stay as 1.10.11 has them:
+
+- the sentence after it, *"…and closed by one question: whether to make it"*;
+- every rule that liked and loved films get other Vibes, not other names.
+
+**Pins.** In `tonight-vibes/test.sh`:
+
+- *"no worked proposal survives"* is now *"main's worked proposal shows a new Genre with its
+  meaning"*: an order check from *"Proposed, that sounds like:"* through *"one new Genre,
+  Double-cross: plots where nobody at the table is telling the truth"*, plus *"the worked proposal
+  is the only one"* (count 1).
+- The scenario-name guard drops *Reservoir Dogs* and *Everybody Has a Plan*, the example's own
+  names, and keeps the rest.
+- The new check fails on 4d653f8's text.
+
+The recommend skill, the tool descriptions and their example guards are untouched.
+
+`plugin.json` is 1.10.12.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
