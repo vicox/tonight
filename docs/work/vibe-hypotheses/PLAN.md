@@ -1535,6 +1535,11 @@ model and offered nothing is a consideration — and would inflate the missed-co
 Now no offer fails K1.3 on its own, and consideration is read from the transcript as the metric
 defines it. `evaluation-m5.test.ts` pins the separation.
 
+### 17.2 Codex code review 2 — READY (`8c1dbd3`)
+
+K1 now keeps a missing offer apart from a missed consideration, and the pin passes
+(`evaluation-m5` 15/15). Stopped here: no live run, push, merge or deploy.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
