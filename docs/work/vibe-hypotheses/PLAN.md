@@ -1795,6 +1795,70 @@ history. It never asks why, and never needs a reason before proposing.
 
 Codex ran vibes 148/148, recommend 252/252 and plugin 37/37.
 
+## 22. Two regressions against main: one exact revert, one none (user decision, 2026-10-28)
+
+**The ask.** Restore main's (5231b1d, 1.9.1) exact behaviour for two workflow issues, and add no
+new rules:
+
+1. A new user's films are all covered, not one Vibe picked from three.
+2. A new Genre's meaning is shown in an offer.
+
+Revert narrowly only where a specific instruction changed. Where main has the same instruction,
+report it instead.
+
+**What the A/B showed.** Flash, one sample per version (`results/ab2-…`):
+
+- **First films:** main proposed two Vibes that held all three films. 1.10.9 proposed one
+  recommended Vibe and two alternatives, each anchored on a different film, and asked them to
+  pick one.
+- **Genre meanings:** 1.10.9 left one new Genre's meaning out.
+
+**1. First films: a changed instruction, reverted.**
+
+- Main's first-films section is word for word the same as 1.10.9's, except *"other reasons those
+  films may have worked"*, now *"other evenings those films could stand for"* (§21, kept).
+  *"Then consider them together"* and *"This is the one offer that may hold several Vibes"* are
+  unchanged.
+- The one changed instruction that names first films is §18's cross-reference in the keep flow:
+  *"… — step 3 of When a liked or loved needs a Vibe, a kept one's new Vibe, or first films — its
+  two alternatives are other Vibes …"*. It lists first films beside step 3's single-film offer, of
+  which they pick one. Main has no such line: first films were governed by their own section.
+- The recorded runs agree, though there are few:
+  - without the line, main and 5279078 proposed two Vibes covering the films;
+  - with it, a06ab19 offered no Vibe at all and fb98742 offered pick-one.
+- The revert drops *"or first films"* from that list:
+
+      Where a new Vibe is offered for a film they liked or loved — step 3 of *When a liked or
+      loved needs a Vibe*, or a kept one's new Vibe — its two alternatives are other Vibes, other
+      evenings the film could stand for, never other names for the same one.
+
+  First films are again governed by their own section alone, as on main. That section already
+  says *"not other names for one"*, so nothing it held is lost. Step 3 and the kept path are
+  unchanged.
+
+**2. Genre meanings: no changed instruction, so no exact revert.**
+
+- Main and 1.10.9 say the same thing in all three places:
+  - step 3: *"any new Genre's meaning shown"*;
+  - first films: *"each one's instruction is shown"*;
+  - What a Vibe is built from: *"named, with what it would mean"*.
+- `next` mentions no meanings in either version.
+- The recorded runs do differ:
+  - main showed every new Genre's meaning in 2 of 2 bare-liked samples;
+  - branch samples left at least one out in 4 of 5 runs (1.10.6, 1.10.8 and both 1.10.9 runs).
+- The one related text that changed is main's worked example in the keep flow (*"…and one new
+  Genre, Double-cross: plots where nobody at the table is telling the truth"*). It was removed with
+  every other concrete example at the user's request (§15). Restoring it would add a concrete
+  example back, so it is not done here. Any rule written for this instead would be a new rule.
+
+**Pins.** `tonight-vibes/test.sh`:
+
+- The keep-flow check now reads *"or a kept one's new Vibe —"*.
+- A new check: `grep -c 'or first films'` is 0.
+- Both fail on fb98742's text.
+
+`plugin.json` is 1.10.10.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.

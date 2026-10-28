@@ -342,9 +342,9 @@ way you would describe a shelf by pointing at what is on it — a name alone is 
 somebody agreeing to a label has agreed to less than they think. The alternative names are there
 because a name is easier to judge against another name than on its own, and the idea is theirs to
 name. That proposal, with its other names, is for a film they ask you to keep. Where a new Vibe is
-offered for a film they liked or loved — step 3 of *When a liked or loved needs a Vibe*, a kept
-one's new Vibe, or first films — its two alternatives are other Vibes, other evenings the film
-could stand for, never other names for the same one.
+offered for a film they liked or loved — step 3 of *When a liked or loved needs a Vibe*, or a kept
+one's new Vibe — its two alternatives are other Vibes, other evenings the film could stand for,
+never other names for the same one.
 
 Those films are the one place where naming films is not the start of anything. Mentioning a film
 has never written one down, and none of the writing rules reach them: the user has said nothing

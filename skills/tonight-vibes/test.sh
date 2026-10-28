@@ -440,8 +440,12 @@ check "a proposed Vibe is shown as an idea: other films in it, other names for i
 check "other names are for keeping a film; a liked film's alternatives are other Vibes" \
     "$(order_check 'The alternative names are there' \
         'That proposal, with its other names, is for a film they ask you to keep' \
-        'step 3 of *When a liked or loved needs a Vibe*, a kept' "one's new Vibe, or first films" \
+        'step 3 of *When a liked or loved needs a Vibe*, or a kept' "one's new Vibe —" \
         'its two alternatives are other Vibes, other evenings the film could stand for, never other names for the same one')" "True"
+# §22: first films are left to their own section, as on main — not listed beside step 3's
+# single-film offer, where Flash read them as one offer to pick one Vibe from.
+check "first films are not listed beside step 3's single-film offer" \
+    "$(grep -c 'or first films' "$SKILL")" "0"
 check "those films illustrate the idea and are never part of the save" \
     "$(order_check 'Those films are illustration only' \
         'never written' 'never in the Vibe, never given a viewing or a verdict')" "True"
