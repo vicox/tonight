@@ -243,10 +243,17 @@ check "a new core only when it embodies the instruction better, named against th
         'the film that anchors it now' 'that the current one stays in it')" "True"
 check "a Vibe with no core may be anchored by new evidence" \
     "$(order_check '**An anchor for a Vibe with no core yet**')" "True"
-check "at most one new Vibe, only when their words carry a how, when or why" \
+# §21: a new Vibe comes from the film, their Vibes and their history — never from asking why.
+check "at most one new Vibe, only when the film points to an evening none of theirs holds" \
     "$(order_check '**A new Vibe**, at most one, anchored on this film' \
-        'only when their words carry a *how*' \
-        'A bare *"loved it"* considers existing Vibes only')" "True"
+        'only when the film points to an evening' 'none of their Vibes holds' \
+        'read from the film itself, their other films and verdicts, and' \
+        'anything they said about it, never by asking them why')" "True"
+check "a bare loved may lead to new Vibes, and nobody is asked why" \
+    "$(order_check 'A bare *"loved it"* may lead to new Vibes too' \
+        'the film, their Vibes and what they have liked are' 'enough to propose from, and nobody is asked why')" "True"
+check "no new Vibe waits on a reason they gave" \
+    "$(grep -ciE 'their words carry a \*how\*|learn the why|no reason was given|considers existing Vibes only|Their pick says why|reasons the film may have worked' "$SKILL")" "0"
 check "when nothing fits, nothing more is said" \
     "$(order_check 'When nothing fits, stop and say nothing more about it')" "True"
 # A liked or loved is kept only for a film in a Vibe. Those two rules above are
@@ -266,10 +273,11 @@ check "a minimal change to a Vibe's sentence only when needed, and only on a yes
         'exact new wording — the smallest change that covers it' \
         'only on their yes to those words' \
         'A minimal change is never a way to stretch a Vibe')" "True"
-check "otherwise one recommended Vibe and two meaningfully different alternatives, each a reason" \
+check "otherwise one recommended Vibe and two meaningfully different alternatives, each an evening" \
     "$(order_check '3. **Otherwise one recommended new Vibe and two meaningfully different alternatives**' \
-        'three different reasons the film may have worked for them, not three names for one' \
-        'with this film as its core' 'Their pick says why they liked it')" "True"
+        'three different evenings the film could stand for, not three names for one idea' \
+        'read' 'from the film itself, their Vibes and what they have liked, and from anything they said about' \
+        'with this' 'film as its core' 'Their pick says which evening it is for them')" "True"
 # §20: the fit model, said as judgement and never as a number; a rewording keeps its core.
 check "how well a film fits: core wholly, a member on its own, a partial one only beside a home" \
     "$(order_check '**How well a film fits is a judgement, never a number.**' \
@@ -307,20 +315,18 @@ check "a liked said now moves a want-to-see film before anything is offered or a
         'their answer, if they give one, corrects it')" "True"
 # §17: the one change to 1.9.1 — a kept one's single new Vibe is offered the way step 3
 # already offered one: a recommended Vibe and two meaningfully different alternatives.
-check "a kept one's new Vibe is offered as step 3 offers one, under the same trigger" \
+check "a kept one's new Vibe is offered as step 3 offers one" \
     "$(order_check '**A new Vibe**, at most one, anchored on this film' \
-        'that no existing Vibe covers' \
-        'Offer it as step 3 of *When a liked or loved needs a Vibe* does: one recommended new Vibe and two meaningfully different alternatives, three different reasons the film may have worked for them' \
-        'A bare *"loved it"* considers existing Vibes only')" "True"
+        'none of their Vibes holds' \
+        'Offer it as step 3 of *When a liked or loved needs a Vibe* does: one recommended new Vibe and two meaningfully different alternatives, three different evenings the film could stand for')" "True"
 # §18: Flash offered one Vibe with other names for it. The kept path says what step 3 says.
-check "a kept one's two alternatives are other reasons, not other names for one idea" \
-    "$(order_check 'Offer it as step 3 of *When a liked or loved needs' \
-        'three different reasons the film may have worked for them, not three names for one idea')" "True"
-check "a kept one: both where a rewording of its Vibe would say it too, and it stays there" \
+check "a kept one's two alternatives are other evenings, not other names for one idea" \
+    "$(order_check 'Offer it as step 3 of *When a liked or' \
+        'three different evenings the film could stand for, not three names for one idea')" "True"
+check "a kept one: both where a new wording of its Vibe would hold that evening too, and it stays there" \
     "$(order_check 'not three names for one idea' \
-        'minimal change to the Vibe it is in would say that too — one its core still fits wholly — offer' \
-        'both, as *When both make sense* says; the film stays in that Vibe either way' \
-        'A bare' '*"loved it"* considers existing Vibes only')" "True"
+        'minimal change to the Vibe it is in would hold that evening too — one its core still fits wholly' \
+        '— offer both, as *When both make sense* says; the film stays in that Vibe either way')" "True"
 check "none of the hypothesis, title or ranking machinery is back" \
     "$(grep -ciE 'three hypotheses|chosen by title|my pick|titles lead|facet|ranks them|subject of their reason|readings of their words|beside 1' "$SKILL")" "0"
 # The skill names no film, Vibe or Genre from the evaluation's scenarios, or any other.
@@ -435,7 +441,7 @@ check "other names are for keeping a film; a liked film's alternatives are other
     "$(order_check 'The alternative names are there' \
         'That proposal, with its other names, is for a film they ask you to keep' \
         'step 3 of *When a liked or loved needs a Vibe*, a kept' "one's new Vibe, or first films" \
-        'its two alternatives are other Vibes, other reasons the film may have worked for them, never other names for the same one')" "True"
+        'its two alternatives are other Vibes, other evenings the film could stand for, never other names for the same one')" "True"
 check "those films illustrate the idea and are never part of the save" \
     "$(order_check 'Those films are illustration only' \
         'never written' 'never in the Vibe, never given a viewing or a verdict')" "True"

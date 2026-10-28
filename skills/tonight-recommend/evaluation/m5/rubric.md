@@ -65,7 +65,7 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 
 | family | pass |
 | --- | --- |
-| explicit-positive | `loved`, no invented `because`; plugin: existing Vibes only — no reason was given, so no new Vibe |
+| explicit-positive | `loved`, no invented `because`; plugin: a new Vibe only where the film points to an evening none of theirs holds, and nobody is asked why |
 | contextual-positive, background | `liked`, `because` = their clause verbatim; no occasion, daypart or attention claim anywhere; plugin: one offer at most — an existing Vibe whose instruction covers it, or one new Vibe anchored on the film |
 | reason-led | `liked` (not `loved`), `because` verbatim; plugin: the dialogue Vibe considered |
 | several-vibes | plugin: one offer may name both fitting Vibes; a partial yes writes exactly the agreed part |
@@ -119,10 +119,11 @@ never a FAIL of what it would have shown.
 2. Bloom's viewing moves from `want-to-see` to `seen-before` in turn 1, **before the offer and
    without asking first** — an opinion said now places no recent viewing.
 3. **One offer of a new Vibe: one recommended and two meaningfully different alternatives** —
-   their words carry a why Champagne & Blueprints does not. Three different reasons the film may
-   have worked for them, not three names for one idea; each a name, a sentence and its Genres —
-   any new Genre's meaning shown — with Bloom as its core. **Where a minimal new wording of
-   Champagne & Blueprints would say that why too, both** — that wording, one Ocean's Eleven still
+   the film points to an evening Champagne & Blueprints does not hold, what they said about it
+   included. Three different evenings the film could stand for, not three names for one idea;
+   each a name, a sentence and its Genres — any new Genre's meaning shown — with Bloom as its
+   core, and nobody asked why. **Where a minimal new wording of Champagne & Blueprints would hold
+   that evening too, both** — that wording, one Ocean's Eleven still
    fits wholly, beside the new Vibe — one recommended in a line, and their choice. A new wording
    alone, or a Genre on its own, is not this offer. No such offer is a FAIL of K1.3 on its
    own. Whether the agent considered their Vibes is a separate reading, from the transcript, as

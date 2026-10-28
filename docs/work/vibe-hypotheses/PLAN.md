@@ -1724,6 +1724,68 @@ filing. The vibes check and the rubric pin follow.
 anything is written. Codex ran vibes 146/146, recommend 252/252, plugin 37/37 and 233 focused
 tests.
 
+## 21. No reason needed for a Vibe (user decision, 2026-10-28)
+
+**The decision.** Tonight derives Vibe proposals from the film, their Vibes and their taste
+history. It never asks why, and never needs a reason before proposing.
+
+- What they did say still counts: their `because` stays verbatim, and anything they said about
+  the film is used as evidence.
+- Confirmation before writes, membership and storage are unchanged.
+
+**What still depended on a reason in 1.10.8, and is now film-based:**
+
+- **`tonight-vibes`:**
+  - **Step 3:** *"three different reasons the film may have worked for them… Their pick says why
+    they liked it"* is now *"three different evenings the film could stand for… read from the film
+    itself, their Vibes and what they have liked, and from anything they said about it… Their
+    pick says which evening it is for them"*.
+  - **The bare-"loved" note:** *"the one place a bare loved it may lead to new Vibes: the
+    alternatives are how you learn the why they did not give"* is now *"A bare loved it may lead
+    to new Vibes too: the film, their Vibes and what they have liked are enough to propose from,
+    and nobody is asked why"*.
+  - **The kept path:**
+    - its trigger was *"only when their words carry a how, when or why that no existing Vibe
+      covers… A bare loved it considers existing Vibes only"*;
+    - it is now *"only when the film points to an evening none of their Vibes holds: read from the
+      film itself, their other films and verdicts, and anything they said about it, never by
+      asking them why"*.
+
+    The both-offer applies where a new wording *"would hold that evening too"*. *"At most one"*,
+    the budget and *"Most verdicts end there"* are unchanged.
+  - **The statement table:** *"kept: existing Vibes only — no reason was given"* is now *"kept:
+    as What to consider says — a new Vibe only where the film points to an evening none of theirs
+    holds, and nobody is asked why"*.
+  - **Wording only:** the keep flow's scope sentence and first films now say *"other evenings"*,
+    not *"other reasons"*.
+- **`next` (2):** *"each a different reason the film may have worked for them… let their choice
+  say why"* is now *"each a different evening the film could stand for, read from the film, their
+  vibes and what they have liked and anything they said about it… let their choice say which;
+  never ask them why they liked it"*.
+- **Rubric:**
+  - explicit-positive: *"no reason was given, so no new Vibe"* is gone;
+  - K1: the new Vibe comes from an evening the film points to (*"what they said about it
+    included"*), nobody is asked why, and the both-offer applies where a wording *"would hold that
+    evening too"*.
+
+**Unchanged:**
+
+- `record_verdict` and `because`: their words, verbatim, only where given.
+- *"loved only when their words carry it"*.
+- `get_taste`'s rule against presenting a reason as theirs.
+- The fit model, the both-offer, the confirmation and write order.
+- The recommend skill, schema, tools and API.
+
+**Pins:**
+
+- `tonight-vibes/test.sh`: six checks follow the new wording. New: the film-based kept trigger, the
+  bare loved with nobody asked why, and a refusal of the old reason-gated phrases. Each fails on
+  the text before.
+- `verdicts.test.ts`: `next` (2) is pinned, and the old *"let their choice say why"* is refused.
+- `evaluation-m5.test.ts`: the K1 pins follow.
+
+`plugin.json` is 1.10.9.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.

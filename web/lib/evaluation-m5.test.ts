@@ -218,12 +218,15 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
     // §20: where both make sense, both — one recommended in a line, their choice — and the
     // core still fits a new wording wholly.
     ["both where both make sense, on T1", /\*\*Where both make sense, both\*\*[^]*one recommended in a line, and their\s+choice\. A new Vibe with no filing in Champagne & Blueprints, or a Genre on its own, fails/],
-    ["both on the kept path, the core still fitting", /\*\*Where a minimal new wording of\s+Champagne & Blueprints would say that why too, both\*\*[^]*one Ocean's Eleven still\s+fits wholly/],
+    ["both on the kept path, the core still fitting", /\*\*Where a minimal new wording of Champagne & Blueprints would hold\s+that evening too, both\*\*[^]*one Ocean's Eleven still\s+fits wholly/],
     // Code review: a plain yes takes the recommendation only when it clearly did.
     ["a yes to both is clear, or asked about", /where both were offered, the recommended one only if the yes clearly took it, and otherwise one question about which before anything is written/],
     ["a chosen new wording keeps its core", /A new wording they chose is written with `update_vibe`, and the core still fits it\s+wholly/],
     ["the kept path's one change", /\*\*One offer of a new Vibe: one recommended and two meaningfully different alternatives\*\*/],
-    ["three reasons, not three names", /Three different reasons the film may\s+have worked for them, not three names for one idea/],
+    // §21: three evenings the film could stand for, not three readings of a reason — and
+    // nobody asked why.
+    ["three evenings, not three names", /Three different evenings the film could stand for, not three names for one idea/],
+    ["nobody asked why", /with Bloom as its\s+core, and nobody asked why/],
     // Code review: a missing offer fails K1 on its own, and is never read as a missed
     // consideration — that is the transcript's, as the metric defines it.
     ["no offer is a K1 failure, not a missed consideration", /No such offer is a FAIL of K1\.3 on its\s+own[^]*never a `stopped_after_record: yes`/],

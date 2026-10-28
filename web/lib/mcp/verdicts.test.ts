@@ -865,6 +865,11 @@ describe("the verdict tools", () => {
       );
       assert.match(next as string, /A film that only partly fits a vibe goes there only beside one it fits well or anchors/u);
       assert.match(next as string, /one recommended new vibe and two meaningfully different alternatives/u);
+      // §21: the three come from the film, their vibes and their history — what they said is
+      // used, never asked for — and their pick says which evening, not why.
+      assert.match(next as string, /each a different evening the film could stand for, read from the film, their vibes and what they have liked and anything they said about it/u);
+      assert.match(next as string, /let their choice say which; never ask them why they liked it/u);
+      assert.doesNotMatch(next as string, /let their choice say why|different reason the film may have worked/u, "the offer waits on their reason again");
       // docs/work/vibe-hypotheses §17: the workflow fixes from the live runs, kept where
       // recommend alone reads them — a want-to-see film moved before the offer, and no
       // second question about when.
