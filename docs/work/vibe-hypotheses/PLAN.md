@@ -1642,6 +1642,12 @@ consider existing Vibes after a bare kept liked, or stop after a dislike or an o
 These sentences now only forbid a lone Genre; they never make an offer of their own. Both pins
 follow the new wording, and each refuses the old, prescriptive one.
 
+### 19.2 Codex code review 2 — READY (`2f5de19`)
+
+The wording forbids a Genre on its own without adding a Vibe trigger or a core requirement, and
+the pins cover the correction. Codex ran vibes 141/141, recommend 251/251, plugin 37/37 and 60
+affected Node tests.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
