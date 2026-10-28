@@ -478,10 +478,12 @@ check "each film they name is a loved, confirmed verdict, kept once its film has
     "$(order_check '**Each film they name is a verdict**' '`loved`, `confirmed`' \
         'for somebody new every one is answered' '`vibe_required` and nothing is saved yet' \
         'A user who stops here keeps nothing positive')" "True"
-check "each first-films Vibe comes with two meaningfully different alternatives" \
+# §23: main's wording for the alternatives, restored; "other evenings those films could stand
+# for" was read as one offer of three evenings to pick one from.
+check "each first-films Vibe comes with two meaningfully different alternatives, main's wording" \
     "$(order_check '**This is the one offer that may hold several Vibes**' \
         'two meaningfully different alternatives beside it' \
-        'not other names for one')" "True"
+        'other reasons those films may have worked, not other names for one')" "True"
 check "a no to the first-films offer saves nothing positive, and a yes is followed by the verdicts" \
     "$(order_check 'a no saves nothing positive' \
         'each loved is recorded again once its film is filed')" "True"

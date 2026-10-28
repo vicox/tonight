@@ -366,7 +366,7 @@ for a film, on its own if they did not — what two or three films they love. Wh
   Here the idea may come from the films themselves, because they were asked for exactly this.
 - **This is the one offer that may hold several Vibes**: every Vibe it proposes is drawn only from
   the films they just named, each with two meaningfully different alternatives beside it — other
-  evenings those films could stand for, not other names for one — an instruction, its Genres, its
+  reasons those films may have worked, not other names for one — an instruction, its Genres, its
   core, and three or four illustration films. The Genres are new, so each one's instruction is
   shown, because a yes covers only the meaning they were shown.
 - **One yes covers the offer**; a partial yes writes exactly the agreed part; a no saves nothing

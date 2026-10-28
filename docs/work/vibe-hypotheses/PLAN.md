@@ -1868,6 +1868,42 @@ report it instead.
 
 Codex ran vibes 149/149, recommend 252/252, plugin 37/37 and 55 affected Node tests.
 
+## 23. First films: main's wording, whole (user decision, 2026-10-28)
+
+**The run behind it.** On 1.10.10, Flash ran the `three-films` scenario twice
+(`results/m5-plugin-skills-5a2873f3-0b3cfc6-…`):
+
+- Run 01 proposed two Vibes that held all three films.
+- Run 02 offered one recommended Vibe and *"two other evenings those same three films could stand
+  for"*, and asked them to pick one.
+
+Both pick-one answers so far, 1.10.9's and this one, echo the first-films wording §21 introduced.
+
+**The decision.** Restore main's wording for the first-films section — that phrase, and only it.
+No other tuning.
+
+**The change.** One phrase in `tonight-vibes`, *A new user's first films*:
+
+- before: *"other evenings those films could stand for, not other names for one"*;
+- now: *"other reasons those films may have worked, not other names for one"*.
+
+The section is now byte for byte 5231b1d's. This reverses §21 for first films only.
+
+**Everything else stays as 1.10.10 has it:**
+
+- step 3 and `next` (2): evenings, and nobody is asked why;
+- the bare loved and the kept path;
+- the keep-flow cross-reference (§22);
+- the fit model.
+
+The guard against reason-gated phrases still holds: it names *"reasons the film may have worked"*,
+and the first-films phrase is not that.
+
+**Pins.** In `tonight-vibes/test.sh`, the first-films alternatives check now requires main's
+phrase. It fails on 0b3cfc6's text.
+
+`plugin.json` is 1.10.11.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
