@@ -1718,6 +1718,12 @@ Two findings, each fixed:
 **Pins:** `verdicts.test.ts` gains the clarification, the write order, and the retry after the
 filing. The vibes check and the rubric pin follow.
 
+### 20.2 Codex code review 2 — READY (`e9a87a0`)
+
+`next` carries the full offer and its write sequence, and an unclear reply is asked about before
+anything is written. Codex ran vibes 146/146, recommend 252/252, plugin 37/37 and 233 focused
+tests.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
