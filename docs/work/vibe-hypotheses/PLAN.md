@@ -1623,7 +1623,24 @@ inside a Vibe, is unchanged. The triggers, naming, first films and `next` are un
 - `taste-verdicts.test.ts`: the `get_taste` clause.
 - Both fail on the text before this change.
 
-`plugin.json` is 1.10.7.
+`plugin.json` is 1.10.7. **Committed as `4d18f32`.**
+
+### 19.1 Codex code review 1 — NOT READY
+
+**Codex's finding:** the new sentences prescribed a Vibe with the film as core after *any*
+account of how a film worked. That conflicts with the paths that only file into an existing Vibe,
+consider existing Vibes after a bare kept liked, or stop after a dislike or an opt-out.
+
+**The wording now:**
+
+- In `tonight-recommend`: *"After they say how a film worked for them, a Genre is never offered
+  on its own: whether anything is offered is tonight-vibes' to say, and a new Genre comes only as
+  part of a new Vibe it offers."*
+- In `get_taste`: *"…a genre is never offered on its own: a new genre then comes only as part of
+  a new vibe, and only where one is offered at all."*
+
+These sentences now only forbid a lone Genre; they never make an offer of their own. Both pins
+follow the new wording, and each refuses the old, prescriptive one.
 
 ### 12.5 Not in scope
 
