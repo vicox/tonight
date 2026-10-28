@@ -1955,6 +1955,15 @@ The recommend skill, the tool descriptions and their example guards are untouche
 
 `plugin.json` is 1.10.12.
 
+**Review.** Codex said READY on 4563458, with no findings:
+
+- The sole runtime change restores main's exact worked proposal.
+- It stays scoped to keeping a film.
+- No other example or reason-gating came back.
+- The pins cover the Genre meaning and reject the previous text.
+
+Codex ran vibes 150/150, recommend 252/252, plugin 37/37 and 55 affected Node tests.
+
 ### 12.5 Not in scope
 
 - An SDK or a second framework.
