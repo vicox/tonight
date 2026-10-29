@@ -25,5 +25,6 @@
   { "fixture": "m5-05-partial-fit", "prompt": "bloom-clever", "then": "no", "family": "partial-fit-declined", "considers": true, "sources": ["plugin-skills"] },
   { "fixture": "m5-06-bloom-saved", "prompt": "bloom-clever", "then": ["pick-title-one", "like-bloom-tonight"], "family": "kept-new-vibe", "considers": true, "sources": ["plugin-skills"] },
   { "fixture": "m5-04-reading", "prompt": "liked-bloom", "family": "liked-no-fit", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
-  { "fixture": "m5-05-partial-fit", "prompt": "liked-bloom", "family": "liked-fits", "considers": true, "sources": ["recommend-only", "plugin-skills"] }
+  { "fixture": "m5-05-partial-fit", "prompt": "liked-bloom", "family": "liked-fits", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-05-partial-fit", "prompt": "bloom-war-mega", "family": "liked-fits-german", "considers": true, "sources": ["recommend-only", "plugin-skills"] }
 ]

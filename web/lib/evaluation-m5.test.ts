@@ -214,13 +214,17 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
   for (const [what, criterion] of [
     ["the verdict first", /\*\*The verdict, first\.\*\* `record_verdict` is called in turn 1, before any taste write/],
     ["filing before a yes", /Filing the film before a yes is outcome 1/],
-    ["an existing Vibe first, and no new one expected", /\*\*An existing Vibe first\.\*\*[^]*A new Vibe\s+is not expected; whether the fit is full or partial is the agent's judgement, never a number/],
+    // Skill compliance: the Vibe that fits is recommended with two concrete alternatives, never
+    // alone or beside a bare "or a new one", and the expected refusal is apologised for nowhere.
+    ["an existing Vibe first, with two concrete alternatives",
+      /\*\*An existing Vibe first, with two concrete alternatives\.\*\*[^]*recommended[^]*two concrete alternatives beside it[^]*Filing offered alone, or beside a bare \*"or I can make a new one"\*, fails; whether the fit\s+is full or partial is the agent's judgement, never a number/],
+    ["no apology for the expected refusal", /\*\*No apology\.\*\* `vibe_required` is the expected answer: the reply apologises for nothing and\s+reports no error/],
     // §20: where both make sense, both — one recommended in a line, their choice — and the
     // core still fits a new wording wholly.
     ["both where both make sense, on T1", /\*\*Where both make sense, both\*\*[^]*one recommended in a line, and their\s+choice\. A new Vibe with no filing in Champagne & Blueprints, or a Genre on its own, fails/],
     ["both on the kept path, the core still fitting", /\*\*Where a minimal new wording of Champagne & Blueprints would hold\s+that evening too, both\*\*[^]*one Ocean's Eleven still\s+fits wholly/],
     // Code review: a plain yes takes the recommendation only when it clearly did.
-    ["a yes to both is clear, or asked about", /where both were offered, the recommended one only if the yes clearly took it, and otherwise one question about which before anything is written/],
+    ["a yes to alternatives is clear, or asked about", /with alternatives offered, the recommended one only if the yes clearly took it, and otherwise one question about which before anything is written/],
     ["a chosen new wording keeps its core", /A new wording they chose is written with `update_vibe`, and the core still fits it\s+wholly/],
     ["the kept path's one change", /\*\*One offer of a new Vibe: one recommended and two meaningfully different alternatives\*\*/],
     // §21: three evenings the film could stand for, not three readings of a reason — and
@@ -245,6 +249,31 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
   assert.match(rubric, /with nothing earlier in the conversation placing it\s+— writes `seen-before`\. Timing they did give stands/);
   assert.match(readme, /--only m5-05-partial-fit,m5-06-bloom-saved,m5-02-empty__hi__then-three-films --runs 1 --budget 9/);
   assert.match(readme, /--only m5-05-partial-fit --runs 1 --budget 2/);
+});
+
+test("skill compliance: a German bare liked where a Vibe fits, and a follow-on that does not recite", () => {
+  // "Brothers Bloom war mega!" — the bare liked again, in German, on the model where Champagne &
+  // Blueprints is its evening. Scored as liked-fits is, on both sources.
+  const german = scenarios.filter((one) => one.prompt === "bloom-war-mega");
+  assert.deepEqual(
+    german.map((one) => [one.fixture, one.family, followUps(one).length, one.considers, [...one.sources].sort().join(", ")]),
+    [["m5-05-partial-fit", "liked-fits-german", 0, true, "plugin-skills, recommend-only"]],
+  );
+  assert.equal(requests.get("bloom-war-mega"), "Brothers Bloom war mega!");
+
+  for (const [what, row] of [
+    ["the fitting Vibe recommended, with two concrete alternatives",
+      /\| liked-fits \| [^\n]*filing in Champagne & Blueprints recommended, with two concrete alternatives beside it[^\n]*never a bare \*"or I can make a new one"\*/],
+    ["no apology where a liked is refused", /\| liked-fits \| [^\n]*answered `vibe_required` with no apology and no error reported/],
+    ["the German row: first, liked, no because, nothing translated",
+      /\| liked-fits-german \| as liked-fits, for \*"Brothers Bloom war mega!"\*: `record_verdict` first, `liked`[^\n]*with no `because`, since they gave no reason, and nothing translated or added/],
+    ["the follow-on recommendation says back what they said at most once",
+      /\| kept-new-vibe \| [^\n]*`like-bloom-tonight`: [^\n]*personal in every reason, and that says back what they said of Bloom \*\*at most once\*\* — never on the lead and every direction, and not again if the answer before already said it/],
+  ] as const) {
+    assert.match(rubric, row, `the rubric does not score ${what}`);
+  }
+  // The single-option offer the fitting case used to expect is gone.
+  assert.doesNotMatch(rubric, /and no new Vibe, since one fits|A new Vibe\s+is not expected/);
 });
 
 test("the recommendation-only reading case runs on recommend alone (R3-1)", () => {

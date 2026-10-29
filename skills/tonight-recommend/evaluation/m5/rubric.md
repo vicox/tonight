@@ -79,11 +79,12 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | owed-answer | the answer comes first and whole, in the usual shape; `loved` recorded alongside; any offer is only the closing question |
 | second-turn | `yes` writes exactly what was offered, in the §4 order, the Vibe with its core; `no` writes nothing and leaves no trace; `partial` writes only the agreed part |
 | first-films | `hi`: one sentence asking for two or three films they love, no setup, no Genre question; `what-tonight`: a film first, the question inside the answer; `three-films`: three `loved`/`confirmed` verdicts; plugin: one offer of first Vibes drawn only from those films, nothing written without a yes |
-| partial-fit | T1 on turn 1; then `yes`: what was offered written as shown, Bloom in Champagne & Blueprints either way, and the liked recorded again — where both were offered, the recommended one only if the yes clearly took it, and otherwise one question about which before anything is written |
+| partial-fit | T1 on turn 1; then `yes`: what was offered written as shown, Bloom in Champagne & Blueprints either way, and the liked recorded again — with alternatives offered, the recommended one only if the yes clearly took it, and otherwise one question about which before anything is written |
 | partial-fit-declined | T1 on turn 1; then nothing written — no movie, viewing, Genre, Vibe or verdict — and said once that the liked is not kept |
-| liked-no-fit | `liked`, no `because`, answered `vibe_required`; one offer of a new Vibe as one recommended and two meaningfully different alternatives — other Vibes, not other names or a lone Genre — each with Bloom as core; nothing written before a yes |
-| liked-fits | `liked`, no `because`, answered `vibe_required`; one offer: filing in Champagne & Blueprints, and no new Vibe, since one fits; nothing written before a yes |
-| kept-new-vibe | K1 on turn 1; `{title:1}`: *After a yes or a pick* (below), the picked Vibe with core Bloom, and Bloom still in Champagne & Blueprints; `like-bloom-tonight`: a recommendation that names no Vibe or Genre and writes no taste |
+| liked-no-fit | `liked`, no `because`, answered `vibe_required` with no apology and no error reported; one offer of a new Vibe as one recommended and two meaningfully different alternatives — other Vibes, not other names or a lone Genre — each with Bloom as core; nothing written before a yes |
+| liked-fits | `liked`, no `because`, answered `vibe_required` with no apology and no error reported; one offer: filing in Champagne & Blueprints recommended, with two concrete alternatives beside it — another Vibe of theirs it fits, or a new Vibe with a name, a sentence and its Genres and Bloom as core — never a bare *"or I can make a new one"*; nothing written before a yes |
+| liked-fits-german | as liked-fits, for *"Brothers Bloom war mega!"*: `record_verdict` first, `liked` — *mega* carries none of loved's words — with no `because`, since they gave no reason, and nothing translated or added; the offer in their language |
+| kept-new-vibe | K1 on turn 1; `{title:1}`: *After a yes or a pick* (below), the picked Vibe with core Bloom, and Bloom still in Champagne & Blueprints; `like-bloom-tonight`: a recommendation that names no Vibe or Genre and writes no taste, personal in every reason, and that says back what they said of Bloom **at most once** — never on the lead and every direction, and not again if the answer before already said it |
 | going-through | plugin: every anchor, merge or delete is an offer; anchors come from standing positive verdicts; Wingwomen never raised |
 | recommendation-only-reading | nothing offered as fitting Quiet Dread is gory or has torture in it — the Slow Burn Genre rules both out and the request asked for their taste; the positive evidence used is recognisable; no taste write and no Vibe offer |
 
@@ -105,13 +106,18 @@ never a FAIL of what it would have shown.
    `liked`, `volunteered` and `because` = *"clever characters do smart things"*; it is answered
    `vibe_required`. Not calling it is a FAIL. Filing the film before a yes is outcome 1.
 2. **Zero taste writes** in turn 1, and the liked is never said to be saved.
-3. **An existing Vibe first.** One offer: filing Bloom in Champagne & Blueprints — with, at most,
-   the exact minimal new wording for its sentence, written only on a yes to those words. A new Vibe
-   is not expected; whether the fit is full or partial is the agent's judgement, never a number.
+3. **An existing Vibe first, with two concrete alternatives.** One offer: filing Bloom in
+   Champagne & Blueprints, recommended — with, at most, the exact minimal new wording for its
+   sentence, written only on a yes to those words — and two concrete alternatives beside it, each
+   another Vibe of theirs it fits or a new Vibe with a name, a sentence and its Genres and Bloom as
+   core. Filing offered alone, or beside a bare *"or I can make a new one"*, fails; whether the fit
+   is full or partial is the agent's judgement, never a number.
    **Where both make sense, both** — the new wording and a new Vibe as one recommended and two
    alternatives, with Bloom also in Champagne & Blueprints — one recommended in a line, and their
    choice. A new Vibe with no filing in Champagne & Blueprints, or a Genre on its own, fails.
 4. **The question about when**, at most once, inside the offer.
+5. **No apology.** `vibe_required` is the expected answer: the reply apologises for nothing and
+   reports no error.
 
 ### Turn 1 (K1) — on `m5-06-bloom-saved`, the kept path
 
