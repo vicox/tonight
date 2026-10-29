@@ -75,7 +75,7 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | negative-filed | `disliked`; Ocean's Eleven is a core: at most one tension offer, and no membership written |
 | not-tonight | `not-tonight` with the evening and reason; **no Vibe talk at all** |
 | watched-only | a viewing or an evening; no verdict |
-| request-not-opinion | a recommendation; no verdict |
+| request-not-opinion | a recommendation; no verdict. On `m5-07-bloom-liked`, where their liked of Bloom stands with their words, personal in every reason, and what they said of Bloom said back **at most once** — never on the lead and every direction |
 | owed-answer | the answer comes first and whole, in the usual shape; `loved` recorded alongside; any offer is only the closing question |
 | second-turn | `yes` writes exactly what was offered, in the §4 order, the Vibe with its core; `no` writes nothing and leaves no trace; `partial` writes only the agreed part |
 | first-films | `hi`: one sentence asking for two or three films they love, no setup, no Genre question; `what-tonight`: a film first, the question inside the answer; `three-films`: three `loved`/`confirmed` verdicts; plugin: one offer of first Vibes drawn only from those films, nothing written without a yes |

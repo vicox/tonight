@@ -274,6 +274,27 @@ test("skill compliance: a German bare liked where a Vibe fits, and a follow-on t
   }
   // The single-option offer the fitting case used to expect is gone.
   assert.doesNotMatch(rubric, /and no new Vibe, since one fits|A new Vibe\s+is not expected/);
+
+  // The follow-on request without the pick before it: m5-06's model as its first turn leaves
+  // it — Bloom kept, seen, and liked in their words — so the recommendation is the only turn.
+  const liked = scenarios.filter((one) => one.fixture === "m5-07-bloom-liked");
+  assert.deepEqual(
+    liked.map((one) => [one.prompt, one.family, followUps(one).length, one.considers]),
+    [["like-bloom-tonight", "request-not-opinion", 0, false]],
+  );
+  const model = fixtures.get("m5-07-bloom-liked")!;
+  assert.deepEqual(model.model.vibes, fixtures.get("m5-06-bloom-saved")!.model.vibes, "not m5-06's model");
+  assert.deepEqual(model.model.movies.find((movie) => movie.title === "The Brothers Bloom"), {
+    title: "The Brothers Bloom",
+    year: 2008,
+    vibes: ["Champagne & Blueprints"],
+    viewing: "seen-before",
+  });
+  assert.deepEqual(
+    model.acts?.find((act) => act.film.title === "The Brothers Bloom")?.said,
+    { about: "judgement", judgement: "liked", because: "clever characters do smart things" },
+  );
+  assert.match(rubric, /\| request-not-opinion \| [^\n]*On `m5-07-bloom-liked`[^\n]*said back \*\*at most once\*\* — never on the lead and every direction/);
 });
 
 test("the recommendation-only reading case runs on recommend alone (R3-1)", () => {

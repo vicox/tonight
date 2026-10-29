@@ -1,0 +1,55 @@
+{
+  "id": "m5-07-bloom-liked",
+  "user": "google:eval-m5-07-bloom-liked",
+  "title": "The saved-Bloom model after the liked was kept: a request for something like it, in one turn",
+  "exists_for": ["skill-compliance", "personal-not-recited"],
+  "construction_note": "docs/work/skill-compliance. m5-06's model as its first turn leaves it: The Brothers Bloom in Champagne & Blueprints, seen-before, with their liked kept in their words — clever characters do smart things. Seeded directly, so a request for something like it is the only turn and no pick has to be resolved first. What is scored is the recommendation: personal in every reason, and what they said of Bloom said back at most once.",
+  "writes": true,
+  "model": {
+    "genres": [
+      { "name": "Heist", "instruction": "I like a plan, a crew, and watching the job come together." },
+      { "name": "Glamour", "instruction": "I like beautiful places and people dressed for them." },
+      { "name": "Slow Burn", "instruction": "I like films that take their time and trust me to wait." },
+      { "name": "Character Story", "instruction": "I want to come out knowing a person, not a plot." }
+    ],
+    "vibes": [
+      {
+        "name": "Champagne & Blueprints",
+        "genres": ["Heist", "Glamour"],
+        "instruction": "Glamorous capers, where I get to enjoy the plan as much as the places.",
+        "core": { "title": "Ocean's Eleven", "year": 2001 }
+      },
+      {
+        "name": "Reading Room",
+        "genres": ["Slow Burn", "Character Story"],
+        "instruction": "Films that are patient with me, where nothing is chasing anyone.",
+        "core": { "title": "Paterson", "year": 2016 }
+      }
+    ],
+    "movies": [
+      { "title": "Ocean's Eleven", "year": 2001, "vibes": ["Champagne & Blueprints"], "viewing": "seen-before" },
+      { "title": "Paterson", "year": 2016, "vibes": ["Reading Room"], "viewing": "seen-before" },
+      { "title": "The Brothers Bloom", "year": 2008, "vibes": ["Champagne & Blueprints"], "viewing": "seen-before" }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": { "title": "Ocean's Eleven", "year": 2001 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "Paterson", "year": 2016 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "The Brothers Bloom", "year": 2008 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "liked", "because": "clever characters do smart things" }
+    }
+  ]
+}
