@@ -58,3 +58,23 @@ nothing filed automatically, and nothing remembered that was not before.
   `liked-fits-german`, on both sources; `liked-fits` and T1.3 score the fitting Vibe with two
   concrete alternatives; T1.5 and the refused rows score no apology; `like-bloom-tonight` scores
   what they said of Bloom said back at most once. `evaluation-m5.test.ts` follows.
+
+**Run by the implementer:** `npm test` in `web/`, 1372 of 1376 — the four are `evaluation.test.ts`
+reading the gitignored `evaluation/results/`, absent in a fresh worktree; typecheck and eslint
+clean. The bash suites could not be run in that sandbox; their new and affected markers were
+checked with the same order rule in Python.
+
+## 4. Review
+
+**Codex code review 1 — READY (`022bf71`)**, with no findings:
+
+- personalisation stays explicit; quoting a prior verdict is optional and repeating it is ruled out;
+- both skills and `next` agree: the verdict first, the refusal expected with no apology or error,
+  a fitting Vibe recommended with two concrete alternatives, and no automatic filing, API or
+  storage change;
+- no new conflict with *When both make sense*, the asking budget, *Writing what they agreed* or
+  first films;
+- the new pins fail on the base text.
+
+Codex ran recommend 258/258, vibes 156/156, plugin 37/37 and the four changed TypeScript suites,
+97/97. No live M5 runs were made.
