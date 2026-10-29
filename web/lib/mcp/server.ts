@@ -1422,11 +1422,15 @@ const VERDICT_COVERAGE = {
  * lives in this conversation.
  */
 const VIBE_REQUIRED_NEXT =
-  "Nothing was written. A liked or loved verdict is kept only for a film in at least one of " +
+  "Nothing was written. This is the expected answer, not a failure: apologise for nothing and " +
+  "report no error. A liked or loved verdict is kept only for a film in at least one of " +
   "their vibes. If `movie.viewing` is want-to-see, their liked says they watched it: move it " +
   "with update_movie to seen-before (seen-now only if they placed it recently) now, before the " +
   "offer, and say so. Read get_taste, then in this conversation: (1) if one of their vibes fits — " +
-  "judge by its instruction and genres, not its name — propose filing the film there; if it " +
+  "judge by its instruction and genres, not its name — recommend filing the film there, with two " +
+  "concrete alternatives beside it and never a bare offer to make a new one: each another vibe " +
+  "of theirs it fits, or a new vibe with a name, a sentence, its genres and this film as core — " +
+  "another evening the film could stand for; if it " +
   "fits except that its sentence does not yet cover this film, show them the exact minimal new " +
   "wording — one its core still fits wholly — and change it with update_vibe only on their yes " +
   "to those words; where a new vibe would make sense too, offer both in the one offer — that " +

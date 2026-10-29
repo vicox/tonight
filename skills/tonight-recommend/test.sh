@@ -231,6 +231,22 @@ check "a film's own because comes first, never contradicted or made stronger" \
         'never contradicted, never made stronger' 'never in their place')" "True"
 check "and the reason stays positive and specific" \
     "$(order_check 'Positive and specific' "never a bare *\"fits your taste\"*")" "True"
+# Skill compliance: runs on a liked The Brothers Bloom said "you said you liked it because…" on
+# the idea, the lead and every direction, and again the next turn. Personal is every reason aimed
+# at what they like; a quote is allowed once, never required, never repeated.
+check "personal, not recited: a quote is never required, at most once an answer, never repeated" \
+    "$(order_check "never a bare *\"fits your taste\"*" \
+        '**Personal, not recited.**' \
+        'every reason in it is aimed at what they like — not because it quotes them' \
+        'never a requirement of one' '**at most once in an answer**' \
+        '**not again in a later answer** that has already said it' \
+        'The lead and each direction get a reason of their own, about what that film does' \
+        'never the same quote said again')" "True"
+check "a verdict is said back as what they said, and saying it is no longer an obligation" \
+    "$(order_check '**A verdict said back is what they said**' \
+        'Where their words about that film are said back, they are said back as theirs')" "True"
+check "the rule that made every verdict a quote is gone" \
+    "$(grep -ciE 'When a verdict shapes the answer, say what they said' "$SKILL")" "0"
 check "the permission to name a Vibe or Genre as the reason is gone" \
     "$(grep -ciE 'Naming the Vibe, the Genre|a Vibe is named only as the reason' "$SKILL")" "0"
 check "and the visibility rule is about positive evidence, not any mention" \
@@ -787,6 +803,22 @@ check "a partial fit where both make sense: the change and a new Vibe side by si
         'or, where it only partly fits a Vibe and both make' \
         'sense, the change and a new Vibe side by side, one of them recommended' \
         'the verdict is recorded again')" "True"
+# Skill compliance: vibe_required is the expected answer, never an error to apologise for, and
+# its offer is a recommendation with two concrete alternatives — an existing Vibe recommended
+# where one fits, never beside a bare "or a new one". The words are theirs in any language.
+check "however they put it, in whatever language, it is a verdict" \
+    "$(order_check 'So is how a film worked for them, however they put it and in whatever language' \
+        'recorded in their words and never made stronger')" "True"
+check "a refused liked is expected: no apology, and no error to report" \
+    "$(order_check 'answers `vibe_required`, nothing was saved' \
+        '**an expected answer, not a failure: no apology, and no error to report**' \
+        '**tonight-vibes** says how to find its Vibe with them')" "True"
+check "its offer: one recommendation and two concrete alternatives, an existing Vibe first" \
+    "$(order_check '**tonight-vibes** says how to find its Vibe with them' \
+        'one recommendation and two meaningfully different alternatives, each concrete' \
+        'never a bare *"or I can make a new one"*' \
+        'Where one of their Vibes fits, it is the recommendation' \
+        'otherwise a new one is' 'the verdict is recorded again')" "True"
 # docs/work/vibe-hypotheses §17: the Vibe offer is 1.9.1's again — no hypotheses, no titles.
 check "none of the hypothesis or title machinery is back" \
     "$(grep -ciE 'three hypotheses|chosen by title|choose by title|the ones whose evening it is' "$SKILL")" "0"

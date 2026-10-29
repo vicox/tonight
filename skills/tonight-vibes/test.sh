@@ -265,6 +265,26 @@ check "a liked or loved in no Vibe is not saved, and is never said to be" \
     "$(order_check '### When a liked or loved needs a Vibe' \
         '**nothing is written**' '`reason: "vibe_required"`' \
         '**Until the film is filed, the verdict is not saved, so never say it is.**')" "True"
+# Skill compliance: recommend calls record_verdict first, and this skill once read as offering
+# the Vibe before it. The verdict is called first here too; vibe_required is its expected answer.
+check "record_verdict comes first here too, even for a film in no Vibe, as recommend says" \
+    "$(order_check 'statement about how a film worked for them is **a verdict first**' \
+        '**`record_verdict` comes first, in the turn they say it, before' \
+        'anything else — even for a film you can see is in no Vibe**, as **tonight-recommend** says' \
+        'for a film in none that call answers `vibe_required`' \
+        'never by filing it first')" "True"
+check "no Vibe is offered before the verdict is recorded" \
+    "$(grep -ciE 'the Vibe comes before the|that offer comes first and the verdict|in no Vibe, its Vibe first' "$SKILL")" "0"
+check "the table: in no Vibe, answered vibe_required, the offer, then record_verdict again" \
+    "$(sed -n '/### What each kind of statement writes/,/^## /p' "$SKILL" \
+        | grep -c 'in no Vibe, answered `vibe_required`: ')" "2"
+check "vibe_required is expected: no apology, no error, and no filing of your own" \
+    "$(order_check '**Until the film is filed, the verdict is not saved, so never say it is.**' \
+        '**That answer is expected, not a failure**' \
+        'apologise for nothing and' 'report no error' \
+        'Nor is it a reason to file the film yourself' \
+        'nothing is filed or created without their yes, not even in a Vibe that fits' \
+        'Then, in this conversation, one offer')" "True"
 check "an existing Vibe first, read by its instructions" \
     "$(order_check '1. **An existing Vibe first.**' \
         "each Vibe's instruction and its Genres'" 'instructions, not the names')" "True"
@@ -297,7 +317,21 @@ check "when both make sense: both in one offer, one recommended in a line, they 
         'which then also goes in the Vibe it partly fits' \
         'Say in one line which you would choose and why, and let them choose' \
         'a reply that does not make clear which they chose is asked about once, before anything is written' \
-        'A film that fits well is only proposed for filing, as 1 says, with nothing more offered')" "True"
+        'A film that fits well is proposed for filing, as 1 says, with its two alternatives and no new wording')" "True"
+# Skill compliance: an existing Vibe that fits is the recommendation, never offered alone and never
+# beside a bare "or a new one" — two concrete alternatives, as step 3's new Vibe always had.
+check "an existing Vibe that fits is the recommendation, with two concrete alternatives beside it" \
+    "$(order_check '1. **An existing Vibe first.**' 'If one fits, it is your recommendation: propose filing the film' \
+        '**Two concrete alternatives, always.**' \
+        'an existing Vibe as 1 has it, the same Vibe with a new wording as 2 has it, or a new Vibe as 3 has it' \
+        'comes with two meaningfully different alternatives beside it' \
+        'never a bare *"or I can make a new one"*' \
+        'Each is concrete: another of their Vibes the film fits, or a new Vibe — a name, a sentence and its Genres, any new Genre'"'"'s meaning shown, with this film as its core' \
+        'Say in one line which you recommend and why' \
+        'a reply that does not make clear which they chose is asked about once, before anything is written' \
+        '**When both make sense.**')" "True"
+check "a fitting Vibe is no longer offered with nothing beside it" \
+    "$(grep -c 'with nothing more offered' "$SKILL")" "0"
 # docs/work/vibe-hypotheses §17: the workflow fixes kept from the live runs, said without
 # any of the hypothesis machinery — no second question about when, the viewing a liked moved.
 check "a yes that says nothing about when is seen-before, and when is never asked again" \

@@ -850,6 +850,12 @@ describe("the verdict tools", () => {
       // alternatives, then the same call again.
       assert.match(next as string, /Nothing was written/u);
       assert.match(next as string, /if one of their vibes fits/u);
+      // Skill compliance: the refusal is the expected answer, never an error to apologise for,
+      // and a vibe that fits is recommended with two concrete alternatives, never offered alone
+      // or beside a bare "or a new one".
+      assert.match(next as string, /^Nothing was written\. This is the expected answer, not a failure: apologise for nothing and report no error\./u);
+      assert.match(next as string, /if one of their vibes fits — judge by its instruction and genres, not its name — recommend filing the film there, with two concrete alternatives beside it and never a bare offer to make a new one: each another vibe of theirs it fits, or a new vibe with a name, a sentence, its genres and this film as core — another evening the film could stand for;/u);
+      assert.doesNotMatch(next as string, /propose filing the film there;/u, "a fitting vibe is offered alone again");
       assert.match(next as string, /exact minimal new wording[^.]*only on their yes to those words/u);
       // §20: a rewording keeps its core; where a new vibe makes sense too, both, one recommended
       // in a line, their choice — and a partial fit only beside a vibe it fits well or anchors.
@@ -887,6 +893,46 @@ describe("the verdict tools", () => {
 
       assert.deepEqual((await standing(cleo, f)).history, [], "a refused verdict was written anyway");
       assert.equal(JSON.stringify(await said(cleo, "get_taste")), before, "the refusal moved the taste model");
+    });
+
+    test("a German \"war mega\" is refused like any liked, and nothing is filed for them where a vibe fits", async () => {
+      // Skill compliance. "Brothers Bloom war mega" is a liked in any language — *mega* is
+      // clearly positive and carries none of loved's words — and it gives no reason, so no
+      // `because`. Recorded first, it is refused even though one of their vibes plainly fits:
+      // the refusal files nothing, saves nothing and moves nothing on its own, and `next` says
+      // it is expected and that the fitting vibe is recommended with two concrete alternatives.
+      const dora = toolsFor("google:dora");
+      await said(dora, "create_genre", { name: "Heist", instruction: "I like a plan, a crew, and watching the job come together." });
+      await said(dora, "create_vibe", {
+        name: "Glamour Jobs",
+        genres: ["Heist"],
+        instruction: "Capers where the plan is half the pleasure.",
+        core: { title: "Ocean's Eleven", year: 2001 },
+      });
+      const bloom = { title: "The Brothers Bloom", year: 2008 };
+      const warMega = { film: bloom, told: "volunteered", said: { about: "judgement", judgement: "liked" } };
+      const before = JSON.stringify(await said(dora, "get_taste"));
+
+      const result = await call(dora, "record_verdict", warMega);
+      assert.equal(result.isError, true, "a liked on an unfiled film was kept");
+      assert.equal(result.structuredContent?.reason, "vibe_required");
+      assert.equal(result.structuredContent?.saved, false);
+      assert.equal(result.structuredContent?.movie, null, "the refusal saved the film");
+      const retry = (result.structuredContent?.retry as { arguments: Record<string, unknown> }).arguments;
+      assert.deepEqual(retry, warMega, "the retry is not exactly what they said — a reason was added, or a judgement changed");
+      assert.equal(JSON.stringify(await said(dora, "get_taste")), before, "the refusal filed the film or moved the model");
+      assert.deepEqual((await standing(dora, bloom)).history, [], "a refused verdict was written anyway");
+
+      const next = result.structuredContent?.next as string;
+      assert.match(next, /This is the expected answer, not a failure: apologise for nothing and report no error/u);
+      assert.match(next, /recommend filing the film there, with two concrete alternatives beside it and never a bare offer to make a new one/u);
+
+      // On their yes to the vibe it fits, filed — then the same call is kept, as they said it.
+      await said(dora, "create_movie", { ...bloom, viewing: "seen-before", vibes: ["Glamour Jobs"] });
+      await said(dora, "record_verdict", retry);
+      const kept = await standing(dora, bloom);
+      assert.equal(kept.current?.assertion?.judgement, "liked");
+      assert.equal(kept.current?.assertion?.because ?? null, null, "a reason they never gave was kept");
     });
 
     test("a saved film in no vibe: the answer carries the saved film and its viewing", async () => {

@@ -133,9 +133,11 @@ Name the thing they said. Never name a bigger thing.
 
 A bare liked or loved, a reason, or when and how it worked for them — however it is phrased, a
 statement about how a film worked for them is **a verdict first**, and only then a
-question about their Vibes. **A liked or loved is kept only for a film in at least one of their
-Vibes** — the Vibe is what says why it worked — so for a film in none, the Vibe comes before the
-verdict is saved.
+question about their Vibes. **`record_verdict` comes first, in the turn they say it, before
+anything else — even for a film you can see is in no Vibe**, as **tonight-recommend** says. A
+liked or loved is kept only for a film in at least one of their Vibes — the Vibe is what says why
+it worked — so for a film in none that call answers `vibe_required`, and the verdict is saved once
+the film is filed: never by filing it first.
 
     statement
        │
@@ -188,10 +190,13 @@ verdict is saved.
 a film in none — not saved at all, or saved and filed nowhere — **nothing is written**, and the
 answer is `reason: "vibe_required"`, with `retry` (the same call, with their words and how they
 said it) and `next`. **Until the film is filed, the verdict is not saved, so never say it is.**
-Then, in this conversation, one offer:
+**That answer is expected, not a failure**: nothing went wrong, so apologise for nothing and
+report no error. Nor is it a reason to file the film yourself — nothing is filed or created
+without their yes, not even in a Vibe that fits. Then, in this conversation, one offer:
 
 1. **An existing Vibe first.** Read `get_taste` — each Vibe's instruction and its Genres'
-   instructions, not the names. If one fits, propose filing the film there.
+   instructions, not the names. If one fits, it is your recommendation: propose filing the film
+   there.
 2. **A minimal change, only when needed, and only on their yes.** If the film belongs to that
    same evening and the Vibe's sentence just does not yet say what makes it fit, show them the
    exact new wording — the smallest change that covers it, and one its core still fits wholly —
@@ -204,12 +209,20 @@ Then, in this conversation, one offer:
    film as its core. Their pick says which evening it is for them; an idea of their own is
    considered again with their meaning.
 
+**Two concrete alternatives, always.** Whatever you recommend — an existing Vibe as 1 has it, the
+same Vibe with a new wording as 2 has it, or a new Vibe as 3 has it — comes with two meaningfully
+different alternatives beside it, and never a bare *"or I can make a new one"*. Each is concrete:
+another of their Vibes the film fits, or a new Vibe — a name, a sentence and its Genres, any new
+Genre's meaning shown, with this film as its core — another evening the film could stand for. Say
+in one line which you recommend and why; their pick is what is written, and a reply that does not
+make clear which they chose is asked about once, before anything is written.
+
 **When both make sense.** If the film only partly fits a Vibe, and both a minimal change to it and
 a new Vibe would make sense, offer both in the one offer: the exact new wording, as 2 says, and a new
 Vibe as 3 offers one — anchored on the film, which then also goes in the Vibe it partly fits. Say
 in one line which you would choose and why, and let them choose; a reply that does not make clear
-which they chose is asked about once, before anything is written. A film that fits well is only
-proposed for filing, as 1 says, with nothing more offered.
+which they chose is asked about once, before anything is written. A film that fits well is
+proposed for filing, as 1 says, with its two alternatives and no new wording.
 
 On their yes, write exactly what they agreed, as *Writing what they agreed* says, then call
 `record_verdict` again with `retry.arguments`, then say in one short sentence what was saved. A
@@ -300,9 +313,9 @@ membership or a core without their yes; any record that a Vibe offer was made or
 
 | What they said | Written | Then |
 | --- | --- | --- |
-| They loved it, and gave no reason | `loved`, no `because` — kept if the film is in a Vibe | kept: as *What to consider* says — a new Vibe only where the film points to an evening none of theirs holds, and nobody is asked why. In no Vibe: not saved yet — its Vibe (an existing one, or one recommendation and two alternatives), then `record_verdict` again |
-| They liked it, and said when or how it worked for them | `liked`, `because` = their words, verbatim — kept if it is in a Vibe | a Vibe whose instruction covers it, or one new-Vibe offer anchored on that film — in no Vibe, that offer comes first and the verdict after it |
-| They liked it for one part of the film | `liked`, `because` verbatim — kept if it is in a Vibe | strengthen a Vibe about that part; maybe one new one — in no Vibe, its Vibe first |
+| They loved it, and gave no reason | `loved`, no `because` — kept if the film is in a Vibe | kept: as *What to consider* says — a new Vibe only where the film points to an evening none of theirs holds, and nobody is asked why. In no Vibe: answered `vibe_required`, not saved yet — its Vibe (one recommendation, an existing one where it fits, and two alternatives), then `record_verdict` again |
+| They liked it, and said when or how it worked for them | `liked`, `because` = their words, verbatim — kept if it is in a Vibe | a Vibe whose instruction covers it, or one new-Vibe offer anchored on that film — in no Vibe, answered `vibe_required`: that offer, then `record_verdict` again |
+| They liked it for one part of the film | `liked`, `because` verbatim — kept if it is in a Vibe | strengthen a Vibe about that part; maybe one new one — in no Vibe, answered `vibe_required`: its Vibe, then `record_verdict` again |
 | They liked it, and want no more of the kind | `liked`, `because` verbatim — kept if it is in a Vibe | **stop** — they declined more of the kind; in no Vibe, say once it is not kept without one, and offer nothing |
 | Lukewarm or ambiguous words | nothing, unless one light question settles it | nothing |
 | They disliked it | `disliked` | tension once, if the film is in a Vibe |

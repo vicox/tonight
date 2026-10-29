@@ -1593,6 +1593,80 @@ test("a recommendation says why in their words, and never names a Vibe or a Genr
     "naming a Vibe or Genre as the reason is allowed again");
 });
 
+test("personal is every reason aimed at what they like, never the same quote of a film recited", () => {
+  /**
+   * Skill compliance. After a liked The Brothers Bloom "because clever characters do
+   * smart things", a request for something like it got that sentence back on the idea,
+   * the lead and every direction, and again in the next answer: "when a verdict shapes
+   * the answer, say what they said" read as an obligation on every film. Saying back what
+   * they said stays exact when it is said; it is never required, at most once an answer,
+   * and not repeated in a later one — while every reason stays aimed at what they like.
+   */
+  const flat = flatSkill();
+  const why = flat.slice(flat.indexOf("**Saying why.**"), flat.indexOf("Either way, **they asked for a film"));
+
+  let at = 0;
+  for (const [what, marker] of [
+    ["the rule is part of Saying why", "Positive and specific: a quality they would recognise as theirs"],
+    ["it is named", "**Personal, not recited.**"],
+    ["personal is the reasons, not the quotes",
+      "The answer is strongly theirs because every reason in it is aimed at what they like — not because it quotes them"],
+    ["a quote is one way, never required", "is one way to show a reason, never a requirement of one"],
+    ["at most once an answer", "**at most once in an answer**"],
+    ["and not again later", "**not again in a later answer** that has already said it"],
+    ["each film its own reason", "The lead and each direction get a reason of their own, about what that film does"],
+    ["never the same quote again", "never the same quote said again"],
+  ] as [string, string][]) {
+    const found = why.indexOf(marker, at);
+    assert.ok(found >= 0, `Saying why lost, or reordered: ${what}`);
+    at = found;
+  }
+
+  // Exactness stays where a verdict is said back; the obligation to say one is gone.
+  assert.match(flat, /\*\*A verdict said back is what they said\*\* — \*"you said you loved it"\*/);
+  assert.match(why, /Where their words about that film are said back, they are said back as theirs — never contradicted, never made stronger/);
+  assert.doesNotMatch(flat, /When a verdict shapes the answer, say what they said/i, "every verdict is a quote again");
+  assert.doesNotMatch(flat, /Their words about that film are said back as theirs/, "a film's because is said back unconditionally again");
+  // And the positive half is not traded away for it.
+  assert.match(flat, /the positive preference that shaped the answer is recognisable in it/);
+});
+
+test("a refused liked is expected, offered with two concrete alternatives, and the two skills agree", () => {
+  /**
+   * Skill compliance. Recommend said record_verdict comes first; vibes read as offering
+   * the Vibe before the verdict ("the Vibe comes before the verdict is saved", "that offer
+   * comes first and the verdict after it"). Both now say the verdict is called first, that
+   * `vibe_required` is its expected answer — no apology, no error, no filing of the
+   * agent's own — and that its offer is one recommendation, an existing Vibe where one
+   * fits, with two concrete alternatives, never a bare "or I can make a new one". The
+   * words are theirs in any language: a German "war mega" is a verdict like any other.
+   */
+  const recommend = flatSkill();
+  const vibes = readFileSync(new URL("../../skills/tonight-vibes/SKILL.md", import.meta.url), "utf8").replace(/\s+/g, " ");
+
+  // The verdict comes first, in both.
+  assert.match(recommend, /\*\*Call `record_verdict` in the turn they say it, before anything else — even when you can see the film is in no Vibe\*\*/);
+  assert.match(vibes, /\*\*`record_verdict` comes first, in the turn they say it, before anything else — even for a film you can see is in no Vibe\*\*, as \*\*tonight-recommend\*\* says/);
+  assert.match(vibes, /for a film in none that call answers `vibe_required`, and the verdict is saved once the film is filed: never by filing it first/);
+  assert.doesNotMatch(vibes, /the Vibe comes before the|that offer comes first and the verdict|in no Vibe, its Vibe first/i,
+    "the vibes skill offers the Vibe before the verdict again");
+  assert.match(recommend, /how a film worked for them, however they put it and in whatever language/);
+
+  // vibe_required is expected, in both: no apology, no error, nothing filed of the agent's own.
+  assert.match(recommend, /answers `vibe_required`, nothing was saved — \*\*an expected answer, not a failure: no apology, and no error to report\*\*/);
+  assert.match(vibes, /\*\*That answer is expected, not a failure\*\*: nothing went wrong, so apologise for nothing and report no error/);
+  assert.match(vibes, /Nor is it a reason to file the film yourself — nothing is filed or created without their yes, not even in a Vibe that fits/);
+  assert.match(recommend, /Never file it into a Vibe without their yes either — not even one that fits/);
+
+  // The offer, in both: a recommendation — an existing Vibe where one fits — and two concrete alternatives.
+  assert.match(recommend, /one recommendation and two meaningfully different alternatives, each concrete — named, with what it means — and never a bare \*"or I can make a new one"\*\. Where one of their Vibes fits, it is the recommendation/);
+  assert.match(vibes, /If one fits, it is your recommendation: propose filing the film there/);
+  assert.match(vibes, /\*\*Two concrete alternatives, always\.\*\* Whatever you recommend — an existing Vibe as 1 has it, the same Vibe with a new wording as 2 has it, or a new Vibe as 3 has it — comes with two meaningfully different alternatives beside it, and never a bare \*"or I can make a new one"\*/);
+  assert.match(vibes, /Each is concrete: another of their Vibes the film fits, or a new Vibe — a name, a sentence and its Genres, any new Genre's meaning shown, with this film as its core/);
+  assert.match(vibes, /A film that fits well is proposed for filing, as 1 says, with its two alternatives and no new wording/);
+  assert.doesNotMatch(vibes, /with nothing more offered/, "a fitting Vibe is offered alone again");
+});
+
 /**
  * M9 — an evening, offer by offer.
  *
