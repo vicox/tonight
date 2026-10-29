@@ -16,7 +16,9 @@
  *   with tools present, DeepSeek requires every `reasoning_content` sent back, in
  *   later turns too, and answers 400 otherwise.
  *
- * A turn succeeds only on `finish_reason: "stop"`. A tool result is the tool's text;
+ * A turn succeeds only on `finish_reason: "stop"`, and its answer is every assistant text
+ * of the turn, in order — a host shows text sent beside a tool call as well as the last
+ * message, so a reply written before `record_episode` is still what they read. A tool result is the tool's text;
  * one the server marked `isError` is prefixed `Error: ` — this adapter's convention,
  * not verified to be what the CLI shows Claude. The key is never logged, recorded or
  * put in a failure: everything that leaves here is redacted first.
@@ -197,6 +199,8 @@ export function deepseekBackend({
       }
 
       conversation.push({ role: "user", content: said });
+      // Every text the model wrote this turn, beside a tool call or as the last message.
+      const texts = [];
       for (let request = 1; ; request += 1) {
         if (request > maxRequests) return end({ failure: "error_max_turns" });
 
@@ -249,6 +253,7 @@ export function deepseekBackend({
         if (!message) return end({ failure: "deepseek answered no message" });
         // Whole, as the API returned it: `reasoning_content` has to go back with it.
         conversation.push(message);
+        if (typeof message.content === "string" && message.content.trim()) texts.push(message.content);
 
         if (choice.finish_reason === "tool_calls" && message.tool_calls?.length) {
           for (const call of message.tool_calls) {
@@ -279,7 +284,7 @@ export function deepseekBackend({
         }
 
         if (choice.finish_reason === "stop" && !message.tool_calls?.length) {
-          return end({ answer: message.content ?? "" });
+          return end({ answer: texts.join("\n\n") });
         }
         return end({ failure: `deepseek finish_reason ${choice.finish_reason ?? "missing"}` });
       }

@@ -198,6 +198,36 @@ test("a turn runs the tools in order through the proxy and ends on the model's a
   assert.match(turn.requests[0]!.at, /^\d{4}-\d{2}-\d{2}T/);
 });
 
+test("the answer is every text the model wrote in the turn, not only the last message", async () => {
+  // A live run (m5-07-bloom-liked) wrote its recommendation beside the record_episode call
+  // and ended on one line, and only that line was recorded. A host shows both, in order;
+  // a message with no text — a bare tool call — adds nothing.
+  const { agent } = backend([
+    calling({ id: "c1", name: "get_taste", args: "{}" }),
+    answer(
+      {
+        content: "**A con with a heart.**\n\nI'd start with *The Sting* (1973).",
+        reasoning_content: "Present it, then record the evening.",
+        tool_calls: [{ id: "c2", type: "function", function: { name: "record_episode", arguments: "{}" } }],
+      },
+      "tool_calls",
+    ),
+    answer({ content: "Enjoy the evening.", reasoning_content: "Done." }),
+  ]);
+  const turn = await agent.turn("Something like it for tonight?", config(), null, "S");
+  assert.equal(turn.failure, null);
+  assert.equal(turn.answer, "**A con with a heart.**\n\nI'd start with *The Sting* (1973).\n\nEnjoy the evening.");
+
+  // A failed turn is still no answer, whatever it wrote before the failure.
+  const { agent: cut } = backend([
+    answer({ content: "Half a reply.", tool_calls: [{ id: "c", type: "function", function: { name: "get_taste", arguments: "{}" } }] }, "tool_calls"),
+    answer({ content: "partial" }, "length"),
+  ]);
+  const failed = await cut.turn("Go.", config(), null, "S");
+  assert.equal(failed.failure, "deepseek finish_reason length");
+  assert.equal(failed.answer, "");
+});
+
 test("a resumed turn continues the same conversation, reasoning included; an unknown one does not", async () => {
   const { agent, api } = backend([answer({ content: "First.", reasoning_content: "R1" }), answer({ content: "Second." })]);
   const file = config();
