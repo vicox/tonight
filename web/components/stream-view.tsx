@@ -87,7 +87,7 @@ export function StreamView({
             <div className="-mt-4 mb-1 flex justify-end">
               <IncludePreviouslySeen saved={includeSeen.saved} readAt={includeSeen.readAt} />
             </div>
-            <MovieCards movies={stream(movies)} label="Your movies, most recently saved first" />
+            <MovieCards movies={stream(movies)} vibes={taste.vibes} label="Your movies, most recently saved first" />
           </div>
         )}
       </Section>

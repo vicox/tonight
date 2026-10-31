@@ -124,7 +124,7 @@ test("the Stream is every film, once, in one flat list, newest saved first", () 
   // answers as one list of cards, with no vibe as their context.
   assert.match(
     view,
-    /<MovieCards movies=\{stream\(movies\)\} label="Your movies, most recently saved first" \/>/,
+    /<MovieCards movies=\{stream\(movies\)\} vibes=\{taste\.vibes\} label="Your movies, most recently saved first" \/>/,
     "the cards are not the films `stream` orders, or the list does not say what it is",
   );
   assert.equal((view.match(/<MovieCards\b/g) ?? []).length, 1, "the films are split across more than one list");
@@ -136,7 +136,7 @@ test("the Stream is every film, once, in one flat list, newest saved first", () 
   assert.match(list, /<ul aria-label=\{label\}/, "the list does not say what it is");
   assert.match(
     list,
-    /\{movies\.map\(\(movie\) => \(\s*<MovieCard key=\{`\$\{movie\.year\} \$\{movie\.title\}`\} movie=\{movie\} from=\{from\} \/>/,
+    /\{movies\.map\(\(movie\) => \(\s*<MovieCard key=\{`\$\{movie\.year\} \$\{movie\.title\}`\} movie=\{movie\} vibes=\{vibes\} from=\{from\} \/>/,
   );
 
   // No grouping of any kind: not by vibe, and not by how a film stands. A film
@@ -403,7 +403,7 @@ test("a long name stays inside its card, and inside its heading", () => {
   const drawn = bodyOf("MovieCard", card);
   assert.match(drawn, /<h3 className="[^"]*\bmin-w-0\b/, "a long title can widen the card");
   assert.match(drawn, /font-display text-\[22px\] leading-tight break-words/, "a long title has nowhere to break");
-  assert.match(bodyOf("VibeLinks", links), /min-w-0 break-words text-vibe/, "a long vibe name can widen the card");
+  assert.match(bodyOf("VibeLinks", links), /"min-w-0 break-words /, "a long vibe name can widen the card");
   assert.match(
     bodyOf("VibeView", vibeView),
     /<h2[\s\S]{0,120}?className="min-w-0[^"]*break-words/,
@@ -578,7 +578,7 @@ test("a film's card is its year, how it stands, its title and its vibes, and not
     "the status is not the film's own",
   );
   assert.match(drawn, /\{movie\.vibes\.length > 0 && \(/, "a film in no vibe still gets a line");
-  assert.match(drawn, /<VibeLinks names=\{movie\.vibes\} label="Vibes:" raised \/>/, "the card names other vibes");
+  assert.match(drawn, /<VibeLinks names=\{names\} cores=\{cores\} label="Vibes:" raised \/>/, "the card names other vibes");
 
   // And nothing else: no genre, no mark to press, no picture, no date, and no
   // word standing in for a missing vibe.
@@ -682,7 +682,11 @@ test("a vibe's names are each a link to its screen, behind one violet sparkle", 
   // Every name, each its own link — never the first and a count.
   assert.match(drawn, /names\.map\(\(name, index\)/, "not every name is drawn");
   assert.match(drawn, /<Link\s+href=\{vibeHref\(name\)\}\s+prefetch=\{false\}/, "a name does not open its vibe");
-  assert.match(drawn, /text-vibe underline/, "a name is not in the vibe's violet");
+  assert.match(
+    drawn,
+    /cores === undefined \|\| cores\.includes\(name\)\s*\? "text-vibe hover:decoration-vibe"/,
+    "a name is not in the vibe's violet",
+  );
   assert.equal(/slice\(0|\.length - |\bmore\b/.test(drawn), false, "the names are cut to the first and a count");
 
   // A film's screen names its vibes the same way, in one line like a card's —
@@ -690,6 +694,52 @@ test("a vibe's names are each a link to its screen, behind one violet sparkle", 
   assert.match(movieView, /const vibes = context === null \? movie\.vibes : \[context, \.\.\.alsoIn\(movie, context\)\];/);
   assert.match(movieView, /<VibeLinks names=\{vibes\} label="Vibes:" \/>/);
   assert.equal((movieView.match(/<VibeLinks\b/g) ?? []).length, 1, "a film's screen names its vibes in two places");
+});
+
+test("a card names its film's cores first, in the violet, and its other vibes muted on the same line", () => {
+  // Which names, in which order, and which are cores is `coreFirst`, held in
+  // `vibes.test.ts`. Pinned here: the card asks it and hands on both answers.
+  const drawn = bodyOf("MovieCard", card);
+  assert.match(drawn, /const \{ names, cores \} = coreFirst\(movie, vibes\);/, "the card decides its cores for itself");
+  assert.match(drawn, /<VibeLinks names=\{names\} cores=\{cores\} label="Vibes:" raised \/>/);
+
+  // A core in the violet the ✨ is in; every other name muted — quiet, and still
+  // the readable ink rather than the faint one the separators are in.
+  const line = bodyOf("VibeLinks", links);
+  assert.match(
+    line,
+    /cores === undefined \|\| cores\.includes\(name\)\s*\? "text-vibe hover:decoration-vibe"\s*: "text-ink-soft hover:decoration-ink-soft"/,
+    "a core and a vibe the film is only in are not told apart, or the second is not muted",
+  );
+
+  // The same size for both: set once, on the line, and on no name.
+  assert.equal((line.match(/text-\[\d+(?:\.\d+)?px\]/g) ?? []).length, 1, "a name is set in a size of its own");
+  assert.match(line, /<p className="[^"]*text-\[13px\]/, "the line has no size of its own");
+
+  // One line, wrapping only where the card is too narrow for it: the ✨ once,
+  // then every name with the same · before it — no second line, no connecting
+  // word and no second icon between the cores and the rest.
+  assert.equal((line.match(/<p\b/g) ?? []).length, 1, "the vibes are split into more than one line");
+  assert.match(line, /<p className="flex min-w-0 flex-wrap /, "the line does not wrap");
+  assert.equal(
+    /<br\b|<div\b|<ul\b|flex-col|basis-full|w-full|\bblock\b/.test(line),
+    false,
+    "a name is put on a line of its own",
+  );
+  assert.equal((line.match(/<Sparkles\b/g) ?? []).length, 1, "a second icon");
+  assert.equal((line.match(/<(?!\/)[A-Z]\w*/g) ?? []).length, 2, "something other than the ✨ and the names is drawn");
+  assert.match(
+    line,
+    /\{index > 0 && \(\s*<span aria-hidden="true" className="text-ink-faint">\s*·\s*<\/span>\s*\)\}/,
+    "a name after the first is not set off by the one separator",
+  );
+  const words = [...line.matchAll(/>([^<>{}()]+)</g)].map((match) => match[1].trim()).filter(Boolean);
+  assert.deepEqual(words, ["·"], "the line says something besides the names and the separator");
+
+  // Only a card passes cores: a film's screen and the vibes with no films keep
+  // every name in the violet.
+  assert.doesNotMatch(movieView, /cores=/, "a film's screen mutes a vibe");
+  assert.doesNotMatch(source, /<VibeLinks\b[^>]*\bcores=/, "the vibes with no films are muted");
 });
 
 test("a vibe's screen is its name, its genres, what it means and its films, in that order", () => {
@@ -706,7 +756,7 @@ test("a vibe's screen is its name, its genres, what it means and its films, in t
   // reached through.
   assert.match(
     drawn,
-    /<MovieCards movies=\{films\} from=\{vibe\.name\} label=\{`Films in \$\{vibe\.name\}`\}/,
+    /<MovieCards movies=\{films\} vibes=\{vibes\} from=\{vibe\.name\} label=\{`Films in \$\{vibe\.name\}`\}/,
     "a vibe's films are not the Stream's cards, or a film opened from here does not know its vibe",
   );
   assert.equal(/<MovieCard\b|<ul\b|<li\b|<Films\b|<Link\b/.test(vibeView), false, "a vibe's screen draws films of its own");
@@ -715,6 +765,7 @@ test("a vibe's screen is its name, its genres, what it means and its films, in t
   // The page hands it what the rules that own them work out.
   assert.match(vibePage, /findVibe\(held\.taste\.vibes, single\(query\.name\)\)/);
   assert.match(vibePage, /films=\{filmsIn\(vibe, movies\)\}/);
+  assert.match(vibePage, /vibes=\{held\.taste\.vibes\}/, "a vibe's cards cannot tell which vibes their films are the core of");
 });
 
 test("a film's screen is its year, its title, its vibes, then what do you think", () => {
@@ -881,7 +932,7 @@ test("the Stream's one filter: include previously seen, under the heading, drawi
 
   // Every film is still handed over, in the order `stream` gives — the filter
   // draws less, it never orders or fetches a film.
-  assert.match(films, /<MovieCards movies=\{stream\(movies\)\} label="Your movies, most recently saved first" \/>/);
+  assert.match(films, /<MovieCards movies=\{stream\(movies\)\} vibes=\{taste\.vibes\} label="Your movies, most recently saved first" \/>/);
   assert.match(card, /<li className="[^"]*" data-viewing=\{movie\.viewing\}>/, "a card does not say where its film stands");
 
   // Unticked, exactly the films seen before are not drawn — on the Stream only.

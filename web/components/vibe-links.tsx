@@ -20,14 +20,22 @@ import { vibeHref } from "@/lib/web/screens";
  * name** above it — never the line around them — so a name opens its vibe, and
  * a press on the ✨, a separator or a gap between names still falls through to
  * the film.
+ *
+ * A card also passes `cores`: the vibes its film is the core of, which it names
+ * first (`coreFirst`). Those are in the violet, and every other name is muted —
+ * the same size, the same line and the same separator, only quieter. Without
+ * `cores`, as on a film's screen, every name is violet.
  */
 export function VibeLinks({
   names,
+  cores,
   label,
   labelVisible = false,
   raised = false,
 }: {
   names: readonly string[];
+  /** The names to draw in the violet, the rest muted. Every name, when not given. */
+  cores?: readonly string[];
   /** What the names are, said before them: visually hidden unless `labelVisible`. */
   label: string;
   labelVisible?: boolean;
@@ -50,8 +58,11 @@ export function VibeLinks({
             href={vibeHref(name)}
             prefetch={false}
             className={[
-              "min-w-0 break-words text-vibe underline decoration-transparent underline-offset-4",
-              "transition-colors hover:decoration-vibe",
+              "min-w-0 break-words underline decoration-transparent underline-offset-4",
+              cores === undefined || cores.includes(name)
+                ? "text-vibe hover:decoration-vibe"
+                : "text-ink-soft hover:decoration-ink-soft",
+              "transition-colors",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-beam",
               raised ? "relative z-10" : "",
             ].join(" ")}
