@@ -87,19 +87,29 @@ phrases wrapped across lines and a line-wise `grep -c` would have passed on the 
 
 ## 4. Behavior runs: not recorded — blocked
 
-Nothing below has run. A PASS is not claimed for any of it.
+**Recorded on `aa6a452`, 2026-10-31, DeepSeek `deepseek-v4-pro`: 33 model calls, scored in
+`BEHAVIOR.md`.** The keep scenario passed 12 of 12 across both sources. The regression set passed 5
+of 6: the kept path made no new-Vibe offer on turn 1 (K1.3), and its later turns are UNTESTED. The
+smoke made 9 calls, not 11, because that run stopped at its pick.
 
-**Blockers:**
+**How it ran**, as the vibe-hypotheses runs did (that plan, section 12.1):
 
-1. The runner refuses to record while either `SKILL.md`, the MCP server or the harness differs
-   from `HEAD` (`m5/run.mjs`, lines 168-170 and 242-254), and nothing may be committed without the user's approval.
-2. This worktree has no `web/.env.local`, which the seeder mints its tokens from.
-3. The targeted scenario for the order of calls, `m5-01-anchored__knives-out-and-tonight`, is
-   `pre-vibe-rule`: each run needs a fresh seeding through a separate `f3912b0` checkout on port
-   3001 (`m5/README.md`, *Fixtures from before the vibe rule*), and a ticket session does not create
-   checkouts.
+- The key comes from opencode's credential store, `~/.local/share/opencode/auth.json`, entry
+  `deepseek`. A Node wrapper puts it in the runner's environment as `DEEPSEEK_API_KEY`, never
+  printed. It is unset in the shell.
+- A fresh dev-only `web/.env.local` holds `PUBLIC_ORIGIN` and a generated secret. It has no
+  `DEV_DATABASE_DIR`, so the database is in memory, and `.env*` keeps it out of git.
 
-**What to record once unblocked**, from the committed change, with `E=skills/tonight-recommend/evaluation`:
+**Not recorded:**
+
+- **The order-of-calls scenario.** `m5-01-anchored__knives-out-and-tonight` is `pre-vibe-rule`:
+  each run needs a fresh seeding through a separate `f3912b0` checkout on port 3001
+  (`m5/README.md`, *Fixtures from before the vibe rule*). It also needs a persistent database
+  shared by both builds, which the in-memory one is not. To be arranged separately.
+- **A second look at the kept path.** `--resume` would re-record its failed run `__01` and delete
+  the record, so that run would have to be archived first.
+
+**The plan, as it was made**, with `E=skills/tonight-recommend/evaluation`:
 
 | part | command | model calls |
 | --- | --- | --- |
