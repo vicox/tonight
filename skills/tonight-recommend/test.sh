@@ -437,6 +437,15 @@ check "a film named only in a tool call was not recommended" \
 check "an owed answer arrives whole, and nothing is dropped because it was recorded" \
     "$(order_check 'Where an answer is owed, it arrives whole and in the shape above' \
         'nothing is left out of the reply because it was written down')" "True"
+# Skill cleanup: "what you write down comes after" read as every write after the reply, against
+# record_verdict first. The rule is what the reply holds; the order of calls stays as it was.
+check "the whole answer is about what the reply holds, never the order of the calls" \
+    "$(order_check 'nothing is left out of the reply because it was written down' \
+        'That is about what the reply holds, never the' 'order of the calls' \
+        '`record_verdict` is still the first call in the turn a verdict is said' \
+        'an evening is recorded after the reply that recommends its films')" "True"
+check "and no sentence puts every write after the reply" \
+    "$(tr '\n' ' ' < "$SKILL" | grep -ciE 'what you write +down comes after')" "0"
 # The b343335b sweep. The rule above stopped tool calls replacing recommendations —
 # nothing in sixty runs did — but said unconditionally it read as "an answer is always
 # owed", and 07-failure-explicit__taste-explicit__02 applied it inside the branch that
@@ -618,7 +627,7 @@ check "one skill does not mean one intent: a direct request is done, not deflect
 check "no example Vibe or Genre name, or scenario wording, survives" \
     "$(grep -ciE 'Sci-Fi|Spacey|Space Tension|Popcorn Chaos|Thriller|slow burn|Game Night|Kid Detective|lazy Sunday|science fiction|tension never|quiet thread|funny under|being grim|too grim' "$SKILL")" "0"
 check "no example film survives" \
-    "$(grep -cE 'Arrival|Heat|Dune|Tag' "$SKILL")" "0"
+    "$(grep -cE 'Arrival|Heat|Dune|Tag|Dawn of the Dead|Shaun of the Dead|Hot Fuzz' "$SKILL")" "0"
 check "and the reverse is what must not happen" \
     "$(order_check 'a request for a film turning into a configuration session')" "True"
 check "the CRUD tools are named as the way to do it" \
@@ -960,6 +969,15 @@ check "two Genres is the usual shape, a third is conditional, and padding is nev
     "$(order_check 'None fits' 'usually two meaningful, distinct ones in all' \
         'a third only when it holds a part the two do not' 'never filler to hit a number' \
         'then propose a Vibe over them')" "True"
+# Skill cleanup: "create one … then propose" put a Genre write before the yes. A new Genre is part
+# of the proposal, and nothing is created until they agree — the order a yes writes in is unchanged.
+check "a new Genre is part of the proposal, and nothing is created before their yes" \
+    "$(order_check 'None fits' 'do not save the film yet' \
+        'Reuse the Genres that fit and, for anything' 'uncovered, a new one' \
+        'then propose a Vibe over them, any new' 'Genre part of what you propose' \
+        '**Nothing is created before their yes.**' 'Never ask which they' 'want')" "True"
+check "and no Genre is created before the proposal" \
+    "$(tr '\n' ' ' < "$SKILL" | grep -ciE 'create +one for +anything')" "0"
 check "a proposed Vibe is shown as an idea: other films in it, other names for it" \
     "$(order_check 'make
 it concrete' \

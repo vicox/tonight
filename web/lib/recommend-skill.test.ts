@@ -103,6 +103,10 @@ test("what moved to the tools is no longer stated here as well", () => {
     ],
     ["the score prohibition", /score/i],
     ["the Vibe naming test", /already tells you the name|what would I get wrong|the instruction test/i],
+    // Skill cleanup: update_vibe's and delete_genre's refusals, and how names match, are the
+    // tools' and the name fields' to state; the skill keeps the pointer below.
+    ["the update_vibe and delete_genre mechanics", /replaces the list rather than adding|cannot\s+be deleted while a Vibe/i],
+    ["how names match", /match(es)? case-insensitively/i],
     // The viewing answers themselves stay: the skill still says what a *stored*
     // answer means when recommending. What moved is what *saving* does to the field.
     [
@@ -116,6 +120,7 @@ test("what moved to the tools is no longer stated here as well", () => {
   // And a pointer is left where the skill still has to refer to the behaviour,
   // so a reader is sent somewhere rather than left with a gap.
   assert.match(flat, /arrive with `create_genre` and `create_vibe`/, "no pointer for the write rules");
+  assert.match(flat, /The mechanics are in the tool descriptions, which arrive with the tools\./, "no pointer for the mechanics");
   assert.match(
     flat,
     /`create_movie` carries `viewing` and no opinion/,
@@ -613,7 +618,8 @@ test("saving a film classifies it, and may grow the model rather than bend it", 
     ["to classify rather than fit", /Classify the film rather than fitting it to what is there/],
     ["to look before deciding", /read the Genres and Vibes first/i],
     ["to reuse a Genre that fits", /Reuse the Genres that (genuinely )?fit/],
-    ["to create one when none covers it", /create one for anything (no Genre covers|uncovered)/],
+    ["to propose one when none covers it", /for anything\s+uncovered, a new one/],
+    ["and to create nothing before the yes", /\*\*Nothing is created before their yes\.\*\*/],
     ["how many, as guidance rather than a quota",
       /\b(often|usually|commonly|typically)\b[^.—]{0,30}two meaningful, distinct ones/],
     ["and never to pad", /never filler to hit a number/],
@@ -1165,7 +1171,8 @@ test("the write flow is stated whole: what may be written, where, and on whose y
     ["never stretch a Vibe", /Never stretch a Vibe to avoid making one/],
     ["none fitting means not yet", /do not save the film yet/],
     ["reuse what fits", /Reuse the Genres that fit/],
-    ["create for what is uncovered", /create one for anything uncovered/],
+    ["a new Genre for what is uncovered, as part of the proposal", /for anything uncovered, a new one[^]*any new Genre part of what you propose/],
+    ["created only on their yes", /\*\*Nothing is created before their yes\.\*\*/],
     // "Two" is guidance, not a quota: the number without the hedge reads as a
     // requirement, which is a different rule. A third is allowed on a condition.
     ["two is the usual shape, not a requirement", /usually two meaningful, distinct ones/],
