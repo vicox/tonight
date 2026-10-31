@@ -332,6 +332,34 @@ check "an existing Vibe that fits is the recommendation, with two concrete alter
         '**When both make sense.**')" "True"
 check "a fitting Vibe is no longer offered with nothing beside it" \
     "$(grep -c 'with nothing more offered' "$SKILL")" "0"
+# Vibe offer copy: after a liked, the reply explained how Tonight stores a liked and gave three
+# options heavy with Genres. The offer is short and in their terms, and none of it is a report.
+check "the offer is said briefly: an acknowledgement, and nothing about how Tonight keeps things" \
+    "$(order_check '**Two concrete alternatives, always.**' '**When both make sense.**' \
+        '**Said briefly, in their terms.**' \
+        'This offer, and a new Vibe offered for a kept one, is a few short lines' \
+        'never a report on how Tonight works' \
+        '**A brief, natural acknowledgement** of what they said opens it, and nothing about how Tonight keeps things' \
+        'never that the liked is saved before it is, and never why it is not yet' \
+        'are yours to act on, not theirs to read' \
+        'is said in a few plain words' \
+        'On their yes, write exactly what they agreed')" "True"
+check "the recommendation first, then two alternatives, each a name and a short sentence" \
+    "$(order_check '**Said briefly, in their terms.**' \
+        '**The recommendation first, plainly said to be the one you recommend**' \
+        'Each is its name and what it means in a short sentence — for a new Vibe,' \
+        'the sentence written on a yes, with its Genres named in passing: one of theirs by its name alone, a new one with its meaning in a short phrase, the meaning its instruction is written with' \
+        'A new wording, as 2 says, is shown exactly' \
+        '**No Genre explained at length**, no films listed to illustrate an option, and no other names for one' \
+        '**One simple question** closes it' \
+        'with the question about when folded in where it is owed')" "True"
+check "a new user's first films keep their own offer, illustration films and all" \
+    "$(order_check '**Said briefly, in their terms.**' \
+        "A new user's first films keep the offer their own section gives them" \
+        "## A new user's first films" 'and three or four illustration films')" "True"
+# The shape is said abstractly: no reply to copy, so nothing quoted inside it.
+check "the offer's shape quotes no example reply" \
+    "$(sed -n '/^\*\*Said briefly, in their terms\.\*\*/,/^On their yes, write/p' "$SKILL" | grep -c '"')" "0"
 # docs/work/vibe-hypotheses §17: the workflow fixes kept from the live runs, said without
 # any of the hypothesis machinery — no second question about when, the viewing a liked moved.
 check "a yes that says nothing about when is seen-before, and when is never asked again" \

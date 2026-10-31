@@ -1441,8 +1441,16 @@ const VIBE_REQUIRED_NEXT =
   "offer one recommended new vibe and two meaningfully different alternatives — each a " +
   "different evening the film could stand for, read from the film, their vibes and what they " +
   "have liked and anything they said about it, with a name, a sentence, their genres and this " +
-  "film as core — and let their choice say which; never ask them why they liked it. (3) On " +
-  "their yes, file it — " +
+  "film as core — and let their choice say which; never ask them why they liked it. Either way, " +
+  "say it briefly: a natural acknowledgement, with nothing about how Tonight keeps things — " +
+  "never why the liked is not saved yet, what it needs or how filing works, only what did " +
+  "change, in a few plain words; then the recommended option, plainly said to be yours, and the " +
+  "two alternatives, each a name and what it means in a short sentence — for a new vibe the " +
+  "sentence written on a yes, its genres named in passing and a new genre's meaning in a short " +
+  "phrase; no genre explained " +
+  "at length, no films listed to illustrate an option, no other names for one; and one simple " +
+  "question asking which. A new user's first films keep the offer the vibes skill gives them. " +
+  "(3) On their yes, file it — " +
   "update_movie with its vibes, create_movie with viewing seen-now or seen-before and vibes for " +
   "an unsaved film, or create_vibe with it as core and core.viewing; where they chose the new " +
   "wording, update_vibe with it first; where they chose a new vibe beside one the film partly " +

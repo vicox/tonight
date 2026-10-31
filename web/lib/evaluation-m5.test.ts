@@ -219,6 +219,9 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
     ["an existing Vibe first, with two concrete alternatives",
       /\*\*An existing Vibe first, with two concrete alternatives\.\*\*[^]*recommended[^]*two concrete alternatives beside it[^]*Filing offered alone, or beside a bare \*"or I can make a new one"\*, fails; whether the fit\s+is full or partial is the agent's judgement, never a number/],
     ["no apology for the expected refusal", /\*\*No apology\.\*\* `vibe_required` is the expected answer: the reply apologises for nothing and\s+reports no error/],
+    // Vibe offer copy: the offer is short, and how Tonight keeps a liked is never in it.
+    ["the offer said briefly, on T1", /6\. \*\*Said briefly, in their terms\.\*\* A short acknowledgement, and nothing about how Tonight keeps\s+things[^]*no Genre\s+explained at length, no films listed to illustrate an option; one simple question/],
+    ["the offer said briefly, on the kept path", /5\. \*\*Said briefly, in their terms\*\*, as T1\.6 says\./],
     // §20: where both make sense, both — one recommended in a line, their choice — and the
     // core still fits a new wording wholly.
     ["both where both make sense, on T1", /\*\*Where both make sense, both\*\*[^]*one recommended in a line, and their\s+choice\. A new Vibe with no filing in Champagne & Blueprints, or a Genre on its own, fails/],

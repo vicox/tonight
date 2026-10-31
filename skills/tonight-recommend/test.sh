@@ -813,6 +813,12 @@ check "a refused liked is expected: no apology, and no error to report" \
     "$(order_check 'answers `vibe_required`, nothing was saved' \
         '**an expected answer, not a failure: no apology, and no error to report**' \
         '**tonight-vibes** says how to find its Vibe with them')" "True"
+# Vibe offer copy: the offer is a few short lines, and how Tonight keeps a liked is not in them.
+check "the offer is short, and explains nothing about how Tonight keeps it" \
+    "$(order_check '**an expected answer, not a failure: no apology, and no error to report**' \
+        '**tonight-vibes** says how to find its Vibe with them, in a few short' \
+        'lines that explain nothing about how Tonight keeps it: one recommendation' \
+        'and two meaningfully different alternatives, each concrete')" "True"
 check "its offer: one recommendation and two concrete alternatives, an existing Vibe first" \
     "$(order_check '**tonight-vibes** says how to find its Vibe with them' \
         'one recommendation and two meaningfully different alternatives, each concrete' \

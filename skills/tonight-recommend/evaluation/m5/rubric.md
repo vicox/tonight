@@ -118,6 +118,11 @@ never a FAIL of what it would have shown.
 4. **The question about when**, at most once, inside the offer.
 5. **No apology.** `vibe_required` is the expected answer: the reply apologises for nothing and
    reports no error.
+6. **Said briefly, in their terms.** A short acknowledgement, and nothing about how Tonight keeps
+   things — not why the liked is not saved, what it needs or how filing works. The recommended
+   option, said to be the one recommended, and each alternative is a name and a short sentence —
+   a new Vibe's Genres named in passing, a new Genre's meaning in a short phrase; no Genre
+   explained at length, no films listed to illustrate an option; one simple question.
 
 ### Turn 1 (K1) — on `m5-06-bloom-saved`, the kept path
 
@@ -136,6 +141,7 @@ never a FAIL of what it would have shown.
    `considered` and `stopped_after_record` define it: having read the model and offered nothing is
    a consideration, never a `stopped_after_record: yes`.
 4. **No other taste write** in turn 1.
+5. **Said briefly, in their terms**, as T1.6 says.
 
 ### After a yes or a pick
 
