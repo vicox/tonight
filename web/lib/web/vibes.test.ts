@@ -103,7 +103,7 @@ test("an empty vibe holds nothing", () => {
 /**
  * Which of a film's vibes its card names first: the ones it is the core of.
  *
- * The card's rendering — the violet, the muted rest, the one line — is pinned in
+ * The card's rendering — every name in the violet, on the one line — is pinned in
  * `overview.test.ts`; which names, in which order, and which of them are cores
  * is `coreFirst`, and held here.
  */

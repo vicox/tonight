@@ -61,3 +61,25 @@ are sensible; the scope stays narrow.
 Codex ran the two changed suites, 43/43, typecheck, ESLint on the changed files and `git diff
 --check`, all clean. The wrapping tests pin the source structure; the layout in a browser is not
 verified.
+
+## 5. Muting rolled back
+
+Base `4845975`. At the user's request the muting in §1 is undone and the order is kept: a card still
+names its cores first (`coreFirst`, unchanged), and every name is in the violet again, core or not.
+Nothing tells a core apart but its place.
+
+- `VibeLinks` is byte-for-byte its version before this work (`a949e8d`): no `cores`, one
+  `text-vibe` and one `hover:decoration-vibe` on every name, the same size, ✨, `·` and wrapping.
+- `MovieCard` takes only `names` from `coreFirst` and passes no `cores`.
+- `overview.test.ts`: the pins changed in §3 go back to `text-vibe`; the card's test now pins the
+  core-first `names`, one violet colour and hover on every name, no `cores` in `VibeLinks` and none
+  passed anywhere, and keeps the size, line, ✨, separator and no-words pins. The test fails against
+  the muted `VibeLinks`.
+
+**Run by the implementer:** the two changed suites 43/43; typecheck clean; ESLint on the changed
+files clean; `git diff --check` clean.
+
+**Codex code review 2 — READY (working tree on `4845975`)**, with no findings: `VibeLinks` matches
+`a949e8d` exactly; core-first order holds on the Stream's and a vibe's cards; the tests cover the
+rollback and the order; keeping `coreFirst`'s return shape suits the scope. Codex ran the same
+checks, all clean. The layout in a browser is not verified.
