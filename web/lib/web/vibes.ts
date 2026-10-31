@@ -34,8 +34,9 @@ export function filmsIn<T extends Movie>(vibe: Vibe, movies: readonly T[]): T[] 
  * first, then the rest.
  *
  * `cores` is which of `names` the film is the core of — the vibes it best
- * embodies, which its card draws in the vibe's violet — and every other name is
- * a vibe it is only filed under. Each group keeps the order the film holds its
+ * embodies — and every other name is a vibe it is only filed under. The card
+ * draws only `names`, every one in the vibe's violet: the order alone tells a
+ * core apart. Each group keeps the order the film holds its
  * vibes in, so a film that is the core of two vibes names both first, and a
  * film that is the core of none names its vibes as it always did, with `cores`
  * empty.

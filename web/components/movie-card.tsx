@@ -59,11 +59,12 @@ export function MovieCards({
  * ## The vibes it is the core of, first
  *
  * A film that is a vibe's core — the film that best embodies it — names that
- * vibe first, in the violet beside the ✨, and the vibes it is only filed under
- * after it, muted: one line, the same size and the same separator, wrapping
- * only where the card is too narrow for it. A film that is the core of two
- * vibes names both first; one that is the core of none names every vibe muted.
- * Which they are is `coreFirst`'s, from every vibe's own core.
+ * vibe first, and the vibes it is only filed under after it: one line, every
+ * name in the same violet, at the same size and after the same separator,
+ * wrapping only where the card is too narrow for it. Only the order tells a
+ * core apart. A film that is the core of two vibes names both first; one that
+ * is the core of none names its vibes as it holds them. Which they are is
+ * `coreFirst`'s, from every vibe's own core.
  *
  * ## One link over the whole card
  *
@@ -84,7 +85,7 @@ export function MovieCards({
  * Dunes are two links a listener can tell apart.
  */
 function MovieCard({ movie, vibes, from }: { movie: Shown; vibes: readonly Vibe[]; from?: string }) {
-  const { names, cores } = coreFirst(movie, vibes);
+  const { names } = coreFirst(movie, vibes);
 
   return (
     <li className="relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 rounded-xl border border-rule bg-screen px-5 py-4 transition-colors hover:border-ink-faint" data-viewing={movie.viewing}>
@@ -118,7 +119,7 @@ function MovieCard({ movie, vibes, from }: { movie: Shown; vibes: readonly Vibe[
 
       {movie.vibes.length > 0 && (
         <div className="col-span-2 row-start-3 min-w-0">
-          <VibeLinks names={names} cores={cores} label="Vibes:" raised />
+          <VibeLinks names={names} label="Vibes:" raised />
         </div>
       )}
     </li>

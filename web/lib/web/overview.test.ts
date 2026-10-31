@@ -403,7 +403,7 @@ test("a long name stays inside its card, and inside its heading", () => {
   const drawn = bodyOf("MovieCard", card);
   assert.match(drawn, /<h3 className="[^"]*\bmin-w-0\b/, "a long title can widen the card");
   assert.match(drawn, /font-display text-\[22px\] leading-tight break-words/, "a long title has nowhere to break");
-  assert.match(bodyOf("VibeLinks", links), /"min-w-0 break-words /, "a long vibe name can widen the card");
+  assert.match(bodyOf("VibeLinks", links), /min-w-0 break-words text-vibe/, "a long vibe name can widen the card");
   assert.match(
     bodyOf("VibeView", vibeView),
     /<h2[\s\S]{0,120}?className="min-w-0[^"]*break-words/,
@@ -578,7 +578,7 @@ test("a film's card is its year, how it stands, its title and its vibes, and not
     "the status is not the film's own",
   );
   assert.match(drawn, /\{movie\.vibes\.length > 0 && \(/, "a film in no vibe still gets a line");
-  assert.match(drawn, /<VibeLinks names=\{names\} cores=\{cores\} label="Vibes:" raised \/>/, "the card names other vibes");
+  assert.match(drawn, /<VibeLinks names=\{names\} label="Vibes:" raised \/>/, "the card names other vibes");
 
   // And nothing else: no genre, no mark to press, no picture, no date, and no
   // word standing in for a missing vibe.
@@ -682,11 +682,7 @@ test("a vibe's names are each a link to its screen, behind one violet sparkle", 
   // Every name, each its own link — never the first and a count.
   assert.match(drawn, /names\.map\(\(name, index\)/, "not every name is drawn");
   assert.match(drawn, /<Link\s+href=\{vibeHref\(name\)\}\s+prefetch=\{false\}/, "a name does not open its vibe");
-  assert.match(
-    drawn,
-    /cores === undefined \|\| cores\.includes\(name\)\s*\? "text-vibe hover:decoration-vibe"/,
-    "a name is not in the vibe's violet",
-  );
+  assert.match(drawn, /text-vibe underline/, "a name is not in the vibe's violet");
   assert.equal(/slice\(0|\.length - |\bmore\b/.test(drawn), false, "the names are cut to the first and a count");
 
   // A film's screen names its vibes the same way, in one line like a card's —
@@ -696,23 +692,31 @@ test("a vibe's names are each a link to its screen, behind one violet sparkle", 
   assert.equal((movieView.match(/<VibeLinks\b/g) ?? []).length, 1, "a film's screen names its vibes in two places");
 });
 
-test("a card names its film's cores first, in the violet, and its other vibes muted on the same line", () => {
-  // Which names, in which order, and which are cores is `coreFirst`, held in
-  // `vibes.test.ts`. Pinned here: the card asks it and hands on both answers.
+test("a card names its film's cores first, and every vibe in the same violet on the same line", () => {
+  // Which names, in which order, is `coreFirst`, held in `vibes.test.ts`.
+  // Pinned here: the card asks it and hands on the names alone, in that order.
   const drawn = bodyOf("MovieCard", card);
-  assert.match(drawn, /const \{ names, cores \} = coreFirst\(movie, vibes\);/, "the card decides its cores for itself");
-  assert.match(drawn, /<VibeLinks names=\{names\} cores=\{cores\} label="Vibes:" raised \/>/);
+  assert.match(drawn, /const \{ names \} = coreFirst\(movie, vibes\);/, "the card does not put its cores first");
+  assert.match(drawn, /<VibeLinks names=\{names\} label="Vibes:" raised \/>/);
 
-  // A core in the violet the ✨ is in; every other name muted — quiet, and still
-  // the readable ink rather than the faint one the separators are in.
+  // Every name in the violet the ✨ is in, core or not: one colour and one
+  // hover, chosen by nothing — the order alone tells a core apart.
   const line = bodyOf("VibeLinks", links);
+  const name = line.match(/<Link\b[\s\S]*?<\/Link>/)?.[0] ?? "";
   assert.match(
-    line,
-    /cores === undefined \|\| cores\.includes\(name\)\s*\? "text-vibe hover:decoration-vibe"\s*: "text-ink-soft hover:decoration-ink-soft"/,
-    "a core and a vibe the film is only in are not told apart, or the second is not muted",
+    name,
+    /"min-w-0 break-words text-vibe underline decoration-transparent underline-offset-4",\s*"transition-colors hover:decoration-vibe",/,
+    "a name is not in the vibe's violet",
   );
+  assert.deepEqual(name.match(/\btext-[\w-]+/g), ["text-vibe"], "a name is drawn in a colour besides the violet");
+  assert.deepEqual(
+    name.match(/\bdecoration-(?!transparent\b)[\w-]+/g),
+    ["decoration-vibe"],
+    "a name is underlined in a colour besides the violet",
+  );
+  assert.doesNotMatch(links, /\bcores\b/, "the line can still tell a core from the rest");
 
-  // The same size for both: set once, on the line, and on no name.
+  // The same size for every name: set once, on the line, and on no name.
   assert.equal((line.match(/text-\[\d+(?:\.\d+)?px\]/g) ?? []).length, 1, "a name is set in a size of its own");
   assert.match(line, /<p className="[^"]*text-\[13px\]/, "the line has no size of its own");
 
@@ -736,10 +740,15 @@ test("a card names its film's cores first, in the violet, and its other vibes mu
   const words = [...line.matchAll(/>([^<>{}()]+)</g)].map((match) => match[1].trim()).filter(Boolean);
   assert.deepEqual(words, ["·"], "the line says something besides the names and the separator");
 
-  // Only a card passes cores: a film's screen and the vibes with no films keep
-  // every name in the violet.
-  assert.doesNotMatch(movieView, /cores=/, "a film's screen mutes a vibe");
-  assert.doesNotMatch(source, /<VibeLinks\b[^>]*\bcores=/, "the vibes with no films are muted");
+  // Nowhere is a vibe muted: not on a card, a film's screen or the vibes with no
+  // films.
+  for (const [where, text] of [
+    ["a card", card],
+    ["a film's screen", movieView],
+    ["the vibes with no films", source],
+  ] as [string, string][]) {
+    assert.doesNotMatch(text, /<VibeLinks\b[^>]*\bcores=/, `${where} mutes a vibe`);
+  }
 });
 
 test("a vibe's screen is its name, its genres, what it means and its films, in that order", () => {
