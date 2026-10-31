@@ -5,9 +5,10 @@ it. A behavior report is the record of those runs for one change: one Markdown f
 the change, that a person reads in five minutes.
 
 The runner's results are ignored by git and go with the worktree they were recorded in. The report
-is what stays: every turn verbatim, every Tonight call with its arguments and the gist of its answer,
-what the saved state became in plain words, the fixture each run started from, and the model,
-source, instructions and commit it ran on.
+is what stays: every turn verbatim, every Tonight call with its arguments whole and the gist of its
+answer, what the saved state became in plain words — Genres, Vibes, films, what was said and every
+evening — the fixture each run started from, and the model, source, instructions and commit it ran
+on.
 
 ## When
 

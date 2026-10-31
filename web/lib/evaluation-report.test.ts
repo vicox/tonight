@@ -195,6 +195,18 @@ test("a Tonight call is its arguments as sent and the gist of its answer, on one
   assert.equal(kept, '3. `record_verdict` `{}` → `verdict: {"film":{"title":"Paterson","year":2016}}`');
 
   assert.equal(report.renderCall({ tool: "get_taste", arguments: {}, status: 500 }, 4), "4. `get_taste` `{}` → `HTTP 500`");
+
+  // Arguments are what the agent did: kept whole, however long (code review: a long
+  // create_vibe lost its core at a 600-character cut).
+  const long = {
+    name: "Sharp Company",
+    genres: ["Character Story", "Clever Minds"],
+    instruction: "I like spending the film with characters who are a step ahead of everyone in the room. ".repeat(8),
+    core: { title: "The Brothers Bloom", year: 2008, viewing: "seen-before" },
+  };
+  const written = report.renderCall({ tool: "create_vibe", arguments: long, status: 200, result: { structuredContent: {} } }, 5);
+  assert.ok(JSON.stringify(long).length > 600);
+  assert.ok(written.includes(JSON.stringify(long)), "the arguments are cut");
   assert.equal(report.code("a`b"), "`` a`b ``");
 });
 
@@ -265,6 +277,41 @@ test("what a run changed is said in plain words, and bookkeeping is never a chan
     "No longer stands: Ocean's Eleven (2001) — loved (volunteered)",
     "Remembered: Ocean's Eleven (2001) — loved (volunteered)",
   ]);
+});
+
+test("an evening is said whole — the request, every film, each fact established — so two evenings never read the same", () => {
+  // Code review: a 300-character cut hid every title of a four-film evening, and a change
+  // to its last film left the report's text the same.
+  const unknown = { known: false };
+  const offer = (title: string, year: number, finished: object = unknown) => ({
+    title, year, offered: true, lead: title === "Heat", chosen: unknown, started: unknown, finished, passed: unknown,
+  });
+  const night = (last: object) => ({
+    placement: "remembered",
+    of: "evening",
+    request: "something tense but not bleak",
+    requestSource: "observed",
+    offers: [
+      offer("Heat", 1995),
+      offer("Collateral", 2004),
+      { ...offer("Thief", 1981), passed: { known: true, value: true, source: "stated" }, passReason: "seen it too often" },
+      offer("The Insider", 1999, last),
+    ],
+    offeredSource: "observed",
+    basis: { kind: "evening", recordedAt: "2026-10-31T10:00:00Z" },
+    handle: { by: "ref", ref: "e1" },
+  });
+  const empty = snapshot("t0", { genres: [], vibes: [], movies: [] }, {});
+  const one = snapshot("t1", { genres: [], vibes: [], movies: [] }, { remembered: [night(unknown)] });
+  assert.deepEqual(report.stateChanges(empty, one), [
+    'Remembered: evening, asked "something tense but not bleak" (observed); films (observed): Heat (1995) — offered, led · ' +
+      'Collateral (2004) — offered · Thief (1981) — offered; passed yes, because "seen it too often" · The Insider (1999) — offered',
+  ]);
+  const finished = snapshot("t2", { genres: [], vibes: [], movies: [] }, { remembered: [night({ known: true, value: true, source: "stated" })] });
+  const changes = report.stateChanges(one, finished);
+  assert.equal(changes.length, 2);
+  assert.match(changes[0]!, /^Remembered: .*The Insider \(1999\) — offered; finished yes$/);
+  assert.match(changes[1]!, /^No longer remembered: .*The Insider \(1999\) — offered$/);
 });
 
 test("where a run started is said in words: every Vibe with its core, the Genres, films and what stands", () => {

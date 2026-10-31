@@ -17,9 +17,9 @@ change did to behavior without that worktree, a results directory, and three fil
   - provenance: instructions, source, commit, model and host;
   - a results table;
   - per scenario, the fixture and its starting state in words;
-  - per run, every turn verbatim, each turn's Tonight calls with their arguments and the gist of
-    their answers, and what the saved state became in plain words — timestamps and references are
-    never a change.
+  - per run, every turn verbatim, each turn's Tonight calls with their arguments whole and the gist
+    of their answers, and what the saved state became in plain words — evenings with their request,
+    every film and each fact established; timestamps and references are never a change.
 
   It calls no model and scores nothing. A run that never got going, a turn never sent, and a
   regression scenario with no run are UNTESTED. Everything else is `TO SCORE`, for a person to
@@ -38,13 +38,14 @@ raw logs, or any full-matrix run.
 
 ## 3. Tests
 
-`web/lib/evaluation-report.test.ts`, 8 tests, no model and no network:
+`web/lib/evaluation-report.test.ts`, 9 tests, no model and no network:
 
 - artifacts parse, including an answer with headings of its own and a turn not sent;
-- UNTESTED versus `TO SCORE`, for every way a run can fail;
-- call lines: arguments, a refused answer, backticks fenced, bookkeeping dropped;
+- UNTESTED versus `TO SCORE`, for every way a run can fail, a void run staying void;
+- call lines: arguments whole however long, a refused answer, backticks fenced, bookkeeping dropped;
 - state changes in words: added, changed, removed, now stands, remembered — and a re-read with new
   timestamps is *No change*;
+- an evening whole: request, every film, each fact — a change to its last film changes the text;
 - the starting state;
 - the regression set: exactly the six keys, on `plugin-skills`, no operator-seeded fixture,
   within the budget;
@@ -54,8 +55,8 @@ raw logs, or any full-matrix run.
 
 **Run by the implementer:**
 
-- `node --test` over the six evaluation suites: 71/71.
-- `npm test` in `web/`: 1381 of 1385. The four are `evaluation.test.ts` reading the gitignored
+- `node --test` over the six evaluation suites: 72/72.
+- `npm test` in `web/`: 1382 of 1386. The four are `evaluation.test.ts` reading the gitignored
   `evaluation/results/` (ENOENT), as before.
 - `npm run typecheck` clean; eslint clean on the new test (`report.mjs` is outside eslint's base
   path, as every evaluation `.mjs` is).
@@ -64,3 +65,14 @@ raw logs, or any full-matrix run.
 **No live model runs were made**: the sample is rendered from recordings that already existed.
 
 ## 4. Review
+
+**Codex code review 1 — NOT READY (`67e0d34`)**, two P2 findings, both fixed:
+
+- **A saved evening was cut to 300 characters of JSON.** On a four-film evening that hid every
+  title and the request, and a change to its last film left the text the same. An evening is now
+  said whole: the request, every film — offered, led or theirs — and each fact established.
+- **Arguments over 600 characters were cut.** A long `create_vibe` lost its `core`. Arguments are
+  now kept whole.
+
+Codex ran the 71 focused tests and the smoke dry run (6 runs, 11 model calls), and found the sample
+matched the generator. No live runs.

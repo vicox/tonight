@@ -193,15 +193,18 @@ function outcome(entry) {
   return entry.result?.isError ? `refused — ${said}` : said;
 }
 
-/** One Tonight call: the tool, its arguments as sent, and the gist of what came back. */
+/**
+ * One Tonight call: the tool, its arguments as sent — whole, since they are what the
+ * agent did and the log goes with its worktree — and the gist of what came back.
+ */
 export function renderCall(entry, number) {
-  return `${number}. \`${entry.tool}\` ${code(clip(JSON.stringify(entry.arguments ?? {}), 600))} → ${code(outcome(entry))}`;
+  return `${number}. \`${entry.tool}\` ${code(JSON.stringify(entry.arguments ?? {}))} → ${code(outcome(entry))}`;
 }
 
 /* ------------------------------------------------------------- saved state */
 
 /** Bookkeeping that differs between two reads of the same thing. */
-const NOISE = new Set(["createdAt", "updatedAt", "at", "ref", "savedAt", "changedAt"]);
+const NOISE = new Set(["createdAt", "updatedAt", "at", "ref", "savedAt", "changedAt", "saidAt", "recordedAt"]);
 
 /** A value with its bookkeeping taken off, at every depth; `sorted` puts each object's keys in order. */
 function stripped(value, sorted = false) {
@@ -272,10 +275,30 @@ function changed(field, from, to) {
   return `${LABEL[field]} ${words(from, quoted)} → ${words(to, quoted)}`;
 }
 
+const FACTS = ["chosen", "started", "finished", "passed"];
+
+/**
+ * An evening, whole: what they asked, then every film with whether Tonight offered it
+ * or led with it and each fact somebody established — a fact nobody established is
+ * left out, which is what unknown means. Two different evenings never read the same.
+ */
+function evening(root) {
+  const source = (value) => (value ? ` (${value})` : "");
+  const asked = root.request === null || root.request === undefined ? "no request" : `asked "${root.request}"${source(root.requestSource)}`;
+  const films = (root.offers ?? []).map((offer) => {
+    const facts = FACTS.filter((fact) => offer[fact]?.known).map(
+      (fact) => `${fact} ${offer[fact].value ? "yes" : "no"}${offer[fact].source === "stated" ? "" : source(offer[fact].source)}`,
+    );
+    const why = offer.passReason ? `, because "${offer.passReason}"` : "";
+    return `${film(offer)} — ${offer.offered ? (offer.lead ? "offered, led" : "offered") : "theirs"}${facts.length ? `; ${facts.join(", ")}` : ""}${why}`;
+  });
+  return `evening, ${asked}; films${source(root.offeredSource)}: ${films.join(" · ") || "none"}`;
+}
+
 /** Memory's roots other than the taste read's three kinds: what was said, and evenings. */
 const spoken = (snapshot, placement) =>
   (snapshot?.memory?.[placement] ?? []).filter((root) => !["genre", "vibe", "movie"].includes(root.of));
-const spokenLine = (root) => (root.of === "verdict" ? said(root) : `${root.of}: ${clip(canonical(root), 300)}`);
+const spokenLine = (root) => (root.of === "verdict" ? said(root) : root.of === "evening" ? evening(root) : `${root.of}: ${canonical(root)}`);
 
 /** Each of `after` not in `before`, counted, so two identical entries are two. */
 function missing(from, to) {
