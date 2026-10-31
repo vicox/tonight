@@ -24,10 +24,12 @@ wrote exactly what was shown, in order: Genre(s), the Vibe with its core, then *
 The kept path's text is unchanged by this commit, and an earlier recording of it (`docs/work/behavior-reports/SAMPLE.md`,
 `adc2b20`) did offer one. One run cannot tell variance from a regression.
 
-**UNTESTED:**
+**UNTESTED here:**
 
 - the order-of-calls clarification's own scenario (`m5-01-anchored__knives-out-and-tonight`), which needs legacy seeding;
 - the kept path from turn 2.
+
+Both were recorded afterwards; see *Follow-up runs at `e07b253`* at the end.
 
 ## Results
 
@@ -41,12 +43,12 @@ or a FAIL.
 | targeted | recommend-only | `m5-07-keep-no-fit__keep-dawn__then-no` | keep-no-fit-declined | 3 | 3 PASS |
 | targeted | plugin-skills | `m5-07-keep-no-fit__keep-dawn__then-yes` | keep-no-fit | 3 | 3 PASS; the write sequence exercised in 2 (run 02 asked which film) |
 | targeted | recommend-only | `m5-07-keep-no-fit__keep-dawn__then-yes` | keep-no-fit | 3 | 3 PASS; the write sequence exercised in 3 |
-| targeted | both | `m5-01-anchored__knives-out-and-tonight` | owed-answer | 0 | UNTESTED — not run: legacy seeding, arranged separately |
+| targeted | both | `m5-01-anchored__knives-out-and-tonight` | owed-answer | 0 | not run at `aa6a452`; recorded later, under *Follow-up runs at `e07b253`* |
 | regression | plugin-skills | `m5-02-empty__what-tonight` | first-films | 1 | PASS |
 | regression | plugin-skills | `m5-02-empty__hi__then-three-films` | first-films | 1 | PASS |
 | regression | plugin-skills | `m5-05-partial-fit__bloom-clever__then-yes` | partial-fit | 1 | PASS |
 | regression | plugin-skills | `m5-05-partial-fit__bloom-clever__then-no` | partial-fit-declined | 1 | PASS |
-| regression | plugin-skills | `m5-06-bloom-saved__bloom-clever__then-pick-title-one__then-like-bloom-tonight` | kept-new-vibe | 1 | FAIL (K1.3) on turn 1; UNTESTED from turn 2 |
+| regression | plugin-skills | `m5-06-bloom-saved__bloom-clever__then-pick-title-one__then-like-bloom-tonight` | kept-new-vibe | 1 | FAIL (K1.3) on turn 1; UNTESTED from turn 2; rerun three times under *Follow-up runs at `e07b253`* |
 | regression | plugin-skills | `m5-04-reading__liked-bloom` | liked-no-fit | 1 | PASS |
 
 ## Deterministic tests (no model)
@@ -181,7 +183,7 @@ Starting state:
 Family `keep-no-fit-declined`. Fixture `m5-07-keep-no-fit` — *A film to keep that no Vibe of theirs holds, and a loved film beside it that could anchor one*.
 Starting state: as under *Targeted — `m5-07-keep-no-fit__keep-dawn__then-no` on plugin-skills*.
 
-#### Run 01 — PASS — zero writes; Comedy reused and one new Genre with its meaning; core *Shaun*; the no wrote nothing. Its opening, *the first thing you have asked to keep since Shaun*, is a claim nothing in Tonight supports
+#### Run 01 — PASS — zero writes; Comedy reused and one new Genre with its meaning; core *Shaun*; the no wrote nothing. Its opening, *the first thing you've asked to keep since Shaun of the Dead*, is a claim nothing in Tonight supports
 
 `m5-recommend-only-cb762ea6-aa6a452-deepseek-deepseek-v4-pro/runs/m5-07-keep-no-fit__keep-dawn__then-no__01.md` · deepseek-v4-pro · instructions `cb762ea6` at `aa6a452` · recorded 2026-10-31T13:09:58.141Z
 
@@ -594,7 +596,7 @@ Starting state:
 - Standing: nothing said
 - Remembered: nothing
 
-#### Run 01 — PASS — a film first: the idea, *I would start with* a lead, three directions each opened by when it wins, every film checked before it was shown; the two-or-three-films question inside the answer; no write
+#### Run 01 — PASS — a film first: the idea, *I'd start with* a lead, three directions each opened by when it wins, every film checked before it was shown; the two-or-three-films question inside the answer; no write
 
 `m5-plugin-skills-498497ae-aa6a452-deepseek-deepseek-v4-pro/runs/m5-02-empty__what-tonight__01.md` · deepseek-v4-pro · instructions `498497ae` at `aa6a452` · recorded 2026-10-31T13:14:51.736Z
 
@@ -702,7 +704,7 @@ Starting state:
 - Standing: Ocean's Eleven (2001) — loved (volunteered) · Paterson (2016) — loved (volunteered)
 - Remembered: nothing
 
-#### Run 01 — PASS — T1.1 `record_verdict` first, `liked`, `because` verbatim, answered `vibe_required`; T1.2 no write; T1.3 Champagne & Blueprints recommended, two concrete new Vibes beside it; T1.4 when asked once, inside; T1.5 no apology; T1.6 brief, a new Genre in a phrase. The yes filed it there `seen-before` and recorded the liked again. A judgement: the yes is read as taking the recommendation, which the answer called *the one I would pick*; a stricter reading of its *which sounds like the night* would have asked once first
+#### Run 01 — PASS — T1.1 `record_verdict` first, `liked`, `because` verbatim, answered `vibe_required`; T1.2 no write; T1.3 Champagne & Blueprints recommended, two concrete new Vibes beside it; T1.4 when asked once, inside; T1.5 no apology; T1.6 brief, a new Genre in a phrase. The yes filed it there `seen-before` and recorded the liked again. A judgement: the yes is read as taking the recommendation, which the answer called *the one I'd pick*; a stricter reading of its *which sounds like the night* would have asked once first
 
 `m5-plugin-skills-498497ae-aa6a452-deepseek-deepseek-v4-pro/runs/m5-05-partial-fit__bloom-clever__then-yes__01.md` · deepseek-v4-pro · instructions `498497ae` at `aa6a452` · recorded 2026-10-31T13:19:09.796Z
 
@@ -832,7 +834,7 @@ Starting state:
 - Standing: The Vanishing (1988) — loved (volunteered)
 - Remembered: nothing
 
-#### Run 01 — PASS — `liked`, no `because`, `vibe_required` with no apology; one offer: *The Long Con* recommended, *Deadpan Heart* and *Two of a Kind* beside it, each another evening; nothing written. A gap: the third one new Genre, *Siblings*, is named without its meaning — the omission the worked example was restored for (vibe-hypotheses section 24)
+#### Run 01 — PASS — `liked`, no `because`, `vibe_required` with no apology; one offer: *The Long Con* recommended, *Deadpan Heart* and *Two of a Kind* beside it, each another evening; nothing written. A gap: the third one's new Genre, *Siblings*, is named without its meaning — the omission the worked example was restored for (vibe-hypotheses section 24)
 
 `m5-plugin-skills-498497ae-aa6a452-deepseek-deepseek-v4-pro/runs/m5-04-reading__liked-bloom__01.md` · deepseek-v4-pro · instructions `498497ae` at `aa6a452` · recorded 2026-10-31T13:21:57.124Z
 
@@ -860,3 +862,425 @@ Starting state:
 **Saved state** (sha256:bb170ce1d731f99d → sha256:bb170ce1d731f99d)
 
 - No change.
+
+## Follow-up runs at `e07b253`
+
+Recorded later on 2026-10-31, on the same instructions (`498497ae`, `cb762ea6`). `e07b253` adds only this report to
+`aa6a452`. 11 model calls: 6 for the order-of-calls scenario and 5 for a rerun of the kept path.
+
+- **The order-of-calls scenario** (`m5-01-anchored__knives-out-and-tonight`) was seeded per run as `m5/README.md`
+  says, through a separate `f3912b0` checkout that Ops created (`worktrees/tonight-legacy-f3912b0`, local only), then
+  migrated by this build. The database was persistent and throwaway, under `web/.devdb/legacy`, and both builds shared
+  one dev signing secret. Each recording was kept apart, as `…-legacy-seeding-N`.
+- **The kept path** was rerun three times into a directory of its own (`…-m5-06-rerun`). The failed run above is kept
+  as it was.
+
+**Verdict.**
+
+- **The order-of-calls clarification holds.** In all six runs, `record_verdict` is the turn's first call and the
+  visible reply carries the whole answer, with the offer after it.
+- **Three of six close the answer with both a lever and the offer's question**, against *one question or one lever,
+  never both*. That is 1 of 3 on `plugin-skills` and 2 of 3 on `recommend-only`. `recommend-only` does not load
+  tonight-vibes, so the new tonight-vibes sentence cannot be all of it there. No before run of this scenario exists
+  to compare against.
+- **The kept path made its full offer (K1.3) in 1 of 3 reruns, 1 of 4 counting the first.** The verdict, the viewing
+  and the no-other-write checks passed in all four. Its text is unchanged by this change, and the earlier sample in
+  `docs/work/behavior-reports/SAMPLE.md` misses K1.3 on the same reading. This is an existing weakness, not one this
+  change introduced.
+
+| part | source | scenario | family | runs | result |
+| --- | --- | --- | --- | --- | --- |
+| targeted | plugin-skills | `m5-01-anchored__knives-out-and-tonight` | owed-answer | 3 | 2 PASS, 1 FAIL (the close) |
+| targeted | recommend-only | `m5-01-anchored__knives-out-and-tonight` | owed-answer | 3 | 1 PASS, 2 FAIL (the close) |
+| rerun | plugin-skills | `m5-06-bloom-saved__bloom-clever__then-pick-title-one__then-like-bloom-tonight` | kept-new-vibe | 3 | turn 1: 1 PASS, 2 FAIL (K1.3); turns 2-3 sent only in run 02, its turn 3 FAIL as recorded; 2 UNTESTED from turn 2 |
+
+**A harness gap found here:** the DeepSeek adapter records only a turn's final message, so a reply sent alongside a
+tool call never reaches the record.
+
+### Follow-up live runs
+
+#### Targeted — `m5-01-anchored__knives-out-and-tonight` on plugin-skills
+
+Family `owed-answer`. Fixture `m5-01-anchored` — *Three anchored Vibes, one film in no Vibe that they love, one they never spoke about*.
+Starting state:
+
+- Vibe **Smooth Operators** — instruction "A crew, a plan, and everybody playing their own angle." — Genres Heist — core Ocean's Eleven (2001) — films Ocean's Eleven (2001)
+- Vibe **Talk Is the Action** — instruction "Films I watch for how people talk to each other; the plot can wait." — Genres Talky — core Before Sunrise (1995) — films Before Sunrise (1995)
+- Vibe **Time Well Wasted** — instruction "Light films where being stuck is the joke and nobody has to save the world." — Genres Time Loop, Easygoing Comedy — core Palm Springs (2020) — films Palm Springs (2020)
+- Genres: **Easygoing Comedy** "Funny without needing my full attention, and nobody is humiliated for the joke."; **Heist** "A plan, a crew, and the pleasure of watching it go wrong in interesting ways."; **Talky** "People talking well is the action. Sharp dialogue, and scenes allowed to run long."; **Time Loop** "The same day again, and what somebody does with it."
+- Films: Before Sunrise (1995) seen-now · Hit Man (2023) seen-now · Ocean's Eleven (2001) seen-now · Palm Springs (2020) seen-now · Wingwomen (2023) want-to-see
+- Standing: Before Sunrise (1995) — liked (volunteered) · Hit Man (2023) — loved (volunteered) · Ocean's Eleven (2001) — loved (volunteered) · Palm Springs (2020) — loved, because "the loop is the joke and it still lands" (volunteered)
+- Remembered: nothing
+
+##### Run 01 (seeding 1) — PASS — `record_verdict` the turn's first call, `loved`, answered `vibe_required` with no apology; the whole answer in the reply: the idea, *I'd start with* a lead, three directions each opened by when it wins, every film checked; the Vibe offer only at the close, ending in one question with when folded in — a closing paragraph rather than one sentence, a judgement; the evening recorded, no taste written
+
+`m5-plugin-skills-498497ae-e07b253-deepseek-deepseek-v4-pro-legacy-seeding-1/runs/m5-01-anchored__knives-out-and-tonight__01.md` · deepseek-v4-pro · instructions `498497ae` at `e07b253` · recorded 2026-10-31T16:20:47.417Z
+
+**User**
+
+> Loved Knives Out — what should I watch tonight?
+
+**Tonight** — 4 calls
+
+1. `record_verdict` `{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}` → `refused — saved: false · reason: "vibe_required" · film: {"title":"Knives Out","year":2019} · movie: null · retry: {"tool":"record_verdict","arguments":{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}} · next: "Nothing was written. This is the expected answer, not a failure: apologise for nothing and report no error. A liked or l"… (3543 chars)`
+2. `get_taste` `{}` → `genres: 4 items · vibes: 3 items · movies: 5 items · verdicts: 4 items`
+3. `check_candidates` `{"candidates":[{"title":"Glass Onion","year":2022},{"title":"The Last of Sheila","year":1973},{"title":"Kiss Kiss Bang Bang","year":2005},{"title":"Clue","year":1985}]}` → `candidates: 4 items`
+4. `record_episode` `{"request":"Loved Knives Out — what should I watch tonight?","offered":[{"title":"Glass Onion","year":2022,"lead":true},{"title":"The Last of Sheila","year":1973,"lead":false},{"title":"Kiss Kiss Bang Bang","year":2005,"lead":false},{"title":"Clue","year":1985,"lead":false}]}` → `episode: {"request":"Loved Knives Out — what should I watch tonight?","requestSource":"observed","offers":[{"title":"Glass Onion","year":2022,"offered":true,"lead":true,"chosen":{"known":false},"started":{"known":false},"finished":{"known":false},"passed":{"known":false}},{"title":"The Last of Sheila","year"… (845 chars)`
+
+**Assistant**
+
+> **Tonight's idea: a sharp, ensemble whodunit** — a house full of suspects, everyone lying, and you get to play along.
+>
+> **I'd start with *Glass Onion* (2022).** Same writer, same pleasure: every suspect working their own angle while the clues sit in plain sight — just a bigger house and a bigger mess.
+>
+> - **If you want the ancestor:** *The Last of Sheila* (1973) is the one Knives Out grew out of — a group of players, each with something to hide, and one of them dead by the end. A reach back from Knives Out itself.
+> - **If you want it fast and funny:** *Kiss Kiss Bang Bang* (2005) — a wisecracking mystery where the banter does as much work as the body count.
+> - **If you want the whole thing as farce:** *Clue* (1985) — the ensemble whodunit played purely for laughs, every suspect a cartoon.
+>
+> Knives Out deserves an evening of its own, so I'd make it a Vibe. I'd go with **The Killer Is in the Room** — a whodunit where everyone has a motive and the clues are fair. It'd sit on your Talky genre plus a new one, *Whodunit*: everyone's a suspect and the reveal rewards attention. Or it's more **A House of Schemes** — a group each running their own angle until it all unravels, built on Heist — or **Murder, but Funny** — the mystery played for laughs, built on Easygoing Comedy. Which one is Knives Out for you — and was it a recent watch, or an old favourite?
+
+**Saved state** (sha256:c08ef9256ef9caaa → sha256:2696080681d00086)
+
+- Remembered: evening, asked "Loved Knives Out — what should I watch tonight?" (observed); films (observed): Glass Onion (2022) — offered, led · The Last of Sheila (1973) — offered · Kiss Kiss Bang Bang (2005) — offered · Clue (1985) — offered
+
+##### Run 01 (seeding 2) — FAIL (the usual shape: *one question or one lever, never both*) — `record_verdict` first and the whole answer in the reply, but the answer closes on a lever, *Give me a mood and I'll aim closer*, and then on the offer's question too. The offer: two new Vibes and their own Smooth Operators, new Genres with their meanings, when folded in. Its `record_episode` request is cut to *what should I watch tonight?*
+
+`m5-plugin-skills-498497ae-e07b253-deepseek-deepseek-v4-pro-legacy-seeding-2/runs/m5-01-anchored__knives-out-and-tonight__01.md` · deepseek-v4-pro · instructions `498497ae` at `e07b253` · recorded 2026-10-31T16:25:18.915Z
+
+**User**
+
+> Loved Knives Out — what should I watch tonight?
+
+**Tonight** — 4 calls
+
+1. `record_verdict` `{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}` → `refused — saved: false · reason: "vibe_required" · film: {"title":"Knives Out","year":2019} · movie: null · retry: {"tool":"record_verdict","arguments":{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}} · next: "Nothing was written. This is the expected answer, not a failure: apologise for nothing and report no error. A liked or l"… (3543 chars)`
+2. `get_taste` `{}` → `genres: 4 items · vibes: 3 items · movies: 5 items · verdicts: 4 items`
+3. `check_candidates` `{"candidates":[{"title":"Glass Onion","year":2022,"imdb_id":"tt11564570"},{"title":"Clue","year":1985,"imdb_id":"tt0088930"},{"title":"Gosford Park","year":2001,"imdb_id":"tt0280707"},{"title":"Logan Lucky","year":2017,"imdb_id":"tt5439796"}]}` → `candidates: 4 items`
+4. `record_episode` `{"request":"what should I watch tonight?","offered":[{"title":"Glass Onion","year":2022,"lead":true},{"title":"Clue","year":1985,"lead":false},{"title":"Gosford Park","year":2001,"lead":false},{"title":"Logan Lucky","year":2017,"lead":false}]}` → `episode: {"request":"what should I watch tonight?","requestSource":"observed","offers":[{"title":"Glass Onion","year":2022,"offered":true,"lead":true,"chosen":{"known":false},"started":{"known":false},"finished":{"known":false},"passed":{"known":false}},{"title":"Clue","year":1985,"offered":true,"lead":false… (812 chars)`
+
+**Assistant**
+
+> Since you didn't give a mood, here's a surprise pick built from what you've told me: **a sharp-tongued ensemble puzzle**.
+>
+> **I'd start with *Glass Onion: A Knives Out Mystery* (2022).** It's the direct sequel to the one you just loved — same director, same wit, a new house full of liars and a fresh mystery to unpick.
+>
+> ***Clue* (1985)** wins if you want the mansion-whodunit pushed all the way into farce — one house, one body, everyone lying their face off.
+>
+> ***Gosford Park* (2001)** wins if you'd rather the talk slow right down — an upstairs-downstairs house where every guest has a secret and the mystery simmers.
+>
+> ***Logan Lucky* (2017)** is the furthest out — the other thing you're into: a plan, a crew, and the pleasure of watching it go wrong in interesting ways, with a southern twang.
+>
+> Give me a mood and I'll aim closer.
+>
+> ---
+>
+> Knives Out — good one. Quick one while you decide: which evening does it stand for? I'd make it **The Family Plot**: *I like a mystery where everybody in the room has a reason to lie, and half the fun is the talk before the reveal* — your Talky plus a new Whodunit (everyone's a suspect, clues hidden in plain sight). Or **Smooth Operators**, if everyone running their own angle is the pull. Or **One Big Happy Family** — awful rich people, one fortune, everybody lying — Talky plus a new Terrible Rich People (money and secrets in one house). Which of those — and was Knives Out recent or a while back?
+
+**Saved state** (sha256:df6980aa37ac7c6a → sha256:e07fcbcd8eca1c65)
+
+- Remembered: evening, asked "what should I watch tonight?" (observed); films (observed): Glass Onion (2022) — offered, led · Clue (1985) — offered · Gosford Park (2001) — offered · Logan Lucky (2017) — offered
+
+##### Run 01 (seeding 3) — PASS — `record_verdict` first; the whole answer in the reply, a lead and three directions; the offer only at the close, one question, with no question about when (allowed); the evening recorded
+
+`m5-plugin-skills-498497ae-e07b253-deepseek-deepseek-v4-pro-legacy-seeding-3/runs/m5-01-anchored__knives-out-and-tonight__01.md` · deepseek-v4-pro · instructions `498497ae` at `e07b253` · recorded 2026-10-31T16:27:24.802Z
+
+**User**
+
+> Loved Knives Out — what should I watch tonight?
+
+**Tonight** — 4 calls
+
+1. `record_verdict` `{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}` → `refused — saved: false · reason: "vibe_required" · film: {"title":"Knives Out","year":2019} · movie: null · retry: {"tool":"record_verdict","arguments":{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}} · next: "Nothing was written. This is the expected answer, not a failure: apologise for nothing and report no error. A liked or l"… (3543 chars)`
+2. `get_taste` `{}` → `genres: 4 items · vibes: 3 items · movies: 5 items · verdicts: 4 items`
+3. `check_candidates` `{"candidates":[{"title":"Glass Onion","year":2022},{"title":"See How They Run","year":2022},{"title":"Clue","year":1985},{"title":"Gosford Park","year":2001}]}` → `candidates: 4 items`
+4. `record_episode` `{"request":"Loved Knives Out — what should I watch tonight?","offered":[{"title":"Glass Onion","year":2022,"lead":true},{"title":"See How They Run","year":2022,"lead":false},{"title":"Clue","year":1985,"lead":false},{"title":"Gosford Park","year":2001,"lead":false}]}` → `episode: {"request":"Loved Knives Out — what should I watch tonight?","requestSource":"observed","offers":[{"title":"Glass Onion","year":2022,"offered":true,"lead":true,"chosen":{"known":false},"started":{"known":false},"finished":{"known":false},"passed":{"known":false}},{"title":"See How They Run","year":2… (836 chars)`
+
+**Assistant**
+
+> **The wit and ensemble of *Knives Out* — a room full of people, each with something to hide, and the reveal earns it.**
+>
+> **I'd start with *Glass Onion* (2022).** Same director, same voice, Daniel Craig back as Benoit Blanc — bigger cast, bigger house, same glee in watching everyone scheme. It's the closest thing to the thing you just loved, and it keeps that sharp, talky energy.
+>
+> - ***See How They Run* (2022)** wins if you want it lighter and breezier — a knowing wink at Agatha Christie that's shorter and more of a lark.
+> - ***Clue* (1985)** wins if you want the original manic ensemble — a mansion, a body, and the whole cast camping it up.
+> - ***Gosford Park* (2001)** wins if you want it richer and talkier — Altman's upstairs-downstairs whodunit, where the dialogue and the hidden angles do all the work.
+>
+> One thing while I have you: you loved *Knives Out*, and I want it filed in the right evening of yours. I'd make it its own thing — **One of Them Did It**: a whodunit night, a roomful of suspects each with a secret, and the reveal paying off what was laid down. It'd sit on your Talky plus a new genre, *Whodunit* — everyone's a suspect and every line might be a clue. The two other ways I'd read it: **Every Man for Himself** — a group tied by money or blood, each playing their own angle — or **Sharp Tongues** — the dialogue itself is the show, with a plot sharp enough to keep up. Which one is *Knives Out* to you?
+
+**Saved state** (sha256:a04a93ed34c45175 → sha256:ae4c76a7879f0883)
+
+- Remembered: evening, asked "Loved Knives Out — what should I watch tonight?" (observed); films (observed): Glass Onion (2022) — offered, led · See How They Run (2022) — offered · Clue (1985) — offered · Gosford Park (2001) — offered
+
+#### Targeted — `m5-01-anchored__knives-out-and-tonight` on recommend-only
+
+Family `owed-answer`. Fixture `m5-01-anchored` — *Three anchored Vibes, one film in no Vibe that they love, one they never spoke about*.
+Starting state: as under *Targeted — `m5-01-anchored__knives-out-and-tonight` on plugin-skills*.
+
+##### Run 01 (seeding 1) — PASS — `record_verdict` first; the whole answer in the reply; the offer only at the close, a recommended Vibe and two alternatives, one question with when folded in; the evening recorded
+
+`m5-recommend-only-cb762ea6-e07b253-deepseek-deepseek-v4-pro-legacy-seeding-1/runs/m5-01-anchored__knives-out-and-tonight__01.md` · deepseek-v4-pro · instructions `cb762ea6` at `e07b253` · recorded 2026-10-31T16:31:59.842Z
+
+**User**
+
+> Loved Knives Out — what should I watch tonight?
+
+**Tonight** — 4 calls
+
+1. `record_verdict` `{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}` → `refused — saved: false · reason: "vibe_required" · film: {"title":"Knives Out","year":2019} · movie: null · retry: {"tool":"record_verdict","arguments":{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}} · next: "Nothing was written. This is the expected answer, not a failure: apologise for nothing and report no error. A liked or l"… (3543 chars)`
+2. `get_taste` `{}` → `genres: 4 items · vibes: 3 items · movies: 5 items · verdicts: 4 items`
+3. `check_candidates` `{"candidates":[{"title":"Glass Onion: A Knives Out Mystery","year":2022,"imdb_id":"tt11564570"},{"title":"See How They Run","year":2022,"imdb_id":"tt13640696"},{"title":"Gosford Park","year":2001,"imdb_id":"tt0280707"},{"title":"The Last of Sheila","year":1973,"imdb_id":"tt0070297"}]}` → `candidates: 4 items`
+4. `record_episode` `{"request":"Loved Knives Out — what should I watch tonight?","offered":[{"title":"Glass Onion: A Knives Out Mystery","year":2022,"lead":true},{"title":"See How They Run","year":2022,"lead":false},{"title":"Gosford Park","year":2001,"lead":false},{"title":"The Last of Sheila","year":1973,"lead":false}]}` → `episode: {"request":"Loved Knives Out — what should I watch tonight?","requestSource":"observed","offers":[{"title":"Glass Onion: A Knives Out Mystery","year":2022,"offered":true,"lead":true,"chosen":{"known":false},"started":{"known":false},"finished":{"known":false},"passed":{"known":false}},{"title":"See … (872 chars)`
+
+**Assistant**
+
+> **A sharp, funny whodunit to follow the one you just told me about.**
+>
+> **I'd start with** *Glass Onion: A Knives Out Mystery* **(2022).** Same director, same detective — Benoit Blanc back at the centre of another sprawling ensemble where everyone's hiding something and the reveal snaps the whole thing into place. If Knives Out landed, this is the obvious next one.
+>
+> ***See How They Run* (2022)** is the one to go with when you want the lighter, self-aware cousin — a 1950s theatre whodunit that keeps the wit as sharp as the plot and never takes itself too seriously.
+>
+> ***Gosford Park* (2001)** is for when you want the talk-first version — Altman's upstairs-downstairs murder mystery, where the real pleasure is the room full of people talking rings around each other, the way Knives Out's interviews do.
+>
+> ***The Last of Sheila* (1973)** is for when you want the acerbic puzzle Knives Out grew out of — a locked-in game of secrets among rich, awful people that Rian Johnson has named as a direct influence.
+>
+> Knives Out, noted — and I'd give it an evening of its own rather than a line on a list. Three ways that could read; whichever you pick tells me how it landed for you:
+>
+> - **Everyone's a Suspect** (my pick) — a mystery where every character has something to hide, and the pleasure is in the reveal snapping everything into place. Your Talky genre, plus a new **Whodunit**: a puzzle-mystery whose clues are all on screen and the reveal re-colors everything before it.
+> - **The Family Plot** — a wealthy, awful family turning on each other, and the fun of watching their schemes collapse. Your Talky genre.
+> - **Two Steps Ahead** — one brilliantly clever character staying ahead of everyone else in the room. Talky plus that same Whodunit.
+>
+> Which fits — and was Knives Out a recent watch, or from a while back?
+
+**Saved state** (sha256:8a4f1ea696db0d47 → sha256:b0e01d14bbc08d1f)
+
+- Remembered: evening, asked "Loved Knives Out — what should I watch tonight?" (observed); films (observed): Glass Onion: A Knives Out Mystery (2022) — offered, led · See How They Run (2022) — offered · Gosford Park (2001) — offered · The Last of Sheila (1973) — offered
+
+##### Run 01 (seeding 2) — FAIL (the usual shape) — `record_verdict` first and the whole answer in the reply, but a lever, *say the word and I'll re-aim*, closes the answer, and the offer's question follows it
+
+`m5-recommend-only-cb762ea6-e07b253-deepseek-deepseek-v4-pro-legacy-seeding-2/runs/m5-01-anchored__knives-out-and-tonight__01.md` · deepseek-v4-pro · instructions `cb762ea6` at `e07b253` · recorded 2026-10-31T16:36:33.150Z
+
+**User**
+
+> Loved Knives Out — what should I watch tonight?
+
+**Tonight** — 4 calls
+
+1. `record_verdict` `{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}` → `refused — saved: false · reason: "vibe_required" · film: {"title":"Knives Out","year":2019} · movie: null · retry: {"tool":"record_verdict","arguments":{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}} · next: "Nothing was written. This is the expected answer, not a failure: apologise for nothing and report no error. A liked or l"… (3543 chars)`
+2. `get_taste` `{}` → `genres: 4 items · vibes: 3 items · movies: 5 items · verdicts: 4 items`
+3. `check_candidates` `{"candidates":[{"title":"Glass Onion","year":2022,"imdb_id":"tt11564570"},{"title":"The Nice Guys","year":2016,"imdb_id":"tt3799694"},{"title":"Bad Times at the El Royale","year":2018,"imdb_id":"tt6628394"},{"title":"Gosford Park","year":2001,"imdb_id":"tt0280707"}]}` → `candidates: 4 items`
+4. `record_episode` `{"request":"Loved Knives Out — what should I watch tonight?","offered":[{"title":"Glass Onion","year":2022,"lead":true},{"title":"The Nice Guys","year":2016,"lead":false},{"title":"Bad Times at the El Royale","year":2018,"lead":false},{"title":"Gosford Park","year":2001,"lead":false}]}` → `episode: {"request":"Loved Knives Out — what should I watch tonight?","requestSource":"observed","offers":[{"title":"Glass Onion","year":2022,"offered":true,"lead":true,"chosen":{"known":false},"started":{"known":false},"finished":{"known":false},"passed":{"known":false}},{"title":"The Nice Guys","year":2016… (855 chars)`
+
+**Assistant**
+
+> **A whodunit with sharp dialogue, where everybody's working their own angle.**
+>
+> **I'd start with *Glass Onion* (2022).** You loved Knives Out, and this is the same writer-director's next mystery — a new detective, a new house full of liars, and the same pleasure of the dialogue doing half the detective work. If you want that evening again, this is the closest thing to it.
+>
+> **When you want the case played funnier and looser: *The Nice Guys* (2016).** A buddy mystery where the banter is the action and the case keeps double-crossing itself.
+>
+> **When you want everybody-playing-their-own-angle, turned tense: *Bad Times at the El Royale* (2018).** A hotel full of strangers with secrets, and the fun is watching the angles collide.
+>
+> **When you want the country-house whodunit with the talk cranked all the way up: *Gosford Park* (2001).** The stretch of the three — slower and dryer — but if you like people talking well and scenes allowed to run long, it's an upstairs-downstairs murder told in a dozen overlapping voices.
+>
+> If you'd rather it go darker, funnier, or further from the whodunit, say the word and I'll re-aim.
+>
+> ---
+>
+> One more thing — Knives Out deserves its own shelf, and it's a new kind of evening for you. My pick: **The Alibi** — a mystery where the talk is the fun, everybody has an angle, and the reveal has to earn it. It'd sit on *Talky* plus a new genre, *Whodunit*: everyone has a motive, and the reveal earns it instead of cheating.
+>
+> Two other ways to hang it:
+>
+> - **Every Man for Himself** — the ensemble evening: a big cast all working their own angle, and watching them collide is the fun.
+> - **The Reading of the Will** — the country-house side: money, manners and family, exposed through the talk.
+>
+> Which of those three feels like the film to you?
+
+**Saved state** (sha256:d5f0062ba6f70735 → sha256:ce4de08d2877df11)
+
+- Remembered: evening, asked "Loved Knives Out — what should I watch tonight?" (observed); films (observed): Glass Onion (2022) — offered, led · The Nice Guys (2016) — offered · Bad Times at the El Royale (2018) — offered · Gosford Park (2001) — offered
+
+##### Run 01 (seeding 3) — FAIL (the usual shape) — `record_verdict` first and the whole answer in the reply, but a lever, *say the word*, closes the answer, and the offer's question follows it. The offer's second option rewords Talk Is the Action, shown exactly
+
+`m5-recommend-only-cb762ea6-e07b253-deepseek-deepseek-v4-pro-legacy-seeding-3/runs/m5-01-anchored__knives-out-and-tonight__01.md` · deepseek-v4-pro · instructions `cb762ea6` at `e07b253` · recorded 2026-10-31T16:40:09.108Z
+
+**User**
+
+> Loved Knives Out — what should I watch tonight?
+
+**Tonight** — 4 calls
+
+1. `record_verdict` `{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}` → `refused — saved: false · reason: "vibe_required" · film: {"title":"Knives Out","year":2019} · movie: null · retry: {"tool":"record_verdict","arguments":{"film":{"title":"Knives Out","year":2019},"told":"volunteered","said":{"about":"judgement","judgement":"loved"}}} · next: "Nothing was written. This is the expected answer, not a failure: apologise for nothing and report no error. A liked or l"… (3543 chars)`
+2. `get_taste` `{}` → `genres: 4 items · vibes: 3 items · movies: 5 items · verdicts: 4 items`
+3. `check_candidates` `{"candidates":[{"title":"Glass Onion","year":2022,"imdb_id":"tt11564570"},{"title":"Brick","year":2005,"imdb_id":"tt0393109"},{"title":"The Last of Sheila","year":1973,"imdb_id":"tt0070289"},{"title":"Gosford Park","year":2001,"imdb_id":"tt0280707"}]}` → `candidates: 4 items`
+4. `record_episode` `{"request":"Loved Knives Out — what should I watch tonight?","offered":[{"title":"Glass Onion","year":2022,"lead":true},{"title":"Brick","year":2005,"lead":false},{"title":"The Last of Sheila","year":1973,"lead":false},{"title":"Gosford Park","year":2001,"lead":false}]}` → `episode: {"request":"Loved Knives Out — what should I watch tonight?","requestSource":"observed","offers":[{"title":"Glass Onion","year":2022,"offered":true,"lead":true,"chosen":{"known":false},"started":{"known":false},"finished":{"known":false},"passed":{"known":false}},{"title":"Brick","year":2005,"offere… (839 chars)`
+
+**Assistant**
+
+> **A whodunit with sharp dialogue and a cast of suspects — more of what made *Knives Out* work.**
+>
+> **I'd start with *Glass Onion* (2022)** — same director, same detective, and the same pleasure of a mystery that keeps folding back on itself.
+>
+> - Want the same director, sharper and earlier? **Brick** (2005) — Rian Johnson's high-school noir, where the dialogue does the heavy lifting.
+> - Want the puzzle-box *Knives Out* is descended from? **The Last of Sheila** (1973) — a game among the suspects that turns out to be the crime.
+> - Want the talk turned up and the puzzle relaxed? **Gosford Park** (2001) — a country-house murder where everyone's conversation is the show.
+>
+> I can go darker, funnier or shorter from here — say the word.
+>
+> And about *Knives Out* — here's where I'd put it:
+>
+> - **Everyone's Lying** — my pick: a death in a closed circle, and the pleasure of watching each suspect's story come apart under the detective's questions. Your talky films, plus a new "Whodunit" for the untangling, with *Knives Out* at its centre.
+> - **Talk Is the Action** — your talky evening, its line loosened to *"whether or not the plot is the point"*, with *Knives Out* filed there.
+> - **Old Money, Bad Blood** — a wealthy family's ugly secrets, told with a smirk and sharp dialogue.
+>
+> Which fits — and was *Knives Out* a recent watch or from a while back?
+
+**Saved state** (sha256:9505b3b1d1d3db7b → sha256:588900d5f8d7a7ea)
+
+- Remembered: evening, asked "Loved Knives Out — what should I watch tonight?" (observed); films (observed): Glass Onion (2022) — offered, led · Brick (2005) — offered · The Last of Sheila (1973) — offered · Gosford Park (2001) — offered
+
+#### Regression — `m5-06-bloom-saved__bloom-clever__then-pick-title-one__then-like-bloom-tonight` on plugin-skills
+
+Family `kept-new-vibe`. Fixture `m5-06-bloom-saved` — *The same model, with the liked film already kept on that Vibe as a film they wanted to see*.
+Starting state:
+
+- Vibe **Champagne & Blueprints** — instruction "Glamorous capers, where I get to enjoy the plan as much as the places." — Genres Heist, Glamour — core Ocean's Eleven (2001) — films Ocean's Eleven (2001), The Brothers Bloom (2008)
+- Vibe **Reading Room** — instruction "Films that are patient with me, where nothing is chasing anyone." — Genres Slow Burn, Character Story — core Paterson (2016) — films Paterson (2016)
+- Genres: **Character Story** "I want to come out knowing a person, not a plot."; **Glamour** "I like beautiful places and people dressed for them."; **Heist** "I like a plan, a crew, and watching the job come together."; **Slow Burn** "I like films that take their time and trust me to wait."
+- Films: Ocean's Eleven (2001) seen-before · Paterson (2016) seen-before · The Brothers Bloom (2008) want-to-see
+- Standing: Ocean's Eleven (2001) — loved (volunteered) · Paterson (2016) — loved (volunteered)
+- Remembered: nothing
+
+##### Run 01 — FAIL on turn 1 (K1.3: one new Vibe, beside a rewording of Champagne & Blueprints and leaving it as it is — two evenings, not three); K1.1, K1.2 and K1.4 pass. UNTESTED from turn 2 — no unambiguous title 1 to pick
+
+`m5-plugin-skills-498497ae-e07b253-deepseek-deepseek-v4-pro-m5-06-rerun/runs/m5-06-bloom-saved__bloom-clever__then-pick-title-one__then-like-bloom-tonight__01.md` · deepseek-v4-pro · instructions `498497ae` at `e07b253` · recorded 2026-10-31T16:08:53.324Z
+
+**User**
+
+> I liked The Brothers Bloom because clever characters do smart things.
+
+**Tonight** — 3 calls
+
+1. `record_verdict` `{"film":{"title":"The Brothers Bloom","year":2008},"told":"volunteered","said":{"about":"judgement","judgement":"liked","because":"clever characters do smart things"}}` → `verdict: {"said":"verdict","claimant":"user","film":{"title":"The Brothers Bloom","year":2008},"assertion":{"about":"judgement","judgement":"liked","because":"clever characters do smart things"},"told":"volunteered","scope":"everywhere"}`
+2. `get_taste` `{}` → `genres: 4 items · vibes: 2 items · movies: 3 items · verdicts: 3 items`
+3. `update_movie` `{"title":"The Brothers Bloom","year":2008,"viewing":"seen-before"}` → `movie: {"title":"The Brothers Bloom","year":2008,"imdbId":null,"viewing":"seen-before","vibes":["Champagne & Blueprints"]}`
+
+**Assistant**
+
+> Noted — and since you've seen it, I've moved *The Brothers Bloom* from your want-to-see list to watched.
+>
+> "Clever characters do smart things" doesn't quite fit any evening you've already described, so it could be its own. I'd go with:
+>
+> **Three Moves Ahead** — films where clever characters do smart things, and I get to enjoy watching them outthink everyone. It'd be built on one new genre, **Clever Characters** — *I like watching clever characters do smart things* — with *The Brothers Bloom* as its anchor.
+>
+> Or, if that's really the same evening as the capers:
+> - Fold it into **Champagne & Blueprints** — *glamorous capers, where clever characters do smart things and I get to enjoy the plan as much as the places.*
+> - Or leave **Champagne & Blueprints** exactly as it is — it already holds the film as a glamorous caper.
+>
+> Which feels like the evening you meant?
+
+**User**, turn 2 (`pick-title-one`) — not sent: no unambiguous title 1 to pick. UNTESTED from here.
+
+Never sent: `like-bloom-tonight` — UNTESTED.
+
+**Saved state** (sha256:2d90e11e8532b62f → sha256:55e43f313e748dc5)
+
+- Film changed: The Brothers Bloom (2008) — viewing want-to-see → seen-before
+- Now stands: The Brothers Bloom (2008) — liked, because "clever characters do smart things" (volunteered)
+
+##### Run 02 — FAIL — turn 1: K1.1, K1.2, K1.4 and K1.5 pass and K1.3 fails, its two alternatives named without their Genres. The pick wrote the Genre, then *Two Steps Ahead* with its core, *Bloom* kept in Champagne & Blueprints, as shown. Turn 3 as recorded holds no recommendation: its films are in `check_candidates` and `record_episode` only, and the final message says they are *above*. The DeepSeek adapter records only a turn's final message (`deepseek.mjs`, line 282), so text sent with a tool call is not in the record: it may have been shown, and the record cannot say
+
+`m5-plugin-skills-498497ae-e07b253-deepseek-deepseek-v4-pro-m5-06-rerun/runs/m5-06-bloom-saved__bloom-clever__then-pick-title-one__then-like-bloom-tonight__02.md` · deepseek-v4-pro · instructions `498497ae` at `e07b253` · recorded 2026-10-31T16:12:30.177Z
+
+**User**
+
+> I liked The Brothers Bloom because clever characters do smart things.
+
+**Tonight** — 3 calls
+
+1. `record_verdict` `{"film":{"title":"The Brothers Bloom","year":2008},"told":"volunteered","said":{"about":"judgement","judgement":"liked","because":"clever characters do smart things"}}` → `verdict: {"said":"verdict","claimant":"user","film":{"title":"The Brothers Bloom","year":2008},"assertion":{"about":"judgement","judgement":"liked","because":"clever characters do smart things"},"told":"volunteered","scope":"everywhere"}`
+2. `get_taste` `{}` → `genres: 4 items · vibes: 2 items · movies: 3 items · verdicts: 3 items`
+3. `update_movie` `{"title":"The Brothers Bloom","year":2008,"viewing":"seen-before"}` → `movie: {"title":"The Brothers Bloom","year":2008,"imdbId":null,"viewing":"seen-before","vibes":["Champagne & Blueprints"]}`
+
+**Assistant**
+
+> Got it — and since liking it means you've watched it, I've marked *The Brothers Bloom* as seen-before (say the word if it was recent).
+>
+> That reason points somewhere your current vibes don't quite go: clever characters doing smart things. Want me to build a new one around it? Three ways it could go:
+>
+> **Two Steps Ahead** — the one I'd pick. Films where you get to watch clever characters think their way through things and stay a step ahead of everyone else. Built on a new genre, *Clever Characters* — "I like clever characters doing smart things" — with *The Brothers Bloom* as its anchor.
+>
+> **The Long Con** — specifically con films: grifters, misdirection, and the pleasure of being taken in by people who are always one move ahead.
+>
+> **Silver Tongues** — where the cleverness lives in the talking: fast, witty films that win on dialogue.
+>
+> Which sounds like you — or none of these?
+
+**User**, turn 2 (`pick-title-one`)
+
+> Two Steps Ahead
+
+**Tonight** — 2 calls
+
+4. `create_genre` `{"name":"Clever Characters","instruction":"I like clever characters doing smart things."}` → `genre: {"name":"Clever Characters","instruction":"I like clever characters doing smart things."}`
+5. `create_vibe` `{"name":"Two Steps Ahead","genres":["Clever Characters"],"instruction":"Films where I get to watch clever characters think their way through things and stay a step ahead of everyone else.","core":{"title":"The Brothers Bloom","year":2008}}` → `vibe: {"name":"Two Steps Ahead","instruction":"Films where I get to watch clever characters think their way through things and stay a step ahead of everyone else.","genres":["Clever Characters"],"core":{"title":"The Brothers Bloom","year":2008},"movies":[{"title":"The Brothers Bloom","year":2008}]}`
+
+**Assistant**
+
+> Done — *Two Steps Ahead* is yours, anchored on *The Brothers Bloom* (which also stays in Champagne & Blueprints), with the new *Clever Characters* genre holding it up.
+
+**User**, turn 3 (`like-bloom-tonight`)
+
+> Something like The Brothers Bloom for tonight?
+
+**Tonight** — 2 calls
+
+6. `check_candidates` `{"candidates":[{"title":"Catch Me If You Can","year":2002,"imdb_id":"tt0264464"},{"title":"The Sting","year":1973,"imdb_id":"tt0070735"},{"title":"Knives Out","year":2019,"imdb_id":"tt8946378"},{"title":"The Grand Budapest Hotel","year":2014,"imdb_id":"tt2278388"}]}` → `candidates: 4 items`
+7. `record_episode` `{"request":"Something like The Brothers Bloom for tonight?","offered":[{"title":"Catch Me If You Can","year":2002,"lead":true},{"title":"The Sting","year":1973,"lead":false},{"title":"Knives Out","year":2019,"lead":false},{"title":"The Grand Budapest Hotel","year":2014,"lead":false}]}` → `episode: {"request":"Something like The Brothers Bloom for tonight?","requestSource":"observed","offers":[{"title":"Catch Me If You Can","year":2002,"offered":true,"lead":true,"chosen":{"known":false},"started":{"known":false},"finished":{"known":false},"passed":{"known":false}},{"title":"The Sting","year":1… (854 chars)`
+
+**Assistant**
+
+> Done — the lead and three directions are above. Let me know which flavour pulls at you and I'll narrow it down.
+
+**Saved state** (sha256:02ef3bdd02036595 → sha256:38e02b458fc51e99)
+
+- Genre added: **Clever Characters** — instruction "I like clever characters doing smart things."
+- Vibe added: **Two Steps Ahead** — instruction "Films where I get to watch clever characters think their way through things and stay a step ahead of everyone else." — Genres Clever Characters — core The Brothers Bloom (2008) — films The Brothers Bloom (2008)
+- Film changed: The Brothers Bloom (2008) — viewing want-to-see → seen-before; Vibes + Two Steps Ahead
+- Now stands: The Brothers Bloom (2008) — liked, because "clever characters do smart things" (volunteered)
+- Remembered: evening, asked "Something like The Brothers Bloom for tonight?" (observed); films (observed): Catch Me If You Can (2002) — offered, led · The Sting (1973) — offered · Knives Out (2019) — offered · The Grand Budapest Hotel (2014) — offered
+
+##### Run 03 — PASS on turn 1 — K1.1 to K1.5: the verdict first and kept, the viewing moved before anything else, one recommended new Vibe and two alternatives, each a name, a sentence and its Genres, new Genres with their meanings; UNTESTED from turn 2 — its first title is not line-leading, so the runner could not read a pick
+
+`m5-plugin-skills-498497ae-e07b253-deepseek-deepseek-v4-pro-m5-06-rerun/runs/m5-06-bloom-saved__bloom-clever__then-pick-title-one__then-like-bloom-tonight__03.md` · deepseek-v4-pro · instructions `498497ae` at `e07b253` · recorded 2026-10-31T16:15:05.853Z
+
+**User**
+
+> I liked The Brothers Bloom because clever characters do smart things.
+
+**Tonight** — 3 calls
+
+1. `record_verdict` `{"film":{"title":"The Brothers Bloom","year":2008},"told":"volunteered","said":{"about":"judgement","judgement":"liked","because":"clever characters do smart things"}}` → `verdict: {"said":"verdict","claimant":"user","film":{"title":"The Brothers Bloom","year":2008},"assertion":{"about":"judgement","judgement":"liked","because":"clever characters do smart things"},"told":"volunteered","scope":"everywhere"}`
+2. `get_taste` `{}` → `genres: 4 items · vibes: 2 items · movies: 3 items · verdicts: 3 items`
+3. `update_movie` `{"title":"The Brothers Bloom","year":2008,"viewing":"seen-before"}` → `movie: {"title":"The Brothers Bloom","year":2008,"imdbId":null,"viewing":"seen-before","vibes":["Champagne & Blueprints"]}`
+
+**Assistant**
+
+> Got it — clever characters doing smart things. Since you've seen it, I've also moved *The Brothers Bloom* to watched a while back; say the word if it was recent.
+>
+> That reason points to an evening none of your vibes has a name for yet. The one I'd write is **One Step Ahead** — *I like watching clever characters stay a step ahead, and being in on it with them.* It'd be built on your Heist genre and one new one, Clever Characters — *I like clever characters who do smart things.* — and *The Brothers Bloom* would anchor it.
+>
+> Two other evenings that film could stand for instead:
+>
+> - **Once Upon a Con** — *I like films told like a tall tale, where the style is half the fun.* (your Glamour genre plus a new one, Whimsy: a playful, storybook tone)
+> - **Family Business** — *I like a con where the relationships are the real score.* (your Heist and Character Story)
+>
+> Which of those is why it worked for you — or none?
+
+**User**, turn 2 (`pick-title-one`) — not sent: no unambiguous title 1 to pick. UNTESTED from here.
+
+Never sent: `like-bloom-tonight` — UNTESTED.
+
+**Saved state** (sha256:b698d0bfc8043911 → sha256:c701580653a39d98)
+
+- Film changed: The Brothers Bloom (2008) — viewing want-to-see → seen-before
+- Now stands: The Brothers Bloom (2008) — liked, because "clever characters do smart things" (volunteered)

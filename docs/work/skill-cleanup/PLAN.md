@@ -100,14 +100,21 @@ smoke made 9 calls, not 11, because that run stopped at its pick.
 - A fresh dev-only `web/.env.local` holds `PUBLIC_ORIGIN` and a generated secret. It has no
   `DEV_DATABASE_DIR`, so the database is in memory, and `.env*` keeps it out of git.
 
-**Not recorded:**
+**Follow-up at `e07b253`, 11 model calls** (`BEHAVIOR.md`, *Follow-up runs*):
 
-- **The order-of-calls scenario.** `m5-01-anchored__knives-out-and-tonight` is `pre-vibe-rule`:
-  each run needs a fresh seeding through a separate `f3912b0` checkout on port 3001
-  (`m5/README.md`, *Fixtures from before the vibe rule*). It also needs a persistent database
-  shared by both builds, which the in-memory one is not. To be arranged separately.
-- **A second look at the kept path.** `--resume` would re-record its failed run `__01` and delete
-  the record, so that run would have to be archived first.
+- **The order-of-calls scenario**, three runs per source, each seeded through a separate `f3912b0`
+  checkout that Ops created. In all six, `record_verdict` was first and the reply carried the
+  whole answer. Three closed on a lever and the offer's question both, against *one question or
+  one lever, never both*: 1 of 3 on `plugin-skills`, 2 of 3 on `recommend-only`.
+- **The kept path, rerun three times** into its own directory. Its full offer (K1.3) was made in 1
+  of 3. The text is unchanged by this change.
+- **What the legacy seeding needed** beyond the README: one persistent database shared by both
+  builds, under `web/.devdb/legacy`; the parent `web/.devdb/` created first, since PGlite will not
+  create it and every call answered 500 without it; and the same dev signing secret for both
+  builds. A local, gitignored script in `m5/results/` drove the six cycles and kept each recording
+  apart.
+- **A harness gap:** the DeepSeek adapter records only a turn's final message (`deepseek.mjs`,
+  line 282), so a reply sent alongside a tool call is not in the record.
 
 **The plan, as it was made**, with `E=skills/tonight-recommend/evaluation`:
 
