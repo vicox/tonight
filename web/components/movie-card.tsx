@@ -2,8 +2,10 @@ import Link from "next/link";
 
 import { MovieStatus } from "./movie-status";
 import { VibeLinks } from "./vibe-links";
+import type { Vibe } from "@/lib/taste/model";
 import type { Shown } from "@/lib/web/judgements";
 import { movieHref } from "@/lib/web/screens";
+import { coreFirst } from "@/lib/web/vibes";
 
 /**
  * Films as cards, one under another — the Stream's films, and a vibe's.
@@ -16,11 +18,14 @@ import { movieHref } from "@/lib/web/screens";
  */
 export function MovieCards({
   movies,
+  vibes,
   label,
   from,
   className = "",
 }: {
   movies: readonly Shown[];
+  /** Every vibe the user has, which say what each film is the core of. */
+  vibes: readonly Vibe[];
   label: string;
   /** The vibe these cards are read under, which each film's screen then names first. */
   from?: string;
@@ -29,7 +34,7 @@ export function MovieCards({
   return (
     <ul aria-label={label} className={`flex flex-col gap-3 ${className}`}>
       {movies.map((movie) => (
-        <MovieCard key={`${movie.year} ${movie.title}`} movie={movie} from={from} />
+        <MovieCard key={`${movie.year} ${movie.title}`} movie={movie} vibes={vibes} from={from} />
       ))}
     </ul>
   );
@@ -41,7 +46,7 @@ export function MovieCards({
  *     ┌───────────────────────────────────────────┐
  *     │ 2021                          ♥ Loved     │   year · status
  *     │ Dune                                      │   the title, most of all
- *     │ ✨ Space Tension · Quiet Dread            │   every vibe it is in
+ *     │ ✨ Space Tension · Quiet Dread            │   every vibe it is in, its cores first
  *     └───────────────────────────────────────────┘
  *
  * A dark card, because each film is a thing of its own here and not a line in a
@@ -50,6 +55,15 @@ export function MovieCards({
  * vibes it is in, each a way to its screen. No genre — a genre belongs to a
  * vibe, and is read there — no mark to press, no poster, and nothing for a film
  * in no vibe: no line at all, rather than a word standing in for the absence.
+ *
+ * ## The vibes it is the core of, first
+ *
+ * A film that is a vibe's core — the film that best embodies it — names that
+ * vibe first, in the violet beside the ✨, and the vibes it is only filed under
+ * after it, muted: one line, the same size and the same separator, wrapping
+ * only where the card is too narrow for it. A film that is the core of two
+ * vibes names both first; one that is the core of none names every vibe muted.
+ * Which they are is `coreFirst`'s, from every vibe's own core.
  *
  * ## One link over the whole card
  *
@@ -69,7 +83,9 @@ export function MovieCards({
  * a listener: the title's link already says it, in the words "Dune (2021)", so two
  * Dunes are two links a listener can tell apart.
  */
-function MovieCard({ movie, from }: { movie: Shown; from?: string }) {
+function MovieCard({ movie, vibes, from }: { movie: Shown; vibes: readonly Vibe[]; from?: string }) {
+  const { names, cores } = coreFirst(movie, vibes);
+
   return (
     <li className="relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 rounded-xl border border-rule bg-screen px-5 py-4 transition-colors hover:border-ink-faint" data-viewing={movie.viewing}>
       <span aria-hidden="true" className="col-start-1 row-start-1 self-center text-[12px] text-ink-faint tabular-nums">
@@ -102,7 +118,7 @@ function MovieCard({ movie, from }: { movie: Shown; from?: string }) {
 
       {movie.vibes.length > 0 && (
         <div className="col-span-2 row-start-3 min-w-0">
-          <VibeLinks names={movie.vibes} label="Vibes:" raised />
+          <VibeLinks names={names} cores={cores} label="Vibes:" raised />
         </div>
       )}
     </li>

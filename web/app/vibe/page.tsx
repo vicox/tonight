@@ -54,6 +54,7 @@ export default async function VibePage({
     <SignedIn email={visitor.email}>
       <VibeView
         vibe={vibe}
+        vibes={held.taste.vibes}
         genres={genresOf(vibe, held.taste.genres)}
         films={filmsIn(vibe, movies)}
       />

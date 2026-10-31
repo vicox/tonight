@@ -22,10 +22,13 @@ import type { Shown } from "@/lib/web/judgements";
  */
 export function VibeView({
   vibe,
+  vibes,
   genres,
   films,
 }: {
   vibe: Written<Vibe>;
+  /** Every vibe the user has, so each card can say which its film is the core of. */
+  vibes: readonly Vibe[];
   /** The vibe's genres as genres, in its own order. See `genresOf`. */
   genres: Written<Genre>[];
   /** The films in the vibe. See `filmsIn`. */
@@ -51,7 +54,7 @@ export function VibeView({
         {films.length === 0 ? (
           <p className="py-6 text-center text-[13px] text-ink-faint">No films in this vibe yet.</p>
         ) : (
-          <MovieCards movies={films} from={vibe.name} label={`Films in ${vibe.name}`} className="mt-6" />
+          <MovieCards movies={films} vibes={vibes} from={vibe.name} label={`Films in ${vibe.name}`} className="mt-6" />
         )}
       </section>
     </>
