@@ -27,16 +27,16 @@
         "core": { "title": "Before Sunrise", "year": 1995 }
       },
       {
-        "name": "Everybody Has a Plan",
+        "name": "Smooth Operators",
         "genres": ["Heist"],
-        "instruction": "A crew, a plan, and everybody running their own game.",
+        "instruction": "A crew, a plan, and everybody playing their own angle.",
         "core": { "title": "Ocean's Eleven", "year": 2001 }
       }
     ],
     "movies": [
       { "title": "Palm Springs", "year": 2020, "vibes": ["Time Well Wasted"], "viewing": "seen" },
       { "title": "Before Sunrise", "year": 1995, "vibes": ["Talk Is the Action"], "viewing": "seen" },
-      { "title": "Ocean's Eleven", "year": 2001, "vibes": ["Everybody Has a Plan"], "viewing": "seen" },
+      { "title": "Ocean's Eleven", "year": 2001, "vibes": ["Smooth Operators"], "viewing": "seen" },
       { "title": "Hit Man", "year": 2023, "viewing": "seen" },
       { "title": "Wingwomen", "year": 2023 }
     ]

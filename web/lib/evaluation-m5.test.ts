@@ -279,6 +279,52 @@ test("skill compliance: a German bare liked where a Vibe fits, and a follow-on t
   assert.doesNotMatch(rubric, /and no new Vibe, since one fits|A new Vibe\s+is not expected/);
 });
 
+test("skill cleanup: a film to keep that no Vibe holds, proposed, and written only on a yes", () => {
+  // docs/work/skill-cleanup. The keep flow's proposal had no scenario: a new Genre is part of it and
+  // created only on a yes, and the core is a film they stand behind, never the unseen film kept.
+  const keep = scenarios.filter((one) => one.prompt === "keep-dawn");
+  assert.deepEqual(
+    keep.map((one) => [one.fixture, followUps(one).join(" → "), one.family, one.considers, [...one.sources].sort().join(", ")]),
+    [
+      ["m5-07-keep-no-fit", "yes", "keep-no-fit", false, "plugin-skills, recommend-only"],
+      ["m5-07-keep-no-fit", "no", "keep-no-fit-declined", false, "plugin-skills, recommend-only"],
+    ],
+  );
+  assert.equal(requests.get("keep-dawn"), "Put the original Dawn of the Dead on my list.");
+
+  const spec = fixtures.get("m5-07-keep-no-fit")!;
+  assert.equal(spec.seed, undefined, "the fixture must be seeded through today's tools");
+  // The film to keep is new to them, and nothing is said about it yet.
+  assert.equal(spec.model.movies.find((movie) => movie.title === "Dawn of the Dead"), undefined);
+  assert.equal(spec.acts?.some((act) => act.film.title === "Dawn of the Dead"), false);
+  // Every viewing is today's vocabulary.
+  for (const movie of spec.model.movies) assert.match(movie.viewing ?? "", /^seen-(now|before)$/, `${movie.title}`);
+  // A film they stand behind, seen, filed beside a core rather than anchoring anything: the core there to choose.
+  const shaun = spec.model.movies.find((movie) => movie.title === "Shaun of the Dead");
+  assert.deepEqual(shaun, { title: "Shaun of the Dead", year: 2004, vibes: ["Laugh Till It Hurts"], viewing: "seen-before" });
+  assert.equal(spec.model.vibes.some((vibe) => vibe.core?.title === "Shaun of the Dead"), false);
+  assert.equal(
+    spec.acts?.find((act) => act.film.title === "Shaun of the Dead")?.said.judgement,
+    "loved",
+  );
+
+  for (const [what, row] of [
+    ["zero writes on turn 1, a new Genre only on a yes",
+      /\| keep-no-fit \| turn 1: \*\*zero writes\*\*[^\n]*a new one named with what it would mean, created only on a yes/],
+    ["the core never the unseen film or an illustration, or a question about which",
+      /\| keep-no-fit \| [^\n]*never Dawn of the Dead, which is unseen, and never an illustration film — or, where none is obvious, one question about which film is closest/],
+    ["the yes writes what was shown, in order, and nothing else",
+      /\| keep-no-fit \| [^\n]*`yes`: exactly what was shown, in order — each new Genre with the meaning shown, then the Vibe with its core, then Dawn of the Dead \(1978\) filed in it as `want-to-see` — and nothing else/],
+    // Code review: asking which film is allowed, and then `yes` cannot show the writes.
+    ["a yes to a question about which film leaves the writes untested",
+      /\| keep-no-fit \| [^\n]*a yes to a question about which film writes nothing until a film is named, and leaves the write sequence \*\*UNTESTED\*\* in that run — never a PASS of it/],
+    ["the decline writes nothing",
+      /\| keep-no-fit-declined \| turn 1 as keep-no-fit; `no`: nothing written — Dawn of the Dead not saved loose, no Genre, no Vibe, no verdict/],
+  ] as const) {
+    assert.match(rubric, row, `the rubric does not score ${what}`);
+  }
+});
+
 test("the recommendation-only reading case runs on recommend alone (R3-1)", () => {
   const reading = scenarios.filter((one) => one.family === "recommendation-only-reading");
   assert.equal(reading.length, 1);

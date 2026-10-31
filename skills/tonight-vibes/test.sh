@@ -157,7 +157,7 @@ check "two Genres is the usual shape, a third is conditional, one is enough when
 check "the old two-or-three wording is gone" \
     "$(grep -c 'two or three strong' "$SKILL")" "0"
 check "the keep flow points at the one statement of it" \
-    "$(order_check 'one for anything no Genre covers' 'as *Which Genres, and how many* says')" "True"
+    "$(order_check 'anything no Genre covers, a new one' 'as *Which Genres, and how many* says')" "True"
 check "the judgement is the model's, not the store's" \
     "$(order_check 'None of this is checked anywhere' \
         'whether the
@@ -394,7 +394,7 @@ check "none of the hypothesis, title or ranking machinery is back" \
 # The skill names no film, Vibe or Genre from the evaluation's scenarios, or any other —
 # except main's worked proposal (§24), pinned below.
 check "no scenario film or Vibe survives anywhere in the skill" \
-    "$(grep -ciE 'Bloom|Champagne|Blueprints|Masterminds|Paterson|Logan Lucky|Knives Out|Palm Springs|Groundhog|dialogue was so sharp|stupid thing' "$SKILL")" "0"
+    "$(grep -ciE 'Bloom|Champagne|Blueprints|Masterminds|Paterson|Logan Lucky|Knives Out|Palm Springs|Groundhog|dialogue was so sharp|stupid thing|Dawn of the Dead|Shaun of the Dead|Hot Fuzz|Laugh Till It Hurts|Smooth Operators' "$SKILL")" "0"
 check "on a yes the film is filed, then the same verdict is recorded again" \
     "$(order_check 'On their yes, write exactly what they agreed' \
         'then call' '`record_verdict` again with `retry.arguments`' \
@@ -425,6 +425,11 @@ check "the budget: a vibe_required offer or a kept one's new Vibe is one offer, 
 check "an owed answer comes first and whole, and an offer never displaces it" \
     "$(order_check '**When a film answer is owed**' 'the answer' 'comes first and whole' \
         'it never displaces the lead or the' 'directions' 'it waits for the next turn')" "True"
+# Skill cleanup: "comes first" is the reply's order, never the calls' — record_verdict stays first.
+check "first is about the reply, and record_verdict is still the turn's first call" \
+    "$(order_check '**When a film answer is owed**' 'comes first and whole' \
+        'First is about the reply — the answer before any offer — never about the calls: `record_verdict`' \
+        "is still the turn's first" 'The offer may be the answer')" "True"
 check "negative evidence never becomes membership" \
     "$(order_check '**Negative evidence never becomes membership.**' \
         '**the film is a core**' 'offer once to anchor that Vibe' \
@@ -480,8 +485,13 @@ check "an existing Vibe is not a bucket, and its meaning is never widened to fit
         'Never stretch a Vibe to avoid making one' 'a different evening is a different Vibe')" "True"
 check "with no good fit the film waits, and a Vibe is devised rather than asked for" \
     "$(order_check 'None fits' 'do not save the film yet' \
-        'Reuse the Genres that genuinely fit' 'create' 'one for anything no Genre covers' \
+        'Reuse the Genres that genuinely fit and, for' 'anything no Genre covers, a new one' \
+        'then propose a Vibe' 'over them, any new Genre part of what you propose' \
+        '**Nothing is created before their yes.**' \
         'Never ask which Vibe they want' 'that judgement is yours')" "True"
+# Skill cleanup: "create one … then propose" put a Genre write before the yes.
+check "no Genre is created before the proposal" \
+    "$(tr '\n' ' ' < "$SKILL" | grep -ciE 'create +one for +anything')" "0"
 check "the write constraints point at the tools that state them" \
     "$(order_check "What a Vibe's name has to earn" \
         'arrive with `create_genre` and `create_vibe`')" "True"

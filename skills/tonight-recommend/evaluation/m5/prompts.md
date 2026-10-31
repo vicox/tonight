@@ -43,6 +43,14 @@ and whose reason none of them says.
 evening, and on `m5-05-partial-fit` one is. `bloom-war-mega` is that bare liked again, in German
 and as somebody would type it, on `m5-05-partial-fit` (skill compliance).
 
+## A film to keep
+
+`docs/work/skill-cleanup`: a film they ask to keep, unseen, that no Vibe of theirs holds.
+
+| key | request |
+| --- | --- |
+| `keep-dawn` | *"Put the original Dawn of the Dead on my list."* |
+
 ## The second turn
 
 Given after one of the requests above, in the same session.

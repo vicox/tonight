@@ -10,7 +10,7 @@ reruns it (`docs/work/m5/M5-PLAN.md`, §10 and Revision 4).
 | `scenarios.json` | the matrix: fixture, request, optional follow-up turns, the family, whether it counts toward the missed-consideration metric, and the sources it runs on |
 | `prompts.md` | every request, verbatim |
 | `rubric.md` | how a run is scored: the ten inadmissible outcomes, the per-run fields, the threshold |
-| `fixtures/` | the six models the scenarios start from |
+| `fixtures/` | the seven models the scenarios start from |
 | `run.mjs` | the runner |
 
 ## Two sources, because the plugin may load either skill

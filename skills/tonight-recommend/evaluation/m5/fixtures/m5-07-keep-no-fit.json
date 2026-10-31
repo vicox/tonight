@@ -1,0 +1,54 @@
+{
+  "id": "m5-07-keep-no-fit",
+  "user": "google:eval-m5-07-keep-no-fit",
+  "title": "A film to keep that no Vibe of theirs holds, and a loved film beside it that could anchor one",
+  "exists_for": ["keep-no-fit", "genre-consent", "core-choice"],
+  "construction_note": "docs/work/skill-cleanup. Dawn of the Dead (1978) is absent on purpose: the request asks to keep it and says nothing about having seen it, so it is want-to-see and never anchors a Vibe. No Vibe of theirs is its evening — a siege by the dead is neither a laugh-out-loud comedy nor two people talking — and no Genre of theirs covers it, so the proposal needs a new Genre, which is where a write before the yes would show. Shaun of the Dead is a further film in Laugh Till It Hurts with a standing loved, seen some time ago: a film they stand behind that also holds people barricaded in while the dead gather outside, so a core is there without asking — and asking which film is closest is still allowed. Every core is a film they loved.",
+  "writes": true,
+  "model": {
+    "genres": [
+      { "name": "Comedy", "instruction": "I want to laugh out loud, not just smile." },
+      { "name": "Talky", "instruction": "Films I watch for how people talk to each other; the plot can wait." },
+      { "name": "Romance", "instruction": "I like watching two people slowly fall for each other." }
+    ],
+    "vibes": [
+      {
+        "name": "Laugh Till It Hurts",
+        "genres": ["Comedy"],
+        "instruction": "Comedies that make me laugh out loud, the sillier the better.",
+        "core": { "title": "Hot Fuzz", "year": 2007 }
+      },
+      {
+        "name": "Walk and Talk",
+        "genres": ["Talky", "Romance"],
+        "instruction": "Two people, one long conversation, and nothing at stake but whether they'll meet again.",
+        "core": { "title": "Before Sunrise", "year": 1995 }
+      }
+    ],
+    "movies": [
+      { "title": "Hot Fuzz", "year": 2007, "vibes": ["Laugh Till It Hurts"], "viewing": "seen-before" },
+      { "title": "Shaun of the Dead", "year": 2004, "vibes": ["Laugh Till It Hurts"], "viewing": "seen-before" },
+      { "title": "Before Sunrise", "year": 1995, "vibes": ["Walk and Talk"], "viewing": "seen-before" }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": { "title": "Hot Fuzz", "year": 2007 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "Shaun of the Dead", "year": 2004 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "Before Sunrise", "year": 1995 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    }
+  ]
+}
