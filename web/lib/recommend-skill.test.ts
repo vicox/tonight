@@ -1667,6 +1667,36 @@ test("a refused liked is expected, offered with two concrete alternatives, and t
   assert.doesNotMatch(vibes, /with nothing more offered/, "a fitting Vibe is offered alone again");
 });
 
+test("the offer after a liked is said briefly, in their terms, and the two skills agree", () => {
+  /**
+   * Vibe offer copy. After a liked, the reply explained at length how Tonight stores a liked,
+   * then gave three options each heavy with Genres. Both skills now say the offer is a few short
+   * lines: an acknowledgement and nothing about how Tonight keeps things, the recommendation
+   * first, each option a name and a short sentence with its Genres in passing, one question. The
+   * shape is said abstractly — no reply to copy — and a new user's first films keep theirs.
+   */
+  const recommend = flatSkill();
+  const vibes = readFileSync(new URL("../../skills/tonight-vibes/SKILL.md", import.meta.url), "utf8").replace(/\s+/g, " ");
+
+  assert.match(recommend, /\*\*tonight-vibes\*\* says how to find its Vibe with them, in a few short lines that explain nothing about how Tonight keeps it: one recommendation and two meaningfully different alternatives/);
+
+  const shape = /\*\*Said briefly, in their terms\.\*\*[^]*?(?=On their yes, write exactly what they agreed)/.exec(vibes)?.[0] ?? "";
+  assert.ok(shape, "the vibes skill does not say how the offer reads, before writing it");
+  assert.match(shape, /This offer, and a new Vibe offered for a kept one, is a few short lines they take in at a glance — never a report on how Tonight works/);
+  assert.match(shape, /\*\*A brief, natural acknowledgement\*\* of what they said opens it, and nothing about how Tonight keeps things: never that the liked is saved before it is, and never why it is not yet/);
+  assert.match(shape, /\*\*The recommendation first, plainly said to be the one you recommend\*\*, why in a few words, then the two alternatives\. Each is its name and what it means in a short sentence — for a new Vibe, the sentence written on a yes, with its Genres named in passing: one of theirs by its name alone, a new one with its meaning in a short phrase/);
+  assert.match(shape, /\*\*No Genre explained at length\*\*, no films listed to illustrate an option, and no other names for one/);
+  assert.match(shape, /\*\*One simple question\*\* closes it: which they choose, with the question about when folded in where it is owed/);
+  assert.match(shape, /A new user's first films keep the offer their own section gives them\./);
+  assert.doesNotMatch(shape, /"/, "the shape quotes an example reply to copy");
+
+  // The rules it sits beside stand: two concrete alternatives, a new Genre's meaning shown, the
+  // liked never said to be saved before it is, and first films with their illustration films.
+  assert.match(vibes, /Each is concrete: another of their Vibes the film fits, or a new Vibe — a name, a sentence and its Genres, any new Genre's meaning shown, with this film as its core/);
+  assert.match(vibes, /\*\*Until the film is filed, the verdict is not saved, so never say it is\.\*\*/);
+  assert.match(vibes, /an instruction, its Genres, its core, and three or four illustration films/);
+});
+
 /**
  * M9 — an evening, offer by offer.
  *

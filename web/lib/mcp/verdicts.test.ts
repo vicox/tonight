@@ -890,6 +890,12 @@ describe("the verdict tools", () => {
       assert.doesNotMatch(next as string, /Bloom|clever characters|Champagne|Blueprints/u, "the guidance names the evaluation's own scenario");
       assert.match(next as string, /call record_verdict again with retry\.arguments/u);
       assert.match(next as string, /If they decline, it stays unsaved/u);
+      // Vibe offer copy: the offer is said briefly — nothing about how Tonight keeps a liked,
+      // each option a name and a short sentence with its genres in passing, one question —
+      // for either offer, before the writes; a new user's first films keep their own offer.
+      assert.match(next as string, /never ask them why they liked it\. Either way, say it briefly: a natural acknowledgement, with nothing about how Tonight keeps things — never why the liked is not saved yet, what it needs or how filing works, only what did change, in a few plain words;/u);
+      assert.match(next as string, /then the recommended option, plainly said to be yours, and the two alternatives, each a name and what it means in a short sentence — for a new vibe the sentence written on a yes, its genres named in passing and a new genre's meaning in a short phrase; no genre explained at length, no films listed to illustrate an option, no other names for one; and one simple question asking which\./u);
+      assert.match(next as string, /A new user's first films keep the offer the vibes skill gives them\. \(3\) On their yes/u);
 
       assert.deepEqual((await standing(cleo, f)).history, [], "a refused verdict was written anyway");
       assert.equal(JSON.stringify(await said(cleo, "get_taste")), before, "the refusal moved the taste model");
