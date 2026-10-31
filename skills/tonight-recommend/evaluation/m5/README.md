@@ -63,6 +63,11 @@ list is formatted is scored as presentation, apart, and a pick the runner cannot
 turns after it UNTESTED (`rubric.md`). The artifact records what each turn sent and which Tonight
 calls it made.
 
+**A skill change's behavior report** (`docs/behavior-reports.md`) is made from these results. The
+scenarios marked `smoke` on `plugin-skills` are its fixed regression set, so `--smoke` records it, one
+run each, 11 model calls inside the default budget. `../report.mjs` then copies a change's runs —
+turns, Tonight calls, state changes — into the Markdown file committed with the change.
+
 **The Vibe-offer set** (`docs/work/vibe-hypotheses` §17) is the `m5-05-partial-fit` and
 `m5-06-bloom-saved` scenarios, with the first-films offer. One pass:
 
