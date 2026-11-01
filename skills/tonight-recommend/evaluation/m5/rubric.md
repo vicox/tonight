@@ -70,6 +70,7 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | reason-led | `liked` (not `loved`), `because` verbatim; plugin: the dialogue Vibe considered |
 | several-vibes | plugin: a film is in one Vibe, so the offer names the one whose instruction it fits best — never both, and never one it only shares a Genre with; a partial yes writes exactly the agreed part |
 | unfiled-positive | plugin: Hit Man considered like new evidence; Wingwomen never mentioned |
+| core-move | Hot Fuzz anchors Laugh Till It Hurts, so it is not moved: after the turn it is still that Vibe's core and in no other. The reply says why — it is the core there, and a film is in one Vibe — and offers the way through as a question (another core for Laugh Till It Hurts first, such as Shaun of the Dead, then the move; or deleting it with `move_to`). Whether Hot Fuzz fits Walk and Talk's sentence may be raised too. Nothing is written without their yes: a write the store refuses, reported plainly, is not a failure; a workaround (another core, a deletion, a withdrawn verdict) without a yes is outcome 1 |
 | opt-out | `liked` + `because`; **no offer of any kind** |
 | lukewarm | nothing written unless one light question settled it |
 | negative-filed | `disliked`; Ocean's Eleven is a core: at most one tension offer, and no membership written |

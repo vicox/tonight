@@ -43,6 +43,15 @@ and whose reason none of them says.
 evening, and on `m5-05-partial-fit` one is. `bloom-war-mega` is that bare liked again, in German
 and as somebody would type it, on `m5-05-partial-fit` (skill compliance).
 
+## A core they want elsewhere
+
+Single vibe: on `m5-07-keep-no-fit`, Hot Fuzz is the core of Laugh Till It Hurts and they love it.
+A film is in one Vibe, and a core cannot leave the Vibe it anchors.
+
+| key | request |
+| --- | --- |
+| `hot-fuzz-talky` | *"Hot Fuzz is really about Nick and Danny talking, for me — it belongs with Walk and Talk, not Laugh Till It Hurts."* |
+
 ## A film to keep
 
 `docs/work/skill-cleanup`: a film they ask to keep, unseen, that no Vibe of theirs holds.
