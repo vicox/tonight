@@ -796,8 +796,9 @@ check "a Verdict stands on its own root, with no Movie under a dislike" \
         'needs no Movie, and recording one never writes a Movie')" "True"
 check "a liked or loved is kept only for a film in a Vibe, and filing the film saves it" \
     "$(order_check 'A liked or loved, though, is kept only' \
-        'for a film in at least one of their Vibes' \
-        'filing the' 'film is what saves it')" "True"
+        'for a film in one of their Vibes' \
+        'filing the' 'film is what saves it' \
+        'A film is in one Vibe at most, and a Genre it shares with a Vibe never' 'puts it there')" "True"
 check "and the write flow says it where a verdict is recorded" \
     "$(order_check 'A `disliked` needs no Vibe and no Movie' \
         'A liked or loved is kept only for a film in one of their Vibes' \

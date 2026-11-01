@@ -82,7 +82,7 @@ export type Judgement = (typeof JUDGEMENTS)[number];
  * The two judgements that say a film worked for them.
  *
  * Named because a rule outside this module reads them and only them: the taste
- * store keeps a film they like or love in at least one of their vibes. This
+ * store keeps a film they like or love in one of their vibes. This
  * module knows nothing of that rule and does not need to — it only says which
  * judgements are the positive ones. `disliked` is not, and a withdrawal asserts
  * nothing at all.

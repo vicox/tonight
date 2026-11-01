@@ -21,7 +21,7 @@
     "movies": [
       { "title": "Machete", "year": 2010, "vibes": ["Grindhouse Mayhem"], "viewing": "seen" },
       { "title": "Planet Terror", "year": 2007, "vibes": ["Grindhouse Mayhem"], "viewing": "seen" },
-      { "title": "Murder Mystery", "year": 2019, "vibes": ["Bad Date, Worse Alibi", "Holiday Alibis"], "viewing": "seen" },
+      { "title": "Murder Mystery", "year": 2019, "vibes": ["Holiday Alibis"], "viewing": "seen" },
       { "title": "Logan Lucky", "year": 2017, "viewing": "seen" },
       { "title": "Wingwomen", "year": 2023 }
     ]

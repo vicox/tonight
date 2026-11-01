@@ -120,6 +120,11 @@ export type Vibe = {
    * one, it can be replaced but never cleared, and the film it names can be
    * neither taken out of the vibe nor deleted while it is the core.
    *
+   * A film is in one vibe at most, so it is the core of one vibe at most, and
+   * that vibe is the only one it is in. Anchoring a vibe on a film filed in
+   * another vibe moves the film here; anchoring it on another vibe's core is
+   * refused, because that vibe would be left without one.
+   *
    * What a core may be — a film they have seen and stand behind, never one only
    * offered as an illustration — is mostly a judgement about what they said, and
    * most of what they said is in another root. The one part this root holds is
@@ -207,7 +212,11 @@ export type Movie = {
   imdbId: string | null;
   /** Seen now, seen before, want to see, or don't want to see. Never empty. */
   viewing: Viewing;
-  /** The vibes it is in, by name. May be empty. */
+  /**
+   * The vibe it is in, by name: none or one, never more. A list rather than a
+   * single name so that "in no vibe" is `[]` and the shape every caller already
+   * reads stays the shape; the store refuses a second.
+   */
   vibes: string[];
 };
 
@@ -591,8 +600,9 @@ function checkCoreViewing(value: unknown): SeenViewing {
  *
  * Unlike a vibe's genres, an empty list is allowed and means something: a movie
  * belonging to no vibe is ordinary, and passing `[]` is how a caller says "take it
- * out of all of them". Shape only — whether each name is a vibe this user has is
- * the store's question.
+ * out of its vibe". Shape only — whether each name is a vibe this user has, and
+ * whether two names are one vibe, is the store's question, so "one vibe at most"
+ * is checked there, once the names are resolved (`movieOneVibe`).
  */
 export function checkMovieVibes(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -832,12 +842,17 @@ export function movieImdbTaken(imdbId: string, title: string, year: number): Tas
  * Named, like `genreInUse`, so the refusal says what to do next: the core helps
  * define the vibe now, and the way out is to anchor the vibe on another film or
  * to delete it — never to leave it anchorless.
+ *
+ * `anchor` is the film being made the core of another vibe, `into`: a film is in
+ * one vibe at most, so it cannot anchor a second without leaving the first
+ * without its core.
  */
 export function movieAnchorsVibe(
   title: string,
   year: number,
   vibes: readonly string[],
-  doing: "delete" | "unfile" | "unsee",
+  doing: "delete" | "unfile" | "unsee" | "anchor",
+  into?: string,
 ): TasteError {
   const which = `${vibes.length === 1 ? "the vibe" : "the vibes"} ${vibes
     .map((one) => `"${one}"`)
@@ -848,6 +863,9 @@ export function movieAnchorsVibe(
     unsee:
       `cannot mark ${handleOf(title, year)} anything but seen-now or seen-before: it is the ` +
       `core of ${which}, and a core is a film they have seen`,
+    anchor:
+      `cannot make ${handleOf(title, year)} the core of "${into ?? ""}": it is the core of ` +
+      `${which}, and a film is in one vibe at most`,
   }[doing];
   return new TasteError(
     why + " — make another film the core with update_vibe first, or delete the vibe",
@@ -869,7 +887,7 @@ export class VibeRequired extends TasteError {
   constructor(film: MovieHandle, movie: (MovieHandle & { viewing: Viewing }) | null) {
     super(
       `${handleOf(film.title, film.year)} is in none of their vibes, and a liked or loved verdict ` +
-        "is kept only for a film in at least one. Nothing was written.",
+        "is kept only for a film in one of them. Nothing was written.",
     );
     this.film = film;
     this.movie = movie;
@@ -878,18 +896,19 @@ export class VibeRequired extends TasteError {
 
 /**
  * A film they like or love, which would be left in no vibe by taking it out of
- * its last one.
+ * its vibe.
  *
  * Named with the judgement, because that is what is in the way: a liked or
- * loved film belongs to at least one vibe. The way through is another vibe in
- * the same call. Withdrawing the verdict is named too, but only for when they
- * no longer stand by it — never as a way past this refusal.
+ * loved film belongs to a vibe — exactly one, since no film is in more. The way
+ * through is another vibe in the same call, which moves it. Withdrawing the
+ * verdict is named too, but only for when they no longer stand by it — never as
+ * a way past this refusal.
  */
 export function positiveNeedsVibe(title: string, year: number, judgement: string): TasteError {
   return new TasteError(
-    `${handleOf(title, year)} is ${judgement}, and a film they like or love stays in at least one ` +
-      "vibe — keep one of its vibes in the list, or add another. Withdraw the verdict first only if " +
-      "they said they no longer stand by it, never to get past this.",
+    `${handleOf(title, year)} is ${judgement}, and a film they like or love stays in a vibe — ` +
+      "keep its vibe in the list, or name another to move it there. Withdraw the verdict first only " +
+      "if they said they no longer stand by it, never to get past this.",
   );
 }
 
@@ -908,8 +927,33 @@ export function vibeHoldsPositive(
     .join(", ");
   return new TasteError(
     `deleting "${normalise(name)}" would leave ${stranded} in no vibe, and a film they like or love ` +
-      "stays in at least one — move it into another vibe with update_movie first. Withdraw a verdict " +
-      "only if they said they no longer stand by it, never to get past this.",
+      "stays in a vibe — move it into another vibe it fits with update_movie first, or delete with " +
+      "move_to naming the vibe its films belong in, which moves every one there, its core " +
+      "included. Withdraw a verdict only if they said they no longer stand by it, never to get " +
+      "past this.",
+  );
+}
+
+/** A deletion asked to move a vibe's films into the vibe being deleted. */
+export function vibeIntoItself(name: string): TasteError {
+  return new TasteError(
+    `cannot move the films of "${normalise(name)}" into itself — move_to names the other vibe ` +
+      "they belong in",
+  );
+}
+
+/**
+ * A film named into more than one vibe.
+ *
+ * A film is in one vibe at most. The names are the vibes as stored, once each —
+ * two spellings of one vibe are one vibe and are not refused — so the refusal
+ * says exactly which were asked for at once.
+ */
+export function movieOneVibe(vibes: readonly string[]): TasteError {
+  return new TasteError(
+    `a film is in one vibe at most, and this names ${vibes.length}: ` +
+      `${vibes.map((one) => `"${one}"`).join(", ")} — name the one it belongs in, or pass [] to take ` +
+      "it out of its vibe",
   );
 }
 

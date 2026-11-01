@@ -373,7 +373,7 @@ test("the website is disclosed as a narrower view than the MCP answer, not the s
     "the README still claims the website shows the whole model",
   );
   assert.match(readme, /shows a film-centred view of the model, with a page for each Vibe/);
-  assert.match(readme, /Every Movie is listed, newest first, with the Vibes it is in — a Movie in no Vibe is listed too/);
+  assert.match(readme, /Every Movie is listed, newest first, with the Vibe it is in — one at most — and a Movie in no Vibe is listed too/);
   assert.match(readme, /the website is a view of it, not the definition of it/);
 });
 

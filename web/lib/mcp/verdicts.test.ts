@@ -854,22 +854,26 @@ describe("the verdict tools", () => {
       // and a vibe that fits is recommended with two concrete alternatives, never offered alone
       // or beside a bare "or a new one".
       assert.match(next as string, /^Nothing was written\. This is the expected answer, not a failure: apologise for nothing and report no error\./u);
-      assert.match(next as string, /if one of their vibes fits — judge by its instruction and genres, not its name — recommend filing the film there, with two concrete alternatives beside it and never a bare offer to make a new one: each another vibe of theirs it fits, or a new vibe with a name, a sentence, its genres and this film as core — another evening the film could stand for;/u);
+      assert.match(next as string, /if one of their vibes fits — judge by its instruction and genres, not its name; a genre the film shares with a vibe is not a fit on its own — recommend filing the film there, with two concrete alternatives beside it and never a bare offer to make a new one: each another vibe of theirs it fits, or a new vibe with a name, a sentence, its genres and this film as core — another evening the film could stand for;/u);
+      // One vibe per film: a liked or loved is kept for a film in one, and filing it is never two.
+      assert.match(next as string, /A liked or loved verdict is kept only for a film in one of their vibes, and a film is in one vibe at most\./u);
       assert.doesNotMatch(next as string, /propose filing the film there;/u, "a fitting vibe is offered alone again");
       assert.match(next as string, /exact minimal new wording[^.]*only on their yes to those words/u);
       // §20: a rewording keeps its core; where a new vibe makes sense too, both, one recommended
-      // in a line, their choice — and a partial fit only beside a vibe it fits well or anchors.
+      // in a line, their choice — and a partial fit is not filed at all.
       assert.match(next as string, /exact minimal new wording — one its core still fits wholly —/u);
       assert.match(next as string, /where a new vibe would make sense too, offer both in the one offer — that wording, and a new vibe offered as \(2\) offers one — say in one line which you would choose and why, and let them choose/u);
       // Code review: a reply that does not say which is asked about, not taken as the
-      // recommendation; and the both path's writes are in order, the partial home kept.
+      // recommendation; and a new vibe files the film there alone — it is never also kept in
+      // the vibe it partly fits.
       assert.match(next as string, /a reply that does not make clear which they chose is asked about once before anything is written/u);
-      assert.match(next as string, /where they chose the new wording, update_vibe with it first; where they chose a new vibe beside one the film partly fits, create_vibe with it as core and core\.viewing, then update_movie listing that new vibe and the one it partly fits, because the list replaces what was there/u);
+      assert.match(next as string, /update_movie with its one vibe, create_movie with viewing seen-now or seen-before and its one vibe for an unsaved film, or create_vibe with it as core and core\.viewing, which files it in that new vibe alone; where they chose the new wording, update_vibe with it first/u);
       assert.ok(
-        (next as string).indexOf("then update_movie listing that new vibe") < (next as string).indexOf("call record_verdict again"),
-        "the retry comes before the film is filed in both",
+        (next as string).indexOf("update_vibe with it first") < (next as string).indexOf("call record_verdict again"),
+        "the retry comes before the film is filed",
       );
-      assert.match(next as string, /A film that only partly fits a vibe goes there only beside one it fits well or anchors/u);
+      assert.doesNotMatch(next as string, /listing that new vibe and the one it partly fits/u, "a film is filed in two vibes again");
+      assert.match(next as string, /A film that only partly fits a vibe does not go there\./u);
       assert.match(next as string, /one recommended new vibe and two meaningfully different alternatives/u);
       // §21: the three come from the film, their vibes and their history — what they said is
       // used, never asked for — and their pick says which evening, not why.
@@ -988,10 +992,10 @@ describe("the verdict tools", () => {
       assert.equal((await standing(cleo, g)).current?.assertion?.judgement, "loved");
     });
 
-    test("a picked hypothesis anchors a new vibe, and the film stays in the one whose evening it also is", async () => {
-      // docs/work/vibe-hypotheses: the whole write sequence of a pick. Nothing in it
-      // is new to the tools — this pins that the composite was always possible, so
-      // the change around it is instructions only.
+    test("a picked hypothesis anchors a new vibe, and the film is in that vibe alone", async () => {
+      // docs/work/vibe-hypotheses: the whole write sequence of a pick. A film is in
+      // one vibe at most, so the pick is the one write that files it: the vibe it
+      // shares a genre with is another evening, and the film is never also kept there.
       const dana = toolsFor("google:dana");
       type Handle = { title: string; year: number };
       type Taste = {
@@ -1029,8 +1033,7 @@ describe("the verdict tools", () => {
       const retry = (refused.structuredContent?.retry as { arguments: Record<string, unknown> }).arguments;
 
       // Their pick, written as it was shown: the one Genre it needs, then the vibe
-      // anchored on the film, then the film's whole list — the new vibe and the one
-      // whose evening it also is — because the list replaces what was there.
+      // anchored on the film, which files it there and nowhere else.
       await said(dana, "create_genre", {
         name: "Clever characters",
         instruction: "I like characters who are clever and do smart things.",
@@ -1041,7 +1044,6 @@ describe("the verdict tools", () => {
         instruction: "I want the clever ones running a game on everybody, me included, and to see at the end how they did it.",
         core: bloom,
       });
-      await said(dana, "update_movie", { ...bloom, vibes: ["Masterminds & Misdirection", "Champagne & Blueprints"] });
       const kept = (await said(dana, "record_verdict", retry)) as unknown as {
         verdict: { told: string; assertion: { judgement: string; because: string } };
       };
@@ -1054,15 +1056,21 @@ describe("the verdict tools", () => {
       assert.deepEqual(vibe(model, "Masterminds & Misdirection").core, bloom);
       const saved = model.movies.find((one) => one.title === bloom.title && one.year === bloom.year);
       assert.equal(saved?.viewing, "seen-before", "a liked film saved without a when is seen before");
-      assert.deepEqual([...(saved?.vibes ?? [])].sort(), ["Champagne & Blueprints", "Masterminds & Misdirection"]);
-      // The overlap is kept, and the vibe it overlaps keeps its own meaning: its
-      // films change, by design, and nothing else about it does.
+      assert.deepEqual(saved?.vibes, ["Masterminds & Misdirection"]);
+      // A shared Heist genre does not put it in Champagne & Blueprints, which keeps
+      // its own meaning and its own films.
       assert.deepEqual(meaning(vibe(model, "Champagne & Blueprints")), capers);
-      assert.ok(vibe(model, "Champagne & Blueprints").movies.some((one) => one.title === bloom.title));
+      assert.ok(!vibe(model, "Champagne & Blueprints").movies.some((one) => one.title === bloom.title));
 
-      // A list that forgets the new vibe is refused — the film anchors it — and
-      // changes nothing at all.
+      // Both is refused — a film is in one vibe — and so is a list that moves it
+      // out of the vibe it anchors; neither changes anything at all.
       const whole = JSON.stringify(await taste());
+      const both = await call(dana, "update_movie", {
+        ...bloom,
+        vibes: ["Masterminds & Misdirection", "Champagne & Blueprints"],
+      });
+      assert.equal(both.isError, true, "the film was filed in two vibes");
+      assert.match(JSON.stringify(both), /a film is in one vibe at most/u);
       const dropped = await call(dana, "update_movie", { ...bloom, vibes: ["Champagne & Blueprints"] });
       assert.equal(dropped.isError, true, "the film left the vibe it anchors");
       assert.equal(JSON.stringify(await taste()), whole, "a refused write changed something");
@@ -1078,7 +1086,7 @@ describe("the verdict tools", () => {
       assert.equal((await standing(cleo, f)).current?.assertion?.judgement, "disliked");
     });
 
-    test("a liked or loved film cannot be taken out of its last vibe, nor its last vibe deleted", async () => {
+    test("a liked or loved film cannot be taken out of its vibe, nor its vibe deleted without a move", async () => {
       const f = named();
       await said(cleo, "create_vibe", {
         name: "Last Shelf",
@@ -1091,17 +1099,33 @@ describe("the verdict tools", () => {
       const before = JSON.stringify(await said(cleo, "get_taste"));
 
       const unfiled = await call(cleo, "update_movie", { ...f, vibes: [] });
-      assert.equal(unfiled.isError, true, "a loved film was taken out of its last vibe");
-      assert.match(JSON.stringify(unfiled), /is loved, and a film they like or love stays in at least one vibe/u);
+      assert.equal(unfiled.isError, true, "a loved film was taken out of its vibe");
+      assert.match(JSON.stringify(unfiled), /is loved, and a film they like or love stays in a vibe/u);
 
       const deleted = await call(cleo, "delete_vibe", { name: "Last Shelf" });
-      assert.equal(deleted.isError, true, "the last vibe of a loved film was deleted");
+      assert.equal(deleted.isError, true, "the vibe of a loved film was deleted");
       assert.match(JSON.stringify(deleted), new RegExp(`would leave \\\\"${f.title}\\\\" \\(2016, loved\\) in no vibe`, "u"));
       assert.equal(JSON.stringify(await said(cleo, "get_taste")), before, "a refused write changed something");
 
       // Moving it is never refused, and once it is elsewhere the vibe can go.
       await said(cleo, "update_movie", { ...f, vibes: ["Patient Light"] });
       await said(cleo, "delete_vibe", { name: "Last Shelf" });
+
+      // A vibe anchored on a film they love goes only with move_to, which takes
+      // every film in it — the core included — to the vibe that stays.
+      const core = named();
+      await said(cleo, "create_vibe", {
+        name: "Loved Shelf",
+        genres: ["Slow burn"],
+        instruction: "Anchored on a film they love.",
+        core,
+      });
+      await said(cleo, "record_verdict", loved(core));
+      const stranding = await call(cleo, "delete_vibe", { name: "Loved Shelf" });
+      assert.equal(stranding.isError, true, "a loved core was left in no vibe");
+      await said(cleo, "delete_vibe", { name: "Loved Shelf", move_to: "Patient Light" });
+      const after = (await said(cleo, "get_taste")) as unknown as { movies: { title: string; vibes: string[] }[] };
+      assert.deepEqual(after.movies.find((one) => one.title === core.title)?.vibes, ["Patient Light"]);
 
       // Nor is anything refused once it no longer stands as liked or loved.
       await said(cleo, "record_verdict", { film: f, told: "confirmed", said: { about: "judgement", judgement: "disliked" } });
@@ -1150,8 +1174,10 @@ describe("the verdict tools", () => {
         cleo.record_verdict!.description ?? "",
         /A liked or loved said now about a film saved as want-to-see is their word that they watched it: move it with update_movie to seen-before/u,
       );
-      assert.match(cleo.update_movie!.description ?? "", /Nor can a film they like or love be taken out of its last vibe/u);
-      assert.match(cleo.delete_vibe!.description ?? "", /the one refusal is for a film they like or love that is in no other vibe/u);
+      assert.match(cleo.update_movie!.description ?? "", /A film is in one vibe at most/u);
+      assert.match(cleo.update_movie!.description ?? "", /Nor can a film they like or love be taken out of its vibe/u);
+      assert.match(cleo.delete_vibe!.description ?? "", /the one refusal is for a film in it they like or love/u);
+      assert.match(cleo.delete_vibe!.description ?? "", /a vibe anchored on a film they like or love is deleted with `move_to`/u);
       assert.doesNotMatch(cleo.delete_vibe!.description ?? "", /Always allowed/u);
     });
   });

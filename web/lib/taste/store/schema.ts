@@ -1351,5 +1351,96 @@ export const TASTE_SCHEMA: SchemaModule = {
             CHECK (viewing IN ('seen-now', 'seen-before', 'want-to-see', 'dont-want-to-see'));
       `,
     },
+
+    /**
+     * One vibe per film, at most.
+     *
+     * v4 made a film's vibes a set, and a film could sit in as many as anybody
+     * filed it under. It is now in none or one: a vibe is the one evening a film
+     * stands for, and two vibes that share a genre are still two evenings — a
+     * genre in common is never what puts a film in a vibe. So the membership
+     * table gets a unique index on the film, and the plain index v4 put on the
+     * same columns goes, because this one answers everything it did.
+     *
+     * Everything else follows without another rule. A core is one of its vibe's
+     * films (v13's key), so a film is the core of one vibe at most and that vibe
+     * is the only one it is in. A liked or loved needs its film in a vibe, which
+     * is now exactly one.
+     *
+     * ## Nothing is chosen for anybody
+     *
+     * Which vibe a film in two belongs to is the user's decision, and no rule here
+     * can make it — not the core, not the newest filing, not a shared genre. So
+     * this refuses while any film is in more than one, names each — the account,
+     * the film, its vibes and the one it anchors — and changes nothing, as v9
+     * does. Each is resolved with the build that is still running: `update_movie`
+     * with the one vibe it belongs in, and for a film that anchors two vibes,
+     * another core for one of them with `update_vibe` first. Then migrate again.
+     *
+     * The table is locked before it is read, so a filing written while this looks
+     * cannot slip between the look and the index: it waits, and lands on a table
+     * the index already holds to one. The lock is `ACCESS EXCLUSIVE`, the one the
+     * `DROP INDEX` at the end needs, taken once and first. Starting weaker —
+     * `SHARE`, which is all the look and the new index need — would mean
+     * upgrading at the drop, and an upgrade deadlocks against a session that holds
+     * a read lock and is queued behind this one for a write: each would wait for
+     * the other. Readers wait too while it is held, for as long as a read and an
+     * index build over one small table take.
+     *
+     * ## Order of the release
+     *
+     * Migrate, then deploy. Only an index is added, so this is safe under the
+     * build already running and rolling back is redeploying it: that build keeps
+     * serving, and a write of it that would file a film in a second vibe fails
+     * on the index instead of landing — loudly, and with nothing written.
+     */
+    {
+      version: 16,
+      run: async (tx) => {
+        await tx.exec("LOCK TABLE tonight_mix_movies IN ACCESS EXCLUSIVE MODE");
+
+        const crowded = await tx.query<{
+          user_id: string;
+          title: string;
+          year: number;
+          vibes: string;
+          anchors: string | null;
+        }>(
+          `SELECT r.user_id, v.title, v.year,
+                  string_agg('"' || m.name || '"', ', ' ORDER BY lower(m.name)) AS vibes,
+                  string_agg('"' || m.name || '"', ', ' ORDER BY lower(m.name))
+                    FILTER (WHERE m.core_movie_id = v.id) AS anchors
+             FROM tonight_mix_movies AS r
+             JOIN tonight_movies AS v ON v.user_id = r.user_id AND v.id = r.movie_id
+             JOIN tonight_mixes  AS m ON m.user_id = r.user_id AND m.id = r.mix_id
+            GROUP BY r.user_id, v.id, v.title, v.year
+           HAVING count(*) > 1
+            ORDER BY r.user_id, lower(v.title), v.year`,
+        );
+        if (crowded.length) {
+          throw new Error(
+            "A film is now in one vibe at most, and Tonight will not choose which for anybody. " +
+              "These films are in more than one:\n" +
+              crowded
+                .map(
+                  (film) =>
+                    `  account ${film.user_id}: ${JSON.stringify(film.title)} (${String(film.year)}) ` +
+                    `is in ${film.vibes}` +
+                    (film.anchors === null ? "" : ` and is the core of ${film.anchors}`),
+                )
+                .join("\n") +
+              "\nWith the running build, give each the one vibe it belongs in with update_movie — a " +
+              "film that is the core of two vibes needs another core for one of them with update_vibe " +
+              "first — then run the migration again. Nothing has been changed.",
+          );
+        }
+
+        await tx.exec(`
+          CREATE UNIQUE INDEX tonight_mix_movies_one_vibe
+            ON tonight_mix_movies (user_id, movie_id);
+          DROP INDEX tonight_mix_movies_movie_index;
+        `);
+      },
+    },
   ],
 };

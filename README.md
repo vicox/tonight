@@ -37,8 +37,9 @@ list"*) and `dont-want-to-see` (*"Don't recommend it again"*) — and a film sav
 When you say you have seen one without saying when, the assistant asks once, and keeps it as
 `seen-before` if you do not say. The assistant says what it stored, so you can correct it. That is the whole of what a Movie says about you, and it is a fact rather than
 an opinion: a `want-to-see` film may be recommended, a `dont-want-to-see` one never is. A Movie
-may be in no Vibe, one, or several, and it is yours in its own right either way: nothing is
-looked up, and no film is here unless you put it there.
+is in no Vibe or one — never several, because a Vibe is the one evening it stands for, and a Genre
+it shares with another Vibe does not put it there too — and it is yours in its own right either
+way: nothing is looked up, and no film is here unless you put it there.
 
 **Verdicts** are what you thought. One film, one thing said: `liked`, `loved` or `disliked`, with
 your own words for why if you gave them, whether you volunteered it or answered a question, and
@@ -165,13 +166,13 @@ method ships in the skill beside the server rather than as a runtime tool.
 | `create_genre` | a Genre, with the instruction that says what it means to this user |
 | `update_genre` | reword or rename. A rename rewrites every Vibe built from it |
 | `delete_genre` | refused while a Vibe is built from it, and the refusal names the Vibes |
-| `create_vibe` | a Vibe over one or more existing Genres, anchored on the one film that best embodies it |
+| `create_vibe` | a Vibe over one or more existing Genres, anchored on the one film that best embodies it — moved there from the Vibe it was in, and refused if it anchors another |
 | `update_vibe` | reword (a minimal change only on their yes to the exact words), rename, replace the Genres it is built from, or anchor it on a new core |
-| `delete_vibe` | refused only when it would leave a film they like or love in no Vibe; the Genres it combined are untouched |
+| `delete_vibe` | refused only when it would leave a film they like or love in no Vibe — `move_to` moves every film in it to the Vibe that stays, its core included; the Genres it combined are untouched |
 | `create_movie` | a film the user named, and whether they said they watched it |
-| `update_movie` | retitle, correct the year, change its viewing, or change which Vibes it is in — never out of one it anchors, and never a liked or loved film out of its last one |
+| `update_movie` | retitle, correct the year, change its viewing, or move it to another Vibe — a film is in one Vibe at most; never out of one it anchors, and never a liked or loved film out of its Vibe |
 | `delete_movie` | removes the film they asked to remove, and every verdict about it; refused while it anchors a Vibe; the Vibes it was in are untouched |
-| `record_verdict` | what they said about one film: liked, loved or disliked. A liked or loved is kept only for a film in at least one Vibe — otherwise nothing is written and the answer is `vibe_required`, with the call to retry once the film is filed. A turn-down is refused and routed to the film's viewing |
+| `record_verdict` | what they said about one film: liked, loved or disliked. A liked or loved is kept only for a film in a Vibe — otherwise nothing is written and the answer is `vibe_required`, with the call to retry once the film is filed. A turn-down is refused and routed to the film's viewing |
 | `withdraw_verdict` | they no longer stand by it. The claim stops applying; that they said it stays |
 | `forget_verdict` | one act removed outright, by the reference `get_memory` gave it |
 | `get_verdicts` | everything said about one film, and which of it stands now |
@@ -253,7 +254,7 @@ already seen — and then ask *When did you see it?*, whose *Seen now* and *Seen
 that; *Want to see* and *Not interested* set where the film stands on the user's list and take back
 the verdict; and pressing an opinion that stands takes it back. Each press is one write, decided on
 the film as it is when it is written — the same verdicts and the same viewing the MCP tools write,
-under the same rules, and nothing else. A film they like or love stays in at least one Vibe, and a
+under the same rules, and nothing else. A film they like or love stays in its one Vibe, and a
 Vibe's core stays a film they watched, moving only between *Seen now* and *Seen before*. Every
 other change — a film
 added, retitled, refiled or removed, a Genre or Vibe created, renamed or deleted — is made through
@@ -262,8 +263,8 @@ keeps one setting per user — whether *Include previously seen* is ticked — s
 was left, in any browser. It does not recommend, and it has no model inside it to
 recommend with: the panel at the foot of the page names the sentence to take to your assistant.
 
-Every Movie is listed, newest first, with the Vibes it is in — a Movie in no Vibe is listed too,
-and recording that somebody watched a film makes one, as does deleting the last Vibe it was in. A
+Every Movie is listed, newest first, with the Vibe it is in — one at most — and a Movie in no Vibe
+is listed too: recording that somebody watched a film makes one, as does deleting the Vibe it was in. A
 Vibe's screen shows what it means, the Genres it is built from and its films; a film's screen
 shows its Vibes and its choices. `get_taste` returns the same model in one piece: the website
 is a view of it, not the definition of it.
@@ -331,6 +332,19 @@ in the other direction. An old build against a migrated database is not protecte
 being ahead of it — after v12 it writes a column that does not exist, and the write simply
 fails. That failure is the honest outcome and is better than silence, but it is an outage, so
 the application is stopped rather than relied upon to fail cleanly.
+
+**Taste v16** (one Vibe per film) is not one of these: it only adds an index, so it runs under
+traffic — migrate, then deploy — and rolling back is redeploying the build before it. It holds a
+film to one Vibe at most, and Tonight will not choose which for anybody, so it **refuses —
+changing nothing — while any film is in more than one**, naming the account, the film, its Vibes
+and the one it anchors. Running `npm run db:migrate` is therefore its own preflight. Resolve each
+with the running build — `update_movie` with the one Vibe it belongs in, never chosen for a Genre
+it merely shares; a film that anchors two Vibes needs another core for one of them with
+`update_vibe` first — and migrate again. Until the new build is deployed, the old one keeps
+serving, and a write of it that would file a film in a second Vibe fails on the index with
+nothing written. After deploying, reconnect the Tonight connector in each host, check that
+`get_server_info` answers 0.5.0 and that `delete_vibe` takes `move_to`, and rebuild and upload
+the ChatGPT plugin.
 
 ```bash
 npm run test        # node --test over lib/**/*.test.ts

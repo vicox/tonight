@@ -56,8 +56,9 @@ an optional IMDb id and **viewing** — always exactly one of `seen-now`, `seen-
 `want-to-see` and `dont-want-to-see`. What they *thought* of it is a **Verdict**, never a Movie
 field — and a Verdict stands on its own root: a `disliked` about a film that was never saved
 needs no Movie, and recording one never writes a Movie. A liked or loved, though, is kept only
-for a film in at least one of their Vibes — the Vibe is what says why it worked — and filing the
-film is what saves it.
+for a film in one of their Vibes — the Vibe is what says why it worked — and filing the
+film is what saves it. A film is in one Vibe at most, and a Genre it shares with a Vibe never
+puts it there.
 `get_taste` describes all four in its own text, which is where an agent meets them.
 
 A Vibe is the shape of a recommendation idea: its Genres are the ingredients, and the Vibe is the

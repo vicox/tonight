@@ -25,6 +25,7 @@ import {
   movieAnchorsVibe,
   movieExists,
   movieImdbTaken,
+  movieOneVibe,
   movieVibeMissing,
   movieNotFound,
   normalise,
@@ -37,6 +38,7 @@ import {
   TasteError,
   VibeRequired,
   vibeHoldsPositive,
+  vibeIntoItself,
   type Genre,
   type Vibe,
   type Movie,
@@ -253,7 +255,7 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         }
 
         await writeVibeGenres(tx, owner, created[0]!.id, references);
-        await fileCore(tx, owner, created[0]!.id, core);
+        await fileCore(tx, owner, { id: created[0]!.id, name: entry.name }, core);
         return orderVibe({ ...entry, core: core.handle, movies: [core.handle] });
       });
     },
@@ -334,9 +336,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
         if (!changed.length) throw vibeNotFound(name);
 
         // The film the core replaces is not touched: it stays filed here as an
-        // ordinary member. The new one is filed if it was not already.
+        // ordinary member. The new one is filed if it was not already — moved
+        // here from the vibe it was in, since a film is in one at most.
         if (core) {
-          const filed = await fileCore(tx, owner, current.id, core);
+          const filed = await fileCore(tx, owner, { id: current.id, name: entry.name }, core);
           entry = orderVibe({
             ...entry,
             core: core.handle,
@@ -472,12 +475,13 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
             throw movieAnchorsVibe(current.title, current.year, filingNames(leaving), "unfile");
           }
 
-          // A film they like or love stays in at least one vibe — when the caller
-          // asked for that rule. Asked while this film is held, so a verdict
-          // being written about it either committed before this read, or waits
-          // for this write and then finds the film in no vibe. Only a filing that
-          // goes from some vibes to none is refused: a film already in none
-          // (a verdict older than the rule) may be given `[]` again.
+          // A film they like or love stays in a vibe — when the caller asked for
+          // that rule. Moving it to another is a one-name list, and is never
+          // refused. Asked while this film is held, so a verdict being written
+          // about it either committed before this read, or waits for this write
+          // and then finds the film in no vibe. Only a filing that goes from a
+          // vibe to none is refused: a film already in none (a verdict older
+          // than the rule) may be given `[]` again.
           if (options?.positiveNeedsVibe && filings.length === 0) {
             if ((await filedUnder(tx, owner, current.id)).length > 0) {
               const handle = { title: current.title, year: current.year };
@@ -578,8 +582,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
      *     resolve the vibe                  by name, unlocked, to an id
      *     read what is filed under it      ids and handles together
      *     hold exactly those movies        canonical order, each id confirmed
-     *     hold the vibe                     and confirm it is still that id
+     *     hold the vibe                     and confirm it is still that id —
+     *                                       with `into`, both, in name order
      *     read what is filed again         and confirm the set is the same
+     *     move them into `into`, if given  every film, the core included
      *     delete by the id                 never by the name
      *
      * The rule it exists for is one sentence: **never reach for a movie while
@@ -604,7 +610,13 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           const filed = await filedMovies(tx, owner, found.id);
           if (!(await holdFiledMovies(tx, owner, filed))) return AGAIN;
 
-          const { source: entry } = await lockVibe(tx, owner, name);
+          // With `into`, the vibe the films go to is held beside this one, the two
+          // in the one order two vibes are ever held in (`lockNames`), so two
+          // deletions moving films each into the other wait rather than deadlock.
+          // Held `FOR UPDATE` like this one; none of its films are needed, so no
+          // movie is reached for from here either.
+          const into = options?.into;
+          const { source: entry, destination } = await lockVibe(tx, owner, name, into);
 
           // Not merely "is it still there". Between the resolve above and this
           // lock the vibe could have been deleted and a new one given the same
@@ -613,6 +625,10 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           // were never in it. The name no longer reaches the vibe they meant,
           // which is what "no vibe" says.
           if (!entry || entry.id !== found.id) throw vibeNotFound(name);
+          if (into !== undefined) {
+            if (!destination) throw vibeNotFound(into);
+            if (destination.id === entry.id) throw vibeIntoItself(entry.name);
+          }
 
           // Nothing can be filed under it from here on: writing a reference row
           // takes a KEY SHARE on the vibe, which this FOR UPDATE excludes. So this
@@ -623,10 +639,22 @@ export function sqlTasteStore(driver: SqlDriver, user: AuthenticatedUser): Taste
           // avoid.
           if (!same(filed, await filedMovies(tx, owner, found.id))) return AGAIN;
 
-          // Every film filed here is held, and so is the vibe, so neither the
-          // filing nor a verdict being written about one of these films can
-          // change under this question. A refusal is thrown, not retried.
-          if (options?.positiveNeedsVibe) {
+          // Moved rather than left: each membership row is pointed at `into`, so
+          // every film here is in that vibe and no other, and the deletion below
+          // has nothing left to cascade. The core's row moves too — the vibe it
+          // anchored is deleted in this transaction, and the deferred core key is
+          // checked against what the commit leaves. The membership trigger dates
+          // each film, since where it is filed changed; `into` is not dated,
+          // because filing a film is not a change to a vibe.
+          if (destination) {
+            await tx.query(
+              `UPDATE tonight_mix_movies SET mix_id = $3 WHERE user_id = $1 AND mix_id = $2`,
+              [owner, found.id, destination.id],
+            );
+          } else if (options?.positiveNeedsVibe) {
+            // Every film filed here is held, and so is the vibe, so neither the
+            // filing nor a verdict being written about one of these films can
+            // change under this question. A refusal is thrown, not retried.
             const stranded = await onlyHere(tx, owner, filed);
             const positive = await positiveAbout(tx, owner, stranded);
             const kept = stranded.flatMap((film) => {
@@ -792,7 +820,8 @@ async function holdSaved(
 }
 
 /**
- * Refuses unless the film is saved and filed in at least one vibe.
+ * Refuses unless the film is saved and filed in a vibe — one, since no film is
+ * in more.
  *
  * The saved film is held by `holdSaved` for the rest of the transaction. Every
  * write that can take a film out of its last vibe holds that row `FOR UPDATE`
@@ -1250,22 +1279,47 @@ const CORE_ATTEMPTS = 3;
  * Files a vibe's core in it, unless it is filed there already, and says whether
  * it had to.
  *
+ * A film is in one vibe at most, so a core filed in another vibe is **moved**:
+ * taken out of that one and filed here, in this transaction. A core of another
+ * vibe is refused instead, naming that vibe — moving it would leave the vibe it
+ * anchors without its core, and the way through is another core there first.
+ * Both are asked while the film is held (`holdCore`): every write that files,
+ * unfiles or anchors a film holds it first, so neither answer can change before
+ * the write. `vibe` is the one being anchored, whose own row may already name
+ * this film — that is not "another vibe".
+ *
  * Filing a film is a change to the film, so a film that was already saved is
- * dated by it, exactly as `update_movie` filing it would date it. One saved by
- * this same transaction is not: it was written a moment ago, and dating it again
- * would make it look changed since it was created.
+ * dated by it, exactly as `update_movie` filing it would date it — and leaving
+ * the vibe it was in dates it too, through the membership's own trigger. One
+ * saved by this same transaction is not: it was written a moment ago, filed
+ * nowhere, and dating it again would make it look changed since it was created.
+ *
+ * The conflict target is the membership's own key, named on purpose. A bare
+ * `ON CONFLICT DO NOTHING` would also swallow the one-vibe index, and a core left
+ * unfiled that way is only caught at commit, by the deferred core key, as a
+ * database error instead of a sentence.
  */
 async function fileCore(
   sql: Transaction,
   owner: string,
-  vibeId: string,
+  vibe: Reference,
   core: Core,
 ): Promise<boolean> {
+  const elsewhere = (await anchoredBy(sql, owner, core.id)).filter((one) => one.id !== vibe.id);
+  if (elsewhere.length) {
+    throw movieAnchorsVibe(core.handle.title, core.handle.year, filingNames(elsewhere), "anchor", vibe.name);
+  }
+
+  await sql.query(
+    `DELETE FROM tonight_mix_movies WHERE user_id = $1 AND movie_id = $2 AND mix_id <> $3`,
+    [owner, core.id, vibe.id],
+  );
+
   const added = await sql.query(
     `INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id) VALUES ($1, $2, $3)
-     ON CONFLICT DO NOTHING
+     ON CONFLICT (user_id, mix_id, movie_id) DO NOTHING
      RETURNING movie_id`,
-    [owner, vibeId, core.id],
+    [owner, vibe.id, core.id],
   );
   if (added.length && !core.saved) {
     await sql.query(
@@ -1472,6 +1526,12 @@ async function lockMovies(
  * The twin of `resolveGenres`: both sides folded by the database in one round
  * trip, duplicates collapsed on the database's key rather than the caller's
  * spelling, and what comes back is the **stored** name with the id beside it.
+ *
+ * Then held to one: a film is in one vibe at most. Counted here, after the
+ * collapse, because only the database can say that two spellings are one vibe —
+ * `["Quiet Dread", "quiet dread"]` names one and is not refused. Every filing of
+ * a movie comes through here, before anything is written; the unique index on
+ * the membership table is the backstop behind it.
  */
 async function resolveVibes(
   sql: Transaction,
@@ -1493,6 +1553,7 @@ async function resolveVibes(
     taken.add(key);
     resolved.push({ id: vibe.id, name: vibe.name });
   }
+  if (resolved.length > 1) throw movieOneVibe(resolved.map((vibe) => vibe.name));
   return resolved;
 }
 

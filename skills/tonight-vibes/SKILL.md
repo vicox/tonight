@@ -33,8 +33,13 @@ any number of further films.
   and it is anchored only when somebody chooses its core — see *Going through their Vibes*.
 
 **How well a film fits is a judgement, never a number.** The core fits its Vibe wholly. A further
-film fits it well enough to belong there on its own. A film that only partly fits sits in a Vibe
-only beside another it fits well or anchors; a film that does not meaningfully fit is not added.
+film fits it well enough to belong there on its own. A film that only partly fits is not added,
+and neither is a film that does not meaningfully fit.
+
+**A film is in one Vibe at most** — the one evening it stands for. Two Vibes that share a Genre
+are still two evenings, so **a Genre a film shares with a Vibe never puts it there**: it belongs
+where it fits the Vibe's instruction, read with its Genres' instructions. Moving a film to another
+Vibe takes it out of the one it was in, so it is offered as a move, and written only on their yes.
 
 ### What may be a core
 
@@ -72,8 +77,10 @@ checks that saved fact alone:
 - **Never change a viewing to get past the refusal** — not on the strength of a verdict, and not
   because they asked for the anchor. A viewing is written only when they said it.
 
-One film may anchor two Vibes. That is allowed, and it is worth noticing: two Vibes held in place
-by the same film may be one evening described twice.
+A film anchors one Vibe at most, because it is in one. Anchoring a Vibe on a film filed in another
+moves the film into the Vibe it now anchors — say so when you tell them what was written. A film
+that already anchors another Vibe is refused: that Vibe needs another core first, and choosing it
+is theirs.
 
 ### One idea, said three ways
 
@@ -135,7 +142,7 @@ A bare liked or loved, a reason, or when and how it worked for them — however 
 statement about how a film worked for them is **a verdict first**, and only then a
 question about their Vibes. **`record_verdict` comes first, in the turn they say it, before
 anything else — even for a film you can see is in no Vibe**, as **tonight-recommend** says. A
-liked or loved is kept only for a film in at least one of their Vibes — the Vibe is what says why
+liked or loved is kept only for a film in one of their Vibes — the Vibe is what says why
 it worked — so for a film in none that call answers `vibe_required`, and the verdict is saved once
 the film is filed: never by filing it first.
 
@@ -186,7 +193,7 @@ the film is filed: never by filing it first.
 
 ### When a liked or loved needs a Vibe
 
-`record_verdict` keeps a liked or loved only for a film filed in at least one of their Vibes. For
+`record_verdict` keeps a liked or loved only for a film filed in one of their Vibes. For
 a film in none — not saved at all, or saved and filed nowhere — **nothing is written**, and the
 answer is `reason: "vibe_required"`, with `retry` (the same call, with their words and how they
 said it) and `next`. **Until the film is filed, the verdict is not saved, so never say it is.**
@@ -219,7 +226,7 @@ make clear which they chose is asked about once, before anything is written.
 
 **When both make sense.** If the film only partly fits a Vibe, and both a minimal change to it and
 a new Vibe would make sense, offer both in the one offer: the exact new wording, as 2 says, and a new
-Vibe as 3 offers one — anchored on the film, which then also goes in the Vibe it partly fits. Say
+Vibe as 3 offers one — anchored on the film, which then is in that new Vibe alone. Say
 in one line which you would choose and why, and let them choose; a reply that does not make clear
 which they chose is asked about once, before anything is written. A film that fits well is
 proposed for filing, as 1 says, with its two alternatives and no new wording.
@@ -247,9 +254,9 @@ A new user's first films keep the offer their own section gives them.
 On their yes, write exactly what they agreed, as *Writing what they agreed* says, then call
 `record_verdict` again with `retry.arguments`, then say in one short sentence what was saved. A
 film not saved yet is filed by `create_vibe` with it as core and its `core.viewing`, or by
-`create_movie` with `viewing` `seen-now` or `seen-before` and its Vibes — liking it says they
+`create_movie` with `viewing` `seen-now` or `seen-before` and its Vibe — liking it says they
 watched it, not when, so when they did not say, that question goes into the one you put about the
-Vibe; a saved one by `update_movie` with its Vibes. **A yes that does not say when is them not
+Vibe; a saved one by `update_movie` with its Vibe. **A yes that does not say when is them not
 saying**: if nothing they said in this conversation placed it either, the film is written
 `seen-before` with it — timing they did give stands, and a seen viewing already stored is kept —
 and when is never asked again. On a no, or a change of subject, the liked or loved stays unsaved: say so once, and write
@@ -265,8 +272,9 @@ kind, offer nothing: say once that a liked is kept only with a Vibe, and leave i
 After a positive verdict that was kept — the film is already in a Vibe — read the model and
 decide what, if anything, is worth offering:
 
-- **A further film in a Vibe whose instruction it fits** — one Vibe, or several. A partial yes
-  writes exactly the part that was agreed.
+- **A move to a Vibe whose instruction it fits better** than the one it is in — never because the
+  two share a Genre. A film is in one Vibe, so a move takes it out of the one it is in, and is
+  offered as that. A partial yes writes exactly the part that was agreed.
 - **A new core for a Vibe**, only when this film embodies the instruction better than the current
   one, and named against it: the film that anchors it now, why this one is closer to what it
   means, and that the current one stays in it.
@@ -277,7 +285,9 @@ decide what, if anything, is worth offering:
   loved needs a Vibe* does: one recommended new Vibe and two meaningfully different alternatives,
   three different evenings the film could stand for, not three names for one idea. Where a
   minimal change to the Vibe it is in would hold that evening too — one its core still fits wholly
-  — offer both, as *When both make sense* says; the film stays in that Vibe either way.
+  — offer both, as *When both make sense* says. A film is in one Vibe, so the new Vibe anchored on
+  it takes it out of the Vibe it is in: say so in the offer. A film that anchors the Vibe it is in
+  cannot anchor a new one — that Vibe would be left without its core — so offer no new Vibe on it.
 
 When nothing fits, stop and say nothing more about it. Most verdicts end there, and that is fine.
 
@@ -318,10 +328,12 @@ not happen.
      the core, and saves it first if it is not saved yet.
    - **a new core, or a first one** — `update_vibe` with the core. The film it replaces stays in
      the Vibe.
-3. Further films — `update_movie` with the Vibes it is in now plus the agreed ones, or
-   `create_movie` for a film that is not saved yet. That includes the new core when it also
-   belongs to a Vibe they have: its `update_movie` lists the new Vibe and that one — the list
-   replaces what was there, so a Vibe left out of it is a Vibe the film leaves.
+
+   Either way the core is filed in that Vibe alone: one filed in another Vibe is moved out of it
+   by the same call, and nothing more is written for it. One that anchors another Vibe is refused.
+3. Further films — `update_movie` with the one agreed Vibe, or `create_movie` for a film that is
+   not saved yet. A film is in one Vibe at most, so the list names one, and for a film filed
+   elsewhere it is a move out of the Vibe it was in — agreed as a move.
 4. Every liked or loved that was answered `vibe_required` — `record_verdict` again with its
    `retry.arguments`, now that its film is filed.
 5. One short sentence saying what was written.
@@ -435,11 +447,12 @@ Then, Vibe by Vibe, each item an offer and nothing written without a yes:
 2. **Weak** — no films, or none they spoke for. Say so plainly, and offer: anchor it on a film they
    name, merge it, delete it, or leave it as it is for now.
 3. **Overlap** — two Vibes whose instructions, Genres and cores describe one evening. A merge is an
-   agreed sequence of ordinary writes: agree which Vibe stays; move the films with `update_movie`;
-   change the surviving sentence only to words they give you; delete the other with
-   `delete_vibe` — films first, because it refuses to leave a liked or loved film in no Vibe.
-   There is no merge tool, and the sequence is not atomic — if a step fails, say exactly where it
-   stopped.
+   agreed sequence of ordinary writes: agree which Vibe stays; change the surviving sentence only
+   to words they give you; delete the other with `delete_vibe` and `move_to` naming the one that
+   stays, which moves every film in it there — its core included, as an ordinary film — in the
+   same write. Without `move_to` it refuses to leave a liked or loved film in no Vibe, and a core
+   cannot leave its Vibe any other way. There is no merge tool, and the sequence is not atomic —
+   if a step fails, say exactly where it stopped.
 4. **Films in no Vibe.** One with a standing positive verdict is considered like new positive
    evidence. One without is left alone and not mentioned.
 

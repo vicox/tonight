@@ -357,10 +357,11 @@ test("an authenticated client can call the tool", async () => {
   const info = await getServerInfo(await accessToken());
 
   assert.equal(info.name, "Tonight");
-  // 0.4.0 since `seen` became `seen-now` and `seen-before` (0.3.0 was
-  // `check_candidates` joining the surface, 0.2.0 M9 reshaping the episode
-  // tools): a host comparing versions sees that its cached definitions are stale.
-  assert.equal(info.version, "0.4.0");
+  // 0.5.0 since a film is in one vibe at most (0.4.0 was `seen` becoming
+  // `seen-now` and `seen-before`, 0.3.0 `check_candidates` joining the surface,
+  // 0.2.0 M9 reshaping the episode tools): a host comparing versions sees that
+  // its cached definitions are stale.
+  assert.equal(info.version, "0.5.0");
   assert.equal(info.authenticated, true);
   assert.ok(info.user, "a reference to the caller is returned");
 });

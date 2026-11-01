@@ -52,7 +52,9 @@ export type GenreChanges = { name?: unknown; instruction?: unknown };
  * `core` is required: the film that best embodies the vibe, by title and year. It
  * is filed in the vibe by the same write, and saved first if it is not saved yet —
  * as its optional `viewing`, `seen-now` or `seen-before`, and `seen-before`
- * without one. A saved film keeps its own viewing.
+ * without one. A saved film keeps its own viewing. A film is in one vibe at most,
+ * so one filed in another vibe is moved into this one — and one that is another
+ * vibe's core is refused, since that vibe would be left without it.
  */
 export type VibeDraft = { name: unknown; instruction: unknown; genres: unknown; core: unknown };
 
@@ -65,7 +67,9 @@ export type VibeDraft = { name: unknown; instruction: unknown; genres: unknown; 
  *
  * Passing `core` anchors the vibe on that film — a pre-M5 vibe for the first
  * time, or any vibe on a better embodiment. The film it replaces stays in the
- * vibe. It cannot be passed as `null`: a core is replaced, never cleared.
+ * vibe. It cannot be passed as `null`: a core is replaced, never cleared. A film
+ * filed in another vibe is moved here, and another vibe's core is refused, as on
+ * create.
  */
 export type VibeChanges = {
   name?: unknown;
@@ -98,6 +102,8 @@ export type MovieDraft = {
  *
  * Passing `vibes` replaces the filing exactly, `[]` included. Omitting it leaves
  * the relation rows untouched: not re-derived, not re-resolved, not rewritten.
+ * A film is in one vibe at most, so the list names none or one — the same on
+ * create — and naming another moves the film there.
  */
 export type MovieChanges = {
   title?: unknown;
@@ -111,8 +117,8 @@ export type MovieChanges = {
  * How a caller asks a write to keep every film they like or love in a vibe.
  *
  * With `positiveNeedsVibe`, `updateMovie` refuses to take a film with a standing
- * liked or loved out of its last vibe, and `deleteVibe` refuses to delete the
- * last vibe of one. Decided inside the write's transaction, while the films are
+ * liked or loved out of its vibe, and `deleteVibe` refuses to delete the vibe of
+ * one. Decided inside the write's transaction, while the films are
  * held. Only the MCP server passes it — the website's one write never files,
  * unfiles or deletes — and a caller that leaves it out gets these writes exactly
  * as they always were.
@@ -139,10 +145,16 @@ export type TasteStore = {
   updateVibe(name: string, changes: VibeChanges): Promise<Vibe>;
   /**
    * Removes a vibe. Allowed whenever nothing is built from it — which is always —
-   * unless `positiveNeedsVibe` is passed and it is the last vibe of a film they
-   * like or love.
+   * unless `positiveNeedsVibe` is passed and it holds a film they like or love.
+   *
+   * With `into`, every film in it is moved into that vibe first, in the same
+   * transaction — its core too, as an ordinary film there — so none is left in no
+   * vibe and the rule has nothing to refuse. It is the only way a core leaves its
+   * vibe: a film is in one vibe at most and a core cannot leave the one it
+   * anchors, so without it a vibe anchored on a film they like or love could
+   * never be deleted.
    */
-  deleteVibe(name: string, options?: KeepFiled): Promise<Vibe>;
+  deleteVibe(name: string, options?: KeepFiled & { into?: string }): Promise<Vibe>;
 
   createMovie(draft: MovieDraft): Promise<Movie>;
   /**
@@ -150,9 +162,9 @@ export type TasteStore = {
    *
    * Changing either leaves the object it is: the filings point at an id, so a
    * retitled movie is still in the same vibes and no relation row is written.
-   * A new filing that leaves out a vibe this movie is the core of is refused, and
-   * so — with `positiveNeedsVibe` — is an empty filing for a film that is filed
-   * now and has a standing liked or loved.
+   * A filing naming more than one vibe is refused, as is one that leaves out the
+   * vibe this movie is the core of, and so — with `positiveNeedsVibe` — is an
+   * empty filing for a film that is filed now and has a standing liked or loved.
    */
   updateMovie(title: string, year: number, changes: MovieChanges, options?: KeepFiled): Promise<Movie>;
   /**
@@ -166,8 +178,9 @@ export type TasteStore = {
   deleteMovie(title: string, year: number): Promise<Movie>;
 
   /**
-   * Writes a liked or loved verdict, only while its film is filed in at least
-   * one vibe; otherwise refuses with `VibeRequired` and writes nothing.
+   * Writes a liked or loved verdict, only while its film is filed in a vibe —
+   * exactly one, since no film is in more; otherwise refuses with `VibeRequired`
+   * and writes nothing.
    *
    * Here rather than on the verdict store because the question is the taste
    * model's: whether a film is filed. The film is held `FOR SHARE` and the act
@@ -219,7 +232,7 @@ export type HeldFilm = {
   viewing: Viewing;
   /** The standing judgement, or `null` when nothing stands. */
   judgement: Judgement | null;
-  /** Whether it is in at least one vibe. */
+  /** Whether it is in a vibe. */
   filed: boolean;
   /** Whether a vibe is anchored on it. */
   core: boolean;
