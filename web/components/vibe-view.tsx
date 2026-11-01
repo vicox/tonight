@@ -14,8 +14,7 @@ import type { Shown } from "@/lib/web/judgements";
  *
  * The films are the Stream's own cards — the same component, so a film looks the
  * same in both places. Each opens the film's screen with this vibe as its context
- * — the vibe it was reached through, rather than one of several it may also be
- * in.
+ * — the vibe it was reached through, which is the one it is in.
  *
  * Nothing here changes the vibe, its genres or its films; that is said to an
  * assistant. So the heading has nothing beside it.

@@ -120,8 +120,12 @@ check "and what never may" \
         'never' 'one they said they have not seen' 'disliked or do not want recommended')" "True"
 check "nothing in Tonight checks it, so the choice is yours" \
     "$(order_check 'nothing in Tonight checks it' 'choosing' 'the right one is yours')" "True"
-check "one film anchoring two Vibes is allowed and worth noticing" \
-    "$(order_check 'One film may anchor two Vibes' 'one evening described twice')" "True"
+check "a film anchors one Vibe at most; anchoring moves it, and another Vibe's core is refused" \
+    "$(order_check 'A film anchors one Vibe at most, because it is in one' \
+        'moves the film into the Vibe it now anchors — say so' \
+        'A film that already anchors another Vibe is refused')" "True"
+check "one film anchoring two Vibes is gone" \
+    "$(grep -ciE 'may anchor two Vibes|one evening described twice' "$SKILL")" "0"
 
 echo
 echo "--- one idea, said three ways ---"
@@ -234,9 +238,12 @@ check "a partial yes writes exactly the agreed part" \
 echo
 echo "--- what to consider, and the asking budget ---"
 
-check "membership in one Vibe or several, and a partial yes writes the agreed part" \
-    "$(order_check 'A further film in a Vibe whose instruction it fits' \
-        'one Vibe, or several' 'A partial yes' 'writes exactly the part that was agreed')" "True"
+check "a kept film moves only to a Vibe it fits better, never for a shared Genre, offered as a move" \
+    "$(order_check '**A move to a Vibe whose instruction it fits better**' \
+        'never because the two share a Genre' 'a move takes it out of the one it is in' \
+        'A partial yes' 'writes exactly the part that was agreed')" "True"
+check "membership in several Vibes is gone" \
+    "$(grep -ciE 'one Vibe, or several' "$SKILL")" "0"
 check "a new core only when it embodies the instruction better, named against the old one" \
     "$(order_check '**A new core for a Vibe**' \
         'embodies the instruction better than the current' 'named against it' \
@@ -299,22 +306,28 @@ check "otherwise one recommended Vibe and two meaningfully different alternative
         'read' 'from the film itself, their Vibes and what they have liked, and from anything they said about' \
         'with this' 'film as its core' 'Their pick says which evening it is for them')" "True"
 # §20: the fit model, said as judgement and never as a number; a rewording keeps its core.
-check "how well a film fits: core wholly, a member on its own, a partial one only beside a home" \
+check "how well a film fits: core wholly, a member on its own, a partial one not at all" \
     "$(order_check '**How well a film fits is a judgement, never a number.**' \
         'The core fits its Vibe wholly' 'A further film fits it well enough to belong there on its own' \
-        'A film that only partly fits sits in a Vibe only beside another it fits well or anchors' \
-        'a film that does not meaningfully fit is not added')" "True"
+        'A film that only partly fits is not added' \
+        'neither is a film that does not meaningfully fit')" "True"
+check "a film is in one Vibe at most, and a shared Genre never puts it there" \
+    "$(order_check '**A film is in one Vibe at most**' \
+        'Two Vibes that share a Genre are still two evenings' \
+        '**a Genre a film shares with a Vibe never puts it there**' \
+        "it fits the Vibe's instruction" \
+        'so it is offered as a move, and written only on their yes')" "True"
 check "fit is never scored" \
     "$(grep -ciE '[0-9] ?%|percent|fit score|scored fit' "$SKILL")" "0"
 check "a minimal change keeps its core fitting wholly" \
     "$(order_check '2. **A minimal change' 'the smallest change that covers it, and one its core still fits wholly')" "True"
 # §20: where both a rewording and a new Vibe make sense, both — one recommended in a line, their
-# choice, nothing written first; the film keeps the Vibe it partly fits when they take the new one.
+# choice, nothing written first; a film is in one Vibe, so the new one holds it alone.
 check "when both make sense: both in one offer, one recommended in a line, they choose" \
     "$(order_check '**When both make sense.**' 'If the film only partly fits a Vibe' \
         'both a minimal change to it and' 'a new Vibe would make sense, offer both in the one offer' \
         'the exact new wording, as 2 says, and a new' 'Vibe as 3 offers one' \
-        'which then also goes in the Vibe it partly fits' \
+        'which then is in that new Vibe alone' \
         'Say in one line which you would choose and why, and let them choose' \
         'a reply that does not make clear which they chose is asked about once, before anything is written' \
         'A film that fits well is proposed for filing, as 1 says, with its two alternatives and no new wording')" "True"
@@ -385,10 +398,15 @@ check "a kept one's new Vibe is offered as step 3 offers one" \
 check "a kept one's two alternatives are other evenings, not other names for one idea" \
     "$(order_check 'Offer it as step 3 of *When a liked or' \
         'three different evenings the film could stand for, not three names for one idea')" "True"
-check "a kept one: both where a new wording of its Vibe would hold that evening too, and it stays there" \
+check "a kept one: both where a new wording of its Vibe would hold that evening too; a new Vibe moves it" \
     "$(order_check 'not three names for one idea' \
         'minimal change to the Vibe it is in would hold that evening too — one its core still fits wholly' \
-        '— offer both, as *When both make sense* says; the film stays in that Vibe either way')" "True"
+        '— offer both, as *When both make sense* says' \
+        'the new Vibe anchored on it takes it out of the Vibe it is in: say so in the offer' \
+        'A film that anchors the Vibe it is in cannot anchor a new one' \
+        'so offer no new Vibe on it')" "True"
+check "a kept film no longer stays in its Vibe whatever is chosen" \
+    "$(grep -ciE 'stays in that Vibe either way' "$SKILL")" "0"
 check "none of the hypothesis, title or ranking machinery is back" \
     "$(grep -ciE 'three hypotheses|chosen by title|my pick|titles lead|facet|ranks them|subject of their reason|readings of their words|beside 1' "$SKILL")" "0"
 # The skill names no film, Vibe or Genre from the evaluation's scenarios, or any other —
@@ -411,9 +429,11 @@ check "writing what they agreed ends by recording each refused verdict again" \
         'Every liked or loved that was answered `vibe_required`' \
         '`retry.arguments`, now that its film is filed' \
         'One short sentence saying what was written')" "True"
-check "a merge moves its films before it deletes" \
-    "$(order_check '**Overlap**' 'move the films with `update_movie`' \
-        'films first, because it refuses to leave a liked or loved film in no Vibe')" "True"
+check "a merge deletes into the Vibe that stays, which moves every film, the core included" \
+    "$(order_check '**Overlap**' 'delete the other with `delete_vibe` and `move_to` naming the one that' \
+        'which moves every film in it there — its core included, as an ordinary film — in the' \
+        'Without `move_to` it refuses to leave a liked or loved film in no Vibe' \
+        'a core cannot leave its Vibe any other way')" "True"
 check "asking has a budget: one offer, one new Vibe, no re-offer, no nagging" \
     "$(order_check '**Asking has a budget.**' 'At most one offer per statement' \
         'at most one new Vibe in it' 'is not offered again in this conversation' 'Never nag')" "True"
@@ -454,7 +474,7 @@ check "the write order: Genres, then the Vibe with its core or a core change, th
     "$(order_check '`create_genre` for any new Genre' \
         '`create_vibe` with its name, instruction, Genres and **core**' \
         '`update_vibe` with the core. The film it replaces stays' \
-        '`update_movie` with the Vibes it is in now plus the agreed ones' \
+        '`update_movie` with the one agreed Vibe' \
         'One short sentence saying what was written')" "True"
 check "what is never written" \
     "$(order_check '**Never written:**' 'a film you named only as an illustration' \
@@ -462,12 +482,18 @@ check "what is never written" \
         'an occasion, daypart or attention field anywhere' \
         'a Vibe, a' 'membership or a core without their yes' \
         'any record that a Vibe offer was made or turned down')" "True"
-# §17: kept from the live runs — a new core already in a Vibe stays there, because the list
-# update_movie is given replaces the one it had.
-check "a new core that is also in a Vibe of theirs keeps it: the list replaces what was there" \
-    "$(order_check '3. Further films — `update_movie` with the Vibes it is in now plus the agreed ones' \
-        'That includes the new core when it also belongs to a Vibe they have' \
-        'the list replaces what was there, so a Vibe left out of it is a Vibe the film leaves')" "True"
+# One Vibe per film: a new core is filed in its Vibe alone, moved from any other by the call that
+# anchors it, and a further film's list names one Vibe — the dual-membership write is gone.
+check "a core is filed in its Vibe alone, moved by the anchoring call, and another Vibe's core is refused" \
+    "$(order_check 'Either way the core is filed in that Vibe alone' \
+        'one filed in another Vibe is moved out of it' 'by the same call, and nothing more is written for it' \
+        'One that anchors another Vibe is refused')" "True"
+check "a further film is filed in one Vibe, and filing one filed elsewhere is an agreed move" \
+    "$(order_check '3. Further films — `update_movie` with the one agreed Vibe' \
+        'A film is in one Vibe at most, so the list names one' \
+        'it is a move out of the Vibe it was in — agreed as a move')" "True"
+check "no write lists a film in a new Vibe and the one it was in" \
+    "$(grep -ciE 'lists the new Vibe and that one|the Vibes it is in now plus the agreed ones' "$SKILL")" "0"
 check "the table includes the opt-out and the not-tonight" \
     "$(order_check 'They liked it, and want no more of the kind' 'they declined more of the kind' \
         'They turn it down for one evening, with a reason' 'nothing about Vibes')" "True"
@@ -664,7 +690,7 @@ check "a liked or loved does not override the list: ask once, and write only on 
         'On a no, or no answer, write nothing')" "True"
 check "filing a liked film not saved yet: when is asked inside the Vibe's question" \
     "$(order_check 'filed by `create_vibe` with it as core and its `core.viewing`' \
-        '`create_movie` with `viewing` `seen-now` or `seen-before` and its Vibes' \
+        '`create_movie` with `viewing` `seen-now` or `seen-before` and its Vibe' \
         'liking it says they watched it, not when' \
         'that question goes into the one you put about the Vibe')" "True"
 check "no bare seen is written anywhere in the skill" \

@@ -3,7 +3,7 @@
   "user": "google:eval-m5-06-bloom-saved",
   "title": "The same model, with the liked film already kept on that Vibe as a film they wanted to see",
   "exists_for": ["hypotheses", "title-pick", "in-the-moment-capture", "kept-path"],
-  "construction_note": "docs/work/vibe-hypotheses. m5-05's model, with The Brothers Bloom saved earlier as want-to-see and filed in Champagne & Blueprints, with nothing said about it. A liked said now is kept at once — the film is filed — and says they watched it, so its viewing moves to seen-before in that turn (nothing places it recently). The offer is then only about a new Vibe, which a pick anchors on Bloom while it stays in Champagne & Blueprints.",
+  "construction_note": "docs/work/vibe-hypotheses. m5-05's model, with The Brothers Bloom saved earlier as want-to-see and filed in Champagne & Blueprints, with nothing said about it. A liked said now is kept at once — the film is filed — and says they watched it, so its viewing moves to seen-before in that turn (nothing places it recently). The offer is then only about a new Vibe, which a pick anchors on Bloom — moving it out of Champagne & Blueprints, since a film is in one Vibe at most.",
   "writes": true,
   "model": {
     "genres": [

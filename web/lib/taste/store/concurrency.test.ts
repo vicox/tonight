@@ -1133,7 +1133,7 @@ describe("two connections", { skip: URL ? false : "TEST_DATABASE_URL is not set"
     await unfile.done;
     assert.equal(save.state.error, undefined);
     assert.ok(unfile.state.error instanceof TasteError, "the unfiling was not refused");
-    assert.match((unfile.state.error as Error).message, /is loved, and a film they like or love stays in at least one vibe/);
+    assert.match((unfile.state.error as Error).message, /is loved, and a film they like or love stays in a vibe/);
     assert.deepEqual(await outcome(unfiling, owner), { vibes: ["Space Tension"], standing: ["loved"] });
   });
 

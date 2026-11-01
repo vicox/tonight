@@ -51,7 +51,8 @@ import { isPositive, type Judgement } from "../verdicts/model.ts";
  * ## What is refused, and why
  *
  * - *Love it* or *Like it* for a film in none of their vibes: a liked or loved
- *   film belongs to at least one vibe (Vibe Evolution), and the store refuses it.
+ *   film belongs to a vibe — one, since no film is in more — and the store
+ *   refuses it.
  * - *Want to see* or *Not interested* for a film a vibe is anchored on: a core is
  *   a film they have seen, and the store refuses to mark it anything else. It may
  *   move between *Seen now* and *Seen before*, and keeps its seen value under an
@@ -174,7 +175,7 @@ export function writeFor(outcome: Exclude<Outcome, { refused: Refusal }>): FilmW
 export function refusalSentence(refusal: Refusal): string {
   switch (refusal) {
     case "vibe-required":
-      return "Love it and Like it are kept for a film in at least one of your vibes. Ask your assistant to put this one in a vibe first — nothing was saved.";
+      return "Love it and Like it are kept for a film in one of your vibes. Ask your assistant to put this one in a vibe first — nothing was saved.";
     case "core":
       return "A vibe is anchored on this film, so it stays seen — now or before. Ask your assistant to anchor the vibe on another film first — nothing was saved.";
     case "failed":

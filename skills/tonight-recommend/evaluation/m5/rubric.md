@@ -68,7 +68,7 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | explicit-positive | `loved`, no invented `because`; plugin: a new Vibe only where the film points to an evening none of theirs holds, and nobody is asked why |
 | contextual-positive, background | `liked`, `because` = their clause verbatim; no occasion, daypart or attention claim anywhere; plugin: one offer at most — an existing Vibe whose instruction covers it, or one new Vibe anchored on the film |
 | reason-led | `liked` (not `loved`), `because` verbatim; plugin: the dialogue Vibe considered |
-| several-vibes | plugin: one offer may name both fitting Vibes; a partial yes writes exactly the agreed part |
+| several-vibes | plugin: a film is in one Vibe, so the offer names the one whose instruction it fits best — never both, and never one it only shares a Genre with; a partial yes writes exactly the agreed part |
 | unfiled-positive | plugin: Hit Man considered like new evidence; Wingwomen never mentioned |
 | opt-out | `liked` + `because`; **no offer of any kind** |
 | lukewarm | nothing written unless one light question settled it |
@@ -115,8 +115,9 @@ never a FAIL of what it would have shown.
    core. Filing offered alone, or beside a bare *"or I can make a new one"*, fails; whether the fit
    is full or partial is the agent's judgement, never a number.
    **Where both make sense, both** — the new wording and a new Vibe as one recommended and two
-   alternatives, with Bloom also in Champagne & Blueprints — one recommended in a line, and their
-   choice. A new Vibe with no filing in Champagne & Blueprints, or a Genre on its own, fails.
+   alternatives — one recommended in a line, and their choice. A film is in one Vibe, so a new
+   Vibe holds Bloom alone: an offer that would also keep Bloom in Champagne & Blueprints, or a
+   Genre on its own, fails.
 4. **The question about when**, at most once, inside the offer.
 5. **No apology.** `vibe_required` is the expected answer: the reply apologises for nothing and
    reports no error.
@@ -135,7 +136,9 @@ never a FAIL of what it would have shown.
    the film points to an evening Champagne & Blueprints does not hold, what they said about it
    included. Three different evenings the film could stand for, not three names for one idea;
    each a name, a sentence and its Genres — any new Genre's meaning shown — with Bloom as its
-   core, and nobody asked why. **Where a minimal new wording of Champagne & Blueprints would hold
+   core, and nobody asked why. A film is in one Vibe, so a new Vibe anchored on Bloom takes it out
+   of Champagne & Blueprints, and the offer says so; an offer that would keep it in both fails.
+   **Where a minimal new wording of Champagne & Blueprints would hold
    that evening too, both** — that wording, one Ocean's Eleven still
    fits wholly, beside the new Vibe — one recommended in a line, and their choice. A new wording
    alone, or a Genre on its own, is not this offer. No such offer is a FAIL of K1.3 on its
@@ -150,7 +153,9 @@ never a FAIL of what it would have shown.
 - What they agreed is written as it was shown, and only the Vibe they picked, with the Genres it
   needed. A new wording they chose is written with `update_vibe`, and the core still fits it
   wholly.
-- **The overlap is kept.** Bloom stays in Champagne & Blueprints.
+- **A film is in one Vibe.** A picked new Vibe holds Bloom alone: `create_vibe` with Bloom as its
+  core moves it out of Champagne & Blueprints, and nothing files it back there. A pick of
+  Champagne & Blueprints, or of its new wording, leaves Bloom there. Bloom in two Vibes fails.
 - **A yes or a pick that did not say when** — with nothing earlier in the conversation placing it
   — writes `seen-before`. Timing they did give stands, and a seen viewing already stored is kept.
   Either way, **the question about when is not asked again**.

@@ -224,7 +224,7 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
     ["the offer said briefly, on the kept path", /5\. \*\*Said briefly, in their terms\*\*, as T1\.6 says\./],
     // §20: where both make sense, both — one recommended in a line, their choice — and the
     // core still fits a new wording wholly.
-    ["both where both make sense, on T1", /\*\*Where both make sense, both\*\*[^]*one recommended in a line, and their\s+choice\. A new Vibe with no filing in Champagne & Blueprints, or a Genre on its own, fails/],
+    ["both where both make sense, on T1", /\*\*Where both make sense, both\*\*[^]*one recommended in a line, and their choice\. A film is in one Vibe, so a new\s+Vibe holds Bloom alone: an offer that would also keep Bloom in Champagne & Blueprints, or a\s+Genre on its own, fails/],
     ["both on the kept path, the core still fitting", /\*\*Where a minimal new wording of Champagne & Blueprints would hold\s+that evening too, both\*\*[^]*one Ocean's Eleven still\s+fits wholly/],
     // Code review: a plain yes takes the recommendation only when it clearly did.
     ["a yes to alternatives is clear, or asked about", /with alternatives offered, the recommended one only if the yes clearly took it, and otherwise one question about which before anything is written/],
@@ -239,11 +239,15 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
     ["no offer is a K1 failure, not a missed consideration", /No such offer is a FAIL of K1\.3 on its\s+own[^]*never a `stopped_after_record: yes`/],
     ["no second question about when", /\*\*the question about when is not asked again\*\*/],
     ["want-to-see moved at once", /\*\*before the offer and\s+without asking first\*\*/],
-    ["the overlap kept", /\*\*The overlap is kept\.\*\*/],
+    // One Vibe per film: a new Vibe anchored on Bloom moves it, on the kept path and after a pick.
+    ["a new Vibe on the kept path moves Bloom, and says so", /with Bloom as its\s+core, and nobody asked why\. A film is in one Vibe, so a new Vibe anchored on Bloom takes it out\s+of Champagne & Blueprints, and the offer says so; an offer that would keep it in both fails/],
+    ["a film in one Vibe after a pick", /\*\*A film is in one Vibe\.\*\* A picked new Vibe holds Bloom alone[^]*Bloom in two Vibes fails\./],
     ["nothing after a decline", /### After a decline\s+Nothing is written after it\./],
   ] as const) {
     assert.match(rubric, criterion, `the rubric does not score ${what}`);
   }
+  // Nor is Bloom kept in two Vibes: a film is in one at most.
+  assert.doesNotMatch(rubric, /overlap is kept|stays in Champagne & Blueprints|also in Champagne & Blueprints|no filing in Champagne/u);
   // None of the reverted hypothesis criteria is scored any more.
   assert.doesNotMatch(rubric, /three hypotheses|facet|ranked by the verdict|word for\s+word|numbered bold-title/iu);
   // A pick the runner cannot read is its own limit, not evidence about the agent.

@@ -46,7 +46,7 @@ export function MovieCards({
  *     ┌───────────────────────────────────────────┐
  *     │ 2021                          ♥ Loved     │   year · status
  *     │ Dune                                      │   the title, most of all
- *     │ ✨ Space Tension · Quiet Dread            │   every vibe it is in, its cores first
+ *     │ ✨ Space Tension                          │   the vibe it is in, if any
  *     └───────────────────────────────────────────┘
  *
  * A dark card, because each film is a thing of its own here and not a line in a
@@ -62,9 +62,9 @@ export function MovieCards({
  * vibe first, and the vibes it is only filed under after it: one line, every
  * name in the same violet, at the same size and after the same separator,
  * wrapping only where the card is too narrow for it. Only the order tells a
- * core apart. A film that is the core of two vibes names both first; one that
- * is the core of none names its vibes as it holds them. Which they are is
- * `coreFirst`'s, from every vibe's own core.
+ * core apart. A film is in one vibe at most now, so the line holds one name;
+ * the ordering is `coreFirst`'s, from every vibe's own core, and costs nothing
+ * to keep.
  *
  * ## One link over the whole card
  *

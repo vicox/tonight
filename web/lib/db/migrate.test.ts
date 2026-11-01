@@ -2077,6 +2077,164 @@ test("after v15 seen is refused, both new values are kept, and a write is stampe
   assert.notEqual(now!.updated_at, was!.updated_at, "an update after v15 was not stamped");
 });
 
+/* ----------------------------------------- v16: one vibe per film, at most */
+
+/**
+ * Vibes and their films as a v15 build could leave them, as raw rows: a film in
+ * any number of vibes, and each vibe's core when it has one. Returns the movie
+ * ids by title, for a test that has to write a filing of its own.
+ */
+async function v15Filings(
+  sql: SqlDriver,
+  user: string,
+  vibes: [name: string, films: string[], core: string | null][],
+): Promise<Map<string, string>> {
+  await migrate(sql, upTo(15));
+  const movies = new Map<string, string>();
+  for (const [name, films, core] of vibes) {
+    const [vibe] = await sql.query<{ id: string }>(
+      `INSERT INTO tonight_mixes (user_id, name, instruction) VALUES ($1, $2, 'what it is for') RETURNING id`,
+      [user, name],
+    );
+    for (const title of films) {
+      if (!movies.has(title)) {
+        const [movie] = await sql.query<{ id: string }>(
+          `INSERT INTO tonight_movies (user_id, title, canonical_title, year, viewing)
+           VALUES ($1, $2, lower($2), 2016, 'seen-before') RETURNING id`,
+          [user, title],
+        );
+        movies.set(title, movie!.id);
+      }
+      await sql.query(`INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id) VALUES ($1, $2, $3)`, [
+        user,
+        vibe!.id,
+        movies.get(title),
+      ]);
+    }
+    if (core !== null) {
+      await sql.query(`UPDATE tonight_mixes SET core_movie_id = $3 WHERE user_id = $1 AND id = $2`, [
+        user,
+        vibe!.id,
+        movies.get(core),
+      ]);
+    }
+  }
+  return movies;
+}
+
+test("v16 refuses while a film is in two vibes, names each and its core, and changes nothing", async () => {
+  const sql = await fresh();
+  await v15Filings(sql, ALICE, [
+    ["Space Tension", ["Heat", "Moon"], "Moon"],
+    ["Quiet Dread", ["Heat"], "Heat"],
+  ]);
+  await v15Filings(sql, "google:bob", [
+    ["Capers", ["Arrival"], null],
+    ["Heists", ["Arrival"], null],
+  ]);
+  const filings = `SELECT m.name, v.title FROM tonight_mix_movies AS r
+                     JOIN tonight_mixes AS m ON m.id = r.mix_id
+                     JOIN tonight_movies AS v ON v.id = r.movie_id
+                    ORDER BY m.name, v.title`;
+  const before = await sql.query(filings);
+
+  await assert.rejects(migrate(sql, TASTE_SCHEMA), (error: Error) => {
+    assert.match(error.message, /^A film is now in one vibe at most, and Tonight will not choose which for anybody/);
+    assert.match(error.message, /account google:alice: "Heat" \(2016\) is in "Quiet Dread", "Space Tension" and is the core of "Quiet Dread"/);
+    assert.match(error.message, /account google:bob: "Arrival" \(2016\) is in "Capers", "Heists"\n/);
+    assert.doesNotMatch(error.message, /"Moon"/, "a film in one vibe was named");
+    assert.match(error.message, /Nothing has been changed\.$/);
+    return true;
+  });
+
+  assert.deepEqual(await sql.query(filings), before, "a refused migration moved a filing");
+  assert.equal(await exists(sql, "tonight_mix_movies_one_vibe"), false);
+  assert.equal(await exists(sql, "tonight_mix_movies_movie_index"), true);
+  const [recorded] = await sql.query(
+    "SELECT version FROM schema_migrations WHERE module = 'taste' AND version = 16",
+  );
+  assert.equal(recorded, undefined, "a refused v16 was recorded as applied");
+});
+
+test("v16 holds a film to one vibe once each is resolved, and nothing else moves", async () => {
+  const sql = await fresh();
+  const movies = await v15Filings(sql, ALICE, [
+    ["Space Tension", ["Heat", "Moon"], "Moon"],
+    ["Quiet Dread", ["Heat"], "Heat"],
+  ]);
+  // Resolved the way the running build would: the film keeps the vibe it belongs in.
+  await sql.query(
+    `DELETE FROM tonight_mix_movies AS r USING tonight_mixes AS m
+      WHERE r.mix_id = m.id AND m.name = 'Space Tension' AND r.movie_id = $1`,
+    [movies.get("Heat")],
+  );
+  const shape = `SELECT title, viewing, created_at::text, updated_at::text FROM tonight_movies ORDER BY title`;
+  const before = await sql.query(shape);
+
+  await migrate(sql, TASTE_SCHEMA);
+
+  assert.equal(await exists(sql, "tonight_mix_movies_one_vibe"), true);
+  assert.equal(await exists(sql, "tonight_mix_movies_movie_index"), false, "the index it replaces was kept");
+  assert.deepEqual(await sql.query(shape), before, "adding an index changed a film");
+
+  // From here a second filing is refused by the database, whoever writes it.
+  const [quiet] = await sql.query<{ id: string }>(`SELECT id FROM tonight_mixes WHERE name = 'Quiet Dread'`);
+  await assert.rejects(
+    sql.query(`INSERT INTO tonight_mix_movies (user_id, mix_id, movie_id) VALUES ($1, $2, $3)`, [
+      ALICE,
+      quiet!.id,
+      movies.get("Moon"),
+    ]),
+    (error: unknown) => (error as { code?: string }).code === "23505",
+  );
+});
+
+test("v16 takes the one lock it needs first, and never upgrades it", async () => {
+  // One embedded database is one session, so the deadlock an upgrade invites —
+  // this holding SHARE and waiting for ACCESS EXCLUSIVE while a reader holds
+  // ACCESS SHARE and waits behind it for a write — cannot be staged here. What
+  // can be pinned is its cause: the lock the drop needs is the first thing the
+  // step does, it is held before anything is read, and no other lock is asked for.
+  const sql = await fresh();
+  await v15Filings(sql, ALICE, [["Space Tension", ["Heat"], "Heat"]]);
+
+  const statements: string[] = [];
+  let held: string[] = [];
+  const recording: SqlDriver = {
+    ...sql,
+    transaction: (work) =>
+      sql.transaction((tx) =>
+        work({
+          query: (text, params) => (statements.push(text), tx.query(text, params)),
+          exec: async (text) => {
+            statements.push(text);
+            await tx.exec(text);
+            if (/^LOCK TABLE tonight_mix_movies/u.test(text)) {
+              held = (
+                await tx.query<{ mode: string }>(
+                  `SELECT mode FROM pg_locks
+                    WHERE relation = 'tonight_mix_movies'::regclass AND granted
+                    ORDER BY mode`,
+                )
+              ).map((row) => row.mode);
+            }
+          },
+        }),
+      ),
+  };
+  await migrate(recording, TASTE_SCHEMA);
+
+  const locks = statements.filter((text) => /\bLOCK TABLE\b/u.test(text));
+  assert.deepEqual(locks, ["LOCK TABLE tonight_mix_movies IN ACCESS EXCLUSIVE MODE"]);
+  assert.deepEqual(held, ["AccessExclusiveLock"], "the lock was not held once it was asked for");
+
+  const lock = statements.indexOf(locks[0]!);
+  const look = statements.findIndex((text) => /FROM tonight_mix_movies/u.test(text));
+  const index = statements.findIndex((text) => /CREATE UNIQUE INDEX tonight_mix_movies_one_vibe/u.test(text));
+  assert.ok(lock >= 0 && lock < look && look < index, "the table was read or indexed before it was locked");
+  assert.equal(await exists(sql, "tonight_mix_movies_one_vibe"), true);
+});
+
 /* ---------------------------------- verdicts v3: refusals leave the verdicts */
 
 const BOB = "google:bob";

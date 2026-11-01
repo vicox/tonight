@@ -375,9 +375,12 @@ const movieViewing = z
 const movieVibes = z
   .array(z.string())
   .describe(
-    "The exact names of the user's vibes this film belongs to. They must already exist, and a " +
-      "film may be in none, one or several. Passing this replaces the whole list; an empty list " +
-      "takes the film out of every vibe — except one it is the core of, which it cannot leave.",
+    "The exact name of the user's vibe this film belongs to, as a list of one — or an empty " +
+      "list for none. A film is in one vibe at most, and a list naming two is refused. The vibe " +
+      "must already exist, and the film has to fit what its instruction says: a genre the film " +
+      "shares with a vibe never puts it there on its own. Passing this replaces what was there, " +
+      "so naming another vibe moves the film; an empty list takes it out of its vibe — except " +
+      "one it is the core of, which it cannot leave.",
   );
 
 const vibeCore = z
@@ -399,7 +402,10 @@ const vibeCore = z
       "film you only offered as an illustration, one they said they have not seen, one they " +
       "disliked, or one they do not want recommended. The core is filed in the vibe by this same call, and " +
       "saved first if it is not saved yet — as `viewing` says, seen-now or seen-before, or as " +
-      "seen-before without one — with nothing else about it.\n\n" +
+      "seen-before without one — with nothing else about it. A film is in one vibe at most, so a " +
+      "film filed in another vibe **moves** here and leaves that one — say so when you tell them " +
+      "what was written. A film that is already another vibe's core is refused: that vibe would " +
+      "be left without one, so it needs another core first.\n\n" +
       "Refused when the saved film's viewing is anything but `seen-now` or `seen-before` — a " +
       "liked or loved does not override it, and a viewing is changed only on their word, never " +
       "to get past this. A liked or loved they tell you now is their word that they watched it; " +
@@ -455,7 +461,9 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "listed by title and year, and `core` names the one that best embodies it — always one " +
         "of its films, or null on a vibe written before vibes were anchored to a film, which is " +
         "complete and usable as it is. Each film also appears once in movies, carrying its identity, " +
-        "where it is filed, and `viewing`: seen-now, seen-before, want-to-see or " +
+        "the vibe it is filed in — `vibes` holds one name or none, since a film is in one vibe at " +
+        "most — and `viewing`: " +
+        "seen-now, seen-before, want-to-see or " +
         "dont-want-to-see. A new user has " +
         "none of it, which is the normal state " +
         "rather than an error. It is context and the vocabulary to reuse when writing — not a " +
@@ -681,15 +689,28 @@ export function tonightMcpServer(session: McpSession): McpServer {
     {
       title: "Delete a vibe",
       description:
-        "Remove a vibe. Nothing is built from a vibe, so the one refusal is for a film they like " +
-        "or love that is in no other vibe: a liked or loved film stays in at least one, and the " +
-        "refusal names those films — move each into another vibe with `update_movie` first. " +
-        "Otherwise the genres it combined are left alone, as are its films, its core included.",
-      inputSchema: z.object({ name: vibeName }),
+        "Remove a vibe. Nothing is built from a vibe, so the one refusal is for a film in it they " +
+        "like or love: a film is in one vibe at most, a liked or loved film stays in one, and the " +
+        "refusal names those films — move each into another vibe it fits with `update_movie` " +
+        "first, on their yes. Its core cannot leave that way, so a vibe anchored on a film they " +
+        "like or love is deleted with `move_to`. Otherwise the genres it combined are left alone, " +
+        "as are its films, its core included, which are then in no vibe.\n\n" +
+        "`move_to` names the vibe its films go to, and moves every one of them there in the same " +
+        "write — its core included, as an ordinary film there, since the vibe that stays keeps " +
+        "its own core. It is how two vibes that describe one evening are merged, and it moves " +
+        "only on their yes to where the films go: a shared genre is never a reason on its own.",
+      inputSchema: z.object({
+        name: vibeName,
+        move_to: vibeName
+          .describe("Move every film in it into this vibe, in the same write, then delete it.")
+          .optional(),
+      }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
-    async ({ name }) =>
-      attempt(async () => ({ deleted: await store.deleteVibe(name, { positiveNeedsVibe: true }) })),
+    async ({ name, move_to: into }) =>
+      attempt(async () => ({
+        deleted: await store.deleteVibe(name, { positiveNeedsVibe: true, into }),
+      })),
   );
 
   server.registerTool(
@@ -749,10 +770,11 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "seen-now or seen-before while it is a core — between those two it may move. The refusal " +
         "names the vibes: make another film the core with " +
         "`update_vibe` first, or delete the vibe.\n\n" +
-        "Nor can a film they like or love be taken out of its last vibe: an empty `vibes` list " +
+        "A film is in one vibe at most: `vibes` names one, or none, and naming another moves it. " +
+        "Nor can a film they like or love be taken out of its vibe: an empty `vibes` list " +
         "is refused for a filed film with a standing liked or loved, and the refusal names the " +
-        "verdict — keep one of its vibes or add another. A film already in no vibe may be given " +
-        "an empty list.",
+        "verdict — keep its vibe, or move it to another it fits. A film already in no vibe may be " +
+        "given an empty list.",
       inputSchema: z.object({
         title: movieTitle.describe("The film to change, by its current title."),
         year: movieYear.describe("The film to change, by its current year."),
@@ -1036,7 +1058,7 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "recommendation is not liking it either. Silence is not a verdict at all.\n\n" +
         "A verdict is a judgement — liked, loved or disliked — about the film, and it applies " +
         "everywhere. Keep their own words for why, where they gave them.\n\n" +
-        "**A liked or loved needs a vibe.** It is kept only for a film filed in at least one of " +
+        "**A liked or loved needs a vibe.** It is kept only for a film filed in one of " +
         "their vibes, because the vibe is what says why it worked for them. If the film is in " +
         "none — or not saved at all — nothing is written and the answer is `reason: " +
         "\"vibe_required\"`, with `retry` and `next`: find the vibe it belongs in with them, file " +
@@ -1423,11 +1445,13 @@ const VERDICT_COVERAGE = {
  */
 const VIBE_REQUIRED_NEXT =
   "Nothing was written. This is the expected answer, not a failure: apologise for nothing and " +
-  "report no error. A liked or loved verdict is kept only for a film in at least one of " +
-  "their vibes. If `movie.viewing` is want-to-see, their liked says they watched it: move it " +
+  "report no error. A liked or loved verdict is kept only for a film in one of their vibes, " +
+  "and a film is in one vibe at most. If `movie.viewing` is want-to-see, their liked says they " +
+  "watched it: move it " +
   "with update_movie to seen-before (seen-now only if they placed it recently) now, before the " +
   "offer, and say so. Read get_taste, then in this conversation: (1) if one of their vibes fits — " +
-  "judge by its instruction and genres, not its name — recommend filing the film there, with two " +
+  "judge by its instruction and genres, not its name; a genre the film shares with a vibe is not " +
+  "a fit on its own — recommend filing the film there, with two " +
   "concrete alternatives beside it and never a bare offer to make a new one: each another vibe " +
   "of theirs it fits, or a new vibe with a name, a sentence, its genres and this film as core — " +
   "another evening the film could stand for; if it " +
@@ -1436,8 +1460,8 @@ const VIBE_REQUIRED_NEXT =
   "to those words; where a new vibe would make sense too, offer both in the one offer — that " +
   "wording, and a new vibe offered as (2) offers one — say in one line which you would choose " +
   "and why, and let them choose; a reply that does not make clear which they chose is asked " +
-  "about once before anything is written. A film that only partly fits a vibe goes there only " +
-  "beside one it fits well or anchors. (2) If none fits, " +
+  "about once before anything is written. A film that only partly fits a vibe does not go " +
+  "there. (2) If none fits, " +
   "offer one recommended new vibe and two meaningfully different alternatives — each a " +
   "different evening the film could stand for, read from the film, their vibes and what they " +
   "have liked and anything they said about it, with a name, a sentence, their genres and this " +
@@ -1451,11 +1475,9 @@ const VIBE_REQUIRED_NEXT =
   "at length, no films listed to illustrate an option, no other names for one; and one simple " +
   "question asking which. A new user's first films keep the offer the vibes skill gives them. " +
   "(3) On their yes, file it — " +
-  "update_movie with its vibes, create_movie with viewing seen-now or seen-before and vibes for " +
-  "an unsaved film, or create_vibe with it as core and core.viewing; where they chose the new " +
-  "wording, update_vibe with it first; where they chose a new vibe beside one the film partly " +
-  "fits, create_vibe with it as core and core.viewing, then update_movie listing that new vibe " +
-  "and the one it partly fits, because the list replaces what was there — a watched film is " +
+  "update_movie with its one vibe, create_movie with viewing seen-now or seen-before and its one " +
+  "vibe for an unsaved film, or create_vibe with it as core and core.viewing, which files it in " +
+  "that new vibe alone; where they chose the new wording, update_vibe with it first — a watched film is " +
   `${SEEN_RULE}, and when they did not say when, that question goes into the one you put ` +
   "about the vibe; a yes that does not say when is them not saying: unless something they said " +
   "earlier placed it or the film already has a seen viewing, write seen-before, and never ask " +
