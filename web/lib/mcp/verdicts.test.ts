@@ -898,7 +898,18 @@ describe("the verdict tools", () => {
       // each option a name and a short sentence with its genres in passing, one question —
       // for either offer, before the writes; a new user's first films keep their own offer.
       assert.match(next as string, /never ask them why they liked it\. Either way, say it briefly: a natural acknowledgement, with nothing about how Tonight keeps things — never why the liked is not saved yet, what it needs or how filing works, only what did change, in a few plain words;/u);
-      assert.match(next as string, /then the recommended option, plainly said to be yours, and the two alternatives, each a name and what it means in a short sentence — for a new vibe the sentence written on a yes, its genres named in passing and a new genre's meaning in a short phrase; no genre explained at length, no films listed to illustrate an option, no other names for one; and one simple question asking which\./u);
+      assert.match(next as string, /then the recommended option, plainly said to be yours, and the two alternatives, each a name and what it means in a short sentence — for a new vibe the sentence written on a yes, its genres named in passing and a new genre's meaning in a short phrase;/u);
+      // Vibe discovery: the recommended one is shown by two or three films that set it apart,
+      // never written; the alternatives by none unless asked; a card only with real posters.
+      // Behavior runs: films said to be in a vibe that did not hold them, four for an alternative
+      // when asked, and alternatives laid out without their genres — each said here now.
+      assert.match(next as string, /a new genre's meaning in a short phrase; the recommended one shown by two or three other films, each named with its year and nothing more, that say at once what sets it apart — illustration only, never said to be in a vibe that does not hold them, never saved, filed, made a core or given a viewing or verdict — and the alternatives by none unless they ask what one would hold, and then two or three; no genre explained at length, no other names for one; and one simple question asking which\./u);
+      assert.match(next as string, /Lay it out to read on a phone: a card where the host can show one, a poster only one its own film or image tools returned, never one made up, generated or guessed a link to; otherwise plain Markdown, each alternative one line with its genres in passing\./u);
+      assert.doesNotMatch(next as string, /no films listed to illustrate an option/u, "the offer bans every film again");
+      assert.ok(
+        (next as string).indexOf("Lay it out to read on a phone") < (next as string).indexOf("(3) On their yes"),
+        "the layout is said after the writes, not with the offer",
+      );
       assert.match(next as string, /A new user's first films keep the offer the vibes skill gives them\. \(3\) On their yes/u);
 
       assert.deepEqual((await standing(cleo, f)).history, [], "a refused verdict was written anyway");

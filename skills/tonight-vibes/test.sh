@@ -363,9 +363,51 @@ check "the recommendation first, then two alternatives, each a name and a short 
         'Each is its name and what it means in a short sentence — for a new Vibe,' \
         'the sentence written on a yes, with its Genres named in passing: one of theirs by its name alone, a new one with its meaning in a short phrase, the meaning its instruction is written with' \
         'A new wording, as 2 says, is shown exactly' \
-        '**No Genre explained at length**, no films listed to illustrate an option, and no other names for one' \
+        '**Two or three films show the recommended one**' \
+        '**No Genre explained at length**, no films listed beyond those, and no other names for one' \
         '**One simple question** closes it' \
         'with the question about when folded in where it is owed')" "True"
+# Vibe discovery: the recommended Vibe is shown by two or three films that set it apart, named
+# and never written; the alternatives stay a name and a sentence, with films only when asked.
+check "the recommended one shows two or three films that set it apart, by title and year alone" \
+    "$(order_check '**The recommendation first, plainly said to be the one you recommend**' \
+        '**Two or three films show the recommended one**, by title and year and nothing more' \
+        'other films that say at once what sets that evening apart from the two beside it' \
+        'the most representative you can name' \
+        'For one of their Vibes, films it already holds may be among them' \
+        'and no other film is said to be in it')" "True"
+check "those films are illustration: never written, filed, a core, a viewing or a verdict" \
+    "$(order_check '**Two or three films show the recommended one**' \
+        '**They are illustration only**, like every film named to show an idea' \
+        'never written, never filed, never made a core, never given a viewing or a verdict')" "True"
+check "the alternatives name no films, unless they ask what one would hold" \
+    "$(order_check '**They are illustration only**' 'The alternatives name none' \
+        'if they ask what one would hold, name two or three for it then, on the same terms')" "True"
+check "a film named to show the recommended one is never written" \
+    "$(order_check '**Never written:**' 'a film you named only as an illustration')" "True"
+check "the old ban on any illustration film in the offer is gone" \
+    "$(grep -c 'no films listed to illustrate an option' "$SKILL")" "0"
+# A card is the host's to show: a poster only from the host's own tools, never an invented one,
+# and plain Markdown that reads on a phone where there is no card.
+check "a card where the host can, with posters only from its own tools, never invented" \
+    "$(order_check '**One simple question** closes it' \
+        '**Laid out to be taken in on a phone.**' \
+        'Where the host can show the offer as a card' 'show the recommended Vibe that way' \
+        "a poster is only one the host's own film or image tools returned for that film" \
+        'never one you made, generated or guessed a link to' \
+        "Whether a card is possible is the host's: never promise one" \
+        'with no poster to hand show none and say nothing about it' \
+        "A new user's first films keep the offer their own section gives them")" "True"
+# Behavior runs: an alternative laid out as a name and a sentence alone lost its Genres, which a
+# yes needs to have been shown — the layout keeps them, in passing, on every line.
+check "without a card, plain Markdown, one line per alternative with its Genres, nothing wide" \
+    "$(order_check '**Laid out to be taken in on a phone.**' \
+        'Without a card, the same lines in plain Markdown read as well' \
+        "the recommended Vibe's name in bold, its sentence and its Genres in passing, its films in italics with their years" \
+        'each alternative one line, its name in bold, its sentence and its Genres in passing' \
+        'No table, no headings, nothing to scroll sideways')" "True"
+check "no layout line drops an alternative's Genres" \
+    "$(grep -c 'its name in bold and its sentence\.' "$SKILL")" "0"
 check "a new user's first films keep their own offer, illustration films and all" \
     "$(order_check '**Said briefly, in their terms.**' \
         "A new user's first films keep the offer their own section gives them" \

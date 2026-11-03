@@ -1471,9 +1471,16 @@ const VIBE_REQUIRED_NEXT =
   "change, in a few plain words; then the recommended option, plainly said to be yours, and the " +
   "two alternatives, each a name and what it means in a short sentence — for a new vibe the " +
   "sentence written on a yes, its genres named in passing and a new genre's meaning in a short " +
-  "phrase; no genre explained " +
-  "at length, no films listed to illustrate an option, no other names for one; and one simple " +
-  "question asking which. A new user's first films keep the offer the vibes skill gives them. " +
+  "phrase; the recommended one shown by two or three other films, each named with its year and " +
+  "nothing more, that say at once what sets it apart — illustration only, never said to be in a " +
+  "vibe that does not hold them, never saved, filed, made a core or given a viewing or verdict — " +
+  "and the alternatives by none unless they ask what one would hold, and then two or three; no " +
+  "genre explained at length, no other names for one; and one simple " +
+  "question asking which. Lay it out to read on a phone: a card where the host can show one, a " +
+  "poster only one its own film or image tools returned, never one made up, generated or guessed " +
+  "a link to; otherwise plain Markdown, each alternative one line with its genres in passing. A " +
+  "new user's first films keep " +
+  "the offer the vibes skill gives them. " +
   "(3) On their yes, file it — " +
   "update_movie with its one vibe, create_movie with viewing seen-now or seen-before and its one " +
   "vibe for an unsaved film, or create_vibe with it as core and core.viewing, which files it in " +
