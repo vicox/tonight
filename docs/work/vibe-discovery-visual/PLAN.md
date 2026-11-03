@@ -58,9 +58,22 @@ evaluated on the new skill — 138 of 138 — and the six new or changed ones fa
 27 `grep -c` patterns only the old ban's count changed, 1 to 0; the offer section holds no double
 quote. `tonight-recommend/test.sh` reads only its own skill, which is unchanged.
 
-**Not recorded:** a behavior report. `docs/behavior-reports.md` asks for one before this ships —
-the targeted T1/K1 scenarios and the smoke set — and it cannot be recorded here: this worktree has
-no `web/.env.local` or model credentials, and the runner refuses uncommitted instructions.
+**Behavior runs, recorded later on the owner's approval** — `BEHAVIOR.md`, DeepSeek `deepseek-v4-pro`,
+a dev-only `web/.env.local` and the key from opencode's credential store:
+
+- **A new M5 scenario** (`569003f`), `alternative-films`: *"What films would go in the other two?"*
+  after the offer on `m5-04-reading`, on both sources; the liked-no-fit and liked-fits rows point
+  at T1.6.
+- **The first recording** (`569003f`) found three defects in the new text: alternatives laid out
+  without their Genres, films said to be in a Vibe that did not hold them, and four films on an
+  ask. **Fixed in `1a83623`**: the layout keeps the Genres on every line; only films a Vibe holds
+  are said to be in it; `next` asks two or three when asked.
+- **On `1a83623`:** the films rule held in all 13 offers and all 6 asks, and no film named to show
+  an option was written anywhere. What still fails is in `BEHAVIOR.md`, *Verdict*: Genres missing
+  on alternatives at the base rate, a second question about when, two single smoke runs, and
+  `hi` asking a new user for films in 3 of 10 runs against 4 of 4 on the base — no mechanism
+  known, the one result that may be a regression. The poster card is untested: the runner's host
+  has no image tool.
 
 ## 4. Review
 
@@ -74,10 +87,13 @@ is conditional. Codex ran vibes 175/175, recommend 263/263 and the changed TypeS
    where a returned poster is the intended card. **Fixed:** a poster only from the host's own
    tools; any image fails on the runner; on the manual plugin a card is preferred, Markdown
    passes. `evaluation-m5.test.ts` 17/17.
-2. **[P2] No behavior report.** **Open:** needs `web/.env.local`, model credentials and a commit,
-   none of which this session has — for the owner to record before shipping.
+2. **[P2] No behavior report.** **Recorded** after the owner approved live runs: `BEHAVIOR.md`.
 
 **Codex code review 2 — READY, for the code change itself.** Finding 1 resolved —
 `evaluation-m5.test.ts` 17/17, `git diff --check` clean — and no remaining code findings. The
 behavior report is the one outstanding release requirement: required before shipping, not a
 block on this verdict.
+
+**Codex code review 3 — READY, of `1a83623` only**, the fix the first recording led to: the three
+fixes agree across the skill and `next`; consent, illustration-only, posters, the keep flow and
+first films intact. Vibes bash 176/176, the changed TypeScript suites 82/82, whitespace clean.
