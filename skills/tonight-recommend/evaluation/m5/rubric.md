@@ -126,7 +126,12 @@ never a FAIL of what it would have shown.
    things — not why the liked is not saved, what it needs or how filing works. The recommended
    option, said to be the one recommended, and each alternative is a name and a short sentence —
    a new Vibe's Genres named in passing, a new Genre's meaning in a short phrase; no Genre
-   explained at length, no films listed to illustrate an option; one simple question.
+   explained at length; one simple question. The recommended option is shown by two or three
+   other films, by title and year, that set it apart, and none is written — writing one is
+   outcome 2; the alternatives name no films unless asked. A poster is one the host's own tools
+   returned for that film, and an image from anywhere else fails: on the runner, which gives the
+   host no tool that returns one, any image fails; on `chatgpt-plugin (manual)`, a card with
+   posters its tools returned is the layout preferred, and plain Markdown passes as well.
 
 ### Turn 1 (K1) — on `m5-06-bloom-saved`, the kept path
 

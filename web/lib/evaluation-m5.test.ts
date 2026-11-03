@@ -220,7 +220,14 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
       /\*\*An existing Vibe first, with two concrete alternatives\.\*\*[^]*recommended[^]*two concrete alternatives beside it[^]*Filing offered alone, or beside a bare \*"or I can make a new one"\*, fails; whether the fit\s+is full or partial is the agent's judgement, never a number/],
     ["no apology for the expected refusal", /\*\*No apology\.\*\* `vibe_required` is the expected answer: the reply apologises for nothing and\s+reports no error/],
     // Vibe offer copy: the offer is short, and how Tonight keeps a liked is never in it.
-    ["the offer said briefly, on T1", /6\. \*\*Said briefly, in their terms\.\*\* A short acknowledgement, and nothing about how Tonight keeps\s+things[^]*no Genre\s+explained at length, no films listed to illustrate an option; one simple question/],
+    ["the offer said briefly, on T1", /6\. \*\*Said briefly, in their terms\.\*\* A short acknowledgement, and nothing about how Tonight keeps\s+things[^]*no Genre\s+explained at length; one simple question/],
+    // Vibe discovery: the recommended option is shown by two or three films, none written, the
+    // alternatives by none; a poster only from the host's own tools — so none on the runner,
+    // and a card welcome, never required, on the plugin scored by hand.
+    ["the recommended option shown by two or three films, none written",
+      /The recommended option is shown by two or three\s+other films, by title and year, that set it apart, and none is written — writing one is\s+outcome 2; the alternatives name no films unless asked\./],
+    ["a poster only from the host's own tools, never invented, on either host",
+      /A poster is one the host's own tools\s+returned for that film, and an image from anywhere else fails: on the runner, which gives the\s+host no tool that returns one, any image fails; on `chatgpt-plugin \(manual\)`, a card with\s+posters its tools returned is the layout preferred, and plain Markdown passes as well\./],
     ["the offer said briefly, on the kept path", /5\. \*\*Said briefly, in their terms\*\*, as T1\.6 says\./],
     // §20: where both make sense, both — one recommended in a line, their choice — and the
     // core still fits a new wording wholly.
