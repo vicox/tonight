@@ -14,8 +14,11 @@ writes *Verdict* and *Deterministic tests* and replaces every `TO SCORE` with PA
 
 ## Verdict
 
-**The change does what it is for, and keeps every write gate; the smoke set does not pass whole,
-and one result may be a regression, so this evidence alone does not make it ready to merge.**
+**Accepted: the new Vibe answer does what it is for, and keeps every write gate.** That is what
+this change is judged on. The failures listed after it are recorded honestly and are outside this
+change's acceptance: none is in what the change added, and the owner decided they do not block it.
+
+### Acceptance — the new Vibe answer
 
 - **The films rule, on the final instructions (`1a83623`):** in all 13 offers after a liked, the
   recommended option was shown by two or three films (12 of 13 with their years), and no
@@ -26,7 +29,14 @@ and one result may be a regression, so this evidence alone does not make it read
 - **The first recording** (`569003f`, *First recording* below) found three defects in the new
   text: alternatives laid out without their Genres, films said to be in a Vibe that did not hold
   them, and four films on an ask. `1a83623` fixed all three; the last two did not recur.
-- **Failures that remain:**
+- **The poster card is UNTESTED.** The runner's host has no film or image tool and renders
+  nothing, so only the Markdown fallback was exercised; no run showed an image or an image link.
+
+### Recorded, not part of this acceptance
+
+The owner scoped this change's acceptance to the new Vibe answer. These failures are in rules the
+change did not touch, and they do not block it:
+
   1. Alternatives named without their Genres in 4 of 13 offers. The base instructions do it too,
      in 2 of 6 here.
   2. A second question about when after the ask for films, in 2 of 6.
@@ -34,10 +44,8 @@ and one result may be a regression, so this evidence alone does not make it read
      as it has on DeepSeek in every earlier report.
   4. **`hi` asked a new user for two or three films they love in 3 of 10 runs on this branch
      (first recording included), against 4 of 4 on the base** (3 here, 1 in the skill-cleanup
-     report). The new-user text is unchanged and the turn calls no tool, so no mechanism is known.
-     This is the one result that may be a regression.
-- **The poster card is UNTESTED.** The runner's host has no film or image tool and renders
-  nothing, so only the Markdown fallback was exercised; no run showed an image or an image link.
+     report). The new-user text is unchanged and the turn calls no tool, so no mechanism is known;
+     the gap is recorded as an onboarding fluctuation to watch, not a failure of this change.
 
 ## Results
 

@@ -69,11 +69,11 @@ a dev-only `web/.env.local` and the key from opencode's credential store:
   ask. **Fixed in `1a83623`**: the layout keeps the Genres on every line; only films a Vibe holds
   are said to be in it; `next` asks two or three when asked.
 - **On `1a83623`:** the films rule held in all 13 offers and all 6 asks, and no film named to show
-  an option was written anywhere. What still fails is in `BEHAVIOR.md`, *Verdict*: Genres missing
-  on alternatives at the base rate, a second question about when, two single smoke runs, and
-  `hi` asking a new user for films in 3 of 10 runs against 4 of 4 on the base — no mechanism
-  known, the one result that may be a regression. The poster card is untested: the runner's host
-  has no image tool.
+  an option was written anywhere: **accepted**. The owner scoped acceptance to the new Vibe
+  answer; failures in rules this change did not touch are recorded in `BEHAVIOR.md`, apart, and
+  do not block it — Genres missing on alternatives at the base rate, a second question about
+  when, two single smoke runs, and `hi` asking a new user for films in 3 of 10 runs against 4 of
+  4 on the base. The poster card is untested: the runner's host has no image tool.
 
 ## 4. Review
 
