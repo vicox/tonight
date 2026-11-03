@@ -246,8 +246,8 @@ short lines they take in at a glance — never a report on how Tonight works:
   with. A new wording, as 2 says, is shown exactly.
 - **Two or three films show the recommended one**, by title and year and nothing more: other
   films that say at once what sets that evening apart from the two beside it, the most
-  representative you can name. For one of their Vibes, films it already holds may be among them.
-  **They are illustration only**, like every film named to show an idea: never written, never
+  representative you can name. For one of their Vibes, films it already holds may be among them,
+  and no other film is said to be in it. **They are illustration only**, like every film named to show an idea: never written, never
   filed, never made a core, never given a viewing or a verdict. The alternatives name none; if
   they ask what one would hold, name two or three for it then, on the same terms.
 - **No Genre explained at length**, no films listed beyond those, and no other names for one.
@@ -259,9 +259,9 @@ poster beside each film it names, show the recommended Vibe that way — and a p
 the host's own film or image tools returned for that film, never one you made, generated or
 guessed a link to. Whether a card is possible is the host's: never promise one, and with no
 poster to hand show none and say nothing about it. Without a card, the same lines in plain
-Markdown read as well: the recommended Vibe's name in bold, its sentence, its films in italics
-with their years; each alternative one line, its name in bold and its sentence. No table, no
-headings, nothing to scroll sideways.
+Markdown read as well: the recommended Vibe's name in bold, its sentence and its Genres in
+passing, its films in italics with their years; each alternative one line, its name in bold, its
+sentence and its Genres in passing. No table, no headings, nothing to scroll sideways.
 
 A new user's first films keep the offer their own section gives them.
 

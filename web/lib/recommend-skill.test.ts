@@ -1703,7 +1703,9 @@ test("the offer after a liked is said briefly, in their terms, and the two skill
   assert.match(shape, /\*\*Two or three films show the recommended one\*\*, by title and year and nothing more: other films that say at once what sets that evening apart from the two beside it/);
   assert.match(shape, /\*\*They are illustration only\*\*, like every film named to show an idea: never written, never filed, never made a core, never given a viewing or a verdict\. The alternatives name none; if they ask what one would hold, name two or three for it then, on the same terms\./);
   assert.match(shape, /\*\*Laid out to be taken in on a phone\.\*\* Where the host can show the offer as a card, with a poster beside each film it names, show the recommended Vibe that way — and a poster is only one the host's own film or image tools returned for that film, never one you made, generated or guessed a link to\./);
-  assert.match(shape, /Without a card, the same lines in plain Markdown read as well/);
+  assert.match(shape, /Without a card, the same lines in plain Markdown read as well: the recommended Vibe's name in bold, its sentence and its Genres in passing, its films in italics with their years; each alternative one line, its name in bold, its sentence and its Genres in passing\./);
+  // Behavior runs: a film the Vibe did not hold was said to belong there already.
+  assert.match(shape, /For one of their Vibes, films it already holds may be among them, and no other film is said to be in it\./);
   assert.doesNotMatch(vibes, /no films listed to illustrate an option/, "the offer bans every film again");
   assert.match(vibes, /\*\*Never written:\*\* a film you named only as an illustration/);
 
