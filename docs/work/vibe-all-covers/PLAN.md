@@ -112,3 +112,8 @@ recommend-skill, evaluation-m5 and verdicts 99/99. One finding:
    four films, neither with posters. **Fixed** as §1 now says, in both skills, the rubric and the
    tests: vibes suite read 183/183, recommend 237 read with 32 slice checks skipped, the changed
    TypeScript suites 158/158, `npm test` 1397 of 1401 (the same four), typecheck and eslint clean.
+
+**Codex re-review of finding 1 — READY (`383af0a`).** Both proposal paths now require one
+recommendation and two alternatives, each with exactly two films and the shared poster and text
+rules; no new findings in the fix. Codex ran vibes bash 183/183, recommend bash 265/265 and the
+changed TypeScript suites 99/99.
