@@ -363,55 +363,67 @@ check "the recommendation first, then two alternatives, each a name and a short 
         'Each is its name and what it means in a short sentence — for a new Vibe,' \
         'the sentence written on a yes, with its Genres named in passing: one of theirs by its name alone, a new one with its meaning in a short phrase, the meaning its instruction is written with' \
         'A new wording, as 2 says, is shown exactly' \
-        '**Two or three films show the recommended one**' \
+        '**Exactly two films show each of the three**' \
         '**No Genre explained at length**, no films listed beyond those, and no other names for one' \
         '**One simple question** closes it' \
         'with the question about when folded in where it is owed')" "True"
-# Vibe discovery: the recommended Vibe is shown by two or three films that set it apart, named
-# and never written; the alternatives stay a name and a sentence, with films only when asked.
-check "the recommended one shows two or three films that set it apart, by title and year alone" \
+# Vibe discovery: every Vibe in the offer is shown by exactly two films that set it apart — the
+# recommended one and both alternatives, up front — named and never written.
+check "each of the three shows exactly two films that set it apart, by title and year alone" \
     "$(order_check '**The recommendation first, plainly said to be the one you recommend**' \
-        '**Two or three films show the recommended one**, by title and year and nothing more' \
-        'other films that say at once what sets that evening apart from the two beside it' \
+        '**Exactly two films show each of the three**, the recommended one and both alternatives' \
+        'title and year and nothing more' \
+        'for each, two other films that say at once what sets that evening apart from the two beside it' \
         'the most representative you can name' \
-        'For one of their Vibes, films it already holds may be among them' \
+        'six films in all, none shown for two of them' \
+        'For one of their Vibes, films it already holds may be among its two' \
         'and no other film is said to be in it')" "True"
 check "those films are illustration: never written, filed, a core, a viewing or a verdict" \
-    "$(order_check '**Two or three films show the recommended one**' \
+    "$(order_check '**Exactly two films show each of the three**' \
         '**They are illustration only**, like every film named to show an idea' \
-        'never written, never filed, never made a core, never given a viewing or a verdict')" "True"
-check "the alternatives name no films, unless they ask what one would hold" \
-    "$(order_check '**They are illustration only**' 'The alternatives name none' \
-        'if they ask what one would hold, name two or three for it then, on the same terms')" "True"
-check "a film named to show the recommended one is never written" \
+        'never written, never filed, never made a core, never given a viewing or a verdict' \
+        'any more they ask for are named on the same terms')" "True"
+check "a film named to show an option is never written" \
     "$(order_check '**Never written:**' 'a film you named only as an illustration')" "True"
 check "the old ban on any illustration film in the offer is gone" \
     "$(grep -c 'no films listed to illustrate an option' "$SKILL")" "0"
-# A card is the host's to show: a poster only from the host's own tools, never an invented one,
-# and plain Markdown that reads on a phone where there is no card.
-check "a card where the host can, with posters only from its own tools, never invented" \
+check "films for the recommended one alone, and none for an alternative until asked, are gone" \
+    "$(grep -ciE 'Two or three films show the recommended one|The alternatives name none|show the recommended Vibe that way' "$SKILL")" "0"
+# Posters are the host's to give: looked up with its own film or image tools for every film in
+# the offer, never invented, and the film's title and year alone wherever none came back.
+check "each film's poster from the host's own tools, all three alike, never invented" \
     "$(order_check '**One simple question** closes it' \
-        '**Laid out to be taken in on a phone.**' \
-        'Where the host can show the offer as a card' 'show the recommended Vibe that way' \
-        "a poster is only one the host's own film or image tools returned for that film" \
-        'never one you made, generated or guessed a link to' \
-        "Whether a card is possible is the host's: never promise one" \
-        'with no poster to hand show none and say nothing about it' \
+        '**Laid out to be taken in on a phone, with their posters.**' \
+        "Where the host has its own film or image tools, look up each of the six films with them and show its poster beside it" \
+        'all three options alike, as a card where the host can show one' \
+        'A poster is only one those tools returned for that film, that title and year' \
+        'never one you made, generated, or guessed or built a link to' \
         "A new user's first films keep the offer their own section gives them")" "True"
+check "with no poster returned, or no such tools, the title and year alone, and nothing said" \
+    "$(order_check '**Laid out to be taken in on a phone, with their posters.**' \
+        'A film they return none for, and every film on a host with no such tools, is shown by its title and year alone' \
+        'and nothing is said about it — never promise a poster, and never explain a missing one')" "True"
 # Behavior runs: an alternative laid out as a name and a sentence alone lost its Genres, which a
-# yes needs to have been shown — the layout keeps them, in passing, on every line.
-check "without a card, plain Markdown, one line per alternative with its Genres, nothing wide" \
-    "$(order_check '**Laid out to be taken in on a phone.**' \
+# yes needs to have been shown — the layout keeps them, in passing, on every line, and its films.
+check "without a card, plain Markdown: each option its Genres and two films, nothing wide" \
+    "$(order_check '**Laid out to be taken in on a phone, with their posters.**' \
         'Without a card, the same lines in plain Markdown read as well' \
-        "the recommended Vibe's name in bold, its sentence and its Genres in passing, its films in italics with their years" \
-        'each alternative one line, its name in bold, its sentence and its Genres in passing' \
+        "the recommended Vibe's name in bold, its sentence and its Genres in passing, its two films in italics with their years" \
+        'each alternative one line, its name in bold, its sentence and its Genres in passing, its two films in italics with their years' \
         'No table, no headings, nothing to scroll sideways')" "True"
 check "no layout line drops an alternative's Genres" \
     "$(grep -c 'its name in bold and its sentence\.' "$SKILL")" "0"
 check "a new user's first films keep their own offer, illustration films and all" \
     "$(order_check '**Said briefly, in their terms.**' \
         "A new user's first films keep the offer their own section gives them" \
-        "## A new user's first films" 'and three or four illustration films')" "True"
+        "## A new user's first films" 'and exactly two illustration films')" "True"
+# Code review 1: whenever Tonight proposes Vibes, each is shown with its two films and posters —
+# the offer after a liked, a film they keep, and a new user's first films alike.
+check "every Vibe proposed anywhere is shown with its two films and posters, the same way" \
+    "$(order_check '**Laid out to be taken in on a phone, with their posters.**' \
+        "A new user's first films keep the offer their own section gives them" \
+        'Every Vibe proposed anywhere — here, for a film they keep, or from a new user' \
+        'is shown with its two films this way')" "True"
 # The shape is said abstractly: no reply to copy, so nothing quoted inside it.
 check "the offer's shape quotes no example reply" \
     "$(sed -n '/^\*\*Said briefly, in their terms\.\*\*/,/^On their yes, write/p' "$SKILL" | grep -c '"')" "0"
@@ -563,31 +575,45 @@ check "no Genre is created before the proposal" \
 check "the write constraints point at the tools that state them" \
     "$(order_check "What a Vibe's name has to earn" \
         'arrive with `create_genre` and `create_vibe`')" "True"
+# Code review 1: a film they keep gets the same offer as one they liked — one recommended Vibe
+# and two alternatives, other evenings, each with its two films and their posters.
+check "a kept film's proposal: one recommended Vibe and two alternatives, three evenings" \
+    "$(order_check '**Proposing a new Vibe:** one recommended Vibe and two meaningfully different alternatives' \
+        'three different evenings the film could stand for, not three names for one idea')" "True"
 check "the Vibe is proposed conversationally, named, explained and anchored, then asked about" \
-    "$(order_check 'say what you noticed, name it, say what it means, name its core' \
-        'Then ask' 'closed by one question: whether to make it')" "True"
+    "$(order_check 'Say what you' 'noticed; then, for each, name it, say what it means, name its core' \
+        'Say in one line which you recommend and why, then ask which' \
+        'closed by one question: which to make')" "True"
 check "the proposal names its Genres, and what a new one would mean" \
     "$(order_check 'name its core, name its Genres with what any new one would mean' \
-        'make the idea concrete')" "True"
-# §24: main's worked proposal is back, the one example kept: it shows a new Genre named with
-# its meaning, which offers left out without it.
-check "main's worked proposal shows a new Genre with its meaning" \
-    "$(order_check 'Proposed, that sounds like:' '**Everybody Has a Plan**' \
+        'make it concrete')" "True"
+check "each option is made concrete by exactly two films, shown as the offer after a liked shows them" \
+    "$(order_check 'make it concrete with exactly two other films that would belong in it' \
+        'shown as the offer after a liked shows them' \
+        '*Said briefly, in their terms* and *Laid out to be taken in on a phone*' \
+        "their posters where the host's own tools return them, title and year where they do not")" "True"
+check "one film may anchor all three, and a reply that does not say which is asked about once" \
+    "$(order_check '**The core is not one of them**' \
+        'One film may anchor all three, since only the one they pick is written' \
+        'Their pick is what is written, and a reply that does not make clear which they chose is asked about once, before anything is written' \
+        '**A no settles it**')" "True"
+# §24: main's worked proposal is kept, the one example: it shows a new Genre named with its
+# meaning — now as one recommended Vibe and two alternatives, two films each.
+check "the worked proposal shows a new Genre with its meaning, and three Vibes with two films each" \
+    "$(order_check 'Proposed, that sounds like:' '**Everybody Has' \
         'one new Genre, Double-cross: plots where nobody at the table is telling the truth' \
-        'Shall I make it?"*' 'Said in one breath')" "True"
+        'The Sting (1973), Before the Devil Knows' \
+        '**The Job Goes Wrong**' 'Dog Day Afternoon (1975), Good Time (2017)' \
+        '**Pressure Cooker**' '12 Angry Men (1957), The Hateful Eight (2015)' \
+        'Which shall I make?"*' 'Said briefly, laid out as the offer after a liked is')" "True"
 check "the worked proposal is the only one" \
     "$(grep -c 'Proposed, that sounds like' "$SKILL")" "1"
-check "a proposed Vibe is shown as an idea: other films in it, other names for it" \
-    "$(order_check 'make the idea concrete' \
-        'three to five other films that would belong in it' \
-        'two or three' 'names it could have instead')" "True"
-# §18: the keep flow's other names stay the keep flow's; a Vibe offered for a liked or loved
-# film comes with two other Vibes, never two other names for one.
-check "other names are for keeping a film; a liked film's alternatives are other Vibes" \
-    "$(order_check 'The alternative names are there' \
-        'That proposal, with its other names, is for a film they ask you to keep' \
-        'step 3 of *When a liked or loved needs a Vibe*, or a kept' "one's new Vibe —" \
-        'its two alternatives are other Vibes, other evenings the film could stand for, never other names for the same one')" "True"
+# The keep flow's other names are gone: its alternatives are other Vibes, as everywhere.
+check "a kept film's alternatives are other evenings, never other names" \
+    "$(order_check 'The alternatives are there because an evening is easier to judge against another evening than on its own' \
+        'other Vibes, other evenings the film could stand for — never other names for the same one, here as wherever a Vibe is proposed')" "True"
+check "three to five films and other names for a kept film's Vibe are gone" \
+    "$(grep -ciE 'three to five other films|names it could have instead|The alternative names are there|with its other names' "$SKILL")" "0"
 # §22: first films are left to their own section, as on main — not listed beside step 3's
 # single-film offer, where Flash read them as one offer to pick one Vibe from.
 check "first films are not listed beside step 3's single-film offer" \
@@ -628,8 +654,18 @@ check "each film they name is a loved, confirmed verdict, kept once its film has
 # for" was read as one offer of three evenings to pick one from.
 check "each first-films Vibe comes with two meaningfully different alternatives, main's wording" \
     "$(order_check '**This is the one offer that may hold several Vibes**' \
-        'two meaningfully different alternatives beside it' \
+        'two meaningfully different alternatives' 'beside it' \
         'other reasons those films may have worked, not other names for one')" "True"
+# Code review 1: each first-films Vibe is recommended with its two alternatives, each of the three
+# with exactly two films shown as the offer after a liked shows them.
+check "first films: each Vibe recommended with two alternatives, two films each, with posters" \
+    "$(order_check '**This is the one offer that may hold several Vibes**' \
+        'each one recommended with two meaningfully different alternatives' \
+        'each of the three an instruction, its Genres, its core, and exactly two illustration films' \
+        'shown as the offer after a liked shows them' \
+        "their posters where the host's own tools return them, title and year where they do not")" "True"
+check "three or four illustration films for a first-films Vibe are gone" \
+    "$(grep -c 'three or four illustration films' "$SKILL")" "0"
 check "a no to the first-films offer saves nothing positive, and a yes is followed by the verdicts" \
     "$(order_check 'a no saves nothing positive' \
         'each loved is recorded again once its film is filed')" "True"

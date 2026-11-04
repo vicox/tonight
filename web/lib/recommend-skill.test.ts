@@ -645,9 +645,12 @@ test("a proposed Vibe is made tangible before it is agreed to", () => {
 
   for (const [what, rule] of [
     ["to show the idea rather than only name it", /make (the idea|it) concrete/],
-    ["how many films to name", /three to five other films that would belong/],
-    ["to offer other names for it", /two or three (names it could have instead|alternative names)/],
-    ["that the asking still comes last", /Then ask/],
+    // vibe-all-covers, code review 1: whenever Tonight proposes Vibes, one recommended and two
+    // alternatives — other evenings, never other names — each made concrete by exactly two films.
+    ["how many films to name", /exactly two other films that would belong/],
+    ["to offer other evenings beside it, never other names",
+      /one recommended Vibe and two meaningfully different alternatives —\s+other evenings the film could stand for, never other names for the same one/],
+    ["that the asking still comes last", /then\s+ask which/],
     ["that the films are illustration", /Those films are illustration only/],
     ["that they are not written and not filed", /never written, never (in a Vibe|filed)/],
     ["that they get no viewing and no verdict", /never given a viewing or a\s+verdict/],
@@ -1181,8 +1184,8 @@ test("the write flow is stated whole: what may be written, where, and on whose y
     ["the Vibe choice is yours", /Never ask which they want; that judgement is yours/],
     ["a proposal is made concrete", /make\s+it concrete/],
     ["and names its core", /name its core/],
-    ["with three to five films", /three to five other films that would belong/],
-    ["and two or three names", /two or three alternative names/],
+    ["with exactly two films for each", /exactly two other films that would belong/],
+    ["and two other Vibes beside it", /one recommended Vibe and two meaningfully different alternatives/],
     ["those films are illustration only", /Those films are illustration only/],
     ["never written, never filed", /never written, never filed/],
     ["no viewing, no verdict", /never given a viewing or a\s+verdict/],
@@ -1697,23 +1700,33 @@ test("the offer after a liked is said briefly, in their terms, and the two skill
   assert.match(shape, /A new user's first films keep the offer their own section gives them\./);
   assert.doesNotMatch(shape, /"/, "the shape quotes an example reply to copy");
 
-  // Vibe discovery: the recommended one is shown by two or three films that set it apart, named
-  // only and never written — the illustration rule every shown film is under — while the
-  // alternatives stay a name and a sentence; a card only with posters the host's tools gave.
-  assert.match(shape, /\*\*Two or three films show the recommended one\*\*, by title and year and nothing more: other films that say at once what sets that evening apart from the two beside it/);
-  assert.match(shape, /\*\*They are illustration only\*\*, like every film named to show an idea: never written, never filed, never made a core, never given a viewing or a verdict\. The alternatives name none; if they ask what one would hold, name two or three for it then, on the same terms\./);
-  assert.match(shape, /\*\*Laid out to be taken in on a phone\.\*\* Where the host can show the offer as a card, with a poster beside each film it names, show the recommended Vibe that way — and a poster is only one the host's own film or image tools returned for that film, never one you made, generated or guessed a link to\./);
-  assert.match(shape, /Without a card, the same lines in plain Markdown read as well: the recommended Vibe's name in bold, its sentence and its Genres in passing, its films in italics with their years; each alternative one line, its name in bold, its sentence and its Genres in passing\./);
+  // Vibe discovery: each of the three — the recommended one and both alternatives, up front — is
+  // shown by exactly two films that set it apart, named only and never written — the
+  // illustration rule every shown film is under; each film's poster only from the host's own
+  // tools, and its title and year alone wherever none came back.
+  assert.match(shape, /\*\*Exactly two films show each of the three\*\*, the recommended one and both alternatives, by title and year and nothing more: for each, two other films that say at once what sets that evening apart from the two beside it, the most representative you can name — six films in all, none shown for two of them\./);
+  assert.match(shape, /\*\*They are illustration only\*\*, like every film named to show an idea: never written, never filed, never made a core, never given a viewing or a verdict — and any more they ask for are named on the same terms\./);
+  assert.match(shape, /\*\*Laid out to be taken in on a phone, with their posters\.\*\* Where the host has its own film or image tools, look up each of the six films with them and show its poster beside it — all three options alike, as a card where the host can show one\. A poster is only one those tools returned for that film, that title and year: never one you made, generated, or guessed or built a link to\./);
+  assert.match(shape, /A film they return none for, and every film on a host with no such tools, is shown by its title and year alone, and nothing is said about it — never promise a poster, and never explain a missing one\./);
+  assert.match(shape, /Without a card, the same lines in plain Markdown read as well: the recommended Vibe's name in bold, its sentence and its Genres in passing, its two films in italics with their years; each alternative one line, its name in bold, its sentence and its Genres in passing, its two films in italics with their years\./);
   // Behavior runs: a film the Vibe did not hold was said to belong there already.
-  assert.match(shape, /For one of their Vibes, films it already holds may be among them, and no other film is said to be in it\./);
+  assert.match(shape, /For one of their Vibes, films it already holds may be among its two, and no other film is said to be in it\./);
   assert.doesNotMatch(vibes, /no films listed to illustrate an option/, "the offer bans every film again");
+  assert.doesNotMatch(vibes, /Two or three films show the recommended one|The alternatives name none|show the recommended Vibe that way/, "films for the recommended one alone again");
   assert.match(vibes, /\*\*Never written:\*\* a film you named only as an illustration/);
 
   // The rules it sits beside stand: two concrete alternatives, a new Genre's meaning shown, the
   // liked never said to be saved before it is, and first films with their illustration films.
   assert.match(vibes, /Each is concrete: another of their Vibes the film fits, or a new Vibe — a name, a sentence and its Genres, any new Genre's meaning shown, with this film as its core/);
   assert.match(vibes, /\*\*Until the film is filed, the verdict is not saved, so never say it is\.\*\*/);
-  assert.match(vibes, /an instruction, its Genres, its core, and three or four illustration films/);
+  // vibe-all-covers, code review 1: whenever Tonight proposes Vibes — after a liked, for a film they
+  // keep, from a new user's first films — each Vibe is shown with its two films and their posters.
+  assert.match(vibes, /each one recommended with two meaningfully different alternatives beside it — other reasons those films may have worked, not other names for one — and each of the three an instruction, its Genres, its core, and exactly two illustration films, shown as the offer after a liked shows them/);
+  assert.match(vibes, /Every Vibe proposed anywhere — here, for a film they keep, or from a new user's first films — is shown with its two films this way\./);
+  assert.match(vibes, /\*\*Proposing a new Vibe:\*\* one recommended Vibe and two meaningfully different alternatives — three different evenings the film could stand for, not three names for one idea/);
+  assert.match(recommend, /each with its poster where the host's own film or image tools return one for that film, never one made up, generated or guessed, and by title and year alone, with nothing said about it, where they return none/);
+  assert.doesNotMatch(vibes, /three or four illustration films|three to five other films|names it could have instead/, "a proposal shaped its own way again");
+  assert.doesNotMatch(recommend, /three to five other films|alternative names/, "a kept film's proposal shaped its own way again");
 });
 
 /**

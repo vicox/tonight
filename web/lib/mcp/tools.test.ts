@@ -749,7 +749,7 @@ test("no cross-tool rule has been copied into a tool description", async () => {
   for (const [what, leaked] of [
     ["the classification ladder", /do not fit it to what is there/i],
     ["stretching a Vibe", /Never stretch a Vibe/i],
-    ["proposing a Vibe", /three to five other films/i],
+    ["proposing a Vibe", /exactly two other films that would belong/i],
     ["when to propose one", /propose while saving, not while recommending/i],
     ["the films in a proposal", /illustration only/i],
     ["the recommend-versus-configure boundary", /configuration session/i],

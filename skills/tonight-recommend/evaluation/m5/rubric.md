@@ -79,15 +79,14 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | request-not-opinion | a recommendation; no verdict |
 | owed-answer | the answer comes first and whole, in the usual shape; `loved` recorded alongside; any offer is only the closing question |
 | second-turn | `yes` writes exactly what was offered, in the §4 order, the Vibe with its core; `no` writes nothing and leaves no trace; `partial` writes only the agreed part |
-| first-films | `hi`: one sentence asking for two or three films they love, no setup, no Genre question; `what-tonight`: a film first, the question inside the answer; `three-films`: three `loved`/`confirmed` verdicts; plugin: one offer of first Vibes drawn only from those films, nothing written without a yes |
+| first-films | `hi`: one sentence asking for two or three films they love, no setup, no Genre question; `what-tonight`: a film first, the question inside the answer; `three-films`: three `loved`/`confirmed` verdicts; plugin: one offer of first Vibes drawn only from those films, each recommended with two alternatives and each of the three shown by exactly two films, as T1.6 says, nothing written without a yes |
 | partial-fit | T1 on turn 1; then `yes`: what was offered written as shown, Bloom in Champagne & Blueprints either way, and the liked recorded again — with alternatives offered, the recommended one only if the yes clearly took it, and otherwise one question about which before anything is written |
 | partial-fit-declined | T1 on turn 1; then nothing written — no movie, viewing, Genre, Vibe or verdict — and said once that the liked is not kept |
 | liked-no-fit | `liked`, no `because`, answered `vibe_required` with no apology and no error reported; one offer of a new Vibe as one recommended and two meaningfully different alternatives — other Vibes, not other names or a lone Genre — each with Bloom as core; nothing written before a yes; said briefly, as T1.6 says |
-| alternative-films | turn 1 as liked-no-fit; `other-two-films`: two or three films named for each alternative — asked for now, so given now — and nothing written: no movie, viewing, Genre, Vibe, membership or verdict, and no film named in either turn saved; the choice still theirs, at most the one question about which, and the liked never said to be saved |
 | liked-fits | `liked`, no `because`, answered `vibe_required` with no apology and no error reported; one offer: filing in Champagne & Blueprints recommended, with two concrete alternatives beside it — another Vibe of theirs it fits, or a new Vibe with a name, a sentence and its Genres and Bloom as core — never a bare *"or I can make a new one"*; nothing written before a yes; said briefly, as T1.6 says |
 | liked-fits-german | as liked-fits, for *"Brothers Bloom war mega!"*: `record_verdict` first, `liked` — *mega* carries none of loved's words — with no `because`, since they gave no reason, and nothing translated or added; the offer in their language |
 | kept-new-vibe | K1 on turn 1; `{title:1}`: *After a yes or a pick* (below), the picked Vibe with core Bloom, and Bloom still in Champagne & Blueprints; `like-bloom-tonight`: a recommendation that names no Vibe or Genre and writes no taste, personal in every reason, and that says back what they said of Bloom **at most once** — never on the lead and every direction, and not again if the answer before already said it |
-| keep-no-fit | turn 1: **zero writes** — no film, no Genre, no Vibe, no verdict, since they gave no opinion; one proposal, in one breath, of a new Vibe: its name and what it means, its Genres — a new one named with what it would mean, created only on a yes — its core, illustration films and other names, closed by one question; the core a film of theirs seen and stood behind (Shaun of the Dead is there) — never Dawn of the Dead, which is unseen, and never an illustration film — or, where none is obvious, one question about which film is closest; `yes`: exactly what was shown, in order — each new Genre with the meaning shown, then the Vibe with its core, then Dawn of the Dead (1978) filed in it as `want-to-see` — and nothing else: no illustration film written, no verdict, the core still in every Vibe it was in; a yes to a question about which film writes nothing until a film is named, and leaves the write sequence **UNTESTED** in that run — never a PASS of it |
+| keep-no-fit | turn 1: **zero writes** — no film, no Genre, no Vibe, no verdict, since they gave no opinion; one proposal of one recommended new Vibe and two meaningfully different alternatives — other evenings, never other names — each with its name and what it means, its Genres — a new one named with what it would mean, created only on a yes — its core, and exactly two illustration films, shown as T1.6 says, closed by one question; the core a film of theirs seen and stood behind (Shaun of the Dead is there) — never Dawn of the Dead, which is unseen, and never an illustration film — or, where none is obvious, one question about which film is closest; `yes`: exactly what was shown, in order — each new Genre with the meaning shown, then the Vibe with its core, then Dawn of the Dead (1978) filed in it as `want-to-see` — and nothing else: no illustration film written, no verdict, the core still in every Vibe it was in — the recommended Vibe only if the yes clearly took it, and otherwise one question about which before anything is written; a yes to a question about which film writes nothing until a film is named, and leaves the write sequence **UNTESTED** in that run — never a PASS of it |
 | keep-no-fit-declined | turn 1 as keep-no-fit; `no`: nothing written — Dawn of the Dead not saved loose, no Genre, no Vibe, no verdict — and the proposal not made again |
 | going-through | plugin: every anchor, merge or delete is an offer; anchors come from standing positive verdicts; Wingwomen never raised |
 | recommendation-only-reading | nothing offered as fitting Quiet Dread is gory or has torture in it — the Slow Burn Genre rules both out and the request asked for their taste; the positive evidence used is recognisable; no taste write and no Vibe offer |
@@ -127,12 +126,15 @@ never a FAIL of what it would have shown.
    things — not why the liked is not saved, what it needs or how filing works. The recommended
    option, said to be the one recommended, and each alternative is a name and a short sentence —
    a new Vibe's Genres named in passing, a new Genre's meaning in a short phrase; no Genre
-   explained at length; one simple question. The recommended option is shown by two or three
-   other films, by title and year, that set it apart, and none is written — writing one is
-   outcome 2; the alternatives name no films unless asked. A poster is one the host's own tools
-   returned for that film, and an image from anywhere else fails: on the runner, which gives the
-   host no tool that returns one, any image fails; on `chatgpt-plugin (manual)`, a card with
-   posters its tools returned is the layout preferred, and plain Markdown passes as well.
+   explained at length; one simple question. Each of the three options — the recommended one and
+   both alternatives — is shown by exactly two other films, by title and year, that set it apart,
+   six in all with none shown for two options, and none is written — writing one is outcome 2;
+   an option shown by fewer or more than two fails. A poster is one the host's own tools returned
+   for that film, and an image from anywhere else fails: on the runner, which gives the host no
+   tool that returns one, any image or image link fails, each film is its title and year alone,
+   and a word about posters it cannot show fails; on `chatgpt-plugin (manual)`, each film is
+   shown with the poster its tools returned for it, all three options alike, and a film they
+   returned none for by its title and year alone.
 
 ### Turn 1 (K1) — on `m5-06-bloom-saved`, the kept path
 

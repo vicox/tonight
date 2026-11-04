@@ -71,10 +71,10 @@ Given after one of the requests above, in the same session.
 | `partial` | *"Only the first part, not the rest."* |
 | `three-films` | *"Paterson, Arrival and Palm Springs."* |
 | `pick-title-one` | *"{title:1}"* |
-| `other-two-films` | *"What films would go in the other two?"* |
 
-`other-two-films` follows a Vibe offer: the alternatives name no films until somebody asks, and
-this is the asking (`docs/work/vibe-discovery-visual`).
+`other-two-films` (*"What films would go in the other two?"*), the asking after an offer whose
+alternatives named no films, is retired: every option in the offer now shows its two films up
+front (`docs/work/vibe-all-covers`). Its recordings are read as what they were.
 
 `{title:N}` is not sent as written. The runner puts in its place the title the answer before it
 offered as choice N — the title alone, as somebody choosing by title would say it — and fails the
