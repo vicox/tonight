@@ -62,7 +62,23 @@ them is a separate decision.
 - `recommend-skill.test.ts`, `verdicts.test.ts` (`next`), `evaluation-m5.test.ts` (T1.6, and the
   retired scenario gone from the rubric).
 
+**Run by the implementer:** `npm test` in `web/`, 1397 of 1401 — the four are `evaluation.test.ts`
+reading the gitignored `evaluation/results/`; the changed suites 158/158; typecheck and eslint on
+the changed files clean. The bash suites need an approval this session cannot give: a Python
+reader of `tonight-vibes/test.sh`, calibrated on the base (176/176, Codex's count there), read the
+new suite 177/177, and the seven new or changed checks fail on the base skill.
+
 ## 4. Behavior runs
 
-Targeted only, as the owner asked — the new offer, no onboarding, no baseline — on DeepSeek, in
-`BEHAVIOR.md`.
+Targeted only, as the owner asked — the new offer, no onboarding, no regression set, no baseline —
+12 model calls on DeepSeek `deepseek-v4-pro`, a dev-only `web/.env.local` and the key from
+opencode's credential store, recorded at `c698b19` (`BEHAVIOR.md`):
+
+- **Two films for every option, in 10 of 10 offers**, 60 films with their years, none shown for
+  two options; **none written** — the two yeses wrote Bloom and the liked again, nothing else.
+- **Posters UNTESTED.** The runner's host has no film or image tool, so only the text fallback
+  ran: every film by title and year, no image, nothing said about posters. No real cover was
+  fetched or shown anywhere; that needs the manual pass on `chatgpt-plugin (manual)`.
+- **Recorded apart:** 4 of 10 runs failed on Genre wording on the alternatives — the rule
+  *vibe-discovery-visual* recorded failing at the base rate, scored more strictly here. Whether
+  six films make it likelier is unknown without before runs, which were out of scope.
