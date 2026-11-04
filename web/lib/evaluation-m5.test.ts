@@ -334,6 +334,15 @@ test("skill cleanup: a film to keep that no Vibe holds, proposed, and written on
       /\| keep-no-fit \| [^\n]*a yes to a question about which film writes nothing until a film is named, and leaves the write sequence \*\*UNTESTED\*\* in that run — never a PASS of it/],
     ["the decline writes nothing",
       /\| keep-no-fit-declined \| turn 1 as keep-no-fit; `no`: nothing written — Dawn of the Dead not saved loose, no Genre, no Vibe, no verdict/],
+    // vibe-all-covers, code review 1: a film they keep gets the offer a liked one does — one
+    // recommended Vibe and two alternatives, two films each — and a plain yes takes the
+    // recommendation only when it clearly did.
+    ["one recommended Vibe and two alternatives, two films each, as T1.6 says",
+      /\| keep-no-fit \| [^\n]*one proposal of one recommended new Vibe and two meaningfully different alternatives — other evenings, never other names — [^\n]*its core, and exactly two illustration films, shown as T1\.6 says, closed by one question/],
+    ["a yes takes the recommendation only when it clearly did",
+      /\| keep-no-fit \| [^\n]*the recommended Vibe only if the yes clearly took it, and otherwise one question about which before anything is written/],
+    ["first films shown the same way",
+      /\| first-films \| [^\n]*each recommended with two alternatives and each of the three shown by exactly two films, as T1\.6 says/],
   ] as const) {
     assert.match(rubric, row, `the rubric does not score ${what}`);
   }

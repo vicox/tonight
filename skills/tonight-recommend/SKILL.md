@@ -412,17 +412,20 @@ film they ask you to keep. A film they liked or loved is never filed this way: i
 What names, Genres, Vibes and cores need, and an instruction's voice, arrive with `create_genre`
 and `create_vibe`.
 
-**Proposing a new Vibe:** say what you noticed, name it, say what it means, name its core, name its
-Genres with what any new one would mean, and make it concrete — three to five other films that
-would belong, and two or three alternative names.
-Then ask. **Those films are illustration only**:
+**Proposing a new Vibe:** one recommended Vibe and two meaningfully different alternatives —
+other evenings the film could stand for, never other names for the same one — as **tonight-vibes**
+offers one for a film they liked or loved. Say what you noticed; for each, name it, say what it
+means, name its core, name its Genres with what any new one would mean, and make it concrete with
+exactly two other films that would belong — each with its poster where the host's own film or image
+tools return one for that film, never one made up, generated or guessed, and by title and year
+alone, with nothing said about it, where they return none. Say which you recommend and why, then
+ask which. **Those films are illustration only**:
 never written, never filed, never given a viewing or a verdict; only the kept film and the core
 are saved. **A yes is the whole permission**: any Genre it needs, then the Vibe with its core,
-then the film, then one short sentence — never ask twice. **A no
+then the film, then one short sentence — never ask twice; a reply that does not make clear which
+they chose is asked about once, before anything is written. **A no
 settles it**, never saving the film loose. Propose while saving, not while recommending; a Vibe
-that fits needs none of this. That proposal, with its alternative names, is for a film they ask you
-to keep: a new Vibe for a film they liked or loved comes with two other Vibes beside it, as
-**tonight-vibes** says, never other names for the same one.
+that fits needs none of this.
 
 **A film in no Vibe is legitimate**: a recorded watch makes one, so does a film they do not want
 recommended, so does deleting a Vibe. The site lists them under **Other movies**. Do not sort

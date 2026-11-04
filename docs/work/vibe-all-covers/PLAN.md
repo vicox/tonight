@@ -28,26 +28,37 @@ give one, was for the recommended Vibe alone. Now **every option is shown the sa
   card, plain Markdown: each option its name in bold, its sentence and Genres in passing, its two
   films in italics with their years — no table, no headings.
 
-**Scope.** *Whenever Tonight proposes Vibes* is read as every place this offer is made: after a
-liked or loved answered `vibe_required` — an existing Vibe recommended, a new wording, a new
-Vibe, or both — and a kept film's new Vibe, which is offered as that one is. The keep flow's
-single proposal (one Vibe, three to five films, other names) and a new user's first films (an
-offer that may hold several Vibes) keep their own shapes: they are not this offer, and changing
-them is a separate decision.
+**Scope: every place Tonight proposes Vibes.** After a liked or loved answered `vibe_required` —
+an existing Vibe recommended, a new wording, a new Vibe, or both — and a kept film's new Vibe, as
+first written; and, after code review 1, the two proposals that had shapes of their own:
+
+- **A film they ask to keep**, with no Vibe that fits: was one Vibe, three to five films and two
+  or three other names; now one recommended Vibe and two alternatives — other evenings the film
+  could stand for, never other names — each with its core and exactly two films, shown as the
+  offer after a liked shows them. One film may anchor all three, since only the pick is written;
+  a reply that does not say which is asked about once. Consent, core choice and the write order
+  are unchanged. The worked example is rewritten in that shape.
+- **A new user's first films**: still the one offer that may hold several Vibes, grouped as
+  before; each is now recommended with its two alternatives, each of the three with exactly two
+  films (was three or four), shown the same way.
 
 ## 2. Where it is said
 
-- **tonight-vibes**, *Said briefly, in their terms*: the films bullet and the layout paragraph.
+- **tonight-vibes**, *Said briefly, in their terms*: the films bullet and the layout paragraph,
+  and one line saying every Vibe proposed anywhere is shown that way; *Proposing a new Vibe* and
+  its worked example; *A new user's first films*.
+- **tonight-recommend**, *Proposing a new Vibe*: the keep flow is recommend's to state, since a
+  host may load recommend alone — the same shape, with the poster rule in one sentence.
 - **`server.ts`, `next` on `vibe_required`** — read at the moment of the offer, by hosts with or
   without the vibes skill: the same two rules, in its own terms. The word *title* is kept out of
   it, as the guard against the reverted ranking rules requires: a film with no poster is *named
   with its year alone*.
-- **tonight-recommend** is unchanged: its pointer — one recommendation and two alternatives, each
-  named with what it means — still holds.
+- **tonight-recommend**'s pointer to the offer after a liked — one recommendation and two
+  alternatives, each named with what it means — is unchanged.
 - **M5 rubric T1.6** (K1.5 points at it): two films for each option, six in all, none written; a
   poster only from the host's own tools — on the runner, whose host has none, any image or image
   link fails and a word about posters it cannot show fails; on `chatgpt-plugin (manual)`, each
-  film with the poster its tools returned.
+  film with the poster its tools returned. The keep-no-fit and first-films rows point at it.
 - **`alternative-films` retired** — the scenario, its rubric row and its `other-two-films`
   request. It tested that the alternatives named no films until asked, which is no longer the
   rule. Its recordings are read as what they were.
@@ -82,3 +93,16 @@ opencode's credential store, recorded at `c698b19` (`BEHAVIOR.md`):
 - **Recorded apart:** 4 of 10 runs failed on Genre wording on the alternatives — the rule
   *vibe-discovery-visual* recorded failing at the base rate, scored more strictly here. Whether
   six films make it likelier is unknown without before runs, which were out of scope.
+
+## 5. Review
+
+**Codex code review 1 — NOT READY (`5aa6112`).** For the paths implemented, the skill and `next`
+agree, illustration-only and the write rules are intact, the retired scenario is gone, and the
+report marks real covers UNTESTED. Codex ran vibes bash 177/177, recommend bash 263/263, and
+recommend-skill, evaluation-m5 and verdicts 99/99. One finding:
+
+1. **[P2] The scope exception conflicts with *whenever Tonight proposes Vibes*.** The keep flow
+   still proposed one Vibe with three to five films and other names, and first films three or
+   four films, neither with posters. **Fixed** as §1 now says, in both skills, the rubric and the
+   tests: vibes suite read 183/183, recommend 237 read with 32 slice checks skipped, the changed
+   TypeScript suites 158/158, `npm test` 1397 of 1401 (the same four), typecheck and eslint clean.

@@ -961,8 +961,8 @@ check "with no good fit the film waits, and a Vibe is devised rather than asked 
         'Never ask which they want' \
         'that judgement is yours')" "True"
 check "the Vibe is proposed conversationally, named, explained and anchored, then asked about" \
-    "$(order_check 'say what you noticed, name it, say what it means, name its core' \
-        'Then ask')" "True"
+    "$(order_check 'Say what you noticed; for each, name it, say what it' 'means, name its core' \
+        'Say which you recommend and why, then' 'ask which')" "True"
 check "the proposal names its Genres, and what a new one would mean" \
     "$(order_check 'name its core, name its Genres with what any new one would mean' \
         'make it concrete')" "True"
@@ -979,17 +979,23 @@ check "a new Genre is part of the proposal, and nothing is created before their 
         '**Nothing is created before their yes.**' 'Never ask which they' 'want')" "True"
 check "and no Genre is created before the proposal" \
     "$(tr '\n' ' ' < "$SKILL" | grep -ciE 'create +one for +anything')" "0"
-check "a proposed Vibe is shown as an idea: other films in it, other names for it" \
-    "$(order_check 'make
-it concrete' \
-        'three to five other films that would belong' \
-        'two or three alternative names')" "True"
-# §18: the alternative names are the keep flow's; a liked film's new Vibe comes with other Vibes.
-check "alternative names are for keeping a film; a liked film's alternatives are other Vibes" \
-    "$(order_check 'two or three alternative names' \
-        'That proposal, with its alternative names, is for a film they ask you' 'to keep' \
-        'a new Vibe for a film they liked or loved comes with two other Vibes beside it' \
-        'never other names for the same one')" "True"
+# Code review 1 of vibe-all-covers: whenever Tonight proposes Vibes, one recommended and two
+# alternatives, each with exactly two films and their posters — a film they keep included.
+check "a kept film's proposal: one recommended Vibe and two alternatives, other evenings" \
+    "$(order_check '**Proposing a new Vibe:** one recommended Vibe and two meaningfully different alternatives' \
+        'other evenings the film could stand for, never other names for the same one' \
+        'as **tonight-vibes** offers one for a film they liked or loved')" "True"
+check "each made concrete by exactly two films, with posters only from the host's own tools" \
+    "$(order_check 'make it concrete with' 'exactly two other films that would belong' \
+        "each with its poster where the host's own film or image" \
+        'tools return one for that film, never one made up, generated or guessed' \
+        'by title and year' 'alone, with nothing said about it, where they return none')" "True"
+check "a reply that does not say which is asked about once, before anything is written" \
+    "$(order_check '**A yes is the whole permission**' 'never ask twice' \
+        'a reply that does not make clear which' \
+        'they chose is asked about once, before anything is written')" "True"
+check "three to five films and alternative names for a kept film's Vibe are gone" \
+    "$(grep -ciE 'three to five other films|alternative names' "$SKILL")" "0"
 check "those films illustrate the idea and are never part of the save" \
     "$(order_check 'Those films are illustration only' \
         'never written, never filed' \

@@ -645,9 +645,12 @@ test("a proposed Vibe is made tangible before it is agreed to", () => {
 
   for (const [what, rule] of [
     ["to show the idea rather than only name it", /make (the idea|it) concrete/],
-    ["how many films to name", /three to five other films that would belong/],
-    ["to offer other names for it", /two or three (names it could have instead|alternative names)/],
-    ["that the asking still comes last", /Then ask/],
+    // vibe-all-covers, code review 1: whenever Tonight proposes Vibes, one recommended and two
+    // alternatives — other evenings, never other names — each made concrete by exactly two films.
+    ["how many films to name", /exactly two other films that would belong/],
+    ["to offer other evenings beside it, never other names",
+      /one recommended Vibe and two meaningfully different alternatives —\s+other evenings the film could stand for, never other names for the same one/],
+    ["that the asking still comes last", /then\s+ask which/],
     ["that the films are illustration", /Those films are illustration only/],
     ["that they are not written and not filed", /never written, never (in a Vibe|filed)/],
     ["that they get no viewing and no verdict", /never given a viewing or a\s+verdict/],
@@ -1181,8 +1184,8 @@ test("the write flow is stated whole: what may be written, where, and on whose y
     ["the Vibe choice is yours", /Never ask which they want; that judgement is yours/],
     ["a proposal is made concrete", /make\s+it concrete/],
     ["and names its core", /name its core/],
-    ["with three to five films", /three to five other films that would belong/],
-    ["and two or three names", /two or three alternative names/],
+    ["with exactly two films for each", /exactly two other films that would belong/],
+    ["and two other Vibes beside it", /one recommended Vibe and two meaningfully different alternatives/],
     ["those films are illustration only", /Those films are illustration only/],
     ["never written, never filed", /never written, never filed/],
     ["no viewing, no verdict", /never given a viewing or a\s+verdict/],
@@ -1716,7 +1719,14 @@ test("the offer after a liked is said briefly, in their terms, and the two skill
   // liked never said to be saved before it is, and first films with their illustration films.
   assert.match(vibes, /Each is concrete: another of their Vibes the film fits, or a new Vibe — a name, a sentence and its Genres, any new Genre's meaning shown, with this film as its core/);
   assert.match(vibes, /\*\*Until the film is filed, the verdict is not saved, so never say it is\.\*\*/);
-  assert.match(vibes, /an instruction, its Genres, its core, and three or four illustration films/);
+  // vibe-all-covers, code review 1: whenever Tonight proposes Vibes — after a liked, for a film they
+  // keep, from a new user's first films — each Vibe is shown with its two films and their posters.
+  assert.match(vibes, /each one recommended with two meaningfully different alternatives beside it — other reasons those films may have worked, not other names for one — and each of the three an instruction, its Genres, its core, and exactly two illustration films, shown as the offer after a liked shows them/);
+  assert.match(vibes, /Every Vibe proposed anywhere — here, for a film they keep, or from a new user's first films — is shown with its two films this way\./);
+  assert.match(vibes, /\*\*Proposing a new Vibe:\*\* one recommended Vibe and two meaningfully different alternatives — three different evenings the film could stand for, not three names for one idea/);
+  assert.match(recommend, /each with its poster where the host's own film or image tools return one for that film, never one made up, generated or guessed, and by title and year alone, with nothing said about it, where they return none/);
+  assert.doesNotMatch(vibes, /three or four illustration films|three to five other films|names it could have instead/, "a proposal shaped its own way again");
+  assert.doesNotMatch(recommend, /three to five other films|alternative names/, "a kept film's proposal shaped its own way again");
 });
 
 /**
