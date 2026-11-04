@@ -221,13 +221,14 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
     ["no apology for the expected refusal", /\*\*No apology\.\*\* `vibe_required` is the expected answer: the reply apologises for nothing and\s+reports no error/],
     // Vibe offer copy: the offer is short, and how Tonight keeps a liked is never in it.
     ["the offer said briefly, on T1", /6\. \*\*Said briefly, in their terms\.\*\* A short acknowledgement, and nothing about how Tonight keeps\s+things[^]*no Genre\s+explained at length; one simple question/],
-    // Vibe discovery: the recommended option is shown by two or three films, none written, the
-    // alternatives by none; a poster only from the host's own tools — so none on the runner,
-    // and a card welcome, never required, on the plugin scored by hand.
-    ["the recommended option shown by two or three films, none written",
-      /The recommended option is shown by two or three\s+other films, by title and year, that set it apart, and none is written — writing one is\s+outcome 2; the alternatives name no films unless asked\./],
+    // Vibe discovery: every option — the recommended one and both alternatives — is shown by
+    // exactly two films, none written; a poster only from the host's own tools — so none on the
+    // runner, each film its title and year — and on the plugin scored by hand, each film's poster
+    // its tools returned, all three options alike.
+    ["each of the three options shown by exactly two films, none written",
+      /Each of the three options — the recommended one and\s+both alternatives — is shown by exactly two other films, by title and year, that set it apart,\s+six in all with none shown for two options, and none is written — writing one is outcome 2;\s+an option shown by fewer or more than two fails\./],
     ["a poster only from the host's own tools, never invented, on either host",
-      /A poster is one the host's own tools\s+returned for that film, and an image from anywhere else fails: on the runner, which gives the\s+host no tool that returns one, any image fails; on `chatgpt-plugin \(manual\)`, a card with\s+posters its tools returned is the layout preferred, and plain Markdown passes as well\./],
+      /A poster is one the host's own tools returned\s+for that film, and an image from anywhere else fails: on the runner, which gives the host no\s+tool that returns one, any image or image link fails, each film is its title and year alone,\s+and a word about posters it cannot show fails; on `chatgpt-plugin \(manual\)`, each film is\s+shown with the poster its tools returned for it, all three options alike, and a film they\s+returned none for by its title and year alone\./],
     ["the offer said briefly, on the kept path", /5\. \*\*Said briefly, in their terms\*\*, as T1\.6 says\./],
     // §20: where both make sense, both — one recommended in a line, their choice — and the
     // core still fits a new wording wholly.
@@ -257,6 +258,8 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
   assert.doesNotMatch(rubric, /overlap is kept|stays in Champagne & Blueprints|also in Champagne & Blueprints|no filing in Champagne/u);
   // None of the reverted hypothesis criteria is scored any more.
   assert.doesNotMatch(rubric, /three hypotheses|facet|ranked by the verdict|word for\s+word|numbered bold-title/iu);
+  // Nor are the alternatives scored as showing no films until asked: every option shows its two.
+  assert.doesNotMatch(rubric, /name no films unless asked|two or three\s+other films|alternative-films/u);
   // A pick the runner cannot read is its own limit, not evidence about the agent.
   assert.match(rubric, /\*\*A pick the runner cannot resolve is the runner's\s+limit, not evidence about the agent\*\*/);
   // A yes or pick without timing is seen-before only when nothing placed it; timing given stands.
