@@ -93,6 +93,12 @@ opencode's credential store, recorded at `c698b19` (`BEHAVIOR.md`):
 - **Recorded apart:** 4 of 10 runs failed on Genre wording on the alternatives — the rule
   *vibe-discovery-visual* recorded failing at the base rate, scored more strictly here. Whether
   six films make it likelier is unknown without before runs, which were out of scope.
+- **After code review 1, at `ee5985f`, 8 more calls** — the keep flow (2 on `plugin-skills`, 1 on
+  `recommend-only`) and first films (1): every proposal one recommended Vibe and two alternatives,
+  or first-films groupings, with every Vibe shown by exactly two films, and no illustration film
+  written. The `recommend-only` keep run FAILs — no core on its alternatives, and an unshown
+  `update_vibe` that changed nothing — and first films FAILs on `hi`, the known onboarding
+  fluctuation; both recorded in `BEHAVIOR.md`.
 
 ## 5. Review
 
