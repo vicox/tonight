@@ -68,11 +68,25 @@ test("the landing page says what it was approved to say", () => {
     "the headline is not the approved line, or is not the heading",
   );
 
+  // The example's caption and the reply's heading, each in its own element. The
+  // heading's apostrophe is the straight one it was approved with, written
+  // `&apos;` because JSX text may not hold a bare `'`.
+  assert.match(
+    page,
+    /<figcaption id="landing-example"[^>]*> Example · Tonight in ChatGPT or Claude <\/figcaption>/,
+    "the example's caption is not the approved line",
+  );
+  assert.match(
+    page,
+    /<h3 className="[^"]*"> I&apos;ve got just the thing\. <\/h3>/,
+    "the reply's heading is not the approved line",
+  );
+
   for (const words of [
     "Your personal movie AI. It remembers what you love, understands why, and helps you find what to watch next.",
-    "Example, shortened: a reply in ChatGPT or Claude, with Tonight connected",
+    "Example · Tonight in ChatGPT or Claude",
     "Anything for tonight?",
-    "A little surprise for tonight.",
+    "I&apos;ve got just the thing.",
     "You loved Arrival for its quiet tension and the way its mystery slowly unfolds. I think Moon might be right up your alley. It has that same feeling of something bigger hiding beneath the surface.",
     "Or give me a mood and I’ll aim closer.",
     "Your taste. Your movie nights. Your AI.",
@@ -80,6 +94,11 @@ test("the landing page says what it was approved to say", () => {
     "Your personal movie AI, inside ChatGPT and Claude.",
   ]) {
     assert.ok(page.includes(words), `the landing page no longer says "${words}"`);
+  }
+
+  // Replaced, not joined: the earlier caption and heading are not on the page.
+  for (const retired of ["Example, shortened", "with Tonight connected", "A little surprise for tonight."]) {
+    assert.equal(page.includes(retired), false, `the landing page still says "${retired}"`);
   }
 });
 
@@ -105,7 +124,7 @@ test("the example is an example, and nothing on the page can be typed into", () 
 
   const figure = page.slice(page.indexOf("<figure"), page.indexOf("</figure>"));
   assert.ok(figure.length > 0, "the example is not a figure");
-  assert.match(figure, /<figcaption[^>]*>\s*Example,/, "the example is not captioned as one");
+  assert.match(figure, /<figcaption[^>]*>\s*Example ·/, "the example is not captioned as one");
   assert.ok(
     collapsed(figure).includes("I think Moon might be right up your alley."),
     "the reply sits outside the example",
