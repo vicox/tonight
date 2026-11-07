@@ -92,7 +92,7 @@ function Landing() {
         className="mt-10 rounded-xl border border-rule bg-screen px-5 py-4 sm:mt-14"
       >
         <figcaption id="landing-example" className="text-[12px] text-ink-soft">
-          Example, shortened: a reply in ChatGPT or Claude, with Tonight connected
+          Example · Tonight in ChatGPT or Claude
         </figcaption>
 
         <dl className="mt-5 flex flex-col gap-4">
@@ -107,7 +107,7 @@ function Landing() {
             </dt>
             <dd className="min-w-0">
               <h3 className="font-display text-[22px] leading-tight break-words text-ink">
-                A little surprise for tonight.
+                I&apos;ve got just the thing.
               </h3>
               <p className="mt-2 text-[15px] leading-relaxed text-ink">
                 You loved Arrival for its quiet tension and the way its mystery slowly unfolds. I
