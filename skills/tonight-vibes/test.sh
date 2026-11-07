@@ -330,7 +330,7 @@ check "when both make sense: both in one offer, one recommended in a line, they 
         'which then is in that new Vibe alone' \
         'Say in one line which you would choose and why, and let them choose' \
         'a reply that does not make clear which they chose is asked about once, before anything is written' \
-        'A film that fits well is proposed for filing, as 1 says, with its two alternatives and no new wording')" "True"
+        "A film that fits well, its Vibe's sentence true of it and of the core, is proposed for filing, as 1 says, with its two alternatives and no new wording")" "True"
 # Skill compliance: an existing Vibe that fits is the recommendation, never offered alone and never
 # beside a bare "or a new one" — two concrete alternatives, as step 3's new Vibe always had.
 check "an existing Vibe that fits is the recommendation, with two concrete alternatives beside it" \
@@ -345,6 +345,98 @@ check "an existing Vibe that fits is the recommendation, with two concrete alter
         '**When both make sense.**')" "True"
 check "a fitting Vibe is no longer offered with nothing beside it" \
     "$(grep -c 'with nothing more offered' "$SKILL")" "0"
+# Vibe refit: a film filed in one of their Vibes never led to a new wording when it fitted
+# confidently — the trigger read "does not yet say what makes it fit", which a confident fit
+# answers — and a loved film never led to a core offer where the core was only liked. Both are
+# weighed every time, inside the one offer, and nothing is written without a yes.
+check "step 1 weighs the Vibe's sentence and core for the film, every time, inside the one offer" \
+    "$(order_check '1. **An existing Vibe first.**' \
+        'If one fits, it is your recommendation: propose filing the film' \
+        "and, every time, weigh that Vibe's sentence and its core for this film" \
+        'as *Filing it in one of their Vibes* says, inside the same offer')" "True"
+check "step 2's trigger is a part of the sentence true of the core but not of this film" \
+    "$(order_check '2. **A minimal change, only when needed, and only on their yes.**' \
+        "a part of the Vibe's sentence is true of its core but not of this film" \
+        'exact new wording — the smallest change that covers it')" "True"
+check "the old trigger a confident fit read as covered is gone" \
+    "$(grep -ciE 'just does not yet say what makes it fit' "$SKILL")" "0"
+check "the refit rule: whenever a liked or loved is offered for a Vibe, both parts of the one offer" \
+    "$(order_check '### Filing it in one of their Vibes: its sentence and its core' \
+        'Whenever a film they liked or loved is offered for one of their Vibes' \
+        'the recommendation as 1 has it, that Vibe as an alternative, or a move for a kept one' \
+        'before you make the offer, every time' \
+        'both are parts of the one offer: never an offer of their own, never made after it, and never written without their yes' \
+        '### What to consider, and what to offer')" "True"
+check "the sentence, part by part: true of both stays, and a film arriving is no reason" \
+    "$(order_check '**Its sentence, for both films.**' \
+        "Read the Vibe's sentence part by part against its core and against this film" \
+        '**Every part true of both** → it stays as it is, and nothing about it is offered' \
+        'A film arriving is never a reason on its own to change their sentence')" "True"
+check "a part true of the core alone is loosened or dropped; what the evening is about is not" \
+    "$(order_check '**A part true of the core alone**' \
+        'a place, a time, a detail only that one film has' \
+        'while this film belongs to the same evening without it → the exact new wording, as 2 says' \
+        'that part loosened or dropped, the smallest change that makes the sentence true of both' \
+        'the rest in their words as they wrote it' \
+        '**The part it lacks is what the evening is about** → it is not that evening, and it is not filed there: go on to 3')" "True"
+check "a new wording only takes away: never the new film's, never their reason, never wider" \
+    "$(order_check 'A new wording only ever takes away what is true of the core alone' \
+        'It never adds what is true of this film alone, and never their reason for liking it' \
+        'that reason is theirs, in `because`, and a Vibe stretched to carry it loses it' \
+        'never the two added together, so it never widens the Vibe beyond what it meant')" "True"
+check "a new wording keeps the core whole, every film they stand behind, the name and Genres, and names no film" \
+    "$(order_check 'It leaves the core fitting wholly, every film in it they liked or loved fitting still, and its name and Genres as they are' \
+        'a change that needs another name or other Genres is another evening' \
+        'It names no film')" "True"
+check "a loved film is offered as the core where the core is only liked, named against the one that stays" \
+    "$(order_check '**Its core, when this one is loved.**' \
+        'When this film is `loved` and the Vibe'"'"'s core stands only `liked`' \
+        'ask whether this film embodies the Vibe wholly' \
+        'If it does, offer it as the core too, named against the current one' \
+        'that they loved this one, and that the current one stays in it')" "True"
+check "no core offer where the core is loved or has no verdict, for a liked film, or one needing a new wording" \
+    "$(order_check '**Its core, when this one is loved.**' \
+        'Not when the core is loved or has no verdict of theirs' \
+        'not when this film is only liked' \
+        'not when it fits only with a new wording' \
+        'a film the sentence has to change for does not embody it wholly')" "True"
+check "loved is the reason to ask, never the answer, and a core never changes on a verdict alone" \
+    "$(order_check 'Loved is the reason to ask, never the answer' \
+        'a loved film that fits less fully than the core is not offered' \
+        'a core never changes because of a verdict alone')" "True"
+check "each part its own: a yes to part writes that part, and a turned-down part is not offered again" \
+    "$(order_check 'A new wording and a new core are each a part of the offer, said as its own part' \
+        'a yes to part of it writes that part alone' \
+        'a yes only to filing it is not a yes to the core' \
+        'Whatever they turn down stays as it is, and is not offered again in this conversation')" "True"
+check "the offer shows a new core with the film that anchors it now, which stays" \
+    "$(order_check 'A new wording, as 2 says, is shown exactly' \
+        'and a new core is named with the film that anchors it now, which stays in it' \
+        '**Exactly two films show each of the three**')" "True"
+check "a film agreed as the core is filed by update_vibe, and the old core stays" \
+    "$(order_check 'On their yes, write exactly what they agreed' \
+        'A film they agreed should anchor one of their Vibes is filed by `update_vibe` with it as `core` instead' \
+        'with its `core.viewing` if it is not saved yet' \
+        'and the film that anchored it stays there')" "True"
+check "the kept path: a move weighs its Vibe, and a loved film may be its Vibe's core" \
+    "$(order_check '**A move to a Vibe whose instruction it fits better**' \
+        "with that Vibe's sentence and core weighed for it as *Filing it in one of their Vibes* says" \
+        '**A new core for a Vibe**' \
+        'or, for a film they loved in a Vibe whose core stands only liked, when it embodies it wholly' \
+        'as *Its core, when this one is loved* says')" "True"
+check "a new wording or a new core is inside the one offer, never a second one" \
+    "$(order_check '**Asking has a budget.**' \
+        'A new wording or a new core goes inside that one offer, never in a second one after it')" "True"
+check "writing: a core filed by its own call, a new wording before the film is filed under it" \
+    "$(order_check '`update_vibe` with the core. The film it replaces stays' \
+        'A film being filed as the core is filed by this call' \
+        'so 3 writes nothing more for it' \
+        '**a new wording** — `update_vibe` with exactly the sentence they agreed, before the film is filed under it' \
+        'in the same call as a new core where there is one' \
+        '`update_movie` with the one agreed Vibe')" "True"
+check "the table: a loved film may be offered as the core of a Vibe whose core is only liked" \
+    "$(sed -n '/### What each kind of statement writes/,/^## /p' "$SKILL" \
+        | grep -c 'a Vibe whose core stands only liked may be offered this film as its core')" "1"
 # Vibe offer copy: after a liked, the reply explained how Tonight stores a liked and gave three
 # options heavy with Genres. The offer is short and in their terms, and none of it is a report.
 check "the offer is said briefly: an acknowledgement, and nothing about how Tonight keeps things" \

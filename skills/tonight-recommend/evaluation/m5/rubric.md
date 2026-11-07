@@ -88,6 +88,10 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | kept-new-vibe | K1 on turn 1; `{title:1}`: *After a yes or a pick* (below), the picked Vibe with core Bloom, and Bloom still in Champagne & Blueprints; `like-bloom-tonight`: a recommendation that names no Vibe or Genre and writes no taste, personal in every reason, and that says back what they said of Bloom **at most once** — never on the lead and every direction, and not again if the answer before already said it |
 | keep-no-fit | turn 1: **zero writes** — no film, no Genre, no Vibe, no verdict, since they gave no opinion; one proposal of one recommended new Vibe and two meaningfully different alternatives — other evenings, never other names — each with its name and what it means, its Genres — a new one named with what it would mean, created only on a yes — its core, and exactly two illustration films, shown as T1.6 says, closed by one question; the core a film of theirs seen and stood behind (Shaun of the Dead is there) — never Dawn of the Dead, which is unseen, and never an illustration film — or, where none is obvious, one question about which film is closest; `yes`: exactly what was shown, in order — each new Genre with the meaning shown, then the Vibe with its core, then Dawn of the Dead (1978) filed in it as `want-to-see` — and nothing else: no illustration film written, no verdict, the core still in every Vibe it was in — the recommended Vibe only if the yes clearly took it, and otherwise one question about which before anything is written; a yes to a question about which film writes nothing until a film is named, and leaves the write sequence **UNTESTED** in that run — never a PASS of it |
 | keep-no-fit-declined | turn 1 as keep-no-fit; `no`: nothing written — Dawn of the Dead not saved loose, no Genre, no Vibe, no verdict — and the proposal not made again |
+| core-promotion | R1 and R2 on turn 1 (below); `yes`: Before Sunrise anchors Walk and Talk — `update_vibe` with it as core, which files it — Before Sunset still in Walk and Talk, the sentence, name and Genres unchanged, and the loved recorded again |
+| core-promotion-partial | R1 and R2 on turn 1; `keep-before-sunset`: Before Sunrise filed in Walk and Talk and the loved recorded again, and **no core change** — Before Sunset still its core, no `update_vibe` at all — and the core not offered again |
+| wording-refit | R1 and R3 on turn 1; `yes`: `update_vibe` on Neon and Silence with exactly the sentence shown, before Only God Forgives is filed there, its name, Genres and core unchanged; then the liked recorded again |
+| kept-core-promotion | R4 on turn 1; `yes`: `update_vibe` making Before Sunrise Walk and Talk's core, Before Sunset still in it, the sentence unchanged, and nothing else written |
 | going-through | plugin: every anchor, merge or delete is an offer; anchors come from standing positive verdicts; Wingwomen never raised |
 | recommendation-only-reading | nothing offered as fitting Quiet Dread is gory or has torture in it — the Slow Burn Genre rules both out and the request asked for their taste; the positive evidence used is recognisable; no taste write and no Vibe offer |
 
@@ -179,6 +183,72 @@ Nothing is written after it.
 How the offer is laid out is not scored. **A pick the runner cannot resolve is the runner's
 limit, not evidence about the agent**: the turns after it are UNTESTED, and K1 is still scored
 from the answer itself.
+
+## A film for one of their Vibes: its sentence and its core
+
+`docs/work/vibe-refit`. Whenever a liked or loved film is offered for one of their Vibes, that
+Vibe's sentence and core are weighed for it, inside the one offer, and nothing changes without a
+yes. Turn 1 is read up to its boundary, so a write before the answer is a write before a yes.
+Each criterion is PASS, FAIL or UNTESTED, as above.
+
+### Turn 1, on `m5-08-refit`
+
+**R1 — the shape every run shares.**
+
+1. **The verdict, first**: `record_verdict` in turn 1, before any taste write — `loved` for
+   *"I loved Before Sunrise"*, `liked` for *"I really liked Only God Forgives"*, no `because`,
+   since they gave no reason — answered `vibe_required`.
+2. **Zero taste writes** in turn 1: no `update_vibe`, no film filed, and the verdict never said
+   to be saved.
+3. **One offer**: the Vibe it fits recommended, with two concrete alternatives, said briefly, as
+   T1.3, T1.5 and T1.6 say. A new wording or a new core is part of that offer — never a second
+   offer, and never one left for after the yes.
+
+**R2 — the core, for a loved film where the core is only liked** (`loved-before-sunrise`).
+
+1. **Filing in Walk and Talk is recommended, with Before Sunrise as its core** — named against
+   Before Sunset, the film that anchors it now, and saying Before Sunset stays in it. An offer
+   with no core change fails R2.1; a core change made, or said to be made, without a yes is
+   outcome 1.
+2. **No new wording**: the sentence is true of Before Sunrise as it stands, so any change to it
+   offered here fails.
+
+**R3 — the sentence, for a film the core's detail does not cover** (`liked-only-god-forgives`).
+
+1. **Filing in Neon and Silence is recommended with the exact new wording**, shown in full: *Los
+   Angeles* loosened or dropped — a city, any city, after dark — and every other word theirs.
+   Filing it with no new wording, or offering it a Vibe of its own as the recommendation while
+   saying Neon and Silence is its evening, fails R3.1. Whether it is that evening at all is the
+   agent's judgement: a run that judges it is not, and says why, leaves R3.1 UNTESTED and is
+   scored on R3.2 and R3.3 for whatever it does offer.
+2. **The new wording is safe**: it adds nothing only Only God Forgives has — no Bangkok, no
+   revenge, no family, no violence, nothing from the film and no reason for liking it — it names no
+   film, it keeps the name and the Genres, and Drive still fits it wholly. Any of those broken
+   fails R3.2.
+3. **No core offer**: Only God Forgives is only liked, and Drive is loved. Offering it as the core
+   fails.
+
+### Turn 1, on `m5-09-refit-kept` — the kept path
+
+**R4.**
+
+1. **The verdict, first, and kept** — Before Sunrise is already filed — and its viewing moved from
+   `want-to-see` to `seen-before` in turn 1, before the offer and without asking first.
+2. **One offer: Before Sunrise as Walk and Talk's core**, named against Before Sunset, which stays
+   in it. No offer of it fails R4.2 on its own; a new Vibe, or a new wording, offered beside it
+   fails, since the sentence is true of both and Before Sunrise embodies the evening it is in.
+3. **No other taste write** in turn 1.
+
+### After the answer
+
+- **A yes writes what was shown**: a core with `update_vibe` and `core` — saving and filing the
+  film, with `core.viewing` where it is not saved yet — and a new wording with `update_vibe` and
+  exactly the sentence shown, before the film is filed under it. A `create_movie` that files the
+  film before the core changes is allowed; anything written that was not shown fails.
+- **A yes to part writes that part alone**: *"Yes, but leave Before Sunset as the main one"* files
+  Before Sunrise and changes no core; the core is not offered again.
+- **The old core stays**: after any core change, Before Sunset is still in Walk and Talk.
+- **The liked or loved is kept**: `record_verdict` again where it was refused.
 
 ## Threshold
 

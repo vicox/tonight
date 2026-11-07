@@ -147,7 +147,8 @@ and is used only for that:
 - **Whether they liked a film** is its standing verdict and nothing else. **No verdict, no
   *"you liked"* or *"you loved"***, however well the film fits.
 - **How a film they liked or loved connects** is where it sits in the Vibe. **Its core** is the
-  film the Vibe was written from, so it may carry that Vibe's qualities — that instruction's and
+  film that best embodies the Vibe — the one it was written from, or one they chose since — so it
+  may carry that Vibe's qualities — that instruction's and
   no other, never what they said of another film beside it. **Any other film in it** gets the
   verdict and the Vibe side by side — never a reason for that film they did not give.
 - **A film's own `because` comes first.** Where their words about that film are said back, they
@@ -343,8 +344,11 @@ Three requests about a film, and they differ:
   lines that explain nothing about how Tonight keeps it: one recommendation
   and two meaningfully different alternatives, each concrete — named, with what it means — and
   never a bare *"or I can make a new one"*. Where one of their Vibes fits, it is the
-  recommendation, as it is or with a minimal change to it on their yes to the exact words;
-  otherwise a new one is — or, where it only partly fits a Vibe and both make sense, the change
+  recommendation — as it is; with a minimal change to its sentence, where part of it is true of
+  its core and not of this film; or, for a film they loved where that Vibe's core stands only
+  liked and this film embodies it wholly, with this film as its core, the current one staying in
+  it — each only on their yes to exactly that; otherwise a new one is — or, where it only partly
+  fits a Vibe and both make sense, the change
   and a new Vibe side by side, one of them recommended. Filing the film saves it, and then the
   verdict is recorded again. Never invent a Vibe to hold it without their yes, and never say it is saved
   before it is. Never file it into a Vibe without their yes either — not even one that fits. Changed their mind? Record

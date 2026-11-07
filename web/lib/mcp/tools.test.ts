@@ -564,6 +564,17 @@ test("a vibe is asked for as one idea, read from the genres' instructions", asyn
   assert.doesNotMatch(update, /say a reason it was not about/u, "update_vibe: the reverted reason rule is back");
   // §20: a rewording its core would no longer fit wholly is a new vibe, not a reworded one.
   assert.match(update, /and so is one\s+its core would no longer fit wholly/u, "update_vibe: a rewording may lose its core");
+  // Vibe refit: the change takes away only what is true of the core alone — never what only the
+  // new film has, nor their reason for liking it — and a film arriving is no reason on its own.
+  assert.match(update, /part of\s+the sentence is true of its core but not of that film: that part loosened or dropped, so\s+the sentence is true of both/u,
+    "update_vibe: the trigger is not a part true of the core alone");
+  assert.match(update, /A film arriving is no reason on its own, and the new words\s+never add what only that film has, or their reason for liking it/u,
+    "update_vibe: a new wording may carry the new film or their reason");
+  assert.match(update, /or a film in it they like or love would no longer\s+fit/u, "update_vibe: a rewording may lose a film they stand behind");
+  assert.doesNotMatch(update, /the\s+sentence does not yet cover it/u, "update_vibe: the old trigger is back");
+  // A loved film may be offered as the core where the core is only liked — never made it on a verdict.
+  assert.match(update, /or a film they\s+loved that embodies it wholly, where the current core stands only liked\. Only with their\s+yes: a verdict is a reason to offer the change, never to make it\./u,
+    "update_vibe: a loved film over a liked core, or the yes it needs");
   assert.doesNotMatch(create, /picked by its title/u, "create_vibe: the reverted title rule is back");
   assert.doesNotMatch(describing("create_genre"), /a title they picked/u, "create_genre: the reverted title rule is back");
   // A liked said now moves a want-to-see film; one that stands from before does not.

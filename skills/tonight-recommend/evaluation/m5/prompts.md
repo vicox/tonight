@@ -52,6 +52,18 @@ A film is in one Vibe, and a core cannot leave the Vibe it anchors.
 | --- | --- |
 | `hot-fuzz-talky` | *"Hot Fuzz is really about Nick and Danny talking, for me — it belongs with Walk and Talk, not Laugh Till It Hurts."* |
 
+## A film for one of their Vibes: its sentence and its core
+
+`docs/work/vibe-refit`: on `m5-08-refit`, Before Sunrise belongs on Walk and Talk, whose core,
+Before Sunset, they only liked; Only God Forgives belongs on Neon and Silence, whose sentence names
+a city only its core, Drive, is set in. On `m5-09-refit-kept`, Before Sunrise is already kept in
+Walk and Talk as a film they wanted to see.
+
+| key | request |
+| --- | --- |
+| `loved-before-sunrise` | *"I loved Before Sunrise."* |
+| `liked-only-god-forgives` | *"I really liked Only God Forgives."* |
+
 ## A film to keep
 
 `docs/work/skill-cleanup`: a film they ask to keep, unseen, that no Vibe of theirs holds.
@@ -71,6 +83,7 @@ Given after one of the requests above, in the same session.
 | `partial` | *"Only the first part, not the rest."* |
 | `three-films` | *"Paterson, Arrival and Palm Springs."* |
 | `pick-title-one` | *"{title:1}"* |
+| `keep-before-sunset` | *"Yes, but leave Before Sunset as the main one."* |
 
 `other-two-films` (*"What films would go in the other two?"*), the asking after an offer whose
 alternatives named no films, is retired: every option in the offer now shows its two films up

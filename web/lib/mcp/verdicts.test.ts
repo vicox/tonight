@@ -862,6 +862,20 @@ describe("the verdict tools", () => {
       // §20: a rewording keeps its core; where a new vibe makes sense too, both, one recommended
       // in a line, their choice — and a partial fit is not filed at all.
       assert.match(next as string, /exact minimal new wording — one its core still fits wholly —/u);
+      // Vibe refit: the vibe a film is offered for is weighed every time, inside the one offer —
+      // its sentence against its core and this film, and its core where this one is loved.
+      assert.match(next as string, /every time, weigh that vibe's sentence and core for this film, inside the same offer — read the sentence part by part against its core and this film: if every part is true of both, it stays as it is, since a film arriving is no reason on its own to change it;/u);
+      assert.match(next as string, /if a part is true of the core alone while the film still belongs to that evening, show them the exact minimal new wording — one its core still fits wholly — that part loosened or dropped, adding nothing only this film has and never their reason for liking it, its name and genres unchanged and no film named in it, and change it with update_vibe only on their yes to those words; if the part the film lacks is what that evening is about, it does not go there\./u);
+      assert.match(next as string, /If the film is loved and that vibe's core stands only liked, and the film embodies the vibe wholly as its sentence stands now, offer it as the core too, in the same offer, named against the current one, which stays in the vibe — never when the core is loved or has no verdict, nor for a film that fits only with a new wording, and never as a change made without their yes;/u);
+      assert.doesNotMatch(next as string, /sentence does not yet cover this film/u, "the old trigger, which a confident fit read as covered, is back");
+      // A yes to part writes that part; a film chosen as the core is filed by update_vibe, and
+      // the core it replaces stays.
+      assert.match(next as string, /On their yes, write exactly the parts they agreed — a yes to part of the offer writes that part alone — and file it:/u);
+      assert.match(next as string, /where they chose it as that vibe's core, update_vibe with it as core — and core\.viewing for an unsaved film — which files it there in place of update_movie or create_movie, the old core staying in the vibe/u);
+      assert.ok(
+        (next as string).indexOf("update_vibe with it as core") < (next as string).indexOf("call record_verdict again"),
+        "the retry comes before the film is filed as the core",
+      );
       assert.match(next as string, /where a new vibe would make sense too, offer both in the one offer — that wording, and a new vibe offered as \(2\) offers one — say in one line which you would choose and why, and let them choose/u);
       // Code review: a reply that does not say which is asked about, not taken as the
       // recommendation; and a new vibe files the film there alone — it is never also kept in
