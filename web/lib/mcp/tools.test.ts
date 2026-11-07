@@ -568,6 +568,9 @@ test("a vibe is asked for as one idea, read from the genres' instructions", asyn
   // new film has, nor their reason for liking it — and a film arriving is no reason on its own.
   assert.match(update, /part of\s+the sentence is true of its core but not of that film: that part loosened or dropped, so\s+the sentence is true of both/u,
     "update_vibe: the trigger is not a part true of the core alone");
+  // Behavior runs: one new wording changed a word it did not have to ("after dark" → "at night").
+  assert.match(update, /the sentence is true of both, and every other word left as they wrote it/u,
+    "update_vibe: a minimal change may rewrite the rest of their sentence");
   assert.match(update, /A film arriving is no reason on its own, and the new words\s+never add what only that film has, or their reason for liking it/u,
     "update_vibe: a new wording may carry the new film or their reason");
   assert.match(update, /or a film in it they like or love would no longer\s+fit/u, "update_vibe: a rewording may lose a film they stand behind");

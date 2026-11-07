@@ -649,7 +649,8 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "is not yours to adjust. The one change you may propose is a minimal one — the exact new " +
         "words, shown to them — when a film they like belongs to that same evening and part of " +
         "the sentence is true of its core but not of that film: that part loosened or dropped, so " +
-        "the sentence is true of both. A film arriving is no reason on its own, and the new words " +
+        "the sentence is true of both, and every other word left as they wrote it. A film arriving " +
+        "is no reason on its own, and the new words " +
         "never add what only that film has, or their reason for liking it — that stays in their " +
         "verdict; write it only on their yes to those words. A change " +
         "that would make it a different evening is a new vibe, not a reworded one, and so is one " +
@@ -1465,7 +1466,8 @@ const VIBE_REQUIRED_NEXT =
   "the sentence part by part against its core and this film: if every part is true of both, it " +
   "stays as it is, since a film arriving is no reason on its own to change it; if a part is " +
   "true of the core alone while the film still belongs to that evening, show them the exact " +
-  "minimal new wording — one its core still fits wholly — that part loosened or dropped, adding " +
+  "minimal new wording — one its core still fits wholly — that part loosened or dropped and " +
+  "every other word left as they wrote it, adding " +
   "nothing only this film has and never their reason for liking it, its name and genres " +
   "unchanged and no film named in it, and change it with update_vibe only on their yes " +
   "to those words; if the part the film lacks is what that evening is about, it does not go " +
