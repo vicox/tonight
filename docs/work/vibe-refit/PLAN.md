@@ -105,3 +105,35 @@ Two fixtures, `m5-08-refit` and `m5-09-refit-kept` (`m5/README.md`, *The Vibe-re
 
 Scored by `m5/rubric.md`, *A film for one of their Vibes* (R1–R4), on DeepSeek; the report is
 `BEHAVIOR.md` beside this file.
+
+**Recorded** on DeepSeek `deepseek-v4-pro` — the model the API reported on all 143 requests —
+with a dev-only `web/.env.local` (in-memory database) and the key from opencode's credential
+store: 15 runs at `2785f86`, then at `203c35f` the wording scenario again (3), recommend-only (2)
+and the regression set (6), 26 runs and 49 turns in all.
+
+- **Core:** offered 10 of 10 times for a loved Before Sunrise beside a liked Before Sunset —
+  plugin, recommend-only and the kept path — always named against Before Sunset, which stays;
+  every yes one `update_vibe` with `core` (7 of 7); *"leave Before Sunset as the main one"*
+  filed it and changed no core (3 of 3).
+- **Wording:** none offered where the sentence is true of both (0 of 10); offered 7 of 7 where
+  only the core has the detail, never adding the new film's or their reason, never a core offer
+  for a liked film. Minimal in 6 of 7 — one run changed *after dark* too, fixed in `203c35f`
+  (*every other word left as they wrote it*, in `next` and `update_vibe`); 4 of 4 after it.
+- **The rewording trap held** in 5 of 5 `bloom-clever` runs.
+- **Not this change:** T1.6 presentation failures, chiefly an illustration film said to belong to
+  the one-film Vibe recommended (5 runs — *vibe-all-covers*' rule, worth its own change), and
+  the regression set's three base weaknesses (no film in the recorded `what-tonight` answer,
+  the onboarding `hi`, the kept path's K1.3).
+
+## 6. Review
+
+**Codex review — READY (`2785f86`).** Codex (`codex/2770f608`, through Relay) found no P1/P2/P3:
+the skill, `next`, `update_vibe` and recommend agree; the write sequence matches the store
+(`update_vibe` with `core` saves and files the film and keeps the old core); not adding a kept
+`record_verdict` hint matches the recommend-only contract; the fixtures and rubric are sound.
+Codex ran vibes bash 201/201, recommend bash 266/266, `chatgpt-plugin/test.sh` 37/37, and the
+four changed TypeScript suites 140/140.
+
+**After the behavior runs, `203c35f`** — the one finding came from DeepSeek, not the review: a
+new wording changed a word it did not need to. **Codex re-review — READY**, no findings, the four
+suites 140/140.
