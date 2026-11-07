@@ -78,7 +78,7 @@ test("the landing page says what it was approved to say", () => {
   );
   assert.match(
     page,
-    /<h3 className="[^"]*"> I&apos;ve got just the thing\. <\/h3>/,
+    /<h3 className="[^"]*"> I&apos;ve got a surprise for you\. <\/h3>/,
     "the reply's heading is not the approved line",
   );
 
@@ -86,7 +86,7 @@ test("the landing page says what it was approved to say", () => {
     "Your personal movie AI. It remembers what you love, understands why, and helps you find what to watch next.",
     "Example · Tonight in ChatGPT or Claude",
     "Anything for tonight?",
-    "I&apos;ve got just the thing.",
+    "I&apos;ve got a surprise for you.",
     "You loved Arrival for its quiet tension and the way its mystery slowly unfolds. I think Moon might be right up your alley. It has that same feeling of something bigger hiding beneath the surface.",
     "Or give me a mood and I’ll aim closer.",
     "Your taste. Your movie nights. Your AI.",
@@ -96,8 +96,13 @@ test("the landing page says what it was approved to say", () => {
     assert.ok(page.includes(words), `the landing page no longer says "${words}"`);
   }
 
-  // Replaced, not joined: the earlier caption and heading are not on the page.
-  for (const retired of ["Example, shortened", "with Tonight connected", "A little surprise for tonight."]) {
+  // Replaced, not joined: the earlier captions and headings are not on the page.
+  for (const retired of [
+    "Example, shortened",
+    "with Tonight connected",
+    "A little surprise for tonight.",
+    "just the thing",
+  ]) {
     assert.equal(page.includes(retired), false, `the landing page still says "${retired}"`);
   }
 });

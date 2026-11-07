@@ -107,7 +107,7 @@ function Landing() {
             </dt>
             <dd className="min-w-0">
               <h3 className="font-display text-[22px] leading-tight break-words text-ink">
-                I&apos;ve got just the thing.
+                I&apos;ve got a surprise for you.
               </h3>
               <p className="mt-2 text-[15px] leading-relaxed text-ink">
                 You loved Arrival for its quiet tension and the way its mystery slowly unfolds. I
