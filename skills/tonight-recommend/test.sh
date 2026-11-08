@@ -222,7 +222,7 @@ check "what they like is the Vibe's instruction; whether they liked a film is it
         '**No verdict, no *"you liked"* or *"you loved"***')" "True"
 check "a liked or loved core carries its Vibe's qualities only; any other film sits beside it" \
     "$(order_check '**How a film they liked or loved connects** is where it sits in the Vibe' \
-        '**Its core** is the film the Vibe was written from' \
+        '**Its core** is the film that best embodies the Vibe — the one it was written from, or one they chose since' \
         "that instruction's and no other, never what they said of another film beside it" \
         '**Any other film in it** gets the verdict and the Vibe side by side' \
         'never a reason for that film they did not give')" "True"
@@ -835,6 +835,14 @@ check "its offer: one recommendation and two concrete alternatives, an existing 
         'never a bare *"or I can make a new one"*' \
         'Where one of their Vibes fits, it is the recommendation' \
         'otherwise a new one is' 'the verdict is recorded again')" "True"
+# Vibe refit: the Vibe that fits may carry a new wording, only where part of its sentence is true
+# of its core alone, or a loved film as its core where the core is only liked — each on a yes.
+check "the Vibe that fits: a new wording or a loved film as its core, each only on a yes" \
+    "$(order_check 'Where one of their Vibes fits, it is the' 'recommendation — as it is' \
+        'with a minimal change to its sentence, where part of it is true of its core and not of this film' \
+        "for a film they loved where that Vibe's core stands only liked and this film embodies it wholly" \
+        'with this film as its core, the current one staying in it' \
+        'each only on their yes to exactly that' 'otherwise a new one is')" "True"
 # docs/work/vibe-hypotheses §17: the Vibe offer is 1.9.1's again — no hypotheses, no titles.
 check "none of the hypothesis or title machinery is back" \
     "$(grep -ciE 'three hypotheses|chosen by title|choose by title|the ones whose evening it is' "$SKILL")" "0"

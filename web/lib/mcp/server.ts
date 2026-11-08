@@ -647,10 +647,15 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "replaces the stored list rather than adding to it, and the list may never be empty. " +
         "Never reword their instruction on your own: the sentence is theirs, and what it means " +
         "is not yours to adjust. The one change you may propose is a minimal one — the exact new " +
-        "words, shown to them — when a film they like belongs to that same evening and the " +
-        "sentence does not yet cover it; write it only on their yes to those words. A change " +
+        "words, shown to them — when a film they like belongs to that same evening and part of " +
+        "the sentence is true of its core but not of that film: that part loosened or dropped, so " +
+        "the sentence is true of both, and every other word left as they wrote it. A film arriving " +
+        "is no reason on its own, and the new words " +
+        "never add what only that film has, or their reason for liking it — that stays in their " +
+        "verdict; write it only on their yes to those words. A change " +
         "that would make it a different evening is a new vibe, not a reworded one, and so is one " +
-        "its core would no longer fit wholly.\n\n" +
+        "its core would no longer fit wholly, or a film in it they like or love would no longer " +
+        "fit.\n\n" +
         "**Every one of these changes the whole vibe, so settle the whole vibe before you " +
         "call.** Work out what the result would be — the name it would then have, the sentence " +
         "it would then have, the genres it would then be built from, and what those genres' " +
@@ -666,8 +671,10 @@ export function tonightMcpServer(session: McpSession): McpServer {
         "user decide which they meant. Changing the rest to fit is rewording their sentence by " +
         "another route.\n\n" +
         "Passing core anchors the vibe on that film: a vibe whose core is null gets its first, " +
-        "or a vibe gets a film that embodies it better than its current core. Only with their " +
-        "yes. The film it replaces stays in the vibe as an ordinary member, and a core cannot be " +
+        "or a vibe gets a film that embodies it better than its current core — or a film they " +
+        "loved that embodies it wholly, where the current core stands only liked. Only with their " +
+        "yes: a verdict is a reason to offer the change, never to make it. The film it replaces " +
+        "stays in the vibe as an ordinary member, and a core cannot be " +
         "cleared — only replaced, or the vibe deleted.",
       inputSchema: z.object({
         name: vibeName.describe("The vibe to change, by its current name."),
@@ -1454,10 +1461,21 @@ const VIBE_REQUIRED_NEXT =
   "a fit on its own — recommend filing the film there, with two " +
   "concrete alternatives beside it and never a bare offer to make a new one: each another vibe " +
   "of theirs it fits, or a new vibe with a name, a sentence, its genres and this film as core — " +
-  "another evening the film could stand for; if it " +
-  "fits except that its sentence does not yet cover this film, show them the exact minimal new " +
-  "wording — one its core still fits wholly — and change it with update_vibe only on their yes " +
-  "to those words; where a new vibe would make sense too, offer both in the one offer — that " +
+  "another evening the film could stand for; " +
+  "every time, weigh that vibe's sentence and core for this film, inside the same offer — read " +
+  "the sentence part by part against its core and this film: if every part is true of both, it " +
+  "stays as it is, since a film arriving is no reason on its own to change it; if a part is " +
+  "true of the core alone while the film still belongs to that evening, show them the exact " +
+  "minimal new wording — one its core still fits wholly — that part loosened or dropped and " +
+  "every other word left as they wrote it, adding " +
+  "nothing only this film has and never their reason for liking it, its name and genres " +
+  "unchanged and no film named in it, and change it with update_vibe only on their yes " +
+  "to those words; if the part the film lacks is what that evening is about, it does not go " +
+  "there. If the film is loved and that vibe's core stands only liked, and the film embodies " +
+  "the vibe wholly as its sentence stands now, offer it as the core too, in the same offer, " +
+  "named against the current one, which stays in the vibe — never when the core is loved or " +
+  "has no verdict, nor for a film that fits only with a new wording, and never as a change made " +
+  "without their yes; where a new vibe would make sense too, offer both in the one offer — that " +
   "wording, and a new vibe offered as (2) offers one — say in one line which you would choose " +
   "and why, and let them choose; a reply that does not make clear which they chose is asked " +
   "about once before anything is written. A film that only partly fits a vibe does not go " +
@@ -1484,10 +1502,14 @@ const VIBE_REQUIRED_NEXT =
   "with its year alone, with nothing said about it; otherwise plain Markdown, each " +
   "alternative one line with its genres in passing and its two films. A new user's first films " +
   "keep the offer the vibes skill gives them. " +
-  "(3) On their yes, file it — " +
+  "(3) On their yes, write exactly the parts they agreed — a yes to part of the offer writes " +
+  "that part alone — and file it: " +
   "update_movie with its one vibe, create_movie with viewing seen-now or seen-before and its one " +
   "vibe for an unsaved film, or create_vibe with it as core and core.viewing, which files it in " +
-  "that new vibe alone; where they chose the new wording, update_vibe with it first — a watched film is " +
+  "that new vibe alone; where they chose the new wording, update_vibe with it first; where they " +
+  "chose it as that vibe's core, update_vibe with it as core — and core.viewing for an unsaved " +
+  "film — which files it there in place of update_movie or create_movie, the old core staying " +
+  "in the vibe — a watched film is " +
   `${SEEN_RULE}, and when they did not say when, that question goes into the one you put ` +
   "about the vibe; a yes that does not say when is them not saying: unless something they said " +
   "earlier placed it or the film already has a seen viewing, write seen-before, and never ask " +

@@ -29,5 +29,9 @@
   { "fixture": "m5-05-partial-fit", "prompt": "bloom-war-mega", "family": "liked-fits-german", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
   { "fixture": "m5-07-keep-no-fit", "prompt": "keep-dawn", "then": "yes", "family": "keep-no-fit", "considers": false, "sources": ["recommend-only", "plugin-skills"] },
   { "fixture": "m5-07-keep-no-fit", "prompt": "keep-dawn", "then": "no", "family": "keep-no-fit-declined", "considers": false, "sources": ["recommend-only", "plugin-skills"] },
-  { "fixture": "m5-07-keep-no-fit", "prompt": "hot-fuzz-talky", "family": "core-move", "considers": true, "sources": ["recommend-only", "plugin-skills"] }
+  { "fixture": "m5-07-keep-no-fit", "prompt": "hot-fuzz-talky", "family": "core-move", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-08-refit", "prompt": "loved-before-sunrise", "then": "yes", "family": "core-promotion", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-08-refit", "prompt": "loved-before-sunrise", "then": "keep-before-sunset", "family": "core-promotion-partial", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-08-refit", "prompt": "liked-only-god-forgives", "then": "yes", "family": "wording-refit", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-09-refit-kept", "prompt": "loved-before-sunrise", "then": "yes", "family": "kept-core-promotion", "considers": true, "sources": ["plugin-skills"] }
 ]

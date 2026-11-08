@@ -1,0 +1,49 @@
+{
+  "id": "m5-09-refit-kept",
+  "user": "google:eval-m5-09-refit-kept",
+  "title": "The same model, with the loved film already kept in the Vibe whose core they only liked",
+  "exists_for": ["kept-core-promotion"],
+  "construction_note": "docs/work/vibe-refit. m5-08's model, with Before Sunrise saved earlier as want-to-see and filed in Walk and Talk, with nothing said about it. A loved said now is kept at once — the film is filed — and says they watched it, so its viewing moves to seen-before in that turn. Walk and Talk is anchored on Before Sunset, which they only liked, and Before Sunrise embodies it wholly as its sentence stands: the kept path's one offer is Before Sunrise as its core, named against Before Sunset, which stays in it — and no new wording, since the sentence is true of both.",
+  "writes": true,
+  "model": {
+    "genres": [
+      { "name": "Talky", "instruction": "Films I watch for how people talk to each other; the plot can wait." },
+      { "name": "Romance", "instruction": "I like watching two people slowly fall for each other." },
+      { "name": "Neo-Noir", "instruction": "I like lonely people in cities at night, and the line somebody crosses." },
+      { "name": "Synth Score", "instruction": "I like a soundtrack of synthesisers that sets the mood more than the dialogue does." }
+    ],
+    "vibes": [
+      {
+        "name": "Walk and Talk",
+        "genres": ["Talky", "Romance"],
+        "instruction": "Two people, one long conversation as they walk, and nothing at stake but what they'll be to each other.",
+        "core": { "title": "Before Sunset", "year": 2004 }
+      },
+      {
+        "name": "Neon and Silence",
+        "genres": ["Neo-Noir", "Synth Score"],
+        "instruction": "Los Angeles after dark, a man who barely speaks, and a synth score doing the talking.",
+        "core": { "title": "Drive", "year": 2011 }
+      }
+    ],
+    "movies": [
+      { "title": "Before Sunset", "year": 2004, "vibes": ["Walk and Talk"], "viewing": "seen-before" },
+      { "title": "Drive", "year": 2011, "vibes": ["Neon and Silence"], "viewing": "seen-before" },
+      { "title": "Before Sunrise", "year": 1995, "vibes": ["Walk and Talk"], "viewing": "want-to-see" }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": { "title": "Before Sunset", "year": 2004 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "liked" }
+    },
+    {
+      "do": "verdict",
+      "film": { "title": "Drive", "year": 2011 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    }
+  ]
+}

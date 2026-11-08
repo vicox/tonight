@@ -1586,7 +1586,10 @@ test("a recommendation says why in their words, and never names a Vibe or a Genr
     ["whether they liked a film is its verdict",
       /\*\*Whether they liked a film\*\* is its standing verdict and nothing else/],
     ["no verdict, no liked or loved", /\*\*No verdict, no \*"you liked"\* or \*"you loved"\*\*\*/],
-    ["the core carries its Vibe's qualities", /\*\*Its core\*\* is the film the Vibe was written from, so it may carry that Vibe's qualities/],
+    // Vibe refit: a core can be replaced, so it is the film that best embodies the Vibe, not
+    // only the one it was written from.
+    ["the core carries its Vibe's qualities",
+      /\*\*Its core\*\* is the film that best embodies the Vibe — the one it was written from, or one they chose since — so it may carry that Vibe's qualities/],
     ["and no other film's", /that instruction's and no other, never what they said of another film beside it/],
     ["any other film sits beside the Vibe",
       /\*\*Any other film in it\*\* gets the verdict and the Vibe side by side/],
@@ -1673,8 +1676,72 @@ test("a refused liked is expected, offered with two concrete alternatives, and t
   assert.match(vibes, /If one fits, it is your recommendation: propose filing the film there/);
   assert.match(vibes, /\*\*Two concrete alternatives, always\.\*\* Whatever you recommend — an existing Vibe as 1 has it, the same Vibe with a new wording as 2 has it, or a new Vibe as 3 has it — comes with two meaningfully different alternatives beside it, and never a bare \*"or I can make a new one"\*/);
   assert.match(vibes, /Each is concrete: another of their Vibes the film fits, or a new Vibe — a name, a sentence and its Genres, any new Genre's meaning shown, with this film as its core/);
-  assert.match(vibes, /A film that fits well is proposed for filing, as 1 says, with its two alternatives and no new wording/);
+  assert.match(vibes, /A film that fits well, its Vibe's sentence true of it and of the core, is proposed for filing, as 1 says, with its two alternatives and no new wording/);
   assert.doesNotMatch(vibes, /with nothing more offered/, "a fitting Vibe is offered alone again");
+});
+
+test("vibe refit: a Vibe a liked or loved is offered for is weighed for it, and the two skills agree", () => {
+  /**
+   * docs/work/vibe-refit. A film filed in one of their Vibes never led to a new wording when it
+   * fitted confidently — the trigger read "the sentence does not yet cover it", which a
+   * confident fit answers — and a loved film never led to a core offer where the core was
+   * only liked: nothing in the flow pointed at the core. Both are now weighed every time, inside
+   * the one offer: the sentence part by part against the core and the film, changed only where a
+   * part is true of the core alone, never widened; and a loved film offered as the core of a
+   * Vibe whose core is only liked, the old core staying. Nothing is written without their yes.
+   */
+  const recommend = flatSkill();
+  const vibes = readFileSync(new URL("../../skills/tonight-vibes/SKILL.md", import.meta.url), "utf8").replace(/\s+/g, " ");
+
+  // Recommend, which a host may load alone, says the same in one sentence.
+  assert.match(recommend, /Where one of their Vibes fits, it is the recommendation — as it is; with a minimal change to its sentence, where part of it is true of its core and not of this film; or, for a film they loved where that Vibe's core stands only liked and this film embodies it wholly, with this film as its core, the current one staying in it — each only on their yes to exactly that; otherwise a new one is/);
+
+  // The vibes skill: step 1 weighs it every time, and step 2's trigger is a part true of the core alone.
+  assert.match(vibes, /If one fits, it is your recommendation: propose filing the film there — and, every time, weigh that Vibe's sentence and its core for this film, as \*Filing it in one of their Vibes\* says, inside the same offer/);
+  assert.match(vibes, /If the film belongs to that same evening and a part of the Vibe's sentence is true of its core but not of this film, show them the exact new wording/);
+  assert.doesNotMatch(vibes, /sentence just does not yet say what makes it fit/, "the old trigger, which a confident fit read as covered, is back");
+
+  const section = /### Filing it in one of their Vibes: its sentence and its core[^]*?(?=### What to consider, and what to offer)/.exec(vibes)?.[0] ?? "";
+  assert.ok(section, "the vibes skill has no rule for weighing a Vibe a film is offered for");
+  let at = 0;
+  for (const [what, marker] of [
+    ["whenever a liked or loved is offered for one of their Vibes", "Whenever a film they liked or loved is offered for one of their Vibes — the recommendation as 1 has it, that Vibe as an alternative, or a move for a kept one"],
+    ["every time", "before you make the offer, every time"],
+    ["parts of the one offer, never written without a yes", "both are parts of the one offer: never an offer of their own, never made after it, and never written without their yes"],
+    ["the sentence read part by part against both", "**Its sentence, for both films.** Read the Vibe's sentence part by part against its core and against this film"],
+    ["true of both: nothing offered", "**Every part true of both** → it stays as it is, and nothing about it is offered"],
+    ["a film arriving is no reason", "A film arriving is never a reason on its own to change their sentence"],
+    ["a part true of the core alone", "**A part true of the core alone** — a place, a time, a detail only that one film has — while this film belongs to the same evening without it → the exact new wording, as 2 says: that part loosened or dropped, the smallest change that makes the sentence true of both"],
+    ["what the evening is about is not loosened", "**The part it lacks is what the evening is about** → it is not that evening, and it is not filed there: go on to 3"],
+    ["only ever takes away", "A new wording only ever takes away what is true of the core alone"],
+    ["never the new film's, never their reason", "It never adds what is true of this film alone, and never their reason for liking it — that reason is theirs, in `because`, and a Vibe stretched to carry it loses it"],
+    ["never widened", "never the two added together, so it never widens the Vibe beyond what it meant"],
+    ["the core and every film they stand behind still fit; name and Genres kept", "It leaves the core fitting wholly, every film in it they liked or loved fitting still, and its name and Genres as they are"],
+    ["no film named", "It names no film"],
+    ["the core, when this one is loved", "**Its core, when this one is loved.** When this film is `loved` and the Vibe's core stands only `liked`, ask whether this film embodies the Vibe wholly"],
+    ["offered, named against the one that stays", "offer it as the core too, named against the current one: the film that anchors it now, that they loved this one, and that the current one stays in it"],
+    ["not when the core is loved or has no verdict", "Not when the core is loved or has no verdict of theirs"],
+    ["not for a liked film", "not when this film is only liked"],
+    ["not when it needs a new wording", "not when it fits only with a new wording"],
+    ["loved is the reason to ask, never the answer", "Loved is the reason to ask, never the answer"],
+    ["never automatic", "a core never changes because of a verdict alone"],
+    ["a yes to part writes that part", "a yes to part of it writes that part alone: a yes only to filing it is not a yes to the core"],
+    ["a decline is not offered again", "Whatever they turn down stays as it is, and is not offered again in this conversation"],
+  ] as [string, string][]) {
+    const found = section.indexOf(marker, at);
+    assert.ok(found >= 0, `the refit rule lost, or reordered: ${what}`);
+    at = found;
+  }
+
+  // The kept path: a move weighs its Vibe; a new core for a loved film where the core is only liked.
+  assert.match(vibes, /a move takes it out of the one it is in, and is offered as that, with that Vibe's sentence and core weighed for it as \*Filing it in one of their Vibes\* says/);
+  assert.match(vibes, /\*\*A new core for a Vibe\*\*, only when this film embodies the instruction better than the current one — or, for a film they loved in a Vibe whose core stands only liked, when it embodies it wholly, as \*Its core, when this one is loved\* says — and named against it/);
+  // One offer, never a second after the yes.
+  assert.match(vibes, /A new wording or a new core goes inside that one offer, never in a second one after it\./);
+  // Writing: a film agreed as the core is filed by update_vibe, and a new wording comes before the filing.
+  assert.match(vibes, /A film they agreed should anchor one of their Vibes is filed by `update_vibe` with it as `core` instead — with its `core\.viewing` if it is not saved yet — and the film that anchored it stays there/);
+  assert.match(vibes, /A film being filed as the core is filed by this call — and saved first, as its `core\.viewing` says, if it is not saved yet — so 3 writes nothing more for it/);
+  assert.match(vibes, /\*\*a new wording\*\* — `update_vibe` with exactly the sentence they agreed, before the film is filed under it, and in the same call as a new core where there is one/);
 });
 
 test("the offer after a liked is said briefly, in their terms, and the two skills agree", () => {

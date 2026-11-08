@@ -139,7 +139,7 @@ test("what the retired projection covered runs on recommend alone, and the lifec
   // The Vibe-offer runs that only the lifecycle can finish — a decline, the kept path —
   // are the plugin's too. The plain yes stays on both: on recommend alone the refusal's
   // own `next` is all the guidance there is.
-  const lifecycleOnly = ["second-turn", "going-through", "partial-fit-declined", "kept-new-vibe"];
+  const lifecycleOnly = ["second-turn", "going-through", "partial-fit-declined", "kept-new-vibe", "kept-core-promotion"];
   for (const one of scenarios) {
     assert.ok(!one.sources.includes("projection"), `${one.fixture}__${one.prompt} still runs on the projection`);
     assert.equal(new Set(one.sources).size, one.sources.length, `${one.fixture}__${one.prompt} lists a source twice`);
@@ -346,6 +346,73 @@ test("skill cleanup: a film to keep that no Vibe holds, proposed, and written on
   ] as const) {
     assert.match(rubric, row, `the rubric does not score ${what}`);
   }
+});
+
+test("vibe refit: a loved film offered as the core of a liked one, and a sentence only its core fits", () => {
+  // docs/work/vibe-refit. The two offers the change adds, each where it should and should not
+  // appear: a core change for a loved film where the core is only liked, and a new wording where
+  // the sentence names what only the core has — both inside the one offer, nothing without a yes.
+  const refit = scenarios.filter((one) => one.fixture === "m5-08-refit" || one.fixture === "m5-09-refit-kept");
+  assert.deepEqual(
+    refit.map((one) => [one.fixture, one.prompt, followUps(one).join(" → "), one.family, one.considers, [...one.sources].sort().join(", ")]),
+    [
+      ["m5-08-refit", "loved-before-sunrise", "yes", "core-promotion", true, "plugin-skills, recommend-only"],
+      ["m5-08-refit", "loved-before-sunrise", "keep-before-sunset", "core-promotion-partial", true, "plugin-skills, recommend-only"],
+      ["m5-08-refit", "liked-only-god-forgives", "yes", "wording-refit", true, "plugin-skills, recommend-only"],
+      ["m5-09-refit-kept", "loved-before-sunrise", "yes", "kept-core-promotion", true, "plugin-skills"],
+    ],
+  );
+  assert.equal(requests.get("loved-before-sunrise"), "I loved Before Sunrise.");
+  assert.equal(requests.get("liked-only-god-forgives"), "I really liked Only God Forgives.");
+  assert.equal(requests.get("keep-before-sunset"), "Yes, but leave Before Sunset as the main one.");
+
+  // The models: the Vibe a loved film fits is anchored on a film they only liked, and its
+  // sentence is true of both; the other is anchored on a film they loved, and its sentence
+  // names a city only that core has.
+  for (const id of ["m5-08-refit", "m5-09-refit-kept"]) {
+    const spec = fixtures.get(id)!;
+    assert.equal(spec.seed, undefined, `${id} must be reseeded through today's tools before every run`);
+    const judgement = (title: string) => spec.acts?.find((act) => act.film.title === title)?.said.judgement;
+    const walk = spec.model.vibes.find((vibe) => vibe.name === "Walk and Talk")!;
+    assert.deepEqual(walk.core, { title: "Before Sunset", year: 2004 });
+    assert.equal(judgement("Before Sunset"), "liked", `${id}: the core they would be offered to replace is not only liked`);
+    const neon = spec.model.vibes.find((vibe) => vibe.name === "Neon and Silence")!;
+    assert.deepEqual(neon.core, { title: "Drive", year: 2011 });
+    assert.equal(judgement("Drive"), "loved", `${id}: the control core is not loved`);
+    assert.match(neon.instruction, /^Los Angeles after dark/u, `${id}: the sentence no longer names what only its core has`);
+    // Nothing is said yet about either film a request is about.
+    for (const title of ["Before Sunrise", "Only God Forgives"]) {
+      assert.equal(spec.acts?.some((act) => act.film.title === title), false, `${id}: ${title} already has a verdict`);
+    }
+    assert.equal(spec.model.movies.some((movie) => movie.title === "Only God Forgives"), false);
+  }
+  assert.equal(fixtures.get("m5-08-refit")!.model.movies.some((movie) => movie.title === "Before Sunrise"), false);
+  assert.deepEqual(
+    fixtures.get("m5-09-refit-kept")!.model.movies.find((movie) => movie.title === "Before Sunrise"),
+    { title: "Before Sunrise", year: 1995, vibes: ["Walk and Talk"], viewing: "want-to-see" },
+  );
+
+  for (const family of ["core-promotion", "core-promotion-partial", "wording-refit", "kept-core-promotion"]) {
+    assert.ok(rubric.includes(`| ${family} |`), `the rubric has no row for ${family}`);
+  }
+  for (const [what, criterion] of [
+    ["one offer, never a second after the yes",
+      /A new wording or a new core is part of that offer — never a second\s+offer, and never one left for after the yes/],
+    ["the core offered, named against the one that stays",
+      /\*\*Filing in Walk and Talk is recommended, with Before Sunrise as its core\*\* — named against\s+Before Sunset, the film that anchors it now, and saying Before Sunset stays in it/],
+    ["no new wording where the sentence is true of both", /\*\*No new wording\*\*: the sentence is true of Before Sunrise as it stands/],
+    ["the exact new wording, the core's city loosened or dropped",
+      /\*\*Filing in Neon and Silence is recommended with the exact new wording\*\*, shown in full: \*Los\s+Angeles\* loosened or dropped/],
+    ["a safe wording: nothing of the new film's, no film named, name and Genres kept, the core fitting",
+      /\*\*The new wording is safe\*\*: it adds nothing only Only God Forgives has[^]*it names no\s+film, it keeps the name and the Genres, and Drive still fits it wholly/],
+    ["no core offer for a liked film, or where the core is loved", /\*\*No core offer\*\*: Only God Forgives is only liked, and Drive is loved/],
+    ["the kept path's core offer", /\*\*One offer: Before Sunrise as Walk and Talk's core\*\*, named against Before Sunset, which stays\s+in it/],
+    ["a yes to part writes that part alone", /\*\*A yes to part writes that part alone\*\*[^]*files\s+Before Sunrise and changes no core; the core is not offered again/],
+    ["the old core stays", /\*\*The old core stays\*\*: after any core change, Before Sunset is still in Walk and Talk/],
+  ] as const) {
+    assert.match(rubric, criterion, `the rubric does not score ${what}`);
+  }
+  assert.match(readme, /--only m5-08-refit,m5-09-refit-kept,m5-05-partial-fit__bloom-clever__then-yes --runs 3 --budget 30/);
 });
 
 test("the recommendation-only reading case runs on recommend alone (R3-1)", () => {

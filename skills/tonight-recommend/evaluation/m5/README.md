@@ -81,6 +81,19 @@ node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills \
 Its baseline is recorded at the commit that added the set, where the instructions and the server
 are those of `5231b1d`, and never at a later commit.
 
+**The Vibe-refit set** (`docs/work/vibe-refit`) is `m5-08-refit` and `m5-09-refit-kept`: a loved
+film offered as the core of a Vibe whose core they only liked — taken, or taken in part — a liked
+film whose Vibe's sentence names what only its core has, and the kept path's core offer. With the
+rewording trap of `m5-05-partial-fit` beside it, three runs each:
+
+```bash
+node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills --backend deepseek \
+  --only m5-08-refit,m5-09-refit-kept,m5-05-partial-fit__bloom-clever__then-yes --runs 3 --budget 30
+node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only --backend deepseek \
+  --only m5-08-refit__loved-before-sunrise__then-yes,m5-08-refit__liked-only-god-forgives__then-yes \
+  --runs 1 --budget 4
+```
+
 ## DeepSeek as the agent, and a baseline with today's harness
 
 `docs/work/vibe-hypotheses` §12.
