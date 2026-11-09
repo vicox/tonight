@@ -30,9 +30,11 @@ second*) and pointed at from every flow that finds a film its Vibe — a liked o
   not argument. The same evening in other words is that evening, and a new Vibe beside it would
   split one evening in two. A detail true of the core alone does not undo a connection (the refit
   weighs it).
-- **Not a connection:** a neighbour (a Genre, a word of the name, a setting, a period, a maker or
-  a cast in common); a Vibe made warm by the conversation (read back, recommended from, offered),
-  which is weighed like any other.
+- **Not a connection on its own:** a neighbour — a Vibe the film shares only a Genre, a word of the
+  name, a setting, a period, a maker or a cast with; what they share proves nothing either way,
+  since the Vibe that is its evening may share it too. A Vibe made warm by the conversation (read
+  back, recommended from, offered) is weighed like any other: having come up neither makes it the
+  evening nor rules it out.
 - **Neither side preferred:** no Vibe recommended because it exists, no new one because it is
   new. A real connection is the recommendation; otherwise the evening found first is the new Vibe
   recommended, never reshaped toward one of theirs.
@@ -83,5 +85,18 @@ the Space Genre — and `m5-11-discover-blind`, the same model without Alone Wit
 | `m5-10-discover__loved-interstellar` | neighbour | loved; a new Vibe recommended; neither Vibe of theirs offered as a fit |
 | `m5-11-discover-blind__liked-moon` | blind | the same request; Moon's own evening as the recommended new Vibe, never reshaped toward Zero-G Popcorn |
 | `m5-10-discover__space-vibe-about__then-liked-moon` | warm context | the neighbour read back as *"my space vibe"*, then Moon: as the real connection |
+| `m5-10-discover__alone-vibe-about__then-liked-moon` | warm context, control | Alone With It read back, then Moon: still recommended there — recency rules nothing out |
 
 Scored by `m5/rubric.md`, *Discover the Vibe first* (D1–D4). Not recorded in this change.
+
+## 6. Review
+
+**Codex code review 1 — NOT READY (`4d388f4`).** Codex (`codex/b0e3ddb4`, through Relay) ran
+vibes bash 216/216, recommend bash 271/271, `chatgpt-plugin/test.sh` 37/37 and the four changed
+TypeScript suites 143/143. **One P2:** surface overlap and recency read as exclusions — recommend
+said a Vibe that had just come up made *"a neighbour, never a fit"*, against tonight-vibes'
+*"weighed like any other"*, and the neighbour clauses in tonight-vibes and `next` were as
+categorical. **Fixed:** a shared Genre, name or surface is never a fit *on its own* and proves
+nothing either way; a Vibe having just come up *neither makes one nor rules one out* — in both
+skills and `next`, with pins refusing the old wording, and a warm-context control scenario
+(`discover-warm-fits`) where the Vibe just read back is the evening and is still recommended.

@@ -853,7 +853,8 @@ check "discover first: the evening from the film and their words, before any Vib
         'Where one of their Vibes is that evening')" "True"
 check "a neighbour or a warm Vibe is never a fit, and neither side is preferred" \
     "$(order_check '**The evening first, their Vibes second**' \
-        'A Genre, a name or a surface it shares with a Vibe, or a Vibe having just come up, makes a neighbour, never a fit' \
+        'A Genre, a name or a surface it shares with a Vibe is never a fit on its own — that alone makes a neighbour' \
+        'and a Vibe having just come up neither makes one nor rules one out' \
         'no Vibe is recommended because it exists, nor a new one because it is new' \
         'Where one of their Vibes is that evening')" "True"
 check "the saving flow: what kind of night first, then the Vibe that is that night" \
@@ -862,6 +863,10 @@ check "the saving flow: what kind of night first, then the Vibe that is that nig
         'and only then their Genres and Vibes, for the one that is that night' \
         'a Vibe it shares only a Genre, a name or a surface with is a neighbour, not that night' \
         'One genuinely fits')" "True"
+# Code review 1: a Vibe that just came up was "never a fit" here and "weighed like any other" in
+# tonight-vibes — recency and a shared surface decide nothing, either way.
+check "a Vibe that just came up is not excluded" \
+    "$(grep -ciE 'or a Vibe having just come up, makes' "$SKILL")" "0"
 check "neither the offer nor the saving flow reads the Vibes first any more" \
     "$(grep -ciE 'read the Genres and Vibes first|Where one of their Vibes fits|otherwise a new one is' "$SKILL")" "0"
 check "the rule names no film or Vibe of its evaluation" \

@@ -2,7 +2,7 @@
   "id": "m5-10-discover",
   "user": "google:eval-m5-10-discover",
   "title": "A Vibe that is a film's evening in other words, and a neighbour that shares its Genre",
-  "exists_for": ["discover-connection", "discover-neighbor", "discover-warm"],
+  "exists_for": ["discover-connection", "discover-neighbor", "discover-warm", "discover-warm-fits"],
   "construction_note": "docs/work/discover-vibe-first. Moon and Interstellar are absent on purpose: the requests introduce them. Alone With It is Moon's evening — one person, mostly alone, working through something nobody else can see — said without a word about space, on Genres that name none, and anchored on All Is Lost, at sea: the real connection. Zero-G Popcorn shares Moon's and Interstellar's setting through its Space Genre, and is neither film's evening: the neighbour. Interstellar is no Vibe's evening here. Both cores are loved, so no core is offered for Moon, and the sentence of Alone With It is true of All Is Lost and Moon alike, so no new wording is either.",
   "writes": true,
   "model": {

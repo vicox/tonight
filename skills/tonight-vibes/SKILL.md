@@ -213,11 +213,13 @@ not: the same evening said another way is that evening, and a new Vibe beside it
 evening in two. A detail of the sentence true of its core alone does not undo a connection —
 *Filing it in one of their Vibes* weighs that. Short of the same evening, there is no connection:
 
-- **A neighbour is not the evening.** A Genre, a word of the name, a setting, a period, a maker or
-  a cast the film shares with a Vibe makes that Vibe a neighbour, and a neighbour is never where
-  the film goes.
-- **Warm is not the evening either.** A Vibe the conversation has just been about — one you read
-  back, recommended from or offered — is weighed like any other.
+- **A neighbour is not the evening.** A Vibe the film shares only a Genre, a word of the name, a
+  setting, a period, a maker or a cast with is a neighbour, and a neighbour is never where the
+  film goes. What they share proves nothing either way: the Vibe that is its evening may share
+  them too.
+- **Warm decides nothing.** A Vibe the conversation has just been about — one you read back,
+  recommended from or offered — is weighed like any other: having come up neither makes it the
+  evening nor rules it out.
 - **Neither side is preferred.** A Vibe is never recommended because it exists, and a new one
   never because it is new: where the connection is real, that Vibe is the recommendation; where it
   is not, the evening you found is the new Vibe you recommend.

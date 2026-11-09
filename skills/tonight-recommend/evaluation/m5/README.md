@@ -98,14 +98,14 @@ node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only --ba
 `m5-11-discover-blind`: the evening a film was for them found first, then their Vibes — a real
 connection in other words (`liked-moon`), a neighbour that shares only a Genre
 (`loved-interstellar`), the same request with no Vibe that is its evening (blind), and the same
-request just after the neighbour was read back (warm context). Three runs each on the plugin, one
-on recommend alone:
+request just after the neighbour was read back (warm context) — or, its control, just after the
+Vibe that is its evening was. Three runs each on the plugin, one on recommend alone:
 
 ```bash
 node skills/tonight-recommend/evaluation/m5/run.mjs --source plugin-skills --backend deepseek \
-  --only m5-10-discover,m5-11-discover-blind --runs 3 --budget 15
+  --only m5-10-discover,m5-11-discover-blind --runs 3 --budget 21
 node skills/tonight-recommend/evaluation/m5/run.mjs --source recommend-only --backend deepseek \
-  --only m5-10-discover,m5-11-discover-blind --runs 1 --budget 5
+  --only m5-10-discover,m5-11-discover-blind --runs 1 --budget 7
 ```
 
 ## DeepSeek as the agent, and a baseline with today's harness

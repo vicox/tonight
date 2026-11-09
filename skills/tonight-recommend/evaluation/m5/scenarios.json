@@ -37,5 +37,6 @@
   { "fixture": "m5-10-discover", "prompt": "liked-moon", "family": "discover-connection", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
   { "fixture": "m5-10-discover", "prompt": "loved-interstellar", "family": "discover-neighbor", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
   { "fixture": "m5-11-discover-blind", "prompt": "liked-moon", "family": "discover-blind", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
-  { "fixture": "m5-10-discover", "prompt": "space-vibe-about", "then": "liked-moon", "family": "discover-warm", "considers": true, "sources": ["recommend-only", "plugin-skills"] }
+  { "fixture": "m5-10-discover", "prompt": "space-vibe-about", "then": "liked-moon", "family": "discover-warm", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-10-discover", "prompt": "alone-vibe-about", "then": "liked-moon", "family": "discover-warm-fits", "considers": true, "sources": ["recommend-only", "plugin-skills"] }
 ]

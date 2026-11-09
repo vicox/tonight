@@ -427,6 +427,7 @@ test("discover the Vibe first: a real connection, a neighbour, blind, and warm c
       ["m5-10-discover", "loved-interstellar", "", "discover-neighbor", true, "plugin-skills, recommend-only"],
       ["m5-11-discover-blind", "liked-moon", "", "discover-blind", true, "plugin-skills, recommend-only"],
       ["m5-10-discover", "space-vibe-about", "liked-moon", "discover-warm", true, "plugin-skills, recommend-only"],
+      ["m5-10-discover", "alone-vibe-about", "liked-moon", "discover-warm-fits", true, "plugin-skills, recommend-only"],
     ],
   );
   // No reason in either film request — a bare liked or loved is enough — and the warm turn names
@@ -434,6 +435,7 @@ test("discover the Vibe first: a real connection, a neighbour, blind, and warm c
   assert.equal(requests.get("liked-moon"), "I really liked Moon, the Sam Rockwell one.");
   assert.equal(requests.get("loved-interstellar"), "I loved Interstellar.");
   assert.equal(requests.get("space-vibe-about"), "What's my space vibe about again?");
+  assert.equal(requests.get("alone-vibe-about"), "What's my vibe about being on your own again?");
 
   // The models: the connection is in words that share nothing with the film's surface, and the
   // neighbour shares exactly its surface; the blind model is the same without the connection.
@@ -461,7 +463,7 @@ test("discover the Vibe first: a real connection, a neighbour, blind, and warm c
     assert.equal(full.acts?.find((act) => act.film.title === vibe.core!.title)?.said.judgement, "loved", `${vibe.name}'s core is not loved`);
   }
 
-  for (const family of ["discover-connection", "discover-neighbor", "discover-blind", "discover-warm"]) {
+  for (const family of ["discover-connection", "discover-neighbor", "discover-blind", "discover-warm", "discover-warm-fits"]) {
     assert.ok(rubric.includes(`| ${family} |`), `the rubric has no row for ${family}`);
   }
   for (const [what, criterion] of [
@@ -469,14 +471,17 @@ test("discover the Vibe first: a real connection, a neighbour, blind, and warm c
     ["the real connection recommended, never split by a new Vibe",
       /\*\*Filing Moon in Alone With It is recommended\.\*\*[^]*A new Vibe recommended for that evening instead fails: it\s+splits one evening in two/],
     ["the neighbour is not where it goes", /\*\*Zero-G Popcorn is not where it goes\*\*: it shares Moon's setting through its Space Genre and\s+nothing of its evening/],
-    ["warm is not a connection", /\*\*Warm is not a connection\*\*: on `discover-warm`, Zero-G Popcorn having just been read back/],
+    // Code review 1: recency decides nothing either way — the control, where the Vibe just read
+    // back is the evening, still recommends it.
+    ["warm decides nothing, either way",
+      /\*\*Warm decides nothing\*\*: on `discover-warm`, Zero-G Popcorn having just been read back[^]*on `discover-warm-fits`, Alone With It having just\s+been read back is still the recommendation/],
     ["a neighbour and no connection: a new Vibe", /\*\*D3 — a neighbour, and no connection\*\*[^]*\*\*A new Vibe is recommended\*\*, anchored on Interstellar/],
     ["blind: the film's own evening, never reshaped toward the neighbour",
       /\*\*D4 — blind\*\*[^]*it is Moon's own evening[^]*so does a recommended Vibe\s+reshaped toward it/],
   ] as const) {
     assert.match(rubric, criterion, `the rubric does not score ${what}`);
   }
-  assert.match(readme, /--only m5-10-discover,m5-11-discover-blind --runs 3 --budget 15/);
+  assert.match(readme, /--only m5-10-discover,m5-11-discover-blind --runs 3 --budget 21/);
 });
 
 test("the recommendation-only reading case runs on recommend alone (R3-1)", () => {

@@ -347,9 +347,10 @@ Three requests about a film, and they differ:
   kind of evening the film was for them — from the film and their words in this conversation,
   nobody asked why — before any Vibe of theirs is weighed; then read each Vibe's sentence, its
   Genres' instructions and its core for one that is that same evening, in their words rather than
-  yours. A Genre, a name or a surface it shares with a Vibe, or a Vibe having just come up, makes
-  a neighbour, never a fit; and no Vibe is recommended because it exists, nor a new one because it
-  is new. Where one of their Vibes is that evening, it is the recommendation — as it is; with a
+  yours. A Genre, a name or a surface it shares with a Vibe is never a fit on its own — that alone
+  makes a neighbour — and a Vibe having just come up neither makes one nor rules one out; no Vibe
+  is recommended because it exists, nor a new one because it is new. Where one of their Vibes is
+  that evening, it is the recommendation — as it is; with a
   minimal change to its sentence, where part of it is true of its core and not of this film; or,
   for a film they loved where that Vibe's core stands only liked and this film embodies it wholly,
   with this film as its core, the current one staying in it — each only on their yes to exactly

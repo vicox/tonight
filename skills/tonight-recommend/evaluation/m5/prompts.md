@@ -69,13 +69,15 @@ Walk and Talk as a film they wanted to see.
 `docs/work/discover-vibe-first`: on `m5-10-discover`, Alone With It is Moon's evening in words
 that say nothing of space, and Zero-G Popcorn shares only its Space Genre with Moon and
 Interstellar; `m5-11-discover-blind` is the same model without Alone With It. `space-vibe-about`
-makes Zero-G Popcorn the Vibe the conversation has just been about, before `liked-moon`.
+makes Zero-G Popcorn the Vibe the conversation has just been about, before `liked-moon`; its
+control, `alone-vibe-about`, makes it Alone With It, which is Moon's evening.
 
 | key | request |
 | --- | --- |
 | `liked-moon` | *"I really liked Moon, the Sam Rockwell one."* |
 | `loved-interstellar` | *"I loved Interstellar."* |
 | `space-vibe-about` | *"What's my space vibe about again?"* |
+| `alone-vibe-about` | *"What's my vibe about being on your own again?"* |
 
 ## A film to keep
 

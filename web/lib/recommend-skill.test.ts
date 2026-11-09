@@ -1771,8 +1771,11 @@ test("discover the Vibe first, recognize the connection second, and the two skil
   assert.match(rule, /each one's sentence, its Genres' instructions and its core — and ask whether one of them \*\*is\*\* that evening/);
   assert.match(rule, /the same evening said another way is that evening, and a new Vibe beside it would split one evening in two/);
   // Neighbour and warm context: neither is a connection.
-  assert.match(rule, /\*\*A neighbour is not the evening\.\*\* A Genre, a word of the name, a setting, a period, a maker or a cast the film shares with a Vibe makes that Vibe a neighbour/);
-  assert.match(rule, /\*\*Warm is not the evening either\.\*\* A Vibe the conversation has just been about — one you read back, recommended from or offered — is weighed like any other/);
+  // Code review 1: a shared surface or recency is no evidence either way — never a fit on its
+  // own, never a reason to rule out the Vibe that is the evening.
+  assert.match(rule, /\*\*A neighbour is not the evening\.\*\* A Vibe the film shares only a Genre, a word of the name, a setting, a period, a maker or a cast with is a neighbour/);
+  assert.match(rule, /What they share proves nothing either way: the Vibe that is its evening may share them too/);
+  assert.match(rule, /\*\*Warm decides nothing\.\*\* A Vibe the conversation has just been about — one you read back, recommended from or offered — is weighed like any other: having come up neither makes it the evening nor rules it out/);
   // Neither side preferred.
   assert.match(rule, /A Vibe is never recommended because it exists, and a new one never because it is new/);
 
@@ -1784,7 +1787,8 @@ test("discover the Vibe first, recognize the connection second, and the two skil
 
   // Recommend, which a host may load alone, says the same in its own words.
   assert.match(recommend, /\*\*The evening first, their Vibes second\*\*: settle what kind of evening the film was for them — from the film and their words in this conversation, nobody asked why — before any Vibe of theirs is weighed/);
-  assert.match(recommend, /A Genre, a name or a surface it shares with a Vibe, or a Vibe having just come up, makes a neighbour, never a fit; and no Vibe is recommended because it exists, nor a new one because it is new/);
+  assert.match(recommend, /A Genre, a name or a surface it shares with a Vibe is never a fit on its own — that alone makes a neighbour — and a Vibe having just come up neither makes one nor rules one out; no Vibe is recommended because it exists, nor a new one because it is new/);
+  assert.doesNotMatch(recommend, /or a Vibe having just come up, makes a neighbour/, "a Vibe that just came up is excluded again");
   assert.match(recommend, /first what kind of night it is, from the film and what they said about it, and only then their Genres and Vibes, for the one that is that night/);
 
   // What it replaced is gone from both.

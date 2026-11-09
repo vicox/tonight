@@ -270,13 +270,19 @@ check "a real connection: the same evening, read in its sentence, Genres and cor
 check "a detail true of the core alone is the refit's to weigh, not a missing connection" \
     "$(order_check 'A detail of the sentence true of its core alone does not undo a connection' \
         '*Filing it in one of their Vibes* weighs that')" "True"
-check "neighbour: a shared Genre, name, setting, period, maker or cast is never where it goes" \
+# Code review 1: a shared surface or a Vibe just talked about is no evidence either way — never a
+# fit on its own, and never a reason to rule out the Vibe that is the evening.
+check "neighbour: only a shared Genre, name, setting, period, maker or cast is never where it goes" \
     "$(order_check '**A neighbour is not the evening.**' \
-        'A Genre, a word of the name, a setting, a period, a maker or a cast the film shares with a Vibe makes that Vibe a neighbour' \
-        'a neighbour is never where the film goes')" "True"
-check "warm context: a Vibe the conversation was just about is weighed like any other" \
-    "$(order_check '**Warm is not the evening either.**' \
-        'A Vibe the conversation has just been about — one you read back, recommended from or offered — is weighed like any other')" "True"
+        'A Vibe the film shares only a Genre, a word of the name, a setting, a period, a maker or a cast with is a neighbour' \
+        'a neighbour is never where the film goes' \
+        'What they share proves nothing either way: the Vibe that is its evening may share them too')" "True"
+check "warm context: a Vibe the conversation was just about is weighed like any other, either way" \
+    "$(order_check '**Warm decides nothing.**' \
+        'A Vibe the conversation has just been about — one you read back, recommended from or offered — is weighed like any other' \
+        'having come up neither makes it the evening nor rules it out')" "True"
+check "a shared surface or a warm Vibe is never an exclusion" \
+    "$(grep -ciE 'Warm is not the evening|makes that Vibe a neighbour, and' "$SKILL")" "0"
 check "neither side preferred: never a Vibe for existing, never a new one for being new" \
     "$(order_check '**Neither side is preferred.**' \
         'A Vibe is never recommended because it exists, and a new one never because it is new' \

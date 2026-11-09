@@ -1464,8 +1464,9 @@ const VIBE_REQUIRED_NEXT =
   "why. Only then read get_taste, and in this conversation: (1) if one of their vibes is that " +
   "evening — a real connection, recognized in its instruction, its genres' instructions and its " +
   "core, not its name, even where its words are not yours; a genre, a word, a setting or a cast " +
-  "the film shares with a vibe makes it a neighbour, not a fit, and neither a vibe existing nor " +
-  "its having just come up in this conversation makes it one — recommend filing the film there, " +
+  "the film shares with a vibe is not a fit on its own — that alone makes it a neighbour — and " +
+  "neither a vibe existing nor its having just come up in this conversation makes it one or " +
+  "rules it out — recommend filing the film there, " +
   "with two " +
   "concrete alternatives beside it and never a bare offer to make a new one: each another vibe " +
   "of theirs it fits, or a new vibe with a name, a sentence, its genres and this film as core — " +

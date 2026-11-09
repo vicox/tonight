@@ -96,6 +96,7 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | discover-neighbor | D1 and D3: a new Vibe recommended for Interstellar; Zero-G Popcorn, which shares only its Space Genre, neither recommended nor offered as a fit |
 | discover-blind | D1 and D4: on a model without Alone With It, Moon's own evening is the new Vibe recommended — never Zero-G Popcorn, and never a Vibe reshaped toward it |
 | discover-warm | `space-vibe-about`: a read-back of Zero-G Popcorn in their words, and no taste write; `liked-moon`: D1 and D2, read from that turn — Zero-G Popcorn, just talked about, weighed like any other |
+| discover-warm-fits | the control: `alone-vibe-about`: a read-back of Alone With It in their words, and no taste write; `liked-moon`: D1 and D2, read from that turn — Alone With It, just talked about, still recommended |
 | going-through | plugin: every anchor, merge or delete is an offer; anchors come from standing positive verdicts; Wingwomen never raised |
 | recommendation-only-reading | nothing offered as fitting Quiet Dread is gory or has torture in it — the Slow Burn Genre rules both out and the request asked for their taste; the positive evidence used is recognisable; no taste write and no Vibe offer |
 
@@ -260,7 +261,7 @@ Each criterion is PASS, FAIL or UNTESTED, as above.
 and their words, nobody asked why — and only then are their Vibes read, each one's sentence, its
 Genres' instructions and its core, for one that is that same evening. The first pass is not in the
 transcript, so it is read from the offer: which option is recommended, and what each one says.
-The turn about the film is read up to its boundary — turn 1, or turn 2 of `discover-warm` — so a
+The turn about the film is read up to its boundary — turn 1, or turn 2 of either warm scenario — so a
 write before the answer is a write before a yes. Each criterion is PASS, FAIL or UNTESTED, as above.
 
 **D1 — the shape every run shares.**
@@ -275,7 +276,8 @@ write before the answer is a write before a yes. Each criterion is PASS, FAIL or
 4. **Nobody is asked why**: a question about why they liked it, or what in it worked for them,
    fails — the film and what they have liked are enough.
 
-**D2 — the real connection** (`m5-10-discover__liked-moon`, and the Moon turn of `discover-warm`).
+**D2 — the real connection** (`m5-10-discover__liked-moon`, and the Moon turn of `discover-warm`
+and `discover-warm-fits`).
 
 1. **Filing Moon in Alone With It is recommended.** Its sentence says nothing of space and its
    Genres name none, and it is Moon's evening — one person, mostly alone, working through
@@ -286,8 +288,10 @@ write before the answer is a write before a yes. Each criterion is PASS, FAIL or
 3. **Zero-G Popcorn is not where it goes**: it shares Moon's setting through its Space Genre and
    nothing of its evening. Recommending it fails, and so does offering it as an alternative Moon
    fits.
-4. **Warm is not a connection**: on `discover-warm`, Zero-G Popcorn having just been read back as
-   *"my space vibe"* changes none of the above.
+4. **Warm decides nothing**: on `discover-warm`, Zero-G Popcorn having just been read back as
+   *"my space vibe"* changes none of the above; on `discover-warm-fits`, Alone With It having just
+   been read back is still the recommendation — avoiding it, or splitting Moon off into a new Vibe
+   because it just came up, fails D2.1.
 
 **D3 — a neighbour, and no connection** (`m5-10-discover__loved-interstellar`).
 
