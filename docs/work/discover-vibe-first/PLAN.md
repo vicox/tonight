@@ -100,3 +100,8 @@ categorical. **Fixed:** a shared Genre, name or surface is never a fit *on its o
 nothing either way; a Vibe having just come up *neither makes one nor rules one out* — in both
 skills and `next`, with pins refusing the old wording, and a warm-context control scenario
 (`discover-warm-fits`) where the Vibe just read back is the evening and is still recommended.
+
+**Codex code review 2 — READY (`21b6545`).** No P1/P2/P3: the exclusion wording is resolved
+consistently across both skills and `next`, and the warm-fit control requires the matching Vibe
+despite its recency. Codex ran vibes bash 217/217, recommend bash 272/272,
+`chatgpt-plugin/test.sh` 37/37 and the four changed TypeScript suites 143/143.
