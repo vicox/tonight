@@ -377,7 +377,9 @@ const movieVibes = z
   .describe(
     "The exact name of the user's vibe this film belongs to, as a list of one — or an empty " +
       "list for none. A film is in one vibe at most, and a list naming two is refused. The vibe " +
-      "must already exist, and the film has to fit what its instruction says: a genre the film " +
+      "must already exist, and the film has to fit what its instruction says: the evening the " +
+      "film is — settled from the film and what they said about it before any vibe was weighed — " +
+      "is the one that vibe's instruction, genres and core describe. A genre the film " +
       "shares with a vibe never puts it there on its own. Passing this replaces what was there, " +
       "so naming another vibe moves the film; an empty list takes it out of its vibe — except " +
       "one it is the core of, which it cannot leave.",
@@ -1456,9 +1458,15 @@ const VIBE_REQUIRED_NEXT =
   "and a film is in one vibe at most. If `movie.viewing` is want-to-see, their liked says they " +
   "watched it: move it " +
   "with update_movie to seen-before (seen-now only if they placed it recently) now, before the " +
-  "offer, and say so. Read get_taste, then in this conversation: (1) if one of their vibes fits — " +
-  "judge by its instruction and genres, not its name; a genre the film shares with a vibe is not " +
-  "a fit on its own — recommend filing the film there, with two " +
+  "offer, and say so. Discover the vibe first: before you weigh any vibe of theirs, settle what " +
+  "kind of evening this film was for them — what watching it was like, from the film itself and " +
+  "everything they said about it in this conversation; no reason is needed, and never ask them " +
+  "why. Only then read get_taste, and in this conversation: (1) if one of their vibes is that " +
+  "evening — a real connection, recognized in its instruction, its genres' instructions and its " +
+  "core, not its name, even where its words are not yours; a genre, a word, a setting or a cast " +
+  "the film shares with a vibe makes it a neighbour, not a fit, and neither a vibe existing nor " +
+  "its having just come up in this conversation makes it one — recommend filing the film there, " +
+  "with two " +
   "concrete alternatives beside it and never a bare offer to make a new one: each another vibe " +
   "of theirs it fits, or a new vibe with a name, a sentence, its genres and this film as core — " +
   "another evening the film could stand for; " +
@@ -1479,8 +1487,9 @@ const VIBE_REQUIRED_NEXT =
   "wording, and a new vibe offered as (2) offers one — say in one line which you would choose " +
   "and why, and let them choose; a reply that does not make clear which they chose is asked " +
   "about once before anything is written. A film that only partly fits a vibe does not go " +
-  "there. (2) If none fits, " +
-  "offer one recommended new vibe and two meaningfully different alternatives — each a " +
+  "there. (2) If none is that evening, " +
+  "offer one recommended new vibe and two meaningfully different alternatives — the recommended " +
+  "one the evening you found first, never reshaped toward a vibe of theirs; each a " +
   "different evening the film could stand for, read from the film, their vibes and what they " +
   "have liked and anything they said about it, with a name, a sentence, their genres and this " +
   "film as core — and let their choice say which; never ask them why they liked it. Either way, " +

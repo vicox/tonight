@@ -805,8 +805,26 @@ test("no tool description shows its rule with a film, a vibe or a genre", async 
     /Paterson|Arrival|\bHeat\b|\bDune\b|Am[ée]lie/,
     /Space Tension|Puzzle Pressure|Small Town Secrets|Sci-Fi|\bAction\b|Slow burn/,
     /Smart, not heavy|Funny action|tension never lets up|quiet films|quiet, patient/,
+    /\bMoon\b|Interstellar|Guardians|All Is Lost|Alone With It|Zero-G Popcorn/,
   ]) {
     assert.equal(name.test(everything), false, `${name} is named in a tool description`);
+  }
+});
+
+test("a film is filed in the vibe that is its evening, found before any vibe is weighed", async () => {
+  // docs/work/discover-vibe-first: the saving call itself says it — the evening the film is comes
+  // from the film and what they said, before any vibe; a vibe is where it goes only when its
+  // instruction, genres and core describe that evening, and a shared genre never does.
+  const tools = await listTools(await tokenFor(someone()));
+  for (const name of ["create_movie", "update_movie"]) {
+    const vibes = ((tools.find((tool) => tool.name === name)?.inputSchema.properties?.vibes ?? {}) as {
+      description?: string;
+    }).description ?? "";
+    assert.match(
+      vibes,
+      /the film has to fit what its instruction says: the evening the film is — settled from the film and what they said about it before any vibe was weighed — is the one that vibe's instruction, genres and core describe\. A genre the film shares with a vibe never puts it there on its own\./u,
+      name,
+    );
   }
 });
 

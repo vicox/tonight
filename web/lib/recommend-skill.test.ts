@@ -616,7 +616,8 @@ test("saving a film classifies it, and may grow the model rather than bend it", 
 
   for (const [what, rule] of [
     ["to classify rather than fit", /Classify the film rather than fitting it to what is there/],
-    ["to look before deciding", /read the Genres and Vibes first/i],
+    ["to find what kind of night it is before reading the Vibes",
+      /first what kind of night it is, from the film and\s+what they said about it, and only then their Genres and Vibes, for the one that is that night/],
     ["to reuse a Genre that fits", /Reuse the Genres that (genuinely )?fit/],
     ["to propose one when none covers it", /for anything\s+uncovered, a new one/],
     ["and to create nothing before the yes", /\*\*Nothing is created before their yes\.\*\*/],
@@ -1169,7 +1170,7 @@ test("the write flow is stated whole: what may be written, where, and on whose y
     ["the Vibe question is classification, not permission",
       /is a classification, not a request for permission/],
     ["classify rather than fit", /Classify the film/],
-    ["read first", /read the Genres and Vibes first/i],
+    ["its night first, the Vibes only then", /first what kind of night it is[^]*and only then their Genres and Vibes/],
     ["one that fits is just saved", /save it there, say so in one sentence, ask nothing further/],
     ["never stretch a Vibe", /Never stretch a Vibe to avoid making one/],
     ["none fitting means not yet", /do not save the film yet/],
@@ -1672,8 +1673,8 @@ test("a refused liked is expected, offered with two concrete alternatives, and t
   assert.match(recommend, /Never file it into a Vibe without their yes either — not even one that fits/);
 
   // The offer, in both: a recommendation — an existing Vibe where one fits — and two concrete alternatives.
-  assert.match(recommend, /one recommendation and two meaningfully different alternatives, each concrete — named, with what it means — and never a bare \*"or I can make a new one"\*\. Where one of their Vibes fits, it is the recommendation/);
-  assert.match(vibes, /If one fits, it is your recommendation: propose filing the film there/);
+  assert.match(recommend, /one recommendation and two meaningfully different alternatives, each concrete — named, with what it means — and never a bare \*"or I can make a new one"\*\. \*\*The evening first, their Vibes second\*\*[^]*Where one of their Vibes is that evening, it is the recommendation/);
+  assert.match(vibes, /If one is that evening, it is your recommendation: propose filing the film there/);
   assert.match(vibes, /\*\*Two concrete alternatives, always\.\*\* Whatever you recommend — an existing Vibe as 1 has it, the same Vibe with a new wording as 2 has it, or a new Vibe as 3 has it — comes with two meaningfully different alternatives beside it, and never a bare \*"or I can make a new one"\*/);
   assert.match(vibes, /Each is concrete: another of their Vibes the film fits, or a new Vibe — a name, a sentence and its Genres, any new Genre's meaning shown, with this film as its core/);
   assert.match(vibes, /A film that fits well, its Vibe's sentence true of it and of the core, is proposed for filing, as 1 says, with its two alternatives and no new wording/);
@@ -1694,10 +1695,10 @@ test("vibe refit: a Vibe a liked or loved is offered for is weighed for it, and 
   const vibes = readFileSync(new URL("../../skills/tonight-vibes/SKILL.md", import.meta.url), "utf8").replace(/\s+/g, " ");
 
   // Recommend, which a host may load alone, says the same in one sentence.
-  assert.match(recommend, /Where one of their Vibes fits, it is the recommendation — as it is; with a minimal change to its sentence, where part of it is true of its core and not of this film; or, for a film they loved where that Vibe's core stands only liked and this film embodies it wholly, with this film as its core, the current one staying in it — each only on their yes to exactly that; otherwise a new one is/);
+  assert.match(recommend, /Where one of their Vibes is that evening, it is the recommendation — as it is; with a minimal change to its sentence, where part of it is true of its core and not of this film; or, for a film they loved where that Vibe's core stands only liked and this film embodies it wholly, with this film as its core, the current one staying in it — each only on their yes to exactly that; otherwise that evening, as a new one, is/);
 
   // The vibes skill: step 1 weighs it every time, and step 2's trigger is a part true of the core alone.
-  assert.match(vibes, /If one fits, it is your recommendation: propose filing the film there — and, every time, weigh that Vibe's sentence and its core for this film, as \*Filing it in one of their Vibes\* says, inside the same offer/);
+  assert.match(vibes, /If one is that evening, it is your recommendation: propose filing the film there — and, every time, weigh that Vibe's sentence and its core for this film, as \*Filing it in one of their Vibes\* says, inside the same offer/);
   assert.match(vibes, /If the film belongs to that same evening and a part of the Vibe's sentence is true of its core but not of this film, show them the exact new wording/);
   assert.doesNotMatch(vibes, /sentence just does not yet say what makes it fit/, "the old trigger, which a confident fit read as covered, is back");
 
@@ -1742,6 +1743,55 @@ test("vibe refit: a Vibe a liked or loved is offered for is weighed for it, and 
   assert.match(vibes, /A film they agreed should anchor one of their Vibes is filed by `update_vibe` with it as `core` instead — with its `core\.viewing` if it is not saved yet — and the film that anchored it stays there/);
   assert.match(vibes, /A film being filed as the core is filed by this call — and saved first, as its `core\.viewing` says, if it is not saved yet — so 3 writes nothing more for it/);
   assert.match(vibes, /\*\*a new wording\*\* — `update_vibe` with exactly the sentence they agreed, before the film is filed under it, and in the same call as a new core where there is one/);
+});
+
+test("discover the Vibe first, recognize the connection second, and the two skills agree", () => {
+  /**
+   * docs/work/discover-vibe-first. Step 1 read "an existing Vibe first", and the keep flow "read
+   * the Genres and Vibes first": the nearest Vibe was where a film went, and a Vibe of theirs was
+   * weighed before the film was. Now the evening the film was for them is settled first — from the
+   * film and their words, nobody asked why — and only then are their Vibes read, core included,
+   * for one that is that same evening. Four cases hold it: blind (the first pass starts from no
+   * Vibe), neighbour (a shared Genre or surface is never a fit), a real connection (the same evening
+   * in their words is used, not split by a new Vibe), and warm context (a Vibe just talked about is
+   * weighed like any other).
+   */
+  const recommend = flatSkill();
+  const vibes = readFileSync(new URL("../../skills/tonight-vibes/SKILL.md", import.meta.url), "utf8").replace(/\s+/g, " ");
+  const rule = /### Discover the Vibe first; recognize the connection second[^]*?(?=### When a liked or loved needs a Vibe)/.exec(vibes)?.[0] ?? "";
+  assert.ok(rule, "the vibes skill has no discover-first rule before the vibe_required offer");
+
+  // Blind, and grounded in their words: the first pass is the film as it was for them.
+  assert.match(rule, /Before you weigh any Vibe of theirs, settle what kind of evening this film was/);
+  assert.match(rule, /everything they said in this conversation, not only the last sentence/);
+  assert.match(rule, /where they gave none, the film and what they have liked are enough, and nobody is asked why/);
+  assert.match(rule, /it does not start from their Vibes' names or Genres, and it is not a search for the nearest one/);
+  assert.ok(rule.indexOf("**First, the film as it was for them.**") < rule.indexOf("**Then, the connection.**"));
+  // A real connection: the same evening, in their words, recognized — never split in two.
+  assert.match(rule, /each one's sentence, its Genres' instructions and its core — and ask whether one of them \*\*is\*\* that evening/);
+  assert.match(rule, /the same evening said another way is that evening, and a new Vibe beside it would split one evening in two/);
+  // Neighbour and warm context: neither is a connection.
+  assert.match(rule, /\*\*A neighbour is not the evening\.\*\* A Genre, a word of the name, a setting, a period, a maker or a cast the film shares with a Vibe makes that Vibe a neighbour/);
+  assert.match(rule, /\*\*Warm is not the evening either\.\*\* A Vibe the conversation has just been about — one you read back, recommended from or offered — is weighed like any other/);
+  // Neither side preferred.
+  assert.match(rule, /A Vibe is never recommended because it exists, and a new one never because it is new/);
+
+  // Every flow that finds a film its Vibe points at it.
+  assert.match(vibes, /1\. \*\*One of their Vibes, where it is that evening\.\*\* With the evening found first, read `get_taste`/);
+  assert.match(vibes, /the recommended one the evening you found first, never reshaped toward a Vibe of theirs/);
+  assert.match(vibes, /find the evening it was for them first, as \*Discover the Vibe first\* says, then read the model/);
+  assert.match(vibes, /Answer that question first, from the film and anything they said about it, as \*Discover the Vibe first\* says — and only then read the Genres and Vibes for the one that is that night/);
+
+  // Recommend, which a host may load alone, says the same in its own words.
+  assert.match(recommend, /\*\*The evening first, their Vibes second\*\*: settle what kind of evening the film was for them — from the film and their words in this conversation, nobody asked why — before any Vibe of theirs is weighed/);
+  assert.match(recommend, /A Genre, a name or a surface it shares with a Vibe, or a Vibe having just come up, makes a neighbour, never a fit; and no Vibe is recommended because it exists, nor a new one because it is new/);
+  assert.match(recommend, /first what kind of night it is, from the film and what they said about it, and only then their Genres and Vibes, for the one that is that night/);
+
+  // What it replaced is gone from both.
+  for (const [name, text] of [["recommend", recommend], ["vibes", vibes]] as const) {
+    assert.doesNotMatch(text, /An existing Vibe first|read the Genres and Vibes first|Where one of their Vibes fits/i, `${name} weighs their Vibes before the film again`);
+    assert.doesNotMatch(text, /\bMoon\b|Interstellar|Guardians|All Is Lost|Alone With It|Zero-G Popcorn/, `${name} names the evaluation's films or Vibes`);
+  }
 });
 
 test("the offer after a liked is said briefly, in their terms, and the two skills agree", () => {

@@ -64,6 +64,19 @@ Walk and Talk as a film they wanted to see.
 | `loved-before-sunrise` | *"I loved Before Sunrise."* |
 | `liked-only-god-forgives` | *"I really liked Only God Forgives."* |
 
+## The evening first, their Vibes second
+
+`docs/work/discover-vibe-first`: on `m5-10-discover`, Alone With It is Moon's evening in words
+that say nothing of space, and Zero-G Popcorn shares only its Space Genre with Moon and
+Interstellar; `m5-11-discover-blind` is the same model without Alone With It. `space-vibe-about`
+makes Zero-G Popcorn the Vibe the conversation has just been about, before `liked-moon`.
+
+| key | request |
+| --- | --- |
+| `liked-moon` | *"I really liked Moon, the Sam Rockwell one."* |
+| `loved-interstellar` | *"I loved Interstellar."* |
+| `space-vibe-about` | *"What's my space vibe about again?"* |
+
 ## A film to keep
 
 `docs/work/skill-cleanup`: a film they ask to keep, unseen, that no Vibe of theirs holds.

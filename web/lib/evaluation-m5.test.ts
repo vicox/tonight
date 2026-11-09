@@ -216,8 +216,8 @@ test("the Vibe-offer set: a yes and a decline where a Vibe fits, and the kept pa
     ["filing before a yes", /Filing the film before a yes is outcome 1/],
     // Skill compliance: the Vibe that fits is recommended with two concrete alternatives, never
     // alone or beside a bare "or a new one", and the expected refusal is apologised for nowhere.
-    ["an existing Vibe first, with two concrete alternatives",
-      /\*\*An existing Vibe first, with two concrete alternatives\.\*\*[^]*recommended[^]*two concrete alternatives beside it[^]*Filing offered alone, or beside a bare \*"or I can make a new one"\*, fails; whether the fit\s+is full or partial is the agent's judgement, never a number/],
+    ["the Vibe that is its evening, with two concrete alternatives",
+      /\*\*The Vibe that is its evening, with two concrete alternatives\.\*\*[^]*recommended[^]*two concrete alternatives beside it[^]*Filing offered alone, or beside a bare \*"or I can make a new one"\*, fails; whether the fit\s+is full or partial is the agent's judgement, never a number/],
     ["no apology for the expected refusal", /\*\*No apology\.\*\* `vibe_required` is the expected answer: the reply apologises for nothing and\s+reports no error/],
     // Vibe offer copy: the offer is short, and how Tonight keeps a liked is never in it.
     ["the offer said briefly, on T1", /6\. \*\*Said briefly, in their terms\.\*\* A short acknowledgement, and nothing about how Tonight keeps\s+things[^]*no Genre\s+explained at length; one simple question/],
@@ -413,6 +413,70 @@ test("vibe refit: a loved film offered as the core of a liked one, and a sentenc
     assert.match(rubric, criterion, `the rubric does not score ${what}`);
   }
   assert.match(readme, /--only m5-08-refit,m5-09-refit-kept,m5-05-partial-fit__bloom-clever__then-yes --runs 3 --budget 30/);
+});
+
+test("discover the Vibe first: a real connection, a neighbour, blind, and warm context", () => {
+  // docs/work/discover-vibe-first. The evening a film was for them is found first, and a Vibe of
+  // theirs is the recommendation only where it is that evening: recognized in other words, never
+  // a neighbour that shares a Genre, never the Vibe just talked about for that alone.
+  const discover = scenarios.filter((one) => one.fixture.startsWith("m5-10-discover") || one.fixture === "m5-11-discover-blind");
+  assert.deepEqual(
+    discover.map((one) => [one.fixture, one.prompt, followUps(one).join(" → "), one.family, one.considers, [...one.sources].sort().join(", ")]),
+    [
+      ["m5-10-discover", "liked-moon", "", "discover-connection", true, "plugin-skills, recommend-only"],
+      ["m5-10-discover", "loved-interstellar", "", "discover-neighbor", true, "plugin-skills, recommend-only"],
+      ["m5-11-discover-blind", "liked-moon", "", "discover-blind", true, "plugin-skills, recommend-only"],
+      ["m5-10-discover", "space-vibe-about", "liked-moon", "discover-warm", true, "plugin-skills, recommend-only"],
+    ],
+  );
+  // No reason in either film request — a bare liked or loved is enough — and the warm turn names
+  // the neighbour in their own words.
+  assert.equal(requests.get("liked-moon"), "I really liked Moon, the Sam Rockwell one.");
+  assert.equal(requests.get("loved-interstellar"), "I loved Interstellar.");
+  assert.equal(requests.get("space-vibe-about"), "What's my space vibe about again?");
+
+  // The models: the connection is in words that share nothing with the film's surface, and the
+  // neighbour shares exactly its surface; the blind model is the same without the connection.
+  const full = fixtures.get("m5-10-discover")!;
+  const blind = fixtures.get("m5-11-discover-blind")!;
+  for (const spec of [full, blind]) {
+    assert.equal(spec.seed, undefined, `${spec.id} must be reseeded through today's tools before every run`);
+    for (const title of ["Moon", "Interstellar"]) {
+      assert.equal(spec.model.movies.some((movie) => movie.title === title), false, `${spec.id}: ${title} is already saved`);
+      assert.equal(spec.acts?.some((act) => act.film.title === title), false, `${spec.id}: ${title} already has a verdict`);
+    }
+    const neighbour = spec.model.vibes.find((vibe) => vibe.name === "Zero-G Popcorn")!;
+    assert.ok(neighbour.genres.includes("Space"), `${spec.id}: the neighbour no longer shares the film's setting`);
+  }
+  assert.deepEqual(full.model.genres, blind.model.genres, "the blind model is not the same model without the connection");
+  assert.deepEqual(blind.model.vibes.map((vibe) => vibe.name), ["Zero-G Popcorn"]);
+  const connection = full.model.vibes.find((vibe) => vibe.name === "Alone With It")!;
+  assert.doesNotMatch(connection.instruction, /space|moon|star|planet|orbit|astronaut/i, "the connection is said in the film's surface words");
+  for (const genre of connection.genres) {
+    const instruction = full.model.genres.find((one) => one.name === genre)!.instruction;
+    assert.doesNotMatch(instruction, /space|earth|planet|station/i, `${genre} names the film's setting`);
+  }
+  // Both cores loved: no core is owed to a liked Moon, so a core offer is the agent's own error.
+  for (const vibe of full.model.vibes) {
+    assert.equal(full.acts?.find((act) => act.film.title === vibe.core!.title)?.said.judgement, "loved", `${vibe.name}'s core is not loved`);
+  }
+
+  for (const family of ["discover-connection", "discover-neighbor", "discover-blind", "discover-warm"]) {
+    assert.ok(rubric.includes(`| ${family} |`), `the rubric has no row for ${family}`);
+  }
+  for (const [what, criterion] of [
+    ["nobody asked why", /\*\*Nobody is asked why\*\*: a question about why they liked it/],
+    ["the real connection recommended, never split by a new Vibe",
+      /\*\*Filing Moon in Alone With It is recommended\.\*\*[^]*A new Vibe recommended for that evening instead fails: it\s+splits one evening in two/],
+    ["the neighbour is not where it goes", /\*\*Zero-G Popcorn is not where it goes\*\*: it shares Moon's setting through its Space Genre and\s+nothing of its evening/],
+    ["warm is not a connection", /\*\*Warm is not a connection\*\*: on `discover-warm`, Zero-G Popcorn having just been read back/],
+    ["a neighbour and no connection: a new Vibe", /\*\*D3 — a neighbour, and no connection\*\*[^]*\*\*A new Vibe is recommended\*\*, anchored on Interstellar/],
+    ["blind: the film's own evening, never reshaped toward the neighbour",
+      /\*\*D4 — blind\*\*[^]*it is Moon's own evening[^]*so does a recommended Vibe\s+reshaped toward it/],
+  ] as const) {
+    assert.match(rubric, criterion, `the rubric does not score ${what}`);
+  }
+  assert.match(readme, /--only m5-10-discover,m5-11-discover-blind --runs 3 --budget 15/);
 });
 
 test("the recommendation-only reading case runs on recommend alone (R3-1)", () => {

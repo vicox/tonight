@@ -92,6 +92,10 @@ scored as a miss: the lifecycle is `tonight-vibes`', which is not loaded there.
 | core-promotion-partial | R1 and R2 on turn 1; `keep-before-sunset`: Before Sunrise filed in Walk and Talk and the loved recorded again, and **no core change** — Before Sunset still its core, no `update_vibe` at all — and the core not offered again |
 | wording-refit | R1 and R3 on turn 1; `yes`: `update_vibe` on Neon and Silence with exactly the sentence shown, before Only God Forgives is filed there, its name, Genres and core unchanged; then the liked recorded again |
 | kept-core-promotion | R4 on turn 1; `yes`: `update_vibe` making Before Sunrise Walk and Talk's core, Before Sunset still in it, the sentence unchanged, and nothing else written |
+| discover-connection | D1 and D2 (below): Moon's evening recognized in Alone With It, never in Zero-G Popcorn, and no new Vibe split off it |
+| discover-neighbor | D1 and D3: a new Vibe recommended for Interstellar; Zero-G Popcorn, which shares only its Space Genre, neither recommended nor offered as a fit |
+| discover-blind | D1 and D4: on a model without Alone With It, Moon's own evening is the new Vibe recommended — never Zero-G Popcorn, and never a Vibe reshaped toward it |
+| discover-warm | `space-vibe-about`: a read-back of Zero-G Popcorn in their words, and no taste write; `liked-moon`: D1 and D2, read from that turn — Zero-G Popcorn, just talked about, weighed like any other |
 | going-through | plugin: every anchor, merge or delete is an offer; anchors come from standing positive verdicts; Wingwomen never raised |
 | recommendation-only-reading | nothing offered as fitting Quiet Dread is gory or has torture in it — the Slow Burn Genre rules both out and the request asked for their taste; the positive evidence used is recognisable; no taste write and no Vibe offer |
 
@@ -113,7 +117,7 @@ never a FAIL of what it would have shown.
    `liked`, `volunteered` and `because` = *"clever characters do smart things"*; it is answered
    `vibe_required`. Not calling it is a FAIL. Filing the film before a yes is outcome 1.
 2. **Zero taste writes** in turn 1, and the liked is never said to be saved.
-3. **An existing Vibe first, with two concrete alternatives.** One offer: filing Bloom in
+3. **The Vibe that is its evening, with two concrete alternatives.** One offer: filing Bloom in
    Champagne & Blueprints, recommended — with, at most, the exact minimal new wording for its
    sentence, written only on a yes to those words — and two concrete alternatives beside it, each
    another Vibe of theirs it fits or a new Vibe with a name, a sentence and its Genres and Bloom as
@@ -249,6 +253,58 @@ Each criterion is PASS, FAIL or UNTESTED, as above.
   Before Sunrise and changes no core; the core is not offered again.
 - **The old core stays**: after any core change, Before Sunset is still in Walk and Talk.
 - **The liked or loved is kept**: `record_verdict` again where it was refused.
+
+## Discover the Vibe first: how a run is scored
+
+`docs/work/discover-vibe-first`. The evening a film was for them is settled first — from the film
+and their words, nobody asked why — and only then are their Vibes read, each one's sentence, its
+Genres' instructions and its core, for one that is that same evening. The first pass is not in the
+transcript, so it is read from the offer: which option is recommended, and what each one says.
+The turn about the film is read up to its boundary — turn 1, or turn 2 of `discover-warm` — so a
+write before the answer is a write before a yes. Each criterion is PASS, FAIL or UNTESTED, as above.
+
+**D1 — the shape every run shares.**
+
+1. **The verdict, first**: `record_verdict` before any taste write — `liked` for *"I really liked
+   Moon"*, `loved` for *"I loved Interstellar"*, with no `because`, since they gave no reason —
+   answered `vibe_required`. Moon is Moon (2009): *"the Sam Rockwell one"* settles which, and a
+   question about which Moon fails.
+2. **Zero taste writes** in that turn, and the verdict never said to be saved.
+3. **One offer**: one recommendation and two concrete alternatives, said briefly, as T1.3, T1.5
+   and T1.6 say.
+4. **Nobody is asked why**: a question about why they liked it, or what in it worked for them,
+   fails — the film and what they have liked are enough.
+
+**D2 — the real connection** (`m5-10-discover__liked-moon`, and the Moon turn of `discover-warm`).
+
+1. **Filing Moon in Alone With It is recommended.** Its sentence says nothing of space and its
+   Genres name none, and it is Moon's evening — one person, mostly alone, working through
+   something nobody else can see. A new Vibe recommended for that evening instead fails: it
+   splits one evening in two.
+2. **No new wording and no core offer**: the sentence is true of All Is Lost and Moon alike, and
+   All Is Lost is loved. Either one offered fails.
+3. **Zero-G Popcorn is not where it goes**: it shares Moon's setting through its Space Genre and
+   nothing of its evening. Recommending it fails, and so does offering it as an alternative Moon
+   fits.
+4. **Warm is not a connection**: on `discover-warm`, Zero-G Popcorn having just been read back as
+   *"my space vibe"* changes none of the above.
+
+**D3 — a neighbour, and no connection** (`m5-10-discover__loved-interstellar`).
+
+1. **A new Vibe is recommended**, anchored on Interstellar, with two alternatives: no Vibe of
+   theirs is its evening. Zero-G Popcorn, recommended or offered as an alternative Interstellar
+   fits, fails — it shares only the Space Genre; Alone With It the same — Interstellar is not one
+   person, mostly alone.
+2. **No core offer and no new wording** for either Vibe of theirs: the film goes in neither.
+
+**D4 — blind** (`m5-11-discover-blind__liked-moon`: the same request, and no Alone With It).
+
+1. **A new Vibe is recommended**, anchored on Moon, and it is Moon's own evening — a person alone,
+   quiet, working through something — found from the film and not from the Vibe there is. Zero-G
+   Popcorn recommended, or offered as an alternative Moon fits, fails; so does a recommended Vibe
+   reshaped toward it — space as the point, a crew, wisecracks.
+2. **Read beside `m5-10-discover__liked-moon`**: the same evening, recognized there as Alone With
+   It and proposed here. Not scored on its own; the report says whether the two agree.
 
 ## Threshold
 
