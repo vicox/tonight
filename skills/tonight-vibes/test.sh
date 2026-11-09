@@ -236,6 +236,70 @@ check "a partial yes writes exactly the agreed part" \
     "$(order_check 'part of it' 'write exactly the part agreed, with their changes')" "True"
 
 echo
+echo "--- discover the Vibe first; recognize the connection second ---"
+
+# docs/work/discover-vibe-first. The evening a film was for them is found first, from the film and
+# their words, and only then compared with their Vibes — a Vibe of theirs is the recommendation only
+# where it is that same evening, never a neighbour, a warm one, or one that merely exists.
+check "the flow discovers the evening before it considers their Vibes" \
+    "$(order_check 'disliked / taking back a positive' \
+        'discover — the evening it was for them, from the film and their words; no Vibe weighed yet' \
+        'consider — get_taste')" "True"
+check "one rule, before the vibe_required offer, for every flow that finds a film its Vibe" \
+    "$(order_check '### The verdict' \
+        '### Discover the Vibe first; recognize the connection second' \
+        "Wherever a film's Vibe is found with them — a liked or loved answered \`vibe_required\`, one already kept, a film they ask you to keep — the evening comes before their Vibes" \
+        '### When a liked or loved needs a Vibe')" "True"
+check "blind: the first pass is the film as it was for them, before any Vibe is weighed" \
+    "$(order_check '**First, the film as it was for them.**' \
+        'Before you weigh any Vibe of theirs, settle what kind of evening this film was' \
+        'This pass is yours and stands on its own' \
+        "it does not start from their Vibes' names or Genres, and it is not a search for the nearest one" \
+        '**Then, the connection.** Only now read their Vibes')" "True"
+check "grounded in their words — all of this conversation's — and no reason is needed" \
+    "$(order_check 'grounded in what they said about it — everything they said in this conversation, not only the last sentence' \
+        'Their words lead where they gave any' \
+        'where they gave none, the film and what they have liked are enough, and nobody is asked why')" "True"
+check "a real connection: the same evening, read in its sentence, Genres and core, in their words" \
+    "$(order_check '**Then, the connection.**' \
+        "each one's sentence, its Genres' instructions and its core" \
+        'ask whether one of them **is** that evening' \
+        'already said in their words and embodied by the film that anchors it' \
+        'recognition rather than argument' \
+        'the same evening said another way is that evening, and a new Vibe beside it would split one evening in two')" "True"
+check "a detail true of the core alone is the refit's to weigh, not a missing connection" \
+    "$(order_check 'A detail of the sentence true of its core alone does not undo a connection' \
+        '*Filing it in one of their Vibes* weighs that')" "True"
+# Code review 1: a shared surface or a Vibe just talked about is no evidence either way — never a
+# fit on its own, and never a reason to rule out the Vibe that is the evening.
+check "neighbour: only a shared Genre, name, setting, period, maker or cast is never where it goes" \
+    "$(order_check '**A neighbour is not the evening.**' \
+        'A Vibe the film shares only a Genre, a word of the name, a setting, a period, a maker or a cast with is a neighbour' \
+        'a neighbour is never where the film goes' \
+        'What they share proves nothing either way: the Vibe that is its evening may share them too')" "True"
+check "warm context: a Vibe the conversation was just about is weighed like any other, either way" \
+    "$(order_check '**Warm decides nothing.**' \
+        'A Vibe the conversation has just been about — one you read back, recommended from or offered — is weighed like any other' \
+        'having come up neither makes it the evening nor rules it out')" "True"
+check "a shared surface or a warm Vibe is never an exclusion" \
+    "$(grep -ciE 'Warm is not the evening|makes that Vibe a neighbour, and' "$SKILL")" "0"
+check "neither side preferred: never a Vibe for existing, never a new one for being new" \
+    "$(order_check '**Neither side is preferred.**' \
+        'A Vibe is never recommended because it exists, and a new one never because it is new' \
+        'where the connection is real, that Vibe is the recommendation' \
+        'where it is not, the evening you found is the new Vibe you recommend')" "True"
+check "step 3's recommended Vibe is the evening found first, never reshaped toward theirs" \
+    "$(order_check '3. **Otherwise one recommended new Vibe and two meaningfully different alternatives**' \
+        'the recommended one the evening you found first, never reshaped toward a Vibe of theirs' \
+        'three different evenings the film could stand for')" "True"
+check "the kept path finds the evening first too" \
+    "$(order_check 'After a positive verdict that was kept — the film is already in a Vibe — find the evening it was for them first, as *Discover the Vibe first* says, then read the model')" "True"
+check "an existing Vibe is no longer first" \
+    "$(grep -ciE 'An existing Vibe first|an existing one where it fits' "$SKILL")" "0"
+check "the rule names no film or Vibe of its evaluation" \
+    "$(grep -cE '\bMoon\b|Interstellar|Guardians|All Is Lost|Alone With It|Zero-G Popcorn|Sam Rockwell' "$SKILL")" "0"
+
+echo
 echo "--- what to consider, and the asking budget ---"
 
 check "a kept film moves only to a Vibe it fits better, never for a shared Genre, offered as a move" \
@@ -292,9 +356,13 @@ check "vibe_required is expected: no apology, no error, and no filing of your ow
         'Nor is it a reason to file the film yourself' \
         'nothing is filed or created without their yes, not even in a Vibe that fits' \
         'Then, in this conversation, one offer')" "True"
-check "an existing Vibe first, read by its instructions" \
-    "$(order_check '1. **An existing Vibe first.**' \
-        "each Vibe's instruction and its Genres'" 'instructions, not the names')" "True"
+# Discover the Vibe first: step 1 is no longer "an existing Vibe first" — the evening is found
+# first, and a Vibe of theirs is read, core included, for whether it is that evening.
+check "step 1: one of their Vibes where it is that evening, read by its instructions and core" \
+    "$(order_check '1. **One of their Vibes, where it is that evening.**' \
+        'With the evening found first, read' \
+        "each Vibe's instruction, its Genres' instructions and its core, not the names" \
+        'as *Discover the Vibe first* says')" "True"
 check "a minimal change to a Vibe's sentence only when needed, and only on a yes to the exact words" \
     "$(order_check '2. **A minimal change, only when needed, and only on their yes.**' \
         'exact new wording — the smallest change that covers it' \
@@ -334,7 +402,7 @@ check "when both make sense: both in one offer, one recommended in a line, they 
 # Skill compliance: an existing Vibe that fits is the recommendation, never offered alone and never
 # beside a bare "or a new one" — two concrete alternatives, as step 3's new Vibe always had.
 check "an existing Vibe that fits is the recommendation, with two concrete alternatives beside it" \
-    "$(order_check '1. **An existing Vibe first.**' 'If one fits, it is your recommendation: propose filing the film' \
+    "$(order_check '1. **One of their Vibes, where it is that evening.**' 'If one is that evening, it is your recommendation: propose' 'filing the film' \
         '**Two concrete alternatives, always.**' \
         'an existing Vibe as 1 has it, the same Vibe with a new wording as 2 has it, or a new Vibe as 3 has it' \
         'comes with two meaningfully different alternatives beside it' \
@@ -350,8 +418,8 @@ check "a fitting Vibe is no longer offered with nothing beside it" \
 # answers — and a loved film never led to a core offer where the core was only liked. Both are
 # weighed every time, inside the one offer, and nothing is written without a yes.
 check "step 1 weighs the Vibe's sentence and core for the film, every time, inside the one offer" \
-    "$(order_check '1. **An existing Vibe first.**' \
-        'If one fits, it is your recommendation: propose filing the film' \
+    "$(order_check '1. **One of their Vibes, where it is that evening.**' \
+        'If one is that evening, it is your recommendation: propose' 'filing the film' \
         "and, every time, weigh that Vibe's sentence and its core for this film" \
         'as *Filing it in one of their Vibes* says, inside the same offer')" "True"
 check "step 2's trigger is a part of the sentence true of the core but not of this film" \
@@ -649,7 +717,16 @@ echo "--- keeping a film, and proposing a Vibe ---"
 
 check "which Vibe a kept film goes in is a classification" \
     "$(order_check 'not *"may I save this?"* but *"what kind of night' \
-        'Classify the film; do not fit it to what is there' 'Read the Genres and Vibes first')" "True"
+        'Classify the film; do not fit it to what is there')" "True"
+# Discover the Vibe first, in the saving flow: what kind of night it is comes first, from the film
+# and their words, and their Genres and Vibes only then — for the one that is that night.
+check "a kept film: its night first, from the film and their words, then the Vibes for that night" \
+    "$(order_check 'Classify the film; do not fit it to what is there' \
+        'Answer that question first, from the' 'film and anything they said about it, as *Discover the Vibe first* says' \
+        'and only then read the' 'Genres and Vibes for the one that is that night' \
+        '**One genuinely fits** — it is that night, not a neighbour → save it there')" "True"
+check "the saving flow no longer reads the Genres and Vibes first" \
+    "$(grep -ciE 'Read the Genres and Vibes first' "$SKILL")" "0"
 check "a Vibe that genuinely fits is used, and nothing further is asked" \
     "$(order_check 'One genuinely fits' 'ask nothing further')" "True"
 check "an existing Vibe is not a bucket, and its meaning is never widened to fit" \

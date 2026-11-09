@@ -33,5 +33,10 @@
   { "fixture": "m5-08-refit", "prompt": "loved-before-sunrise", "then": "yes", "family": "core-promotion", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
   { "fixture": "m5-08-refit", "prompt": "loved-before-sunrise", "then": "keep-before-sunset", "family": "core-promotion-partial", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
   { "fixture": "m5-08-refit", "prompt": "liked-only-god-forgives", "then": "yes", "family": "wording-refit", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
-  { "fixture": "m5-09-refit-kept", "prompt": "loved-before-sunrise", "then": "yes", "family": "kept-core-promotion", "considers": true, "sources": ["plugin-skills"] }
+  { "fixture": "m5-09-refit-kept", "prompt": "loved-before-sunrise", "then": "yes", "family": "kept-core-promotion", "considers": true, "sources": ["plugin-skills"] },
+  { "fixture": "m5-10-discover", "prompt": "liked-moon", "family": "discover-connection", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-10-discover", "prompt": "loved-interstellar", "family": "discover-neighbor", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-11-discover-blind", "prompt": "liked-moon", "family": "discover-blind", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-10-discover", "prompt": "space-vibe-about", "then": "liked-moon", "family": "discover-warm", "considers": true, "sources": ["recommend-only", "plugin-skills"] },
+  { "fixture": "m5-10-discover", "prompt": "alone-vibe-about", "then": "liked-moon", "family": "discover-warm-fits", "considers": true, "sources": ["recommend-only", "plugin-skills"] }
 ]

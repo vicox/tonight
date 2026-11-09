@@ -829,20 +829,48 @@ check "the offer is short, and explains nothing about how Tonight keeps it" \
         '**tonight-vibes** says how to find its Vibe with them, in a few short' \
         'lines that explain nothing about how Tonight keeps it: one recommendation' \
         'and two meaningfully different alternatives, each concrete')" "True"
-check "its offer: one recommendation and two concrete alternatives, an existing Vibe first" \
+check "its offer: one recommendation and two concrete alternatives, the Vibe that is its evening" \
     "$(order_check '**tonight-vibes** says how to find its Vibe with them' \
         'one recommendation and two meaningfully different alternatives, each concrete' \
         'never a bare *"or I can make a new one"*' \
-        'Where one of their Vibes fits, it is the recommendation' \
-        'otherwise a new one is' 'the verdict is recorded again')" "True"
+        'Where one of their Vibes is that evening, it is the recommendation' \
+        'otherwise that evening, as a new one, is' 'the verdict is recorded again')" "True"
 # Vibe refit: the Vibe that fits may carry a new wording, only where part of its sentence is true
 # of its core alone, or a loved film as its core where the core is only liked — each on a yes.
 check "the Vibe that fits: a new wording or a loved film as its core, each only on a yes" \
-    "$(order_check 'Where one of their Vibes fits, it is the' 'recommendation — as it is' \
+    "$(order_check 'Where one of their Vibes is that evening, it is the recommendation — as it is' \
         'with a minimal change to its sentence, where part of it is true of its core and not of this film' \
         "for a film they loved where that Vibe's core stands only liked and this film embodies it wholly" \
         'with this film as its core, the current one staying in it' \
-        'each only on their yes to exactly that' 'otherwise a new one is')" "True"
+        'each only on their yes to exactly that' 'otherwise that evening, as a new one, is')" "True"
+# docs/work/discover-vibe-first: recommend, which a host may load alone, says the rule itself — the
+# evening first, from the film and their words, then their Vibes for one that is that evening.
+check "discover first: the evening from the film and their words, before any Vibe is weighed" \
+    "$(order_check 'never a bare *"or I can make a new one"*' \
+        '**The evening first, their Vibes second**' \
+        'settle what kind of evening the film was for them — from the film and their words in this conversation, nobody asked why — before any Vibe of theirs is weighed' \
+        "then read each Vibe's sentence, its Genres' instructions and its core for one that is that same evening, in their words rather than yours" \
+        'Where one of their Vibes is that evening')" "True"
+check "a neighbour or a warm Vibe is never a fit, and neither side is preferred" \
+    "$(order_check '**The evening first, their Vibes second**' \
+        'A Genre, a name or a surface it shares with a Vibe is never a fit on its own — that alone makes a neighbour' \
+        'and a Vibe having just come up neither makes one nor rules one out' \
+        'no Vibe is recommended because it exists, nor a new one because it is new' \
+        'Where one of their Vibes is that evening')" "True"
+check "the saving flow: what kind of night first, then the Vibe that is that night" \
+    "$(order_check '**Which Vibe a kept film goes in** is a classification' \
+        'Classify the film rather than fitting it to what is there: first what kind of night it is, from the film and what they said about it' \
+        'and only then their Genres and Vibes, for the one that is that night' \
+        'a Vibe it shares only a Genre, a name or a surface with is a neighbour, not that night' \
+        'One genuinely fits')" "True"
+# Code review 1: a Vibe that just came up was "never a fit" here and "weighed like any other" in
+# tonight-vibes — recency and a shared surface decide nothing, either way.
+check "a Vibe that just came up is not excluded" \
+    "$(grep -ciE 'or a Vibe having just come up, makes' "$SKILL")" "0"
+check "neither the offer nor the saving flow reads the Vibes first any more" \
+    "$(grep -ciE 'read the Genres and Vibes first|Where one of their Vibes fits|otherwise a new one is' "$SKILL")" "0"
+check "the rule names no film or Vibe of its evaluation" \
+    "$(grep -cE '\bMoon\b|Interstellar|Guardians|All Is Lost|Alone With It|Zero-G Popcorn|Sam Rockwell' "$SKILL")" "0"
 # docs/work/vibe-hypotheses §17: the Vibe offer is 1.9.1's again — no hypotheses, no titles.
 check "none of the hypothesis or title machinery is back" \
     "$(grep -ciE 'three hypotheses|chosen by title|choose by title|the ones whose evening it is' "$SKILL")" "0"

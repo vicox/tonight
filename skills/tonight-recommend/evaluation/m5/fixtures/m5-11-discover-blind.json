@@ -1,0 +1,35 @@
+{
+  "id": "m5-11-discover-blind",
+  "user": "google:eval-m5-11-discover-blind",
+  "title": "The same Genres and the same neighbour, and no Vibe that is the film's evening",
+  "exists_for": ["discover-blind"],
+  "construction_note": "docs/work/discover-vibe-first. m5-10-discover without Alone With It and All Is Lost: the same four Genres, Zero-G Popcorn the only Vibe. The same request about Moon finds the same evening first — the film's, not the nearest Vibe's — and with no Vibe that is it, that evening is the new Vibe recommended, never Zero-G Popcorn, which shares only the Space Genre. Read beside m5-10-discover__liked-moon: there the evening is recognized as Alone With It, here it is proposed.",
+  "writes": true,
+  "model": {
+    "genres": [
+      { "name": "Slow Burn", "instruction": "Patient films that take their time and let the tension build quietly." },
+      { "name": "Character Study", "instruction": "Films that stay with one person and what is going on inside them." },
+      { "name": "Space", "instruction": "Films set off Earth — ships, stations, other planets." },
+      { "name": "Action Comedy", "instruction": "Big set pieces with jokes in between; I want to laugh and cheer." }
+    ],
+    "vibes": [
+      {
+        "name": "Zero-G Popcorn",
+        "genres": ["Space", "Action Comedy"],
+        "instruction": "Space as a playground: a ragtag crew, wisecracks, and a soundtrack to sing along to.",
+        "core": { "title": "Guardians of the Galaxy", "year": 2014 }
+      }
+    ],
+    "movies": [
+      { "title": "Guardians of the Galaxy", "year": 2014, "vibes": ["Zero-G Popcorn"], "viewing": "seen-before" }
+    ]
+  },
+  "acts": [
+    {
+      "do": "verdict",
+      "film": { "title": "Guardians of the Galaxy", "year": 2014 },
+      "told": "volunteered",
+      "said": { "about": "judgement", "judgement": "loved" }
+    }
+  ]
+}
